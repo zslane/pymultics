@@ -1,0 +1,66 @@
+Dynamic Linking
+---------------
+
+Currently, the dynamic linker performs its search procedure when call.x() or call.x.y()
+is encountered in code. x will only be found if:
+
+    a. There is a python module called x.py found in a directory in the search
+       paths, and an object within it called 'x' that is either:
+       
+       1. A SystemEntryPoint subclass
+       2. An EntryPoint subclass
+       3. A standard python function
+       
+    b. There is a standard python function called 'x' in any python module found
+       in >sdd. These functions are only 'known' to the dynamic linker because
+       it preloads them into its system function table at boot time. Right now
+       only >sdd>system_functions.py exists.
+       
+What this means is that in order for a user-written function to be found by the
+dynamic linker, it must reside in its own python module, with the same name as
+the function, in a directory in the search paths. There is presently no way to
+have a bunch of functions coded in an arbitrarily-named python module resolved by
+dynamic linking. For that, the dynamic linker's link() method would have to
+extend its activities to look in every python module in the search paths and
+try to resolve the name. This could be time-consuming if there are lots of such
+python modules.
+
+Invoking pure functions without 'call'
+--------------------------------------
+
+In order to make pure function calls more PL/I-like, the need for invoking the
+dynamic linker via 'call' needs to be eliminated. This can be accomplished with
+the 'declare' class and the injector recipe it uses. In order to make the
+distinction between pure functions and procedure calls more than just syntactic,
+procedure calls should be prevented from returning any values, just as they are
+in PL/I. Another means of returning data to the caller must be provided instead,
+and in PL/I that means is 'call by reference' parameters.
+
+Call by Reference
+-----------------
+
+Python's data object architecture does not make classic call-by-reference symantics
+possible for immutable data types, such as the basic scalar types. To compensate
+for this, a bit of extra machinery is required: the parameter class. A 'parameter'
+is a wrapper object that stores return data. A parameter object can be instantiated
+in the normal python way:
+
+    results = parameter()
+    
+or using the 'declare' class:
+
+    declare (results = parameter)
+    
+These two lines of code have the same effect, but the first is pythonic while the
+second is PL/I-like, which is useful for expressing an original PL/I program.
+
+Once a parameter object is created, it can be passed to any function which can then
+store return values in it, which will be available to the caller upon return:
+
+    declare (segment = parameter,
+             code    = parameter)
+             
+    call.hcs_.initiate(dir_name, file_name, segment, code)
+    if segment.ptr != nullptr() and code.val == 0:
+        ...success...
+        
