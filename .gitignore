@@ -1,1 +1,3 @@
 *.py[cod]
+multics/hardware/.hardware_state
+multics/filesystem/pdd/*

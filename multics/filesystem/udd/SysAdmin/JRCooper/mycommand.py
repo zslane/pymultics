@@ -9,7 +9,9 @@ class MyData(object):
     def __repr__(self):
         return "<MyData x:%d, y:%d, z:%d>" % (self.x, self.y, self.z)
         
-declare (clock = entry)
+declare (clock           = entry.returns,
+         unique_name_    = entry.returns,
+         active_function = entry.returns)
 
 def mycommand():
 
@@ -19,9 +21,9 @@ def mycommand():
     call.test_.func1()
     x = clock()
     call.ioa_("clock() = {0}", x)
-    s = call.unique_name_(x)
+    s = unique_name_(x)
     call.ioa_("shriekname is {0}", s)
-    call.active_function()
+    active_function()
     
     dirname = ">udd>SysAdmin>JRCooper"
     filename = "test.data"
@@ -53,8 +55,9 @@ def mycommand():
         call.ioa_("Error creating {0}>{1}", dirname, filename)
         return
     call.ioa_("data = {0}", data())
-    data([1, 2, 3])
+    data([1, 2, 3, 4, 5, 6, 7, 8, 9])
     call.ioa_("data = {0}", data())
+    call.ioa_("data[0:6:2] = {0}", data[0:6:2])
     
     code = call.hcs_.delentry_seg(data)
     if code != 0:

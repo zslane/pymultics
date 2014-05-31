@@ -112,6 +112,9 @@ class SystemServices(QtCore.QObject):
         # end while
         self.__hardware.io.flush_input()
         
+    def set_input_mode(self, mode):
+        self.__hardware.io.set_input_mode(mode)
+        
     def make_timer(self, interval, callback):
         timer = SystemTimer(interval, callback)
         # self.__system_timers.append(timer)

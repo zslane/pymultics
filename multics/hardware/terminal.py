@@ -85,9 +85,14 @@ class TerminalIO(QtGui.QWidget):
         self.output.insertPlainText(txt)
         self.output.moveCursor(QtGui.QTextCursor.End)
         
+    @QtCore.Slot(int)
+    def setEchoMode(self, mode):
+        self.input.setEchoMode(QtGui.QLineEdit.EchoMode(mode))
+        
 class TerminalWindow(QtGui.QMainWindow):
 
     transmitString = QtCore.Signal(str)
+    setEchoMode = QtCore.Signal(int)
     heartbeat = QtCore.Signal()
     shutdown = QtCore.Signal()
     closed = QtCore.Signal()
@@ -97,6 +102,7 @@ class TerminalWindow(QtGui.QMainWindow):
         
         self.io = TerminalIO(self)
         self.transmitString.connect(self.io.display)
+        self.setEchoMode.connect(self.io.setEchoMode)
         self.shutdown.connect(self.io.shutdown)
         
         self.setCentralWidget(self.io)
@@ -105,6 +111,8 @@ class TerminalWindow(QtGui.QMainWindow):
         
         HEARTBEAT_PERIOD = 100
         self.timerid = self.startTimer(HEARTBEAT_PERIOD)
+        
+        self.move(100, 50)
     
     def timerEvent(self, event):
         self.heartbeat.emit()

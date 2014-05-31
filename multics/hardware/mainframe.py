@@ -143,6 +143,10 @@ class IOSubsystem(QtCore.QObject):
         self.__break_signal = False
         self.__linefeed = False
         
+    def set_input_mode(self, mode):
+        if self.__terminal:
+            self.__terminal.setEchoMode.emit(mode)
+        
     def put_output(self, s):
         if self.__terminal:
             self.__terminal.transmitString.emit(s)
@@ -276,6 +280,14 @@ class MemoryMappedIOPtr(object):
         setattr(self.__data, attrname, value)
         self._update_data(self.CACHE_OUT)
     
+    def __getitem__(self, key):
+        self._update_data(self.CACHE_IN)
+        return self.__data[key]
+        
+    def __setitem__(self, key, value):
+        self.__data[key] = value
+        self._update_data(self.CACHE_OUT)
+        
     def __call__(self, value=None):
         if value is None:
             self._update_data(self.CACHE_IN)

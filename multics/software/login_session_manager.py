@@ -36,6 +36,20 @@ class LoginSessionManager(QtCore.QThread):
     def login_db(self):
         return self.__login_db
         
+    def _add_user_to_login_db(self, user_id, login_time):
+        #== Add a session block to the LOGIN DB for this session
+        with MemoryMappedData(self.__login_db):
+            self.__login_db.session_blocks[user_id] = LoginSessionBlock(login_time)
+        # end with
+        pprint(self.__login_db)
+        
+    def _remove_user_from_login_db(self, user_id):
+        #== Remove the session block in the LOGIN DB corresponding to this session
+        with MemoryMappedData(self.__login_db):
+            del self.__login_db.session_blocks[user_id]
+        # end with
+        pprint(self.__login_db)
+        
     def run(self):
         self._initialize()
         self._main_loop()
@@ -48,12 +62,7 @@ class LoginSessionManager(QtCore.QThread):
         
     def kill(self):
         if self.__session:
-            #== Remove the session block in the LOGIN DB corresponding to this session
-            with MemoryMappedData(self.__login_db):
-                del self.__login_db.session_blocks[self.__session.user_id]
-            # end with
-            pprint(self.__login_db)
-            
+            self._remove_user_from_login_db(self.__session.user_id)
             self.__session.kill()
         # end if
     
@@ -88,6 +97,7 @@ class LoginSessionManager(QtCore.QThread):
             try:
                 state = self._user_login()
             except BreakCondition:
+                self.__system_services.set_input_mode(QtGui.QLineEdit.Normal)
                 call.hcs_.signal_break()
             # end try
             
@@ -103,17 +113,18 @@ class LoginSessionManager(QtCore.QThread):
             self.__system_services.llout(user_id + "\n")
         # end while
         self.__system_services.llout("password:\n")
+        self.__system_services.set_input_mode(QtGui.QLineEdit.Password)
         password = self.__system_services.llin(block=True)
+        self.__system_services.set_input_mode(QtGui.QLineEdit.Normal)
         
         self.__session = self._authenticate(user_id, password)
         if self.__session:
-            #== Add a session block to the LOGIN DB for this session
-            with MemoryMappedData(self.__login_db):
-                self.__login_db.session_blocks[self.__session.user_id] = LoginSessionBlock(self.__session.login_time)
-            # end with
-            pprint(self.__login_db)
+            self._add_user_to_login_db(self.__session.user_id, self.__session.login_time)
             
             code = self.__session.start()
+            
+            self._remove_user_from_login_db(self.__session.user_id)
+            self.__session = None
         else:
             code = System.INVALID_LOGIN
         return code

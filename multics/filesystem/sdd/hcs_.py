@@ -1,6 +1,9 @@
 
 from multics.globals import *
 
+declare (unique_name_ = entry.returns,
+         get_pdir_    = entry.returns)
+
 class hcs_(SystemExecutable):
     def __init__(self, system_services):
         super(hcs_, self).__init__(self.__class__.__name__, system_services)
@@ -19,8 +22,8 @@ class hcs_(SystemExecutable):
     #== DATA FILE I/O ==#
     
     def create_process_dir(self, process_id):
-        unique_process_dir_name = call.unique_name_(process_id)
-        multics_path, code = self.create_branch_(call.get_pdir_(), unique_process_dir_name)
+        unique_process_dir_name = unique_name_(process_id)
+        multics_path, code = self.create_branch_(get_pdir_(), unique_process_dir_name)
         if code == 0:
             return multics_path
         else:
@@ -36,11 +39,11 @@ class hcs_(SystemExecutable):
             
     def make_seg(self, dirname, segment_name, ClassType):
         if dirname == "":
-            dirname = call.get_pdir_()
+            dirname = get_pdir_()
         # end if
         
         if segment_name == "":
-            segment_name = call.unique_name_()
+            segment_name = unique_name_()
         # end if
             
         multics_path = dirname + ">" + segment_name

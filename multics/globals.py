@@ -84,7 +84,7 @@ def system_privileged(fn):
         my_globals={}
         my_globals.update(globals())
         my_globals['system'] = __system_services
-        call_fn = types.FunctionType(fn.func_code,my_globals)
+        call_fn = types.FunctionType(fn.func_code, my_globals)
         return call_fn(*args,**kw)
     decorated.__name__ = fn.__name__
     return decorated
@@ -101,11 +101,11 @@ class MemoryMappedData(object):
             self.__segment_data_ptr._update_data()
 
 class LinkageReference(object):
-    def __init__(self, name, dl):
-        self.dl = dl
+    def __init__(self, name, dynamic_linker):
+        self.dynamic_linker = dynamic_linker
         self.name = name
     def __call__(self, *args, **kwargs):
-        entry_point = self.dl.link(self.name)
+        entry_point = self.dynamic_linker.link(self.name)
         if entry_point:
             return entry_point(*args, **kwargs)
         else:
@@ -126,10 +126,10 @@ class Injector(object):
         Injector.inject_func(Injector.find_pframe(), fn_name, call)
         
     @staticmethod
-    def inject_func(pframe, name, dl):
+    def inject_func(pframe, name, dynamic_linker):
         if pframe:
-            # fn = lambda *args, **kwargs: dl.link(name)(*args, **kwargs)
-            fn = LinkageReference(name, dl)
+            # fn = lambda *args, **kwargs: dynamic_linker.link(name)(*args, **kwargs)
+            fn = LinkageReference(name, dynamic_linker)
             print "Injecting", fn, "into", pframe.f_globals['__name__'], "as", name
             pframe.f_globals.update({name:fn})
         # end if
@@ -163,6 +163,8 @@ def nullptr():
     
 class entry(object):
 
+    returns = 0
+    
     class options(object):
     
         variable = 0
@@ -188,8 +190,8 @@ class declare(object):
             if dcl_type is parameter:
                 #== Creates and injects a parm object
                 Injector.inject_parm(pframe, fn_name)
-            elif dcl_type in [entry, entry.options, entry.options.variable]:
-                #== Creates and injects an UnboundEntryPoint object
+            elif dcl_type in [entry.returns]:
+                #== Creates and injects a LinkageReference object
                 Injector.inject_func(pframe, fn_name, call)
         
 dcl = declare
