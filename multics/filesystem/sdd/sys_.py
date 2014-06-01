@@ -23,6 +23,9 @@ class sys_(SystemExecutable):
     def get_users(self, users):
         users.list = self.system.session_thread.login_db.session_blocks.keys()
 
+    def get_home_directory(self, home_dir):
+        home_dir.name = self.system.session_thread.session.homedir
+        
     def get_current_directory(self, current_dir):
         current_dir.name = self.system.session_thread.session.process.directory_stack[-1]
         
