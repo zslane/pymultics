@@ -5,34 +5,35 @@ import errno
 
 from multics.globals import *
 
+declare (unique_name_ = entry . returns (char('*')))
+
 class set_lock_(SystemExecutable):
     def __init__(self, system_services):
         super(set_lock_, self).__init__(self.__class__.__name__, system_services)
         
-    def lock(self, segment_data_ptr, wait_time):
+    def lock(self, segment_data_ptr, wait_time, code):
         self.system.session_thread.session.process.stack.assert_create("file_locks", dict)
         lock_id = segment_data_ptr.filepath
         if lock_id in self.system.session_thread.session.process.stack.file_locks:
-            return error_table_.locked_by_this_process
+            code.val = error_table_.locked_by_this_process
         try:
             process_id = self.system.session_thread.session.process.process_id
             file_lock = FileLock(segment_data_ptr, process_id, wait_time, self.system.session_thread.login_db)
-            code = file_lock.acquire()
+            code.val = file_lock.acquire()
             self.system.session_thread.session.process.stack.file_locks[lock_id] = file_lock
-            return code
         except FileLockException as e:
-            return e.code
+            code.val = e.code
         
-    def unlock(self, segment_data_ptr):
+    def unlock(self, segment_data_ptr, code):
         self.system.session_thread.session.process.stack.assert_create("file_locks", dict)
         lock_id = segment_data_ptr.filepath
         file_lock = self.system.session_thread.session.process.stack.file_locks.get(lock_id)
         if file_lock:
             file_lock.release()
             del self.system.session_thread.session.process.stack.file_locks[lock_id]
-            return 0
+            code.val = 0
         else:
-            return error_table_.lock_not_locked
+            code.val = error_table_.lock_not_locked
     
 class FileLockException(Exception):
 
@@ -52,7 +53,7 @@ class FileLock(object):
         dirname, filename = os.path.split(segment_data_ptr.filepath)
         self.is_locked = False
         self.lockfile = os.path.join(dirname, "%s.lock" % (filename))
-        self.lockidfile = os.path.join(dirname, "%s.lock.%s" % (filename, call.unique_name_(process_id)))
+        self.lockidfile = os.path.join(dirname, "%s.lock.%s" % (filename, unique_name_(process_id)))
         self.lockidglob = os.path.join(dirname, "%s.lock.*" % (filename))
         self.timeout = timeout
         self.login_db = login_db
@@ -109,7 +110,7 @@ class FileLock(object):
     
     def invalid_lock_id(self):
         session_blocks = self.login_db.session_blocks
-        valid_processes = [ call.unique_name_(session_block.process_id) for session_block in session_blocks.values() if session_block.process_id != self.process_id ]
+        valid_processes = [ unique_name_(session_block.process_id) for session_block in session_blocks.values() if session_block.process_id != self.process_id ]
         print valid_processes
         found = False
         for path in glob.glob(self.lockidglob):

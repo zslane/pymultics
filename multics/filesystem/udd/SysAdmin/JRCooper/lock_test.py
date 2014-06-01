@@ -1,31 +1,40 @@
 
 from multics.globals import *
 
+from query_info import *
+
 def lock_test():
+    declare (locktest_file = parm,
+             input         = parm,
+             segment       = parm,
+             code          = parm)
+    
     dirname = ">udd>SysAdmin>JRCooper"
     filename = "locktest"
     
     call.ioa_("Opening {0}>{1}", dirname, filename)
-    locktest_file = call.hcs_.initiate(dirname, filename)
+    call.hcs_.initiate(dirname, filename, segment)
+    locktest_file = segment.ptr
     if not locktest_file:
-        (locktest_file, code) = call.hcs_.make_seg(dirname, filename, str)
+        call.hcs_.make_seg(dirname, filename, segment("locktest"), code)
+        locktest_file = segment.ptr
         if not locktest_file:
             call.ioa_("Could not create {0}>{1}", dirname, filename)
             return
             
     call.ioa_("Locking {0}>{1}...", dirname, filename)
-    code = call.set_lock_.lock(locktest_file, 6)
-    if code != 0:
-        if code == error_table_.invalid_lock_reset:
+    call.set_lock_.lock(locktest_file, 6, code)
+    if code.val != 0:
+        if code.val == error_table_.invalid_lock_reset:
             call.ioa_("Invalid lock reset")
         else:
-            call.ioa_("Lock failed: {0}", code)
+            call.ioa_("Lock failed: {0}", code.val)
             return
     call.ioa_("...lock acquired")
         
-    call.ioa_.nnl("Hit Enter to unlock:")
-    call.command_query_()
-    code = call.set_lock_.unlock(locktest_file)
-    if code != 0:
-        call.ioa_("Unlock failed: {0}", code)
+    # call.ioa_.nnl("Hit Enter to unlock:")
+    call.command_query_(query_info_structure(), input, "lock_test", "Hit Enter to unlock:")
+    call.set_lock_.unlock(locktest_file, code)
+    if code.val != 0:
+        call.ioa_("Unlock failed: {0}", code.val)
         

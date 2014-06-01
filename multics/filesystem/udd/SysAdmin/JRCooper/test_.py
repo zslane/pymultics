@@ -11,3 +11,6 @@ class test_(Executable):
     def func1(self):
         call.ioa_("test_.func1() successfully called")
         
+    def func2(self, x):
+        return x * x
+        

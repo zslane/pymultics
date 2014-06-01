@@ -20,6 +20,10 @@ class SystemServices(QtCore.QObject):
     def __init__(self, hardware):
         super(SystemServices, self).__init__()
         
+        system_includes_path = os.path.join(hardware.filesystem.path2path(hardware.filesystem.system_dir_dir), "includes")
+        if system_includes_path not in sys.path:
+            sys.path.append(system_includes_path)
+        
         self.__hardware = hardware
         self.__dynamic_linker = DynamicLinker(self)
         self.__session_thread = None
@@ -115,8 +119,8 @@ class SystemServices(QtCore.QObject):
     def set_input_mode(self, mode):
         self.__hardware.io.set_input_mode(mode)
         
-    def make_timer(self, interval, callback):
-        timer = SystemTimer(interval, callback)
+    def make_timer(self, interval, callback, data=None):
+        timer = SystemTimer(interval, callback, data)
         # self.__system_timers.append(timer)
         self.__system_timers[(callback,)] = timer
         return timer
@@ -151,9 +155,10 @@ class SystemServices(QtCore.QObject):
     
 class SystemTimer(object):
 
-    def __init__(self, interval, callback_slot):
+    def __init__(self, interval, callback_slot, callback_args=None):
         self.__interval_time = interval # assumed to be in seconds
         self.__callback_slot = callback_slot
+        self.__callback_args = callback_args
         self.__alive = True
         self.__started = False
         
@@ -176,7 +181,10 @@ class SystemTimer(object):
         
     def check(self):
         if self.triggered():
-            self.__callback_slot()
+            if self.__callback_args is not None:
+                self.__callback_slot(self.__callback_args)
+            else:
+                self.__callback_slot()
         
     def triggered(self):
         if self.__started:
@@ -261,7 +269,7 @@ class DynamicLinker(QtCore.QObject):
         excluded_symbols = ["system_privileged"]
         native_path = self.__filesystem.path2path(self.__filesystem.system_dir_dir)
         for module_name, module_path in self.__filesystem.list_segments(native_path):
-            module = imp.load_source(module_name, module_path)
+            module = self._load_python_code(module_name, module_path)
             if module:
                 # print "checking for functions in", module_path
                 # print dir(module)
@@ -319,7 +327,7 @@ class DynamicLinker(QtCore.QObject):
                 # print module_path
                 if self.__filesystem.file_exists(module_path):
                     try:
-                        module = imp.load_source(segment_name, module_path)
+                        module = self._load_python_code(segment_name, module_path)
                     except:
                         #== Invalid python module...probably a syntax error...
                         self.dump_traceback_()
@@ -333,6 +341,9 @@ class DynamicLinker(QtCore.QObject):
             # end for
             return None
             
+    def unlink(self, segment_name):
+        self._unlink_segment(segment_name)
+        
     def _find_segment(self, segment_name):
         # print "Searching for segment", segment_name
         try:
@@ -347,3 +358,25 @@ class DynamicLinker(QtCore.QObject):
             except KeyError:
                 raise SegmentFault(segment_name)
 
+    def _unlink_segment(self, segment_name):
+        print "Unlinking segment", segment_name
+        try:
+            del self.__system_function_table[segment_name]
+            print "...removed from SFT"
+        except KeyError:
+            try:
+                del self.__known_segment_table[segment_name]
+                print "...removed from KST"
+            except KeyError:
+                raise SegmentFault(segment_name)
+    
+    def _load_python_code(self, module_name, module_path):
+        base_path, _ = os.path.split(module_path)
+        for ext in [".pyo", ".pyc"]:
+            compiled_module_path = os.path.join(base_path, ext)
+            if self.__filesystem.file_exists(compiled_module_path):
+                return imp.load_compiled(module_name, compiled_module_path)
+            # end if
+        # end for
+        return imp.load_source(module_name, module_path)
+        

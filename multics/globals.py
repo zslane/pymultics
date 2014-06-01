@@ -43,6 +43,7 @@ class error_table_:
     no_w_permission = -10
     lock_not_locked = -11
     locked_by_other_process = -12
+    noarg = -13
     
 class Executable(QtCore.QObject):
     def __init__(self, segment_name, fn=None):
@@ -109,7 +110,17 @@ class LinkageReference(object):
         if entry_point:
             return entry_point(*args, **kwargs)
         else:
-            raise Exception
+            raise SegmentFault(self.name)
+    def __getattr__(self, entry_point_name):
+        segment = self.dynamic_linker.link(self.name)
+        if segment:
+            try:
+                return getattr(segment, entry_point_name)
+            except:
+                raise LinkageError(entry_point_name)
+        else:
+            raise SegmentFault(self.name)
+        
     def __repr__(self):
         return "<%s.%s object %s>" % (__name__, self.__class__.__name__, self.name)
     
@@ -135,10 +146,14 @@ class Injector(object):
         # end if
         
     @staticmethod
-    def inject_parm(pframe, name):
+    def inject_parm(pframe, name, initial_value=None):
         if pframe:
-            p = parameter()
-            print "Injecting", p, "into", pframe.f_globals['__name__'], "as", name
+            p = parameter(initial_value)
+            if initial_value is not None:
+                with_init_string = "with initial value {0}".format(initial_value)
+            else:
+                with_init_string = ""
+            print "Injecting", p, "into", pframe.f_globals['__name__'], "as", name, with_init_string
             pframe.f_globals.update({name:p})
         # end if
         
@@ -161,26 +176,12 @@ class alloc(object):
 def nullptr():
     return None
     
-class entry(object):
-
-    returns = 0
-    
-    class options(object):
-    
-        variable = 0
-        
-        def __getattr__(self, attrname):
-            return 0
-            
-    def __getattr__(self, attrname):
-        return 0
-
 class declare(object):
     #== We only want declare objects for their side effects during construction. It
     #== is expected that the instantiated object won't even be assigned to anything.
     #== Example:
     #==
-    #==     declare (get_pdir = entry,
+    #==     declare (get_pdir = entry.returns (charstar),
     #==              acl_list = parm,
     #==              code     = parm)
     #==
@@ -190,13 +191,20 @@ class declare(object):
             if dcl_type is parameter:
                 #== Creates and injects a parm object
                 Injector.inject_parm(pframe, fn_name)
-            elif dcl_type in [entry.returns]:
+            elif type(dcl_type) is parameter_with_init:
+                Injector.inject_parm(pframe, fn_name, dcl_type.initial_value)
+            elif dcl_type.type == PL1.Function or dcl_type.type == PL1.Procedure:
                 #== Creates and injects a LinkageReference object
                 Injector.inject_func(pframe, fn_name, call)
         
 dcl = declare
 
+class parameter_with_init(object):
+    def __init__(self, initial_value):
+        self.initial_value = initial_value
+        
 class parameter(object):
+
     def __init__(self, initial_value=None):
         self.value = initial_value
         
@@ -221,6 +229,14 @@ class parameter(object):
             return self
         # end if
         
+    @staticmethod
+    def init(initial_value):
+        return parameter_with_init(initial_value)
+        
+    @staticmethod
+    def initialize(initial_value):
+        return parameter_with_init(initial_value)
+        
     # def __repr__(self):
         # s = str(self.value)
         # if len(s) > 50:
@@ -228,3 +244,5 @@ class parameter(object):
         # return "<%s.%s object: %s>" % (__name__, self.__class__.__name__, s[:51])
 
 parm = parameter
+
+from pl1types import *

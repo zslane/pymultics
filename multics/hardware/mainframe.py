@@ -180,11 +180,17 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             if not os.path.exists(native_path):
                 os.mkdir(native_path)
                 
-    def path2path(self, p):
+    def path2path(self, p, f=""):
         if ">" in p:
             p = p.replace(">", "\\").lstrip("\\")
             p = os.path.join(self.FILESYSTEMROOT, p)
+            if f:
+                p = os.path.join(p, f)
+            # end if
         elif "\\" in p:
+            if f:
+                p = os.path.join(p, f)
+            # end if
             p = p.replace(self.FILESYSTEMROOT, "").replace("\\", ">")
         return p
     

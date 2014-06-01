@@ -1,7 +1,12 @@
 
 from multics.globals import *
+from query_info import *
 
 def starrunners():
+    declare (cmd = parm)
+    
+    MAIN = "starrunners"
+    
     # call.ioa_("000000000+111111111+222222222+333333333+444444444+555555555+666666666+777777777+")
     # call.ioa_("1234567890"*8)
     #for i in range(20):
@@ -13,8 +18,8 @@ def starrunners():
     call.test_.func1()
     while True:
         call.ioa_.nnl("COMMAND> ")
-        cmd = call.command_query_()
-        if cmd == "q":
+        call.command_query_(query_info_structure(), cmd, MAIN)
+        if cmd.val == "q":
             break
         # print cmd
     # end while

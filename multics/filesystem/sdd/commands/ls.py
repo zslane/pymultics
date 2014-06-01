@@ -2,14 +2,20 @@
 from multics.globals import *
 
 def ls():
-    branch_list, segment_list, code = call.hcs_.get_directory_contents(call.sys_.get_current_directory())
-    if code == 0:
-        if len(branch_list) + len(segment_list) == 0:
+    declare (current_dir = parm,
+             branch      = parm,
+             segment     = parm,
+             code        = parm)
+             
+    call.sys_.get_current_directory(current_dir)
+    call.hcs_.get_directory_contents(current_dir.name, branch, segment, code)
+    if code.va == 0:
+        if len(branch.list) + len(segment.list) == 0:
             call.ioa_("Directory empty")
         else:
-            call.ioa_("{0} segments in directory:".format(len(segment_list)))
-            for branch in branch_list:
-                call.ioa_("  {0}".format(branch))
-            for segment in segment_list:
-                call.ioa_("  {0}".format(segment))
+            call.ioa_("{0} segments in directory:", len(segment.list))
+            for branch_name in branch.list:
+                call.ioa_("  {0}", branch_name)
+            for segment_name in segment.list:
+                call.ioa_("  {0}", segment_name)
     

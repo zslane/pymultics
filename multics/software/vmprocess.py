@@ -4,6 +4,8 @@ from ..globals import *
 
 from PySide import QtCore, QtGui
 
+declare (clock_ = entry . returns (fixed.bin(32)))
+
 class VirtualMulticsProcess(QtCore.QObject):
 
     def __init__(self, system_services, login_session):
@@ -42,11 +44,22 @@ class VirtualMulticsProcess(QtCore.QObject):
         return self.__command_shell
         
     def start(self):
-        self.__process_id = call.clock()
-        self.__process_dir = call.hcs_.create_process_dir(self.__process_id)
+        declare (process_dir  = parm,
+                 code         = parm,
+                 search_paths = parm)
+                 
+        self.__process_id = clock_()
+        call.hcs_.create_process_dir(self.__process_id, process_dir, code)
+        self.__process_dir = process_dir.name
+        if code.val != 0:
+            self.__system_services.llout("Failed to create process directory. Logging out.\n")
+            return System.LOGOUT
+        # end if
+        
         self._create_mbx()
         self.__login_session.register_process(self.__process_id, self.__process_dir)
-        self.__process_stack.search_paths = call.sys_.get_default_search_paths()
+        call.sys_.get_default_search_paths(search_paths)
+        self.__process_stack.search_paths = search_paths.list
         call.sys_.accept_messages_(True)
         
         #== Start the MBX process timer
@@ -61,11 +74,14 @@ class VirtualMulticsProcess(QtCore.QObject):
         self._cleanup()
     
     def _create_mbx(self):
-        self.__mbx, code = call.hcs_.make_seg(self.__process_dir, "process_mbx", ProcessMbx)
+        declare (segment = parm)
+        call.hcs_.make_seg(self.__process_dir, "process_mbx", segment(ProcessMbx()), code)
+        self.__mbx = segment.ptr
         print self.__mbx
         
     def _delete_mbx(self):
-        call.hcs_.delentry_seg(self.__mbx)
+        declare (code = parm)
+        call.hcs_.delentry_seg(self.__mbx, code)
         
     @QtCore.Slot()
     def _process_mbx(self):
@@ -94,10 +110,11 @@ class VirtualMulticsProcess(QtCore.QObject):
             self.__command_shell._on_condition__break()
         
     def _cleanup(self):
+        declare (code = parm)
         self.__command_shell = None
         call.timer_manager_.reset_alarm_call(self._process_mbx)
         self._delete_mbx()
-        call.hcs_.delete_branch_(self.__process_dir)
+        call.hcs_.delete_branch_(self.__process_dir, code)
         call.hcs_.clear_kst()
         
     def _dispatch_mbx_message(self, mbx_message):

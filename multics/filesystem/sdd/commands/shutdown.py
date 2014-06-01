@@ -3,20 +3,23 @@ import datetime
 from multics.globals import *
 
 def shutdown():
+    declare (cu_      = entry . returns (varying),
+             arg_list = parm)
+    
     message = ""
-    arg_list = call.cu_.arg_list()
-    if not arg_list:
+    call.cu_.arg_list(arg_list)
+    if not arg_list.args:
         shutdown_time = datetime.datetime.now() + datetime.timedelta(minutes=5)
     else:
         acceptible_units = ["minutes", "seconds"]
         i = 0
-        while arg_list:
-            arg = arg_list.pop(0)
+        while arg_list.args:
+            arg = arg_list.args.pop(0)
             i += 1
             if arg == "-in":
-                if len(arg_list) >= 2:
-                    amount = arg_list.pop(0)
-                    units = arg_list.pop(0)
+                if len(arg_list.args) >= 2:
+                    amount = arg_list.args.pop(0)
+                    units = arg_list.args.pop(0)
                     i += 2
                     if units not in acceptible_units:
                         call.ioa_("shutdown time units must be {0}", (" or ".join(acceptible_units)))
@@ -29,8 +32,8 @@ def shutdown():
                     return 0
                 # end if
             elif arg == "-m":
-                if arg_list:
-                    _, message = call.cu_.arg_string(i)
+                if arg_list.args:
+                    _, message = cu_.arg_string(i)
                     break
                 else:
                     call.ioa_("shutdown -m argument requires an argument")

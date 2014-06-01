@@ -2,6 +2,7 @@
 from multics.globals import *
 
 def pwd():
-    current_dir_name = call.sys_.get_current_directory()
-    call.ioa_(current_dir_name)
+    declare (current_dir = parm)
+    call.sys_.get_current_directory(current_dir)
+    call.ioa_(current_dir.name)
     

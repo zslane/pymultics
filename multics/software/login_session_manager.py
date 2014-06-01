@@ -4,6 +4,8 @@ from ..globals import *
 
 from PySide import QtCore, QtGui
 
+declare (hcs_ = entry . returns (varying))
+
 class LoginSessionManager(QtCore.QThread):
 
     def __init__(self, system_services):
@@ -74,13 +76,21 @@ class LoginSessionManager(QtCore.QThread):
         pprint(self.__login_db)
     
     def _initialize(self):
+        declare (process_dir = parm,
+                 segment     = parm,
+                 code        = parm)
+        
         self.__process_id = 0o777777000000
-        self.__process_dir = call.hcs_.create_process_dir(self.__process_id)
+        call.hcs_.create_process_dir(self.__process_id, process_dir, code)
+        self.__process_dir = process_dir.name
         
         #== Get a pointer to the LOGIN DB (create it if necessary)
-        self.__login_db = call.hcs_.initiate(self.__process_dir, "login_db")
+        call.hcs_.initiate(self.__process_dir, "login_db", segment)
+        self.__login_db = segment.ptr
         if not self.__login_db:
-            self.__login_db, code = call.hcs_.make_seg(self.__process_dir, "login_db", LoginDatabase)
+            call.hcs_.make_seg(self.__process_dir, "login_db", segment(LoginDatabase()), code)
+            self.__login_db = segment.ptr
+        # end if
         pprint(self.__login_db)
     
     def _main_loop(self):

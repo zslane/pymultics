@@ -7,7 +7,7 @@ def get_pdir_():
     return system.hardware.filesystem.process_dir_dir
 
 @system_privileged
-def clock():
+def clock_():
     return system.hardware.clock.current_time()
     
 __xlate_table = string.maketrans(string.hexdigits[:16], "BWrtxJNmwpHZbLqz")
