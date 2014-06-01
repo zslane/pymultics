@@ -26,7 +26,7 @@ def mycommand():
     call.test_.func1()
     call.ioa_("{0} squared = {1}", 5, test_.func2(5))
     x = clock_()
-    call.ioa_("clock() = {0}", x)
+    call.ioa_("clock_() = {0}", x)
     s = unique_name_(x)
     call.ioa_("shriekname is {0}", s)
     active_function()

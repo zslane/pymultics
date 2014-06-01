@@ -40,14 +40,14 @@ class LoginSessionManager(QtCore.QThread):
         
     def _add_user_to_login_db(self, user_id, login_time):
         #== Add a session block to the LOGIN DB for this session
-        with MemoryMappedData(self.__login_db):
+        with self.__login_db:
             self.__login_db.session_blocks[user_id] = LoginSessionBlock(login_time)
         # end with
         pprint(self.__login_db)
         
     def _remove_user_from_login_db(self, user_id):
         #== Remove the session block in the LOGIN DB corresponding to this session
-        with MemoryMappedData(self.__login_db):
+        with self.__login_db:
             del self.__login_db.session_blocks[user_id]
         # end with
         pprint(self.__login_db)
@@ -69,7 +69,7 @@ class LoginSessionManager(QtCore.QThread):
         # end if
     
     def register_process(self, user_id, process_id, process_dir):
-        with MemoryMappedData(self.__login_db):
+        with self.__login_db:
             self.__login_db.session_blocks[user_id].process_id = process_id
             self.__login_db.session_blocks[user_id].process_dir = process_dir
         # end with

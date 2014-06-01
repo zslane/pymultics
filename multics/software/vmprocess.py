@@ -88,7 +88,7 @@ class VirtualMulticsProcess(QtCore.QObject):
         if self.__mbx.messages:
             call.timer_manager_.reset_alarm_call(self._process_mbx)
             #== Process mbx messages one per timer trigger
-            with MemoryMappedData(self.__mbx):
+            with self.__mbx:
                 next_message = self.__mbx.messages.pop(0)
             # end with
             self._dispatch_mbx_message(next_message)

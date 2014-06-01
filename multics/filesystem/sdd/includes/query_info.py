@@ -2,6 +2,18 @@
 query_info_version_5 = 5
 
 class query_info_structure(object):
+    __slots__ = [
+        "version",
+        "yes_or_no_sw",
+        "suppress_name_sw",
+        "suppress_spacing",
+        "literal_sw",
+        "prompt_after_explanation",
+        "explanation",
+        "echo_answer_sw",
+        "repeat_time",
+    ]
+    
     def __init__(self):
         self.version = query_info_version_5
         self.yes_or_no_sw = False

@@ -77,7 +77,7 @@ class sys_(SystemExecutable):
             session_block = self.system.session_thread.login_db.session_blocks[recipient]
             call.hcs_.initiate(session_block.process_dir, "process_mbx", segment)
             process_mbx = segment.ptr
-            with MemoryMappedData(process_mbx):
+            with process_mbx:
                 process_mbx.messages.append({'type':"user_message", 'from':self.system.session_thread.session.user_id, 'time':datetime.datetime.now(), 'text':message})
             # end with
             code.val = 0

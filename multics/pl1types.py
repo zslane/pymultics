@@ -1,4 +1,4 @@
-        
+
 class PL1(object):
 
     Integer = 0
@@ -84,7 +84,7 @@ class PL1(object):
                 s += " (%s)" % (", ".join(map(repr, self.taking)))
             s += " returns (%s)" % (", ".join(map(repr, self.returning)))
             return s
-            
+                        
 #-- end class PL1
 
 fixed = PL1.Type(PL1.Integer, PL1.Binary, 17)

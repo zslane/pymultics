@@ -300,7 +300,7 @@ class MemoryMappedIOPtr(object):
     def _set(self, attrname, value):
         super(MemoryMappedIOPtr, self).__setattr__("_%s%s" % (self.__class__.__name__, attrname), value)
         
-    def _update_data(self, direction=CACHE_OUT):
+    def _update_data(self, direction):
         if direction == self.CACHE_IN:
             if self.__filesystem.file_exists(self.__filepath):
                 mod_time = self.__filesystem.get_mod_time(self.__filepath)
@@ -339,6 +339,15 @@ class MemoryMappedIOPtr(object):
             self._set("__data", value)
             self._update_data(self.CACHE_OUT)
             
+    def __enter__(self):
+        pass
+        
+    def __exit__(self, etype, value, traceback):
+        if etype:
+            pass
+        else:
+            self._update_data(self.CACHE_OUT)
+
     def remove(self):
         try:
             self.__filesystem.delete_file(self.__filepath)

@@ -16,9 +16,12 @@ def starrunners():
     call.ioa_()
     call.test_()
     call.test_.func1()
+    query_info = query_info_structure()
+    query_info.suppress_name_sw = True
+    query_info.suppress_spacing = True
     while True:
         call.ioa_.nnl("COMMAND> ")
-        call.command_query_(query_info_structure(), cmd, MAIN)
+        call.command_query_(query_info, cmd, MAIN)
         if cmd.val == "q":
             break
         # print cmd

@@ -91,17 +91,6 @@ def system_privileged(fn):
     decorated.__name__ = fn.__name__
     return decorated
 
-class MemoryMappedData(object):
-    def __init__(self, segment_data_ptr):
-        self.__segment_data_ptr = segment_data_ptr
-    def __enter__(self):
-        pass
-    def __exit__(self, etype, value, traceback):
-        if etype:
-            pass
-        else:
-            self.__segment_data_ptr._update_data()
-
 class LinkageReference(object):
     def __init__(self, name, dynamic_linker):
         self.dynamic_linker = dynamic_linker
