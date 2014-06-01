@@ -11,4 +11,4 @@ class query_info_structure(object):
         self.prompt_after_explanation = True
         self.explanation = ""
         self.echo_answer_sw = True
-        
+        self.repeat_time = 0

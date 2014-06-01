@@ -23,7 +23,7 @@ def lock_test():
             return
             
     call.ioa_("Locking {0}>{1}...", dirname, filename)
-    call.set_lock_.lock(locktest_file, 6, code)
+    call.set_lock_.lock(locktest_file, 10, code)
     if code.val != 0:
         if code.val == error_table_.invalid_lock_reset:
             call.ioa_("Invalid lock reset")
@@ -31,9 +31,10 @@ def lock_test():
             call.ioa_("Lock failed: {0}", code.val)
             return
     call.ioa_("...lock acquired")
-        
-    # call.ioa_.nnl("Hit Enter to unlock:")
-    call.command_query_(query_info_structure(), input, "lock_test", "Hit Enter to unlock:")
+    
+    query_info = query_info_structure()
+    query_info.repeat_time = 4
+    call.command_query_(query_info, input, "lock_test", "Hit Enter to unlock:")
     call.set_lock_.unlock(locktest_file, code)
     if code.val != 0:
         call.ioa_("Unlock failed: {0}", code.val)
