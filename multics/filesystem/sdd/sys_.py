@@ -25,6 +25,36 @@ class sys_(SystemExecutable):
 
     def get_current_directory(self, current_dir):
         current_dir.name = self.system.session_thread.session.process.directory_stack[-1]
+        
+    def get_rel_directory(self, dir_ref, relative_to, out_dir, code):
+        if relative_to == "":
+            relative_to = self.system.session_thread.session.process.directory_stack[-1]
+        # end if
+        if dir_ref.startswith(">"):
+            new_dir = dir_ref
+        else:
+            new_dir = self.system.hardware.filesystem.merge_path(relative_to, dir_ref)
+        # end if
+        native_path = self.system.hardware.filesystem.path2path(new_dir)
+        if self.system.hardware.filesystem.file_exists(native_path):
+            out_dir.name = new_dir
+            code.val = 0
+        else:
+            code.val = error_table_.no_directory_entry
+    
+    def change_current_directory(self, dir_ref, code):
+        if dir_ref.startswith(">"):
+            self.push_directory(dir_ref)
+            code.val = 0
+        else:
+            cur_dir = self.system.session_thread.session.process.directory_stack[-1]
+            new_dir = self.system.hardware.filesystem.merge_path(cur_dir, dir_ref)
+            native_path = self.system.hardware.filesystem.path2path(new_dir)
+            if self.system.hardware.filesystem.file_exists(native_path):
+                self.push_directory(new_dir)
+                code.val = 0
+            else:
+                code.val = error_table_.no_directory_entry
     
     def push_directory(self, dir_name):
         self.system.session_thread.session.process.directory_stack.append(dir_name)

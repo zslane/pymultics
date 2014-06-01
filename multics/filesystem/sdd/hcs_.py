@@ -33,14 +33,6 @@ class hcs_(SystemExecutable):
         else:
             process_dir.name = None
     
-    # def initiate(self, dirname, segment_name):
-        # multics_path = dirname + ">" + segment_name
-        # native_path = self.__filesystem.path2path(multics_path)
-        # try:
-            # return self.__filesystem.segment_data_ptr(native_path)
-        # except:
-            # return None
-            
     def initiate(self, dirname, segment_name, segment):
         multics_path = dirname + ">" + segment_name
         native_path = self.__filesystem.path2path(multics_path)
@@ -48,30 +40,7 @@ class hcs_(SystemExecutable):
             segment.ptr = self.__filesystem.segment_data_ptr(native_path)
         except:
             segment.ptr = nullptr()
-    
-    # def make_seg(self, dirname, segment_name, ClassType):
-        # if dirname == "":
-            # dirname = get_pdir_()
-        # # end if
-        
-        # if segment_name == "":
-            # segment_name = unique_name_()
-        # # end if
-            
-        # multics_path = dirname + ">" + segment_name
-        # native_path = self.__filesystem.path2path(multics_path)
-        
-        # if self.__filesystem.file_exists(native_path):
-            # return (None, error_table_.namedup)
-        # # end if
-        
-        # try:
-            # return (self.__filesystem.segment_data_ptr(native_path, ClassType()), 0)
-        # except:
-            # import traceback
-            # traceback.print_exc()
-            # return (None, error_table_.fileioerr)
-            
+                
     def make_seg(self, dirname, segment_name, segment, code):
         if dirname == "":
             dirname = get_pdir_()

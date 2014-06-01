@@ -8,6 +8,8 @@ from ..globals import *
 
 from PySide import QtCore, QtGui
 
+def collapse(l): return [ item for sublist in l for item in sublist ]
+
 class VirtualMulticsHardware(QtCore.QObject):
 
     __version__ = "v1.0.0"
@@ -163,6 +165,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         super(VirtualMulticsFileSystem, self).__init__()
         
         self._create_filesystem_directories()
+        print self._resolve_path(">udd>sct>jrc<jjl<<m>rah")
         
     def _create_filesystem_directories(self):
         self.system_dir_dir = ">sdd"
@@ -193,6 +196,40 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             # end if
             p = p.replace(self.FILESYSTEMROOT, "").replace("\\", ">")
         return p
+        
+    def merge_path(self, *args):
+        #== args assumed to be a list of Multics paths
+        merged = ">".join(args).replace(">>", ">")
+        return self._resolve_path(merged)
+        
+    def _resolve_path(self, path):
+        def simplify_inner(l):
+            print "   ->", l
+            if l == [""]:
+                return [">"]
+            last = l.pop()
+            rest = filter(lambda x: x == "", l)
+            rest.append(last)
+            return rest
+        def simplify_main(l):
+            result = []
+            for x in l:
+                if x:
+                    result.append(x)
+                elif result:
+                    result.pop()
+            return result
+            
+        print "_resolve_path:", path
+        path = path.replace(">>", ">").replace("><", "<").replace("<>", "<")
+        print "  ", path
+        l = [ simplify_inner(x.split("<")) for x in path.split(">") ]
+        print "  ", l
+        l = simplify_main(collapse(l))
+        print "  ", l
+        path = ">".join(l).replace(">>", ">")
+        print "resolves to:", path
+        return path
     
     def list_segments(self, filepath):
         for module_path in glob.iglob(os.path.join(filepath, "*.py")):
@@ -232,7 +269,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             
     def get_directory_contents(self, dirpath):
         try:
-            contents = glob.iglob(os.path.join(dirpath, "*"))
+            contents = glob.glob(os.path.join(dirpath, "*"))
             file_list = map(os.path.basename, filter(os.path.isfile, contents))
             dir_list = map(os.path.basename, filter(os.path.isdir, contents))
             return (dir_list, file_list, 0)

@@ -44,6 +44,7 @@ class error_table_:
     lock_not_locked = -11
     locked_by_other_process = -12
     noarg = -13
+    no_directory_entry = -14 # non-existant file or directory
     
 class Executable(QtCore.QObject):
     def __init__(self, segment_name, fn=None):
@@ -141,7 +142,7 @@ class Injector(object):
         if pframe:
             # fn = lambda *args, **kwargs: dynamic_linker.link(name)(*args, **kwargs)
             fn = LinkageReference(name, dynamic_linker)
-            print "Injecting", fn, "into", pframe.f_globals['__name__'], "as", name
+            # print "Injecting", fn, "into", pframe.f_globals['__name__'], "as", name
             pframe.f_globals.update({name:fn})
         # end if
         
@@ -153,7 +154,7 @@ class Injector(object):
                 with_init_string = "with initial value {0}".format(initial_value)
             else:
                 with_init_string = ""
-            print "Injecting", p, "into", pframe.f_globals['__name__'], "as", name, with_init_string
+            # print "Injecting", p, "into", pframe.f_globals['__name__'], "as", name, with_init_string
             pframe.f_globals.update({name:p})
         # end if
         
@@ -192,6 +193,7 @@ class declare(object):
                 #== Creates and injects a parm object
                 Injector.inject_parm(pframe, fn_name)
             elif type(dcl_type) is parameter_with_init:
+                #== Creates and injects a parm object with an initial value
                 Injector.inject_parm(pframe, fn_name, dcl_type.initial_value)
             elif dcl_type.type == PL1.Function or dcl_type.type == PL1.Procedure:
                 #== Creates and injects a LinkageReference object
