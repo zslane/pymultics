@@ -1,6 +1,7 @@
 
 from multics.globals import *
-from query_info import *
+
+include.query_info
 
 def starrunners():
     declare (cmd = parm)
@@ -16,7 +17,6 @@ def starrunners():
     call.ioa_()
     call.test_()
     call.test_.func1()
-    query_info = query_info_structure()
     query_info.suppress_name_sw = True
     query_info.suppress_spacing = True
     while True:

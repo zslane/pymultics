@@ -31,8 +31,7 @@ def lock_test():
             call.ioa_("Lock failed: {0}", code.val)
             return
     call.ioa_("...lock acquired")
-        
-    # call.ioa_.nnl("Hit Enter to unlock:")
+    
     query_info = query_info_structure()
     query_info.repeat_time = 4
     call.command_query_(query_info, input, "lock_test", "Hit Enter to unlock:")

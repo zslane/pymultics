@@ -38,13 +38,20 @@ class sys_(SystemExecutable):
         else:
             new_dir = self.system.hardware.filesystem.merge_path(relative_to, dir_ref)
         # end if
+        out_dir.name = new_dir
+        
         native_path = self.system.hardware.filesystem.path2path(new_dir)
         if self.system.hardware.filesystem.file_exists(native_path):
-            out_dir.name = new_dir
             code.val = 0
         else:
             code.val = error_table_.no_directory_entry
     
+    def split_path_(self, full_path, dir_name, entryname):
+        rev_full_path = full_path[::-1]
+        e, _, d = rev_full_path.partition(">")
+        dir_name.val = d[::-1]
+        entryname.val = e[::-1]
+        
     def change_current_directory(self, dir_ref, code):
         if dir_ref.startswith(">"):
             self.push_directory(dir_ref)
@@ -67,23 +74,26 @@ class sys_(SystemExecutable):
             directory.name = self.system.session_thread.session.process.directory_stack.pop()
         else:
             directory.name = None
-        
+
+    def lock_process_mbx_(self, user_id, process_mbx_segment, code):
+        try:
+            session_block = self.system.session_thread.login_db.session_blocks[user_id]
+        except KeyError:
+            code.val = error_table_.no_such_user
+            return
+        # end try
+        call.hcs_.initiate(session_block.process_dir, "process_mbx", process_mbx_segment)
+        if process_mbx_segment.ptr != nullptr():
+            call.set_lock_.lock(process_mbx_segment.ptr, 5, code)
+        else:
+            code.val = error_table_.lock_not_locked
+            
+    def unlock_process_mbx_(self, process_mbx_segment, code):
+        call.set_lock_.unlock(process_mbx_segment, code)
+    
     def accept_messages_(self, flag):
         self.system.session_thread.session.process.stack.accepting_messages = flag
         
-    def send_message_(self, recipient, message, code):
-        declare (segment = parm)
-        try:
-            session_block = self.system.session_thread.login_db.session_blocks[recipient]
-            call.hcs_.initiate(session_block.process_dir, "process_mbx", segment)
-            process_mbx = segment.ptr
-            with process_mbx:
-                process_mbx.messages.append({'type':"user_message", 'from':self.system.session_thread.session.user_id, 'time':datetime.datetime.now(), 'text':message})
-            # end with
-            code.val = 0
-        except:
-            code.val = -1
-            
     def recv_message_(self, message_packet):
         if self.system.session_thread.session.process.stack.accepting_messages:
             call.ioa_("Message from {0} on {1}: {2}", message_packet['from'], message_packet['time'].ctime(), message_packet['text'])

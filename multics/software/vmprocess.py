@@ -1,4 +1,5 @@
 import datetime
+from pprint import pformat
 
 from ..globals import *
 
@@ -8,6 +9,8 @@ declare (clock_ = entry . returns (fixed.bin(32)))
 
 class VirtualMulticsProcess(QtCore.QObject):
 
+    PROCESS_TIMER_DURATION = 1.0
+    
     def __init__(self, system_services, login_session):
         super(VirtualMulticsProcess, self).__init__()
         
@@ -63,7 +66,7 @@ class VirtualMulticsProcess(QtCore.QObject):
         call.sys_.accept_messages_(True)
         
         #== Start the MBX process timer
-        call.timer_manager_.alarm_call(1.0, self._process_mbx)
+        call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_mbx)
         
         return self._main_loop()
         
@@ -74,8 +77,8 @@ class VirtualMulticsProcess(QtCore.QObject):
         self._cleanup()
     
     def _create_mbx(self):
-        declare (segment = parm)
-        call.hcs_.make_seg(self.__process_dir, "process_mbx", segment(ProcessMbx()), code)
+        declare (segment = parm . init (ProcessMbx()))
+        call.hcs_.make_seg(self.__process_dir, "process_mbx", segment, code)
         self.__mbx = segment.ptr
         print self.__mbx
         
@@ -92,7 +95,7 @@ class VirtualMulticsProcess(QtCore.QObject):
                 next_message = self.__mbx.messages.pop(0)
             # end with
             self._dispatch_mbx_message(next_message)
-            call.timer_manager_.alarm_call(1.5, self._process_mbx)
+            call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_mbx)
     
     def _main_loop(self):
         self.__system_services.llout("New process started on %s\n" % (datetime.datetime.now().ctime()))
@@ -148,5 +151,9 @@ class ProcessMbx(object):
         self.messages = []
         
     def __repr__(self):
-        return "<%s.%s with %d messages: %s>" % (__name__, self.__class__.__name__, len(self.messages), str(self.messages))
+        if not self.messages:
+            return "<%s.%s with %d messages>" % (__name__, self.__class__.__name__, len(self.messages))
+        else:
+            s = pformat(self.messages)
+            return "<%s.%s with %d messages>\n%s" % (__name__, self.__class__.__name__, len(self.messages), s)
         

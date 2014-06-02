@@ -1,5 +1,8 @@
 import os
+import re
 import types
+
+from pl1types import *
 
 from PySide import QtCore
 
@@ -33,19 +36,33 @@ class System:
     LOGOUT = -3
     NEW_PROCESS = -4
     
-class error_table_:
+# class error_table_:
 
-    fileioerr = -5
-    namedup = -6
-    invalid_lock_reset = -7
-    locked_by_this_process = -8
-    lock_wait_time_exceeded = -9
-    no_w_permission = -10
-    lock_not_locked = -11
-    locked_by_other_process = -12
-    noarg = -13
-    no_directory_entry = -14 # non-existant file or directory
+    # fileioerr = -5
+    # namedup = -6
+    # invalid_lock_reset = -7
+    # locked_by_this_process = -8
+    # lock_wait_time_exceeded = -9
+    # no_w_permission = -10
+    # lock_not_locked = -11
+    # locked_by_other_process = -12
+    # noarg = -13
+    # no_directory_entry = -14 # non-existant file or directory
     
+error_table_ = PL1.Enum("error_table_",
+    no_such_user = -4,
+    fileioerr = -5,
+    namedup = -6,
+    invalid_lock_reset = -7,
+    locked_by_this_process = -8,
+    lock_wait_time_exceeded = -9,
+    no_w_permission = -10,
+    lock_not_locked = -11,
+    locked_by_other_process = -12,
+    noarg = -13,
+    no_directory_entry = -14, # non-existant file or directory
+)
+
 class Executable(QtCore.QObject):
     def __init__(self, segment_name, fn=None):
         super(Executable, self).__init__()
@@ -129,7 +146,6 @@ class Injector(object):
     @staticmethod
     def inject_func(pframe, name, dynamic_linker):
         if pframe:
-            # fn = lambda *args, **kwargs: dynamic_linker.link(name)(*args, **kwargs)
             fn = LinkageReference(name, dynamic_linker)
             # print "Injecting", fn, "into", pframe.f_globals['__name__'], "as", name
             pframe.f_globals.update({name:fn})
@@ -146,6 +162,24 @@ class Injector(object):
             # print "Injecting", p, "into", pframe.f_globals['__name__'], "as", name, with_init_string
             pframe.f_globals.update({name:p})
         # end if
+        
+    @staticmethod
+    def inject_incl(pframe, name):
+        if pframe:
+            module = __import__(name)
+            for member_name in dir(module):
+                if re.match("__\w+__", member_name):
+                    # print "Injector skipping", member_name
+                    continue
+                # end if
+                member_object = getattr(module, member_name)
+                if member_name == name + "_structure":
+                    member_object = member_object()
+                    # print "Injecting", member_object, "into", pframe.f_globals['__name__'], "as", name
+                    pframe.f_globals[name] = member_object
+                else:
+                    # print "Injecting", member_object, "into", pframe.f_globals['__name__'], "as", member_name
+                    pframe.f_globals[member_name] = member_object
         
     @staticmethod
     def find_pframe():
@@ -236,4 +270,12 @@ class parameter(object):
 
 parm = parameter
 
-from pl1types import *
+class Includer(object):
+    def __init__(self):
+        pass
+        
+    def __getattr__(self, include_name):
+        pframe = Injector.find_pframe()
+        Injector.inject_incl(pframe, include_name)
+        
+include = Includer()

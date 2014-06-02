@@ -1,7 +1,7 @@
 
 from multics.globals import *
 
-from query_info import *
+include.query_info
 
 def lock_test():
     declare (locktest_file = parm,
@@ -32,8 +32,7 @@ def lock_test():
             return
     call.ioa_("...lock acquired")
     
-    query_info = query_info_structure()
-    query_info.repeat_time = 4
+    # query_info.repeat_time = 4
     call.command_query_(query_info, input, "lock_test", "Hit Enter to unlock:")
     call.set_lock_.unlock(locktest_file, code)
     if code.val != 0:

@@ -1,26 +1,18 @@
 
+from multics.pl1types import PL1
+
 query_info_version_5 = 5
 
-class query_info_structure(object):
-    __slots__ = [
-        "version",
-        "yes_or_no_sw",
-        "suppress_name_sw",
-        "suppress_spacing",
-        "literal_sw",
-        "prompt_after_explanation",
-        "explanation",
-        "echo_answer_sw",
-        "repeat_time",
-    ]
-    
+class query_info_structure(PL1.Structure):
     def __init__(self):
-        self.version = query_info_version_5
-        self.yes_or_no_sw = False
-        self.suppress_name_sw = False
-        self.suppress_spacing = False
-        self.literal_sw = False
-        self.prompt_after_explanation = True
-        self.explanation = ""
-        self.echo_answer_sw = True
-        self.repeat_time = 0
+        PL1.Structure.__init__(self,
+            version                  = query_info_version_5,
+            yes_or_no_sw             = False,
+            suppress_name_sw         = False,
+            suppress_spacing         = False,
+            literal_sw               = False,
+            prompt_after_explanation = True,
+            explanation              = "",
+            echo_answer_sw           = True,
+            repeat_time              = 0,
+        )

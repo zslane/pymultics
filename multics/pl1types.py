@@ -84,7 +84,40 @@ class PL1(object):
                 s += " (%s)" % (", ".join(map(repr, self.taking)))
             s += " returns (%s)" % (", ".join(map(repr, self.returning)))
             return s
-                        
+            
+    class Structure(object):
+        def __init__(self, **attrs):
+            self.__dict__.update(attrs)
+            object.__setattr__(self, "_frozen_", True)
+        
+        def __setattr__(self, attr, val):
+            if self._frozen_ and attr not in self.__dict__:
+                raise AttributeError("'%s' has no attribute '%s'" % (self.__class__.__name__, attr))
+            else:
+                object.__setattr__(self, attr, val)
+    
+    class EnumValue(object):
+        def __init__(self, enum_name, member_name, value):
+            self.__enum_name = enum_name
+            self.__member_name = member_name
+            self.value = value
+            
+        def __eq__(self, rhs):
+            if rhs == 0: # <-- special case: allow comparison with 0 literal
+                return self.value == 0
+            return type(self) == type(rhs) and self.value == rhs.value
+        
+        def __ne__(self, rhs):
+            return not self.__eq__(rhs)
+            
+        def __repr__(self):
+            return self.__enum_name + "." + self.__member_name
+
+    class Enum(object):
+        def __init__(self, enum_name, **members):
+            for member_name, value in members.items():
+                setattr(self, member_name, PL1.EnumValue(enum_name, member_name, value))
+    
 #-- end class PL1
 
 fixed = PL1.Type(PL1.Integer, PL1.Binary, 17)

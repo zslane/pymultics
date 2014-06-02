@@ -2,10 +2,11 @@ import os
 import time
 import glob
 import errno
+import cPickle as pickle
 
 from multics.globals import *
 
-declare (unique_name_ = entry . returns (char('*')))
+# declare (unique_name_ = entry . returns (char('*')))
 
 class set_lock_(SystemExecutable):
     def __init__(self, system_services):
@@ -53,14 +54,11 @@ class FileLock(object):
         dirname, filename = os.path.split(segment_data_ptr.filepath)
         self.is_locked = False
         self.lockfile = os.path.join(dirname, "%s.lock" % (filename))
-        self.lockidfile = os.path.join(dirname, "%s.lock.%s" % (filename, unique_name_(process_id)))
-        self.lockidglob = os.path.join(dirname, "%s.lock.*" % (filename))
         self.timeout = timeout
         self.login_db = login_db
         self.process_id = process_id
         self.delay = 0.05
         self.fd = None
-        self.fdi = None
     
     def __del__(self):
         """ Make sure that the FileLock instance doesn't leave a lockfile
@@ -79,7 +77,7 @@ class FileLock(object):
         while True:
             try:
                 self.fd = os.open(self.lockfile, os.O_CREAT|os.O_EXCL|os.O_RDWR)
-                self.fdi = os.open(self.lockidfile, os.O_CREAT|os.O_RDWR)
+                self.store_process_id()
                 break;
                 
             except OSError as e:
@@ -102,32 +100,25 @@ class FileLock(object):
         """ Get rid of the lock by deleting the lockfile. 
         """
         if self.is_locked:
-            os.close(self.fd)
             os.unlink(self.lockfile)
-            os.close(self.fdi)
-            os.unlink(self.lockidfile)
             self.is_locked = False
     
-    def invalid_lock_id(self):
-        session_blocks = self.login_db.session_blocks
-        valid_processes = [ unique_name_(session_block.process_id) for session_block in session_blocks.values() if session_block.process_id != self.process_id ]
-        print valid_processes
-        found = False
-        for path in glob.glob(self.lockidglob):
-            _, unique_name = os.path.splitext(path)
-            if unique_name not in valid_processes:
-                print "removing invalid process lock file", path
-                found = True
-                try:
-                    os.unlink(path)
-                except:
-                    pass
-            # end if
-        # end for
-        if found:
-            try:
-                os.unlink(self.lockfile)
-            except:
-                pass
-        return found
+    def store_process_id(self):
+        os.close(self.fd)
+        with open(self.lockfile, "w") as f:
+            pickle.dump(self.process_id, f)
+        # end with
         
+    def invalid_lock_id(self):
+        valid_processes = self.login_db.get_process_ids()
+        with open(self.lockfile, "r") as f:
+            lock_owner_id = pickle.load(f)
+        # end with
+        invalid = lock_owner_id not in valid_processes
+        if invalid:
+            with open(self.lockfile, "w") as f:
+                pickle.dump(self.process_id, f)
+            # end with
+            return True
+        else:
+            return False

@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import glob
 import shutil
@@ -203,31 +204,42 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         return self._resolve_path(merged)
         
     def _resolve_path(self, path):
-        def simplify_inner(l):
-            print "   ->", l
-            if l == [""]:
-                return [">"]
-            last = l.pop()
-            rest = filter(lambda x: x == "", l)
-            rest.append(last)
-            return rest
-        def simplify_main(l):
-            result = []
-            for x in l:
-                if x:
-                    result.append(x)
-                elif result:
-                    result.pop()
-            return result
+        # def simplify_inner(l):
+            # print "   ->", l
+            # if l == [""]:
+                # return [">"]
+            # last = l.pop()
+            # rest = filter(lambda x: x == "", l)
+            # rest.append(last)
+            # return rest
+        # def simplify_main(l):
+            # result = []
+            # for x in l:
+                # if x:
+                    # result.append(x)
+                # elif result:
+                    # result.pop()
+            # return result
             
         print "_resolve_path:", path
-        path = path.replace(">>", ">").replace("><", "<").replace("<>", "<")
-        print "  ", path
-        l = [ simplify_inner(x.split("<")) for x in path.split(">") ]
-        print "  ", l
-        l = simplify_main(collapse(l))
-        print "  ", l
-        path = ">".join(l).replace(">>", ">")
+        # path = path.replace(">>", ">").replace("><", "<").replace("<>", "<")
+        # print "  ", path
+        # l = [ simplify_inner(x.split("<")) for x in path.split(">") ]
+        # print "  ", l
+        # l = simplify_main(collapse(l))
+        # print "  ", l
+        # path = ">".join(l).replace(">>", ">")
+        path = path.lstrip("<").rstrip(">").replace(">>", ">").replace("<>", "<").replace("><", "<")
+        l = re.split("([<>])", path)
+        root = {'>':'>'}.get(path[0], "")
+        l = [ x for x in l if x and x != ">" ]
+        result = []
+        for x in l:
+            if x == "<":
+                result.pop()
+            else:
+                result.append(x)
+        path = root + ">".join(result)
         print "resolves to:", path
         return path
     
@@ -258,14 +270,14 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             os.mkdir(filepath)
             return 0
         except:
-            return 0 if os.path.exists(filepath) else -1
+            return 0 if os.path.exists(filepath) else error_table_.fileioerr
             
     def rmdir(self, filepath):
         try:
             shutil.rmtree(filepath)
             return 0
         except:
-            return -1
+            return error_table_.fileioerr
             
     def get_directory_contents(self, dirpath):
         try:

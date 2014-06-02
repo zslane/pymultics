@@ -169,6 +169,9 @@ class LoginDatabase(object):
     def __repr__(self):
         return str(self.session_blocks)
         
+    def get_process_ids(self):
+        return [ session_block.process_id for session_block in self.session_blocks.values() ]
+        
 class LoginSessionBlock(object):
 
     def __init__(self, login_time):

@@ -21,7 +21,7 @@ def ls():
         # end if
     # end if
     call.hcs_.get_directory_contents(dir_to_list.name, branch, segment, code)
-    if code.va == 0:
+    if code.val == 0:
         if len(branch.list) + len(segment.list) == 0:
             call.ioa_("Directory empty")
         else:
