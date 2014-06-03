@@ -34,13 +34,14 @@ class hcs_(SystemExecutable):
             process_dir.name = None
     
     def initiate(self, dirname, segment_name, segment):
-        multics_path = dirname + ">" + segment_name
-        native_path = self.__filesystem.path2path(multics_path)
-        try:
-            segment.ptr = self.__filesystem.segment_data_ptr(native_path)
-        except:
-            segment.ptr = nullptr()
-                
+        segment.data_ptr = self.system.dynamic_linker.snap(dirname, segment_name)
+        # multics_path = dirname + ">" + segment_name
+        # native_path = self.__filesystem.path2path(multics_path)
+        # try:
+            # segment.data_ptr = self.__filesystem.segment_data_ptr(native_path)
+        # except:
+            # segment.data_ptr = nullptr()
+        
     def make_seg(self, dirname, segment_name, segment, code):
         if dirname == "":
             dirname = get_pdir_()
@@ -54,12 +55,16 @@ class hcs_(SystemExecutable):
         native_path = self.__filesystem.path2path(multics_path)
         
         if self.__filesystem.file_exists(native_path):
-            segment.data_ptr = self.__filesystem.segment_data_ptr(native_path)
+            # segment.data_ptr = self.__filesystem.segment_data_ptr(native_path)
+            segment.data_ptr = self.system.dynamic_linker.snap(dirname, segment_name)
             code.val = error_table_.namedup
+            return
         # end if
         
         try:
-            segment.data_ptr = self.__filesystem.segment_data_ptr(native_path, segment.data_ptr)
+            # segment.data_ptr = self.__filesystem.segment_data_ptr(native_path, segment.data_ptr)
+            self.__filesystem.segment_data_ptr(native_path, segment.data_ptr)
+            segment.data_ptr = self.system.dynamic_linker.snap(dirname, segment_name)
             code.val = 0
         except:
             import traceback

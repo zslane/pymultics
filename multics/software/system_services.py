@@ -2,6 +2,7 @@ from pprint import pprint
 import os
 import imp
 import sys
+import rsa
 import time
 import cPickle as pickle
 import datetime
@@ -129,6 +130,14 @@ class SystemServices(QtCore.QObject):
     def sleep(self, seconds):
         self._msleep(seconds * 1000)
         
+    def encrypt_password(self, password, pubkey=None):
+        if pubkey:
+            return rsa.encode(password, pubkey)
+        else:
+            pubkey, prvkey = rsa.keygen(2 ** 128)
+            encrypted_password = rsa.encode(password, pubkey)
+            return (encrypted_password, pubkey)
+    
     #== BREAK CONDITION HANDLING ==#
     
     def signal_break(self):
@@ -301,6 +310,27 @@ class DynamicLinker(QtCore.QObject):
             if segment_name not in self.system_preloads:
                 del self.__known_segment_table[segment_name]
     
+    def snap(self, dir_name, segment_name):
+        print "Trying to snap", dir_name, segment_name
+        try:
+            segment_data_ptr = self.__known_segment_table[segment_name]
+            print "...found in KST", segment_data_ptr
+            return segment_data_ptr
+            
+        except KeyError:
+            multics_path = dir_name + ">" + segment_name
+            native_path = self.__filesystem.path2path(multics_path)
+            print "...opening", native_path
+            try:
+                segment_data_ptr = self.__filesystem.segment_data_ptr(native_path)
+                print "...", segment_data_ptr
+                self.__known_segment_table[segment_name] = segment_data_ptr
+                return segment_data_ptr
+            except:
+                # import traceback
+                # traceback.print_exc()
+                return nullptr()
+        
     def link(self, segment_name, known_location=None):
         try:
             entry_point = self._find_segment(segment_name)

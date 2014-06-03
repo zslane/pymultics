@@ -169,13 +169,13 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         print self._resolve_path(">udd>sct>jrc<jjl<<m>rah")
         
     def _create_filesystem_directories(self):
-        self.system_control_1 = ">sc1"
+        self.system_control_dir = ">sc1"
         self.system_library_standard = ">sss"
         self.process_dir_dir = ">pdd"
         self.user_dir_dir = ">udd"
         
         directory_list = [
-            self.system_control_1,
+            self.system_control_dir,
             self.system_library_standard,
             self.process_dir_dir,
             self.user_dir_dir,

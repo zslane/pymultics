@@ -86,12 +86,14 @@ def _register_system_services(system_services, dynamic_linker):
     call = dynamic_linker
 
 def system_privileged(fn):
-    def decorated(*args,**kw):
-        my_globals={}
-        my_globals.update(globals())
-        my_globals['system'] = __system_services
-        call_fn = types.FunctionType(fn.func_code, my_globals)
-        return call_fn(*args,**kw)
+    def decorated(*args, **kw):
+        # my_globals={}
+        # my_globals.update(fn.__globals__)
+        # my_globals['system'] = __system_services
+        # call_fn = types.FunctionType(fn.func_code, my_globals)
+        # return call_fn(*args, **kw)
+        fn.__globals__['system'] = __system_services
+        return fn(*args, **kw)
     decorated.__name__ = fn.__name__
     return decorated
 
@@ -266,3 +268,8 @@ class Includer(object):
         Injector.inject_incl(pframe, include_name)
         
 include = Includer()
+
+def traceback_print_exc():
+    import traceback
+    traceback.print_exc()
+    
