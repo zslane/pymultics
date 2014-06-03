@@ -17,10 +17,10 @@ class hcs_(SystemExecutable):
         self.system.dynamic_linker.clear_kst()
         
     def get_entry_point(self, segment_name, segment):
-        segment.ptr = self.system.dynamic_linker.link(segment_name)
+        segment.ptr = self.system.dynamic_linker.snap(segment_name)
         
     def del_entry_point(self, segment_name):
-        self.system.dynamic_linker.unlink(segment_name)
+        self.system.dynamic_linker.unsnap(segment_name)
         
     #== DATA FILE I/O ==#
     
@@ -34,7 +34,7 @@ class hcs_(SystemExecutable):
             process_dir.name = None
     
     def initiate(self, dirname, segment_name, segment):
-        segment.data_ptr = self.system.dynamic_linker.snap(dirname, segment_name)
+        segment.data_ptr = self.system.dynamic_linker.load(dirname, segment_name)
         # multics_path = dirname + ">" + segment_name
         # native_path = self.__filesystem.path2path(multics_path)
         # try:
@@ -56,7 +56,7 @@ class hcs_(SystemExecutable):
         
         if self.__filesystem.file_exists(native_path):
             # segment.data_ptr = self.__filesystem.segment_data_ptr(native_path)
-            segment.data_ptr = self.system.dynamic_linker.snap(dirname, segment_name)
+            segment.data_ptr = self.system.dynamic_linker.load(dirname, segment_name)
             code.val = error_table_.namedup
             return
         # end if
@@ -64,7 +64,7 @@ class hcs_(SystemExecutable):
         try:
             # segment.data_ptr = self.__filesystem.segment_data_ptr(native_path, segment.data_ptr)
             self.__filesystem.segment_data_ptr(native_path, segment.data_ptr)
-            segment.data_ptr = self.system.dynamic_linker.snap(dirname, segment_name)
+            segment.data_ptr = self.system.dynamic_linker.load(dirname, segment_name)
             code.val = 0
         except:
             import traceback

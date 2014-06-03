@@ -286,11 +286,11 @@ class DynamicLinker(QtCore.QObject):
     
     def _initialize_system_preloads(self):
         for segment_name in self.system_preloads:
-            if not self.link(segment_name, self.__filesystem.system_library_standard):
+            if not self.snap(segment_name, self.__filesystem.system_library_standard):
                 self.__known_segment_table[segment_name] = SegmentDescriptor(self.__system_services, segment_name, __file__, sys.modules[__name__])
     
     def __getattr__(self, entry_point_name):
-        entry_point = self.link(entry_point_name)
+        entry_point = self.snap(entry_point_name)
         if entry_point:
             return entry_point
         else:
@@ -310,8 +310,8 @@ class DynamicLinker(QtCore.QObject):
             if segment_name not in self.system_preloads:
                 del self.__known_segment_table[segment_name]
     
-    def snap(self, dir_name, segment_name):
-        print "Trying to snap", dir_name, segment_name
+    def load(self, dir_name, segment_name):
+        print "Trying to load", dir_name, segment_name
         try:
             segment_data_ptr = self.__known_segment_table[segment_name]
             print "...found in KST", segment_data_ptr
@@ -331,7 +331,7 @@ class DynamicLinker(QtCore.QObject):
                 # traceback.print_exc()
                 return nullptr()
         
-    def link(self, segment_name, known_location=None):
+    def snap(self, segment_name, known_location=None):
         try:
             entry_point = self._find_segment(segment_name)
             return entry_point
@@ -366,7 +366,7 @@ class DynamicLinker(QtCore.QObject):
             # end for
             return None
             
-    def unlink(self, segment_name):
+    def unsnap(self, segment_name):
         self._unlink_segment(segment_name)
         
     def _find_segment(self, segment_name):
@@ -396,12 +396,12 @@ class DynamicLinker(QtCore.QObject):
                 raise SegmentFault(segment_name)
     
     def _load_python_code(self, module_name, module_path):
-        base_path, _ = os.path.split(module_path)
-        for ext in [".pyo", ".pyc"]:
-            compiled_module_path = os.path.join(base_path, ext)
-            if self.__filesystem.file_exists(compiled_module_path):
-                return imp.load_compiled(module_name, compiled_module_path)
-            # end if
-        # end for
+        # base_path, _ = os.path.split(module_path)
+        # for ext in [".pyo", ".pyc"]:
+            # compiled_module_path = os.path.join(base_path, ext)
+            # if self.__filesystem.file_exists(compiled_module_path):
+                # return imp.load_compiled(module_name, compiled_module_path)
+                
+        #== We disable the loading of optimized modules until main development is done
         return imp.load_source(module_name, module_path)
         
