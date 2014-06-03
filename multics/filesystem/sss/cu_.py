@@ -36,7 +36,7 @@ class cu_(SystemExecutable):
         else:
             return s.strip()
         
-    def _set_command_line(self, program_name, argument_string):
+    def set_command_line_(self, program_name, argument_string):
         self.__program_name = program_name
         self.__argument_string = argument_string.strip()
 

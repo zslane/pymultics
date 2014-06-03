@@ -22,7 +22,7 @@ def starrunners():
     while True:
         call.ioa_.nnl("COMMAND> ")
         call.command_query_(query_info, cmd, MAIN)
-        if cmd.val == "q":
+        if cmd.string == "q":
             break
         # print cmd
     # end while

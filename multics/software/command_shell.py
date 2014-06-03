@@ -65,7 +65,7 @@ class CommandShell(QtCore.QObject):
             # end if
             
             program_name, _, argument_string = command_line.partition(" ")
-            call.cu_._set_command_line(program_name, argument_string)
+            call.cu_.set_command_line_(program_name, argument_string)
             call.hcs_.get_entry_point(program_name, segment)
             program_entry_point = segment.ptr
             if program_entry_point:

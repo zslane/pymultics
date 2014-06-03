@@ -102,13 +102,13 @@ class LinkageReference(object):
         self.dynamic_linker = dynamic_linker
         self.name = name
     def __call__(self, *args, **kwargs):
-        entry_point = self.dynamic_linker.link(self.name)
+        entry_point = self.dynamic_linker.snap(self.name)
         if entry_point:
             return entry_point(*args, **kwargs)
         else:
             raise SegmentFault(self.name)
     def __getattr__(self, entry_point_name):
-        segment = self.dynamic_linker.link(self.name)
+        segment = self.dynamic_linker.snap(self.name)
         if segment:
             try:
                 return getattr(segment, entry_point_name)

@@ -12,7 +12,7 @@ class query_info_structure(PL1.Structure):
             suppress_spacing         = False,
             literal_sw               = False,
             prompt_after_explanation = True,
-            explanation              = "",
+            explanation_ptr          = "",
             echo_answer_sw           = True,
             repeat_time              = 0,
         )
