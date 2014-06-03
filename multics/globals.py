@@ -36,19 +36,6 @@ class System:
     LOGOUT = -3
     NEW_PROCESS = -4
     
-# class error_table_:
-
-    # fileioerr = -5
-    # namedup = -6
-    # invalid_lock_reset = -7
-    # locked_by_this_process = -8
-    # lock_wait_time_exceeded = -9
-    # no_w_permission = -10
-    # lock_not_locked = -11
-    # locked_by_other_process = -12
-    # noarg = -13
-    # no_directory_entry = -14 # non-existant file or directory
-    
 error_table_ = PL1.Enum("error_table_",
     no_such_user = -4,
     fileioerr = -5,

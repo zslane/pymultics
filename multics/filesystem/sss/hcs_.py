@@ -73,8 +73,11 @@ class hcs_(SystemExecutable):
     def create_branch_(self, dir_name, entryname, info_ptr, code):
         multics_path = dir_name + ">" + entryname
         native_path = self.__filesystem.path2path(multics_path)
-        code.val = self.__filesystem.mkdir(native_path)
-            
+        if self.__filesystem.file_exists(native_path):
+            code.val = error_table_.namedup
+        else:
+            code.val = self.__filesystem.mkdir(native_path)
+        
     def delete_branch_(self, dir_name, code):
         native_path = self.__filesystem.path2path(dir_name)
         code.val = self.__filesystem.rmdir(native_path)

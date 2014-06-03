@@ -8,8 +8,8 @@ class sys_(SystemExecutable):
         
     def get_default_search_paths(self, search_paths):
         path_list = [
-            ">sdd",
-            ">sdd>commands",
+            ">sss",
+            ">sss>commands",
             self.system.session_thread.session.homedir,
         ]
         search_paths.list = path_list
@@ -21,7 +21,7 @@ class sys_(SystemExecutable):
         self.system.session_thread.session.process.search_paths = path_list
 
     def get_users(self, users):
-        users.list = self.system.session_thread.login_db.session_blocks.keys()
+        users.list = self.system.session_thread.whotab.session_blocks.keys()
 
     def get_home_directory(self, home_dir):
         home_dir.name = self.system.session_thread.session.homedir
@@ -77,7 +77,7 @@ class sys_(SystemExecutable):
 
     def lock_process_mbx_(self, user_id, process_mbx_segment, code):
         try:
-            session_block = self.system.session_thread.login_db.session_blocks[user_id]
+            session_block = self.system.session_thread.whotab.session_blocks[user_id]
         except KeyError:
             code.val = error_table_.no_such_user
             return

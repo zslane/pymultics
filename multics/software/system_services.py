@@ -20,7 +20,7 @@ class SystemServices(QtCore.QObject):
     def __init__(self, hardware):
         super(SystemServices, self).__init__()
         
-        system_includes_path = os.path.join(hardware.filesystem.path2path(hardware.filesystem.system_dir_dir), "includes")
+        system_includes_path = os.path.join(hardware.filesystem.path2path(hardware.filesystem.system_library_standard), "includes")
         if system_includes_path not in sys.path:
             sys.path.append(system_includes_path)
         
@@ -53,11 +53,6 @@ class SystemServices(QtCore.QObject):
         self._process_timers()
         
     def _process_timers(self):
-        # for timer in self.__system_timers[:]:
-            # if timer.dead():
-                # self.__system_timers.remove(timer)
-            # else:
-                # timer.check()
         for routine_key in self.__system_timers.keys():
             timer = self.__system_timers[routine_key]
             if timer.dead():
@@ -267,7 +262,7 @@ class DynamicLinker(QtCore.QObject):
     def _initialize_system_functions(self):
         import types
         excluded_symbols = ["system_privileged"]
-        native_path = self.__filesystem.path2path(self.__filesystem.system_dir_dir)
+        native_path = self.__filesystem.path2path(self.__filesystem.system_library_standard)
         for module_name, module_path in self.__filesystem.list_segments(native_path):
             module = self._load_python_code(module_name, module_path)
             if module:
@@ -282,7 +277,7 @@ class DynamicLinker(QtCore.QObject):
     
     def _initialize_system_preloads(self):
         for segment_name in self.system_preloads:
-            if not self.link(segment_name, self.__filesystem.system_dir_dir):
+            if not self.link(segment_name, self.__filesystem.system_library_standard):
                 self.__known_segment_table[segment_name] = SegmentDescriptor(self.__system_services, segment_name, __file__, sys.modules[__name__])
     
     def __getattr__(self, entry_point_name):

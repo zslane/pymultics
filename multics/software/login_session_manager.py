@@ -1,3 +1,4 @@
+import rsa
 from pprint import pprint
 
 from ..globals import *
@@ -14,7 +15,9 @@ class LoginSessionManager(QtCore.QThread):
         self.__system_services = system_services
         self.__process_id = None
         self.__process_dir = None
-        self.__login_db = {}
+        self.__whotab = None
+        self.__project_definition_tables = {}
+        self.__person_name_table = None
         self.__session = None
         self.__registered_projects = {
             'SysAdmin':"SysAdmin", 'sa':"SysAdmin",
@@ -35,22 +38,22 @@ class LoginSessionManager(QtCore.QThread):
         return self.__session
         
     @property
-    def login_db(self):
-        return self.__login_db
+    def whotab(self):
+        return self.__whotab
         
-    def _add_user_to_login_db(self, user_id, login_time):
+    def _add_user_to_whotab(self, user_id, login_time):
         #== Add a session block to the LOGIN DB for this session
-        with self.__login_db:
-            self.__login_db.session_blocks[user_id] = LoginSessionBlock(login_time)
+        with self.__whotab:
+            self.__whotab.session_blocks[user_id] = LoginSessionBlock(login_time)
         # end with
-        pprint(self.__login_db)
+        pprint(self.__whotab)
         
-    def _remove_user_from_login_db(self, user_id):
+    def _remove_user_from_whotab(self, user_id):
         #== Remove the session block in the LOGIN DB corresponding to this session
-        with self.__login_db:
-            del self.__login_db.session_blocks[user_id]
+        with self.__whotab:
+            del self.__whotab.session_blocks[user_id]
         # end with
-        pprint(self.__login_db)
+        pprint(self.__whotab)
         
     def run(self):
         self._initialize()
@@ -64,19 +67,20 @@ class LoginSessionManager(QtCore.QThread):
         
     def kill(self):
         if self.__session:
-            self._remove_user_from_login_db(self.__session.user_id)
+            self._remove_user_from_whotab(self.__session.user_id)
             self.__session.kill()
         # end if
     
     def register_process(self, user_id, process_id, process_dir):
-        with self.__login_db:
-            self.__login_db.session_blocks[user_id].process_id = process_id
-            self.__login_db.session_blocks[user_id].process_dir = process_dir
+        with self.__whotab:
+            self.__whotab.session_blocks[user_id].process_id = process_id
+            self.__whotab.session_blocks[user_id].process_dir = process_dir
         # end with
-        pprint(self.__login_db)
+        pprint(self.__whotab)
     
     def _initialize(self):
         declare (process_dir = parm,
+                 branch      = parm,
                  segment     = parm,
                  code        = parm)
         
@@ -84,14 +88,52 @@ class LoginSessionManager(QtCore.QThread):
         call.hcs_.create_process_dir(self.__process_id, process_dir, code)
         self.__process_dir = process_dir.name
         
-        #== Get a pointer to the LOGIN DB (create it if necessary)
-        call.hcs_.initiate(self.__process_dir, "login_db", segment)
-        self.__login_db = segment.ptr
-        if not self.__login_db:
-            call.hcs_.make_seg(self.__process_dir, "login_db", segment(LoginDatabase()), code)
-            self.__login_db = segment.ptr
+        #== Get a pointer to the PNT (create it if necessary)
+        call.hcs_.initiate(self.__system_services.hardware.filesystem.system_control_1, "person_name_table", segment)
+        self.__person_name_table = segment.ptr
+        if not self.__person_name_table:
+            call.hcs_.make_seg(self.__system_services.hardware.filesystem.system_control_1, "person_name_table", segment(PersonNameTable()), code)
+            self.__person_name_table = segment.ptr
+            #== Add JRCooper/jrc as a valid user to start with
+            JRCooper = PersonNameEntry("JRCooper", alias="jrc", default_project_id="SysAdmin")
+            with self.__person_name_table:
+                self.__person_name_table.add_person(JRCooper)
+            # end with
         # end if
-        pprint(self.__login_db)
+        pprint(self.__person_name_table)
+        
+        #== Make a dictionary of PDTs (project definition tables)
+        call.hcs_.get_directory_contents(self.__system_services.hardware.filesystem.system_control_1, branch, segment, code)
+        if code.val == 0:
+            segment_list = segment.list
+            #== Add SysAdmin as a project with JRCooper as a recognized user
+            if not any([ name.endswith(".pdt") for name in segment_list ]):
+                for project_id, alias in [("SysAdmin", "sa"), ("Multics", "m")]:
+                    segment_name = "%s.pdt" % (project_id)
+                    pdt = ProjectDefinitionTable(project_id, alias)
+                    pdt.add_user("JRCooper")
+                    call.hcs_.make_seg(self.__system_services.hardware.filesystem.system_control_1, segment_name, segment(pdt), code)
+                    segment_list.append(segment_name)
+            # end if
+            for segment_name in segment_list:
+                if segment_name.endswith(".pdt"):
+                    call.hcs_.initiate(self.__system_services.hardware.filesystem.system_control_1, segment_name, segment)
+                    project_id = segment_name.replace(".pdt", "")
+                    self.__project_definition_tables[project_id] = segment.ptr
+                    self.__project_definition_tables[segment.ptr.alias] = segment.ptr
+                # end if
+            # end for
+        # end if
+        pprint(self.__project_definition_tables)
+        
+        #== Get a pointer to the WHOTAB (create it if necessary)
+        call.hcs_.initiate(self.__system_services.hardware.filesystem.system_control_1, "whotab", segment)
+        self.__whotab = segment.ptr
+        if not self.__whotab:
+            call.hcs_.make_seg(self.__system_services.hardware.filesystem.system_control_1, "whotab", segment(LoginDatabase()), code)
+            self.__whotab = segment.ptr
+        # end if
+        pprint(self.__whotab)
     
     def _main_loop(self):
         LISTEN = 0
@@ -129,33 +171,38 @@ class LoginSessionManager(QtCore.QThread):
         
         self.__session = self._authenticate(user_id, password)
         if self.__session:
-            self._add_user_to_login_db(self.__session.user_id, self.__session.login_time)
+            self._add_user_to_whotab(self.__session.user_id, self.__session.login_time)
             
             code = self.__session.start()
             
-            self._remove_user_from_login_db(self.__session.user_id)
+            self._remove_user_from_whotab(self.__session.user_id)
             self.__session = None
         else:
             code = System.INVALID_LOGIN
         return code
     
     def _authenticate(self, user_id, password):
-        user_id_components = user_id.split(".")
-        person_id = self.__registered_users.get(user_id_components[0], "")
+        pers, _, proj = user_id.partition(".")
+        person_id = self.__person_name_table.person_id(pers)
         try:
-            project_id = self.__registered_projects.get(user_id_components[1], "")
+            pubkey, prvkey = rsa.keygen(2 ** 128)
+            encrypted_password, pubkey = self.__person_name_table.get_password(person_id)
+            if rsa.encode(password, pubkey) == encrypted_password:
+                proj = proj or self.__person_name_table.get_default_project_id(person_id)
+                pdt = self.__project_definition_tables.get(proj)
+                if pdt and pdt.recognizes(person_id):
+                    user_id = person_id + "." + pdt.project_id
+                    from login_session import LoginSession
+                    return LoginSession(self.__system_services, self, user_id)
+                # end if
+            # end if
         except:
-            project_id = self.__default_project.get(person_id, "")
+            import traceback
+            traceback.print_exc()
+            pass
         # end try
-        if person_id and project_id and project_id in self.__user_projects[person_id]:
-            #== Check that there is a valid home directory!
-            #== This info will be in the user account database
-            user_id = person_id + "." + project_id
-            from login_session import LoginSession
-            return LoginSession(self.__system_services, self, user_id)
-        else:
-            self.__system_services.llout("Unrecognized user id/password\n\n")
-            return None
+        self.__system_services.llout("Unrecognized user id/password\n\n")
+        return None
     
     def _on_condition__break(self):
         if self.__session:
@@ -183,4 +230,111 @@ class LoginSessionBlock(object):
         
     def __repr__(self):
         return "<%s.%s login_time: %s, process_id: %s, process_dir: %s>" % (__name__, self.__class__.__name__, self.login_time.ctime() if self.login_time else None, self.process_id, self.process_dir)
+        
+class PersonNameTable(object):
+
+    def __init__(self):
+        self.name_entries = {}
+        self.aliases = {}
+        
+    def person_ids(self):
+        return self.name_entries.keys()
+        
+    def aliases(self):
+        return self.aliases.keys()
+        
+    def add_person(self, person_name_entry):
+        self.name_entries[person_name_entry.person_id] = person_name_entry
+        if person_name_entry.alias:
+            self.aliases[person_name_entry.alias] = person_name_entry.person_id
+        
+    def person_id(self, name):
+        return self.name_entries.get(name) or self.aliases.get(name)
+        
+    def alias(self, name):
+        return self.aliases.get(name, "")
+            
+    def get_default_project_id(self, name):
+        try:
+            name = self.alias(name) or name
+            return self.name_entries[name].default_project_id
+        except:
+            raise Exception(error_table_no_such_user)
+            
+    def set_default_project_id(self, name, default_project_id):
+        try:
+            name = self.alias(name) or name
+            self.name_entries[name].default_project_id = default_project_id
+        except:
+            raise Exception(error_table_no_such_user)
+        
+    def get_password(self, name):
+        try:
+            name = self.alias(name) or name
+            return (self.name_entries[name].encrypted_password, self.name_entries[name].password_pubkey)
+        except:
+            raise Exception(error_table_.no_such_user)
+            
+    def set_password(self, name, encrypted_password):
+        try:
+            name = self.alias(name) or name
+            self.name_entries[name].encrypted_password = encrypted_password
+        except:
+            raise Exception(error_table_no_such_user)
+        
+    def __repr__(self):
+        return str(self.name_entries) + "\n" + str(self.aliases)
+    
+class PersonNameEntry(object):
+
+    def __init__(self, person_id, alias="", default_project_id="*", encrypted_password="", pubkey=None):
+        self.person_id = person_id
+        self.alias = alias
+        self.default_project_id = default_project_id
+        self.encrypted_password = encrypted_password
+        self.password_pubkey = pubkey or rsa.keygen(2 ** 128)[0]
+        
+    def __repr__(self):
+        person_id = self.person_id
+        if self.alias:
+            person_id += " (%s)" % (self.alias)
+        default_project_id = self.default_project_id if self.default_project_id != "*" else "None"
+        return "<%s.%s person_id: %s, default_project_id: %s>" % (__name__, self.__class__.__name__, person_id, default_project_id)
+        
+class ProjectDefinitionTable(object):
+
+    def __init__(self, project_id, alias=""):
+        self.project_id = project_id
+        self.alias = alias
+        self.users = {}
+        
+    def recognizes(self, person_id):
+        return person_id in self.users
+        
+    def get_user_quota(self, person_id):
+        try:
+            return self.users[person_id]
+        except:
+            raise Exception(error_table_.no_such_user)
+            
+    def add_user(self, person_id):
+        self.users[person_id] = ProjectUserQuota(person_id)
+        
+    def remove_user(self, person_id):
+        try:
+            del self.users[person_id]
+        except:
+            raise Exception(error_table_.no_such_user)        
+        
+    def __repr__(self):
+        project_id = self.project_id
+        if self.alias:
+            project_id += " (%s)" % (self.alias)
+        users = str(self.users.keys())
+        return "<%s.%s project_id: %s, users = %s>" % (__name__, self.__class__.__name__, project_id, users)
+        
+class ProjectUserQuota(object):
+
+    def __init__(self, person_id):
+        self.person_id = person_id
         

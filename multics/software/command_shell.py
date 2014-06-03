@@ -10,7 +10,7 @@ class CommandShell(QtCore.QObject):
         super(CommandShell, self).__init__()
         
         self.__system_services = system_services
-        self.__command_prompt = "% "
+        self.__command_prompt = "! "
         self.__command_history = []
         
     def start(self):

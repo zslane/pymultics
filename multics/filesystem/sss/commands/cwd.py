@@ -1,7 +1,7 @@
 
 from multics.globals import *
 
-def cd():
+def cwd():
     declare (arg_list = parm,
              code     = parm)
              
@@ -12,5 +12,5 @@ def cd():
         if code.val != 0:
             call.ioa_("No such directory")
     else:
-        call.ioa_("Usage: cd [directory ref]")
+        call.ioa_("Usage: cwd [directory ref]")
         

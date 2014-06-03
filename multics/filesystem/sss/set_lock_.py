@@ -6,8 +6,6 @@ import cPickle as pickle
 
 from multics.globals import *
 
-# declare (unique_name_ = entry . returns (char('*')))
-
 class set_lock_(SystemExecutable):
     def __init__(self, system_services):
         super(set_lock_, self).__init__(self.__class__.__name__, system_services)
@@ -19,7 +17,7 @@ class set_lock_(SystemExecutable):
             code.val = error_table_.locked_by_this_process
         try:
             process_id = self.system.session_thread.session.process.process_id
-            file_lock = FileLock(segment_data_ptr, process_id, wait_time, self.system.session_thread.login_db)
+            file_lock = FileLock(segment_data_ptr, process_id, wait_time, self.system.session_thread.whotab)
             code.val = file_lock.acquire()
             self.system.session_thread.session.process.stack.file_locks[lock_id] = file_lock
         except FileLockException as e:
@@ -47,7 +45,7 @@ class FileLock(object):
         compatible as it doesn't rely on msvcrt or fcntl for the locking.
     """
     
-    def __init__(self, segment_data_ptr, process_id, timeout, login_db):
+    def __init__(self, segment_data_ptr, process_id, timeout, whotab):
         """ Prepare the file locker. Specify the file to lock and optionally
             the maximum timeout and the delay between each attempt to lock.
         """
@@ -55,7 +53,7 @@ class FileLock(object):
         self.is_locked = False
         self.lockfile = os.path.join(dirname, "%s.lock" % (filename))
         self.timeout = timeout
-        self.login_db = login_db
+        self.whotab = whotab
         self.process_id = process_id
         self.delay = 0.05
         self.fd = None
@@ -110,7 +108,7 @@ class FileLock(object):
         # end with
         
     def invalid_lock_id(self):
-        valid_processes = self.login_db.get_process_ids()
+        valid_processes = self.whotab.get_process_ids()
         with open(self.lockfile, "r") as f:
             lock_owner_id = pickle.load(f)
         # end with

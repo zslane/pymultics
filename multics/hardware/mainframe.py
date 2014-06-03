@@ -169,12 +169,14 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         print self._resolve_path(">udd>sct>jrc<jjl<<m>rah")
         
     def _create_filesystem_directories(self):
-        self.system_dir_dir = ">sdd"
+        self.system_control_1 = ">sc1"
+        self.system_library_standard = ">sss"
         self.process_dir_dir = ">pdd"
         self.user_dir_dir = ">udd"
         
         directory_list = [
-            self.system_dir_dir,
+            self.system_control_1,
+            self.system_library_standard,
             self.process_dir_dir,
             self.user_dir_dir,
         ]
@@ -204,31 +206,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         return self._resolve_path(merged)
         
     def _resolve_path(self, path):
-        # def simplify_inner(l):
-            # print "   ->", l
-            # if l == [""]:
-                # return [">"]
-            # last = l.pop()
-            # rest = filter(lambda x: x == "", l)
-            # rest.append(last)
-            # return rest
-        # def simplify_main(l):
-            # result = []
-            # for x in l:
-                # if x:
-                    # result.append(x)
-                # elif result:
-                    # result.pop()
-            # return result
-            
         print "_resolve_path:", path
-        # path = path.replace(">>", ">").replace("><", "<").replace("<>", "<")
-        # print "  ", path
-        # l = [ simplify_inner(x.split("<")) for x in path.split(">") ]
-        # print "  ", l
-        # l = simplify_main(collapse(l))
-        # print "  ", l
-        # path = ">".join(l).replace(">>", ">")
         path = path.lstrip("<").rstrip(">").replace(">>", ">").replace("<>", "<").replace("><", "<")
         l = re.split("([<>])", path)
         root = {'>':'>'}.get(path[0], "")
