@@ -51,7 +51,7 @@ class VirtualMulticsHardware(QtCore.QObject):
         hardware_statefile_path = os.path.join(os.path.dirname(__file__), ".hardware_state")
         
         try:
-            with open(hardware_statefile_path, "r") as hardware_statefile:
+            with open(hardware_statefile_path, "rb") as hardware_statefile:
                 hardware_state = pickle.load(hardware_statefile)
                 startup_time = hardware_state['startup_time']
             # end with
@@ -61,7 +61,7 @@ class VirtualMulticsHardware(QtCore.QObject):
                 'startup_time': startup_time,
             }
             
-            with open(hardware_statefile_path, "w") as hardware_statefile:
+            with open(hardware_statefile_path, "wb") as hardware_statefile:
                 pickle.dump(hardware_state, hardware_statefile)
             # end with
         # end try
@@ -243,11 +243,11 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         print "Deleted", filepath
         
     def write_file(self, filepath, data):
-        with open(filepath, "w") as f:
+        with open(filepath, "wb") as f:
             pickle.dump(data, f)
     
     def read_file(self, filepath):
-        with open(filepath, "r") as f:
+        with open(filepath, "rb") as f:
             return pickle.load(f)
             
     def get_mod_time(self, filepath):

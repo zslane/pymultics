@@ -54,7 +54,7 @@ class hcs_(SystemExecutable):
         dir_name = self.__filesystem.process_dir_dir
         entryname = unique_name_(process_id)
         self.create_branch_(dir_name, entryname, None, code)
-        if code.val == 0:
+        if code.val == 0 or code.val == error_table_.namedup:
             process_dir.name = dir_name + ">" + entryname
         else:
             process_dir.name = None

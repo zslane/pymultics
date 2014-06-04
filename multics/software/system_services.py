@@ -4,7 +4,6 @@ import imp
 import sys
 import rsa
 import time
-import cPickle as pickle
 import datetime
 
 import multics.globals

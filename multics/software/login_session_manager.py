@@ -48,11 +48,13 @@ class LoginSessionManager(QtCore.QThread):
         pprint(self.__whotab)
         
     def run(self):
+        declare (code = parm)
+        
         self._initialize()
         self._main_loop()
         
         # do any cleanup necessary at the LoginSessionManager level in response to a clean SHUTDOWN
-        call.hcs_.delete_branch_(self.__process_dir)
+        call.hcs_.delete_branch_(self.__process_dir, code)
         self.__session = None
         
         self.__system_services.shutdown()

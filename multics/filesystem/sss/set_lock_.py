@@ -103,18 +103,18 @@ class FileLock(object):
     
     def store_process_id(self):
         os.close(self.fd)
-        with open(self.lockfile, "w") as f:
+        with open(self.lockfile, "wb") as f:
             pickle.dump(self.process_id, f)
         # end with
         
     def invalid_lock_id(self):
         valid_processes = self.whotab.get_process_ids()
-        with open(self.lockfile, "r") as f:
+        with open(self.lockfile, "rb") as f:
             lock_owner_id = pickle.load(f)
         # end with
         invalid = lock_owner_id not in valid_processes
         if invalid:
-            with open(self.lockfile, "w") as f:
+            with open(self.lockfile, "wb") as f:
                 pickle.dump(self.process_id, f)
             # end with
             return True

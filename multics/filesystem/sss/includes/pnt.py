@@ -19,6 +19,13 @@ class PersonNameTable(object):
         if person_name_entry.alias:
             self.aliases[person_name_entry.alias] = person_name_entry.person_id
         
+    def del_person(self, person_id):
+        person_name_entry = self.name_entries[person_id]
+        if person_name_entry.alias:
+            del self.aliases[person_name_entry.alias]
+        # end if
+        del self.name_entries[person_id]
+    
     def person_id(self, name):
         name_entry = self.name_entries.get(name)
         return (name_entry and name_entry.person_id) or self.resolve_alias(name)

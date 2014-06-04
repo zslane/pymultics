@@ -69,9 +69,12 @@ class CommandShell(QtCore.QObject):
             call.hcs_.get_entry_point(program_name, segment)
             program_entry_point = segment.ptr
             if program_entry_point:
-                # code = program_entry_point() or 0
                 program_entry_point()
-                code = 0
+                #== Temporary
+                if command_line == "shutdown":
+                    code = System.SHUTDOWN
+                else:
+                    code = 0
             else:
                 call.ioa_("Unrecognized command {0}", program_name)
                 code = 0

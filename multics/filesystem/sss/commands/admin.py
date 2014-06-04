@@ -7,20 +7,21 @@ admin_usage_text = (
 """Available commands are:
     list_users, lu
     add_user, au
-    remove_user, ru
+    delete_user, du
+    rename_user, ru
     quit, q
     help, ?"""
     )
     
 au_usage_text = (
-"""Usage: add_user [person_id].[project_id] {{options}}
+"""Usage: add_user [person_id] {{options}}
     options: -alias|-a [alias]
              -default_project|-dp [project_id]
              -set_password|-sp {{codeword}}"""
              )
 
 MAIN = "admin"
-    
+
 def admin():
     declare (command  = parm . init (""),
              person   = parm,
@@ -44,8 +45,10 @@ def admin():
                 list_users()
             elif cmd == "add_user" or cmd == "au":
                 add_user()
-            elif cmd == "remove_user" or cmd == "ru":
-                remove_user()
+            elif cmd == "delete_user" or cmd == "du":
+                delete_user()
+            elif cmd == "rename_user" or cmd == "ru":
+                rename_user()
             elif cmd == "help":
                 call.ioa_(admin_usage_text)
             elif cmd != "quit" and cmd != "q":
@@ -89,8 +92,7 @@ def add_user():
         show_usage()
         return
         
-    user_id = arg_list.args.pop(0)
-    person_id, _, project_id = user_id.partition(".")
+    person_id = arg_list.args.pop(0)
     if not person_id:
         show_usage()
         return
@@ -111,7 +113,6 @@ def add_user():
             i += 1
             if i < len(arg_list.args):
                 default_project_id = arg_list.args[i]
-                project_id = project_id or default_project_id
                 i += 1
             else:
                 show_usage()
@@ -141,30 +142,21 @@ def add_user():
             default_project_id = default_project_id or name_entry.default_project_id
             encrypted_password = encrypted_password if setting_password else name_entry.encrypted_password
             pubkey = pubkey or name_entry.password_pubkey
-        elif project_id == "":
-            call.ioa_("Warning: A new user is being added without a project id")
         # end if
         with person_name_table.ptr:
             person_name_table.ptr.add_person(person_id, alias, default_project_id, encrypted_password, pubkey)
         # end with
     # end if
-    
-    # if project_id:
-        # pdt_filename = project_id + ".pdt"
-        # call.hcs_.initiate(system.hardware.filesystem.system_control_dir, pdt_filename, project_definition_table)
-        # if project_definition_table.ptr:
-            # with project_definition_table.ptr:
-                # project_definition_table.ptr.add_user(person_id)
-        
+            
 @system_privileged
-def remove_user():
+def delete_user():
     declare (arg_list          = parm,
              answer            = parm,
              person_name_table = parm)
     
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) == 0:
-        call.ioa_("Usage: ru [person_id]")
+        call.ioa_("Usage: du [person_id]")
         return
         
     person_id = arg_list.args.pop(0)
@@ -177,19 +169,41 @@ def remove_user():
         if person_id in person_name_table.ptr.person_id_list():
             query_info.suppress_name_sw = True
             query_info.yes_or_no_sw = True
-            query_info.explanation_ptr = "You are about to remove {0} as a user from the system. Continue (yes/no)?".format(person_id)
+            query_info.explanation_ptr = "You are about to delete {0} as a user from the system. Continue (yes/no)?".format(person_id)
             call.command_query_(query_info, answer, MAIN, query_info.explanation_ptr)
             if answer.string.lower() in ["yes", "y"]:
                 with person_name_table.ptr:
-                    del person_name_table.ptr.name_entries[person_id]
-                    for alias, pers in person_name_table.ptr.aliases.items():
-                        if pers == person_id:
-                            del person_name_table.ptr.aliases[alias]
-                            break
-                        # end if
-                    # end for
+                    person_name_table.ptr.del_person(person_id)
                 # end with
             # end if
         else:
             call.ioa_("No such user {0}", person_id)
     
+@system_privileged
+def rename_user():
+    declare (arg_list          = parm,
+             person_name_table = parm)
+    
+    call.cu_.arg_list(arg_list)
+    if len(arg_list.args) < 2:
+        call.ioa_("Usage: ru [old person_id] [new person_id]")
+        return
+        
+    old_person_id = arg_list.args.pop(0)
+    new_person_id = arg_list.args.pop(0)
+    
+    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table)
+    if person_name_table.ptr:
+        if old_person_id in person_name_table.ptr.person_id_list():
+            person_name_entry = person_name_table.ptr.name_entries[old_person_id]
+            with person_name_table.ptr:
+                person_name_table.ptr.add_person(new_person_id,
+                                                 person_name_entry.alias,
+                                                 person_name_entry.default_project_id,
+                                                 person_name_entry.encrypted_password,
+                                                 person_name_entry.password_pubkey)
+                person_name_table.ptr.del_person(old_person_id)
+            # end with
+        else:
+            call.ioa_("No such user {0}", old_person_id)
+            

@@ -41,7 +41,7 @@ def cv_pmf():
     # end for
     pprint(pdtab)
     pdt_path = system.hardware.filesystem.path2path(current_dir.name, pdt_file)
-    with open(pdt_path, "w") as f:
+    with open(pdt_path, "wb") as f:
         pickle.dump(pdtab, f)
     # end with
     

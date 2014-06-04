@@ -1,7 +1,6 @@
 import os
 import re
 import shutil
-import cPickle as pickle
 from pprint import pprint
 
 from multics.globals import *
