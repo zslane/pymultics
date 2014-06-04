@@ -5,7 +5,8 @@ from ..globals import *
 
 from PySide import QtCore, QtGui
 
-declare (hcs_ = entry . returns (varying))
+include.pnt
+include.pdt
 
 class LoginSessionManager(QtCore.QThread):
 
@@ -27,6 +28,10 @@ class LoginSessionManager(QtCore.QThread):
     @property
     def whotab(self):
         return self.__whotab
+        
+    @property
+    def pdt(self):
+        return self.__project_definition_tables
         
     def _add_user_to_whotab(self, user_id, login_time):
         #== Add a session block to the LOGIN DB for this session
@@ -94,9 +99,9 @@ class LoginSessionManager(QtCore.QThread):
             segment_list = segment.list
             #== Add SysAdmin as a project with JRCooper as a recognized user
             if not any([ name.endswith(".pdt") for name in segment_list ]):
-                for project_id, alias in [("SysAdmin", "sa"), ("Multics", "m")]:
+                for project_id, alias in [("SysAdmin", "sa")]:
                     segment_name = "%s.pdt" % (project_id)
-                    pdt = ProjectDefinitionTable(project_id, alias)
+                    pdt = ProjectDefinitionTable(project_id, alias, ["JRCooper"])
                     pdt.add_user("JRCooper")
                     call.hcs_.make_seg(self.__system_services.hardware.filesystem.system_control_dir, segment_name, segment(pdt), code)
                     segment_list.append(segment_name)
@@ -171,7 +176,7 @@ class LoginSessionManager(QtCore.QThread):
         person_id = self.__person_name_table.person_id(pers)
         try:
             encrypted_password, pubkey = self.__person_name_table.get_password(person_id)
-            if rsa.encode(password, pubkey) == encrypted_password:
+            if (not pubkey) or (rsa.encode(password, pubkey) == encrypted_password):
                 proj = proj or self.__person_name_table.get_default_project_id(person_id)
                 pdt = self.__project_definition_tables.get(proj)
                 if pdt and pdt.recognizes(person_id):
@@ -213,113 +218,3 @@ class LoginSessionBlock(object):
         
     def __repr__(self):
         return "<%s.%s login_time: %s, process_id: %s, process_dir: %s>" % (__name__, self.__class__.__name__, self.login_time.ctime() if self.login_time else None, self.process_id, self.process_dir)
-        
-class PersonNameTable(object):
-
-    def __init__(self):
-        self.name_entries = {}
-        self.aliases = {}
-        
-    def person_id_list(self):
-        return self.name_entries.keys()
-        
-    def alias_list(self):
-        return self.aliases.keys()
-        
-    def add_person(self, person_id, alias="", default_project_id="*", encrypted_password="", pubkey=None):
-        person_name_entry = PersonNameEntry(person_id, alias, default_project_id, encrypted_password, pubkey)
-        self.name_entries[person_name_entry.person_id] = person_name_entry
-        if person_name_entry.alias:
-            self.aliases[person_name_entry.alias] = person_name_entry.person_id
-        
-    def person_id(self, name):
-        name_entry = self.name_entries.get(name)
-        return (name_entry and name_entry.person_id) or self.resolve_alias(name)
-        
-    def resolve_alias(self, name):
-        return self.aliases.get(name, "")
-        
-    def get_default_project_id(self, name):
-        try:
-            name = self.resolve_alias(name) or name
-            return self.name_entries[name].default_project_id
-        except:
-            raise MulticsCondition(error_table_no_such_user)
-            
-    def set_default_project_id(self, name, default_project_id):
-        try:
-            name = self.resolve_alias(name) or name
-            self.name_entries[name].default_project_id = default_project_id
-        except:
-            raise MulticsCondition(error_table_no_such_user)
-        
-    def get_password(self, name):
-        try:
-            name = self.resolve_alias(name) or name
-            return (self.name_entries[name].encrypted_password, self.name_entries[name].password_pubkey)
-        except:
-            raise MulticsCondition(error_table_.no_such_user)
-            
-    def set_password(self, name, encrypted_password):
-        try:
-            name = self.resolve_alias(name) or name
-            self.name_entries[name].encrypted_password = encrypted_password
-        except:
-            raise MulticsCondition(error_table_no_such_user)
-        
-    def __repr__(self):
-        return str(self.name_entries) + "\n" + str(self.aliases)
-    
-class PersonNameEntry(object):
-
-    def __init__(self, person_id, alias="", default_project_id="", encrypted_password="", pubkey=None):
-        self.person_id = person_id
-        self.alias = alias
-        self.default_project_id = default_project_id
-        self.encrypted_password = encrypted_password
-        self.password_pubkey = pubkey or rsa.keygen(2 ** 128)[0]
-        
-    def __repr__(self):
-        person_id = self.person_id
-        if self.alias:
-            person_id += " (%s)" % (self.alias)
-        default_project_id = self.default_project_id or "None"
-        return "<%s.%s person_id: %s, default_project_id: %s>" % (__name__, self.__class__.__name__, person_id, default_project_id)
-        
-class ProjectDefinitionTable(object):
-
-    def __init__(self, project_id, alias=""):
-        self.project_id = project_id
-        self.alias = alias
-        self.users = {}
-        
-    def recognizes(self, person_id):
-        return person_id in self.users
-        
-    def get_user_quota(self, person_id):
-        try:
-            return self.users[person_id]
-        except:
-            raise MulticsCondition(error_table_.no_such_user)
-            
-    def add_user(self, person_id):
-        self.users[person_id] = ProjectUserQuota(person_id)
-        
-    def remove_user(self, person_id):
-        try:
-            del self.users[person_id]
-        except:
-            raise MulticsCondition(error_table_.no_such_user)        
-        
-    def __repr__(self):
-        project_id = self.project_id
-        if self.alias:
-            project_id += " (%s)" % (self.alias)
-        users = str(self.users.keys())
-        return "<%s.%s project_id: %s, users = %s>" % (__name__, self.__class__.__name__, project_id, users)
-        
-class ProjectUserQuota(object):
-
-    def __init__(self, person_id):
-        self.person_id = person_id
-        

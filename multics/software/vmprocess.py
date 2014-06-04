@@ -27,6 +27,10 @@ class VirtualMulticsProcess(QtCore.QObject):
         return self.__process_id
         
     @property
+    def process_dir(self):
+        return self.__process_dir
+        
+    @property
     def stack(self):
         return self.__process_stack
         

@@ -205,6 +205,15 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         merged = ">".join(args).replace(">>", ">")
         return self._resolve_path(merged)
         
+    def split_path(self, p):
+        if ">" in p:
+            i = p.rfind(">")
+            dir_name = p[:i] or ">"
+            entryname = p[i + 1:]
+            return (dir_name, entryname)
+        else:
+            return os.path.split(p)
+        
     def _resolve_path(self, path):
         print "_resolve_path:", path
         path = path.lstrip("<").rstrip(">").replace(">>", ">").replace("<>", "<").replace("><", "<")
@@ -231,6 +240,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         
     def delete_file(self, filepath):
         os.remove(filepath)
+        print "Deleted", filepath
         
     def write_file(self, filepath, data):
         with open(filepath, "w") as f:

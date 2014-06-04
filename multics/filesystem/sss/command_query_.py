@@ -12,7 +12,7 @@ class command_query_(SystemExecutable):
     def _do_query(self, info_ptr, answer, caller, control_string="", *args, **kwargs):
         question = control_string.format(*args, **kwargs)
         if not info_ptr.suppress_name_sw:
-            question = caller + ": " + question
+            question = caller + ":" + (" " + question if question else "")
         if not info_ptr.suppress_spacing:
             question = "\n" + question + "  "
             

@@ -341,7 +341,12 @@ class DynamicLinker(QtCore.QObject):
             if known_location:
                 search_paths = [ known_location ]
             else:
-                search_paths = self.__system_services.session_thread.session.process.search_paths
+                search_paths = self.__system_services.session_thread.session.process.search_paths[:]
+                try:
+                    current_dir = self.__system_services.session_thread.session.process.directory_stack[-1]
+                    search_paths.insert(0, current_dir)
+                except:
+                    pass
             # end if
             
             #== Try to find the segment and add it to the KST

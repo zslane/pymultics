@@ -4,7 +4,7 @@ from multics.globals import *
 
 @system_privileged
 def get_pdir_():
-    return system.hardware.filesystem.process_dir_dir
+    return system.session_thread.session.process.process_dir
 
 @system_privileged
 def clock_():

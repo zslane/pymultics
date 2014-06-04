@@ -17,7 +17,21 @@ class hcs_(SystemExecutable):
         self.system.dynamic_linker.clear_kst()
         
     def get_entry_point(self, segment_name, segment):
-        segment.ptr = self.system.dynamic_linker.snap(segment_name)
+        dir_name, entryname = None, segment_name
+        if ">" in segment_name:
+            if segment_name.startswith(">"):
+                path = segment_name
+            else:
+                try:
+                    current_dir = self.system.session_thread.session.process.directory_stack[-1]
+                except:
+                    current_dir = get_pdir_()
+                # end try
+                path = self.__filesystem.merge_path(current_dir, segment_name)
+            dir_name, entryname = self.__filesystem.split_path(path)
+            # print "get_entry_point: dir_name = '%s', entryname = '%s'" % (dir_name, entryname)
+        # end if
+        segment.ptr = self.system.dynamic_linker.snap(entryname, dir_name)
         
     def del_entry_point(self, segment_name):
         self.system.dynamic_linker.unsnap(segment_name)
@@ -25,7 +39,7 @@ class hcs_(SystemExecutable):
     #== DATA FILE I/O ==#
     
     def create_process_dir(self, process_id, process_dir, code):
-        dir_name = get_pdir_()
+        dir_name = self.__filesystem.process_dir_dir
         entryname = unique_name_(process_id)
         self.create_branch_(dir_name, entryname, None, code)
         if code.val == 0:
@@ -73,8 +87,10 @@ class hcs_(SystemExecutable):
             code.val = error_table_.fileioerr
             
     def delentry_seg(self, segment_data_ptr, code):
+        _, segment_name = os.path.split(segment_data_ptr.filepath)
+        self.system.dynamic_linker.unsnap(segment_name)
         code.val = segment_data_ptr.remove()
-
+    
     def create_branch_(self, dir_name, entryname, info_ptr, code):
         multics_path = dir_name + ">" + entryname
         native_path = self.__filesystem.path2path(multics_path)
