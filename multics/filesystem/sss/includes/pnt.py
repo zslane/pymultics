@@ -55,7 +55,7 @@ class PersonNameTable(object):
             raise MulticsCondition(error_table_no_such_user)
         
     def __repr__(self):
-        return str(self.name_entries) + "\n" + str(self.aliases)
+        return "<%s.%s\n  name_entries: %s\n  aliases:      %s>" % (__name__, self.__class__.__name__, str(self.name_entries), str(self.aliases))
     
 class PersonNameEntry(object):
 

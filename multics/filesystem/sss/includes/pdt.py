@@ -31,8 +31,9 @@ class ProjectDefinitionTable(object):
         project_id = self.project_id
         if self.alias:
             project_id += " (%s)" % (self.alias)
+        admins = str(self.admins)
         users = str(self.users.keys())
-        return "<%s.%s project_id: %s, users = %s>" % (__name__, self.__class__.__name__, project_id, users)
+        return "<%s.%s project_id: %s, admins = %s, users = %s>" % (__name__, self.__class__.__name__, project_id, admins, users)
         
 class ProjectUserQuota(object):
 

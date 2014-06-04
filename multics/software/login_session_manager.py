@@ -91,6 +91,7 @@ class LoginSessionManager(QtCore.QThread):
                 self.__person_name_table.add_person("JRCooper", alias="jrc", default_project_id="SysAdmin")
             # end with
         # end if
+        print "PERSON NAME TABLE:"
         pprint(self.__person_name_table)
         
         #== Make a dictionary of PDTs (project definition tables)
@@ -114,6 +115,7 @@ class LoginSessionManager(QtCore.QThread):
                 # end if
             # end for
         # end if
+        print "PROJECT DEFINITION TABLES:"
         pprint(self.__project_definition_tables)
         
         #== Get a pointer to the WHOTAB (create it if necessary)
@@ -123,6 +125,7 @@ class LoginSessionManager(QtCore.QThread):
             call.hcs_.make_seg(self.__system_services.hardware.filesystem.system_control_dir, "whotab", segment(LoginDatabase()), code)
             self.__whotab = segment.ptr
         # end if
+        print "WHOTAB:"
         pprint(self.__whotab)
     
     def _main_loop(self):

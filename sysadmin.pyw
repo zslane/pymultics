@@ -2,7 +2,9 @@ import os
 import sys
 import cPickle as pickle
 
-system_includes_path = os.path.join(os.path.dirname(__file__), "multics", "filesystem", "sss", "includes")
+FILESYSTEMROOT = os.path.join(os.path.dirname(__file__), "multics", "filesystem")
+
+system_includes_path = os.path.join(FILESYSTEMROOT, "sss", "includes")
 if system_includes_path not in sys.path:
     sys.path.append(system_includes_path)
     
@@ -33,9 +35,9 @@ class PersonNameTableModel(QtCore.QAbstractTableModel):
         super(PersonNameTableModel, self).__init__(parent)
         
         with open(filepath, "r") as f:
-            self.person_name_table = pickle.load(f)
+            self.person_name_table = pickle.load(f) # <-- requires pnt module
         # end with
-        self.person_ids = self.person_name_table.name_entries.keys()
+        self.person_ids = self.person_name_table.person_id_list()
         
     def rowCount(self, index):
         return 0 if index.isValid() else len(self.person_ids)
@@ -78,7 +80,7 @@ class SysAdminWindow(QtGui.QMainWindow):
         
         self.set_up_menus()
         
-        pnt_path = os.path.join(os.path.dirname(__file__), "multics", "filesystem", "sc1", "person_name_table")
+        pnt_path = os.path.join(FILESYSTEMROOT, "sc1", "person_name_table")
         
         self.pnt_ui = PersonNameTableUi(pnt_path)
         

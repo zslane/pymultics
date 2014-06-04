@@ -243,6 +243,10 @@ class SegmentDescriptor(QtCore.QObject):
             # print "Creating null segment"
             self.segment = None
             
+    @property
+    def filepath(self):
+        return self.path
+        
     def __repr__(self):
         return "<%s.SegmentDescriptor %s>" % (__name__, self.path)
         
@@ -312,18 +316,30 @@ class DynamicLinker(QtCore.QObject):
     
     def load(self, dir_name, segment_name):
         print "Trying to load", dir_name, segment_name
+        multics_path = dir_name + ">" + segment_name
+        native_path = self.__filesystem.path2path(multics_path)
+        
         try:
+            #== First look in the KST for a matching filepath
+            for segment_data_ptr in self.__known_segment_table.values():
+                if segment_data_ptr.filepath == native_path:
+                    print "...found in KST by filepath", segment_data_ptr
+                    return segment_data_ptr
+                # end if
+            # end for
+            
+            #== This part might not make sense anymore now that we first search
+            #== the KST by filepath. If that search doesn't find the segment,
+            #== then how could it be in the KST at all?
             segment_data_ptr = self.__known_segment_table[segment_name]
             print "...found in KST", segment_data_ptr
             return segment_data_ptr
             
         except KeyError:
-            multics_path = dir_name + ">" + segment_name
-            native_path = self.__filesystem.path2path(multics_path)
             print "...opening", native_path
             try:
                 segment_data_ptr = self.__filesystem.segment_data_ptr(native_path)
-                print "...", segment_data_ptr
+                print "  ", segment_data_ptr
                 self.__known_segment_table[segment_name] = segment_data_ptr
                 return segment_data_ptr
             except:

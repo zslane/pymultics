@@ -8,7 +8,8 @@ def compile():
              arg_count   = parm,
              current_dir = parm,
              source_file = parm,
-             object_file = parm)
+             object_file = parm,
+             code        = parm)
              
     call.cu_.arg_count(arg_count)
     if arg_count.val != 1:
@@ -32,8 +33,5 @@ def compile():
         call.ioa_("Compilation failed.")
         return
         
-    try:
-        call.hcs_.del_entry_point(module_name)
-    except:
-        pass
-        
+    call.term_.single_refname(module_name, code)
+    

@@ -33,8 +33,20 @@ class hcs_(SystemExecutable):
         # end if
         segment.ptr = self.system.dynamic_linker.snap(entryname, dir_name)
         
-    def del_entry_point(self, segment_name):
-        self.system.dynamic_linker.unsnap(segment_name)
+    def terminate_name(self, segment_name, code):
+        try:
+            self.system.dynamic_linker.unsnap(segment_name)
+            code.val = 0
+        except SegmentFault:
+            code.val = error_table_.fileioerr
+        
+    def terminate_file(self, filepath, code):
+        dir_name, segment_name = self.__filesystem.split_path(filepath)
+        self.terminate_name(segment_name, code)
+        
+    def terminate_ptr(self, segment, code):
+        dir_name, segment_name = self.__filesystem.split_path(segment.filepath)
+        self.terminate_name(segment_name, code)
         
     #== DATA FILE I/O ==#
     
@@ -76,8 +88,10 @@ class hcs_(SystemExecutable):
         # end if
         
         try:
+            #== Create the file on disk
             # segment.data_ptr = self.__filesystem.segment_data_ptr(native_path, segment.data_ptr)
             self.__filesystem.segment_data_ptr(native_path, segment.data_ptr)
+            #== Make sure the segment gets into the KST
             segment.data_ptr = self.system.dynamic_linker.load(dirname, segment_name)
             code.val = 0
         except:
@@ -87,9 +101,8 @@ class hcs_(SystemExecutable):
             code.val = error_table_.fileioerr
             
     def delentry_seg(self, segment_data_ptr, code):
-        _, segment_name = os.path.split(segment_data_ptr.filepath)
-        self.system.dynamic_linker.unsnap(segment_name)
-        code.val = segment_data_ptr.remove()
+        self.terminate_ptr(segment_data_ptr, code)
+        code.val = code.val or segment_data_ptr.delete_file()
     
     def create_branch_(self, dir_name, entryname, info_ptr, code):
         multics_path = dir_name + ">" + entryname

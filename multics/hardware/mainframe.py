@@ -348,7 +348,7 @@ class MemoryMappedIOPtr(object):
         else:
             self._update_data(self.CACHE_OUT)
 
-    def remove(self):
+    def delete_file(self):
         try:
             self.__filesystem.delete_file(self.__filepath)
             return 0
