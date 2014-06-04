@@ -1,8 +1,12 @@
 import os
+import sys
 import cPickle as pickle
 
-import multics.software.login_session_manager
-from multics.software.login_session_manager import *
+system_includes_path = os.path.join(os.path.dirname(__file__), "multics", "filesystem", "sss", "includes")
+if system_includes_path not in sys.path:
+    sys.path.append(system_includes_path)
+    
+from pnt import *
 
 from PySide import QtCore, QtGui
 
