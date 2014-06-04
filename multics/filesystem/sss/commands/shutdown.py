@@ -47,5 +47,5 @@ def shutdown():
     # end if
     print shutdown_time.ctime(), message
                     
-    return System.SHUTDOWN
+    raise ShutdownCondition
     

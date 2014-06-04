@@ -13,6 +13,10 @@ class MulticsCondition(Exception):
 class BreakCondition(MulticsCondition):
     def __init__(self):
         super(MulticsCondition, self).__init__()
+        
+class ShutdownCondition(MulticsCondition):
+    def __init__(self):
+        super(ShutdownCondition, self).__init__()
 
 class SegmentFault(MulticsCondition):
     def __init__(self, entry_point_name):

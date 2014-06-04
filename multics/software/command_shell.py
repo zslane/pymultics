@@ -37,6 +37,8 @@ class CommandShell(QtCore.QObject):
                 code = self._parse_and_execute(command_line.val)
             except BreakCondition:
                 call.hcs_.signal_break()
+            except ShutdownCondition:
+                code = System.SHUTDOWN
             except (SegmentFault, LinkageError, InvalidSegmentFault):
                 call.dump_traceback_()
             except:
@@ -59,28 +61,18 @@ class CommandShell(QtCore.QObject):
             return System.NEW_PROCESS
             
         else:
-            if command_line == "":
-                #== Empty command strings are okay; just ignore them
-                return 0
-            # end if
-            
-            program_name, _, argument_string = command_line.partition(" ")
-            call.cu_.set_command_line_(program_name, argument_string)
-            call.hcs_.get_entry_point(program_name, segment)
-            program_entry_point = segment.ptr
-            if program_entry_point:
-                program_entry_point()
-                #== Temporary
-                if command_line == "shutdown":
-                    code = System.SHUTDOWN
+            if command_line != "":
+                program_name, _, argument_string = command_line.partition(" ")
+                call.cu_.set_command_line_(program_name, argument_string)
+                call.hcs_.get_entry_point(program_name, segment)
+                program_entry_point = segment.ptr
+                if program_entry_point:
+                    program_entry_point()
                 else:
-                    code = 0
-            else:
-                call.ioa_("Unrecognized command {0}", program_name)
-                code = 0
+                    call.ioa_("Unrecognized command {0}", program_name)
             # end if
             
-            return code
+            return 0
     
     def _on_condition__break(self):
         pass
