@@ -64,3 +64,37 @@ store return values in it, which will be available to the caller upon return:
     if segment.ptr != nullptr() and code.val == 0:
         ...success...
         
+Initializer process and the Answering Service
+---------------------------------------------
+
+Instead of 'username'/'password' prompts issued by the LoginSessionManager, the
+system would instead have an Initializer process that runs the 'answering service'
+loop. In a real Multics system, this process belonged to a 'user' called
+Initializer.SysDaemon.z. Logging in under this system involves using the 'login'
+command which accepts control arguments to perform password changing and so
+forth. Since there is no need for a separate background process to handle this,
+we can implement this without system daemons. But it will require:
+
+    o Supporting 'subsystems' which define and implement their own command sets.
+    
+    o Switching from the current LoginSessionManager thread object to a new
+      Initializer thread object implemented as a subsystem.
+      
+System daemons and absentee processes
+-------------------------------------
+
+System daemons, services that run in the 'background' and take care of various
+system-level activities (like delivering mail and interactive messages), and
+absentee 'users' (user commands that also run in the 'background') require:
+
+    o Supporting multiple concurrent 'users', each with their own VirtualMulticsProcesses.
+      It would be necessary to indicate to the VirtualMulticsProcess constructor
+      which command processor to instantiate. Interactive users would get a CommandShell
+      (which needs to be renamed Listener) while system daemons would get
+      one specific to their functionality.
+      
+Currently, the delivery of interactive messages is handled by the sending user's
+interactive process directly via its _process_mbx timer. If the system could spawn
+other threads in addition to the LoginSessionManager, then these other threads
+could become daemons with their own processes, and message delivery could be
+off-loaded to them.
