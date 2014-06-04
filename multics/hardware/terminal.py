@@ -83,6 +83,16 @@ class TerminalIO(QtGui.QWidget):
     @QtCore.Slot(str)
     def display(self, txt):
         self.output.insertPlainText(txt)
+        #== Remove characters that will never be seen again. This keeps the text edit
+        #== widget from filling up with useless characters.
+        max_chars = 80 * 25 + 1
+        num_chars = len(self.output.toPlainText())
+        if num_chars > max_chars:
+            cursor = self.output.textCursor()
+            cursor.setPosition(0, QtGui.QTextCursor.MoveAnchor)
+            cursor.setPosition(num_chars - max_chars, QtGui.QTextCursor.KeepAnchor)
+            cursor.removeSelectedText()
+        # end if
         self.output.moveCursor(QtGui.QTextCursor.End)
         
     @QtCore.Slot(int)
