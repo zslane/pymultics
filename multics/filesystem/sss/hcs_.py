@@ -105,20 +105,17 @@ class hcs_(SystemExecutable):
         code.val = code.val or segment_data_ptr.delete_file()
     
     def create_branch_(self, dir_name, entryname, info_ptr, code):
-        multics_path = dir_name + ">" + entryname
-        native_path = self.__filesystem.path2path(multics_path)
-        if self.__filesystem.file_exists(native_path):
+        dir_path = dir_name + ">" + entryname
+        if self.__filesystem.file_exists(dir_path):
             code.val = error_table_.namedup
         else:
-            code.val = self.__filesystem.mkdir(native_path)
+            code.val = self.__filesystem.mkdir(dir_path)
         
     def delete_branch_(self, dir_name, code):
-        native_path = self.__filesystem.path2path(dir_name)
-        code.val = self.__filesystem.rmdir(native_path)
+        code.val = self.__filesystem.rmdir(dir_name)
         
     def get_directory_contents(self, dir_name, branch, segment, code):
-        native_path = self.__filesystem.path2path(dir_name)
-        branch.list, segment.list, code.val = self.__filesystem.get_directory_contents(native_path)
+        branch.list, segment.list, code.val = self.__filesystem.get_directory_contents(dir_name)
         
     def make_path(self, dir_name, entryname, output):
         output.path = self.__filesystem.path2path(dir_name, entryname)

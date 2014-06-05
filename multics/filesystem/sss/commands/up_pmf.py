@@ -21,6 +21,10 @@ def up_pmf():
         return
         
     pdt_file = arg_list.args.pop()
+    if not pdt_file.endswith(".pdt"):
+        call.ioa_("File must be a .pdt file")
+        return
+        
     project_id, _ = os.path.split(pdt_file)
     
     pdtab = system.session_thread.pdt.get(project_id)

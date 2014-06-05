@@ -200,6 +200,11 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             p = p.replace(self.FILESYSTEMROOT, "").replace("\\", ">")
         return p
         
+    def native_path(self, p):
+        if ">" in p:
+            p = self.path2path(p)
+        return p
+        
     def merge_path(self, *args):
         #== args assumed to be a list of Multics paths
         merged = ">".join(args).replace(">>", ">")
@@ -231,29 +236,36 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         return path
     
     def list_segments(self, filepath):
+        filepath = self.native_path(filepath)
         for module_path in glob.iglob(os.path.join(filepath, "*.py")):
             module_name, _ = os.path.splitext(os.path.basename(module_path))
             yield (module_name, module_path)
     
     def file_exists(self, filepath):
+        filepath = self.native_path(filepath)
         return os.path.exists(filepath)
         
     def delete_file(self, filepath):
+        filepath = self.native_path(filepath)
         os.remove(filepath)
         print "Deleted", filepath
         
     def write_file(self, filepath, data):
+        filepath = self.native_path(filepath)
         with open(filepath, "wb") as f:
             pickle.dump(data, f)
     
     def read_file(self, filepath):
+        filepath = self.native_path(filepath)
         with open(filepath, "rb") as f:
             return pickle.load(f)
             
     def get_mod_time(self, filepath):
+        filepath = self.native_path(filepath)
         return os.path.getmtime(filepath)
         
     def mkdir(self, filepath):
+        filepath = self.native_path(filepath)
         try:
             os.mkdir(filepath)
             return 0
@@ -261,6 +273,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             return 0 if os.path.exists(filepath) else error_table_.fileioerr
             
     def rmdir(self, filepath):
+        filepath = self.native_path(filepath)
         try:
             shutil.rmtree(filepath)
             return 0
@@ -269,6 +282,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             
     def get_directory_contents(self, dirpath):
         try:
+            dirpath = self.native_path(dirpath)
             contents = glob.glob(os.path.join(dirpath, "*"))
             file_list = map(os.path.basename, filter(os.path.isfile, contents))
             dir_list = map(os.path.basename, filter(os.path.isdir, contents))
@@ -277,6 +291,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             return (None, None, -1)
     
     def segment_data_ptr(self, filepath, data_instance=None):
+        filepath = self.native_path(filepath)
         if data_instance is not None:
             self.write_file(filepath, data_instance)
         return MemoryMappedIOPtr(self, filepath)

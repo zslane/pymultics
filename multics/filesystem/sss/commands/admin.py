@@ -121,7 +121,7 @@ def add_user():
         elif arg == "-set_password" or arg == "-sp":
             setting_password = True
             i += 1
-            if i < len(arg_list.args):
+            if (i < len(arg_list.args)) and (not arg_list.args[i].startswith("-")):
                 password = arg_list.args[i]
                 i += 1
             else:
@@ -137,11 +137,11 @@ def add_user():
             person_id = person_name_table.ptr.resolve_alias(person_id)
         # end if
         if person_id in person_name_table.ptr.person_id_list():
-            name_entry = person_name_table.ptr.name_entries[person_id]
-            alias = alias or name_entry.alias
+            name_entry         = person_name_table.ptr.name_entries[person_id]
+            alias              = alias or name_entry.alias
             default_project_id = default_project_id or name_entry.default_project_id
             encrypted_password = encrypted_password if setting_password else name_entry.encrypted_password
-            pubkey = pubkey or name_entry.password_pubkey
+            pubkey             = pubkey if setting_password else name_entry.password_pubkey
         # end if
         with person_name_table.ptr:
             person_name_table.ptr.add_person(person_id, alias, default_project_id, encrypted_password, pubkey)

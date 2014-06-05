@@ -274,8 +274,7 @@ class DynamicLinker(QtCore.QObject):
     def _initialize_system_functions(self):
         import types
         excluded_symbols = ["system_privileged"]
-        native_path = self.__filesystem.path2path(self.__filesystem.system_library_standard)
-        for module_name, module_path in self.__filesystem.list_segments(native_path):
+        for module_name, module_path in self.__filesystem.list_segments(self.__filesystem.system_library_standard):
             module = self._load_python_code(module_name, module_path)
             if module:
                 # print "checking for functions in", module_path

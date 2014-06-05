@@ -57,11 +57,11 @@ class VirtualMulticsProcess(QtCore.QObject):
                  
         self.__process_id = clock_()
         call.hcs_.create_process_dir(self.__process_id, process_dir, code)
-        self.__process_dir = process_dir.name
         if code.val != 0:
             self.__system_services.llout("Failed to create process directory. Logging out.\n")
             return System.LOGOUT
         # end if
+        self.__process_dir = process_dir.name
         
         self._create_mbx()
         self.__login_session.register_process(self.__process_id, self.__process_dir)
@@ -103,8 +103,6 @@ class VirtualMulticsProcess(QtCore.QObject):
     
     def _main_loop(self):
         self.__system_services.llout("New process started on %s\n" % (datetime.datetime.now().ctime()))
-        # from command_processor import CommandShell
-        # self.__command_processor = CommandShell(self.__system_services)
         code = self.__command_processor.start()
         
         # do any cleanup necessary at the VirtualMulticsProcess level

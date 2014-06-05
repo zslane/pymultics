@@ -64,6 +64,9 @@ class LoginSession(QtCore.QObject):
             if command.processor == nullptr():
                 self.__system_services.llout("Could not find/run command processor %s. Logging out.\n" % (self.__cp_path))
                 code = System.LOGOUT
+            elif not self.__system_services.hardware.filesystem.file_exists(self.homedir):
+                self.__system_services.llout("No home directory for user. Please contact System Administrator. Logging out.\n")
+                code = System.LOGOUT
             else:
                 from vmprocess import VirtualMulticsProcess
                 self.__process = VirtualMulticsProcess(self.__system_services, self, command.processor)

@@ -40,8 +40,7 @@ class sys_(SystemExecutable):
         # end if
         out_dir.name = new_dir
         
-        native_path = self.system.hardware.filesystem.path2path(new_dir)
-        if self.system.hardware.filesystem.file_exists(native_path):
+        if self.system.hardware.filesystem.file_exists(new_dir):
             code.val = 0
         else:
             code.val = error_table_.no_directory_entry
@@ -59,8 +58,7 @@ class sys_(SystemExecutable):
         else:
             cur_dir = self.system.session_thread.session.process.directory_stack[-1]
             new_dir = self.system.hardware.filesystem.merge_path(cur_dir, dir_ref)
-            native_path = self.system.hardware.filesystem.path2path(new_dir)
-            if self.system.hardware.filesystem.file_exists(native_path):
+            if self.system.hardware.filesystem.file_exists(new_dir):
                 self.push_directory(new_dir)
                 code.val = 0
             else:
