@@ -59,9 +59,9 @@ def admin():
 def list_users():
     declare (arg_list          = parm,
              person_name_table = parm,
-            )
+             code              = parm)
 
-    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table)
+    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table, code)
     if person_name_table.ptr:
         call.ioa_("Person Id Alias     Dflt Proj Password?")
         call.ioa_("--------- --------- --------- ---------")
@@ -76,7 +76,8 @@ def list_users():
 def add_user():
     declare (arg_list          = parm,
              person_name_table = parm,
-             project_definition_table = parm)
+             project_definition_table = parm,
+             code              = parm)
     
     alias = ""
     default_project_id = ""
@@ -131,7 +132,7 @@ def add_user():
         # end if
     # end while
     
-    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table)
+    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table, code)
     if person_name_table.ptr:
         if person_id in person_name_table.ptr.alias_list():
             person_id = person_name_table.ptr.resolve_alias(person_id)
@@ -152,7 +153,8 @@ def add_user():
 def delete_user():
     declare (arg_list          = parm,
              answer            = parm,
-             person_name_table = parm)
+             person_name_table = parm,
+             code              = parm)
     
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) == 0:
@@ -161,7 +163,7 @@ def delete_user():
         
     person_id = arg_list.args.pop(0)
     
-    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table)
+    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table, code)
     if person_name_table.ptr:
         if person_id in person_name_table.ptr.alias_list():
             person_id = person_name_table.ptr.resolve_alias(person_id)
@@ -182,7 +184,8 @@ def delete_user():
 @system_privileged
 def rename_user():
     declare (arg_list          = parm,
-             person_name_table = parm)
+             person_name_table = parm,
+             code              = parm)
     
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) < 2:
@@ -192,7 +195,7 @@ def rename_user():
     old_person_id = arg_list.args.pop(0)
     new_person_id = arg_list.args.pop(0)
     
-    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table)
+    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table, code)
     if person_name_table.ptr:
         if old_person_id in person_name_table.ptr.person_id_list():
             person_name_entry = person_name_table.ptr.name_entries[old_person_id]

@@ -85,7 +85,7 @@ class LoginSessionManager(QtCore.QThread):
         self.__process_dir = process_dir.name
         
         #== Get a pointer to the PNT (create it if necessary)
-        call.hcs_.initiate(self.__system_services.hardware.filesystem.system_control_dir, "person_name_table", segment)
+        call.hcs_.initiate(self.__system_services.hardware.filesystem.system_control_dir, "person_name_table", segment, code)
         self.__person_name_table = segment.ptr
         if not self.__person_name_table:
             call.hcs_.make_seg(self.__system_services.hardware.filesystem.system_control_dir, "person_name_table", segment(PersonNameTable()), code)
@@ -113,7 +113,7 @@ class LoginSessionManager(QtCore.QThread):
             # end if
             for segment_name in segment_list:
                 if segment_name.endswith(".pdt"):
-                    call.hcs_.initiate(self.__system_services.hardware.filesystem.system_control_dir, segment_name, segment)
+                    call.hcs_.initiate(self.__system_services.hardware.filesystem.system_control_dir, segment_name, segment, code)
                     self.__project_definition_tables[segment.ptr.project_id] = segment.ptr
                     self.__project_definition_tables[segment.ptr.alias] = segment.ptr
                 # end if
@@ -123,7 +123,7 @@ class LoginSessionManager(QtCore.QThread):
         pprint(self.__project_definition_tables)
         
         #== Get a pointer to the WHOTAB (create it if necessary)
-        call.hcs_.initiate(self.__system_services.hardware.filesystem.system_control_dir, "whotab", segment)
+        call.hcs_.initiate(self.__system_services.hardware.filesystem.system_control_dir, "whotab", segment, code)
         self.__whotab = segment.ptr
         if not self.__whotab:
             call.hcs_.make_seg(self.__system_services.hardware.filesystem.system_control_dir, "whotab", segment(LoginDatabase()), code)

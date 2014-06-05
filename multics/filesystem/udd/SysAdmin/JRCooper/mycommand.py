@@ -44,16 +44,8 @@ def mycommand():
     call.ioa_("data.y = {0}", data.y)
     call.ioa_("data.z = {0}", data.z)
     
-    # data2 = call.hcs_.initiate(dirname, filename)
-    # if not data2:
-        # call.ioa_("Error loading {0}>{1}", dirname, filename)
-        # return
-    # data.x = 10
-    # call.ioa_("data.x = {0}", data2.x)
-    # call.ioa_("data.y = {0}", data2.y)
-    # call.ioa_("data.z = {0}", data2.z)
-    dcl (data2 = parm)
-    call.hcs_.initiate(dirname, filename, data2)
+    declare (data2 = parm)
+    call.hcs_.initiate(dirname, filename, data2, code)
     if not data2.ptr:
         call.ioa_("Error loading {0}>{1}", dirname, filename)
         return
@@ -98,6 +90,6 @@ def mycommand():
     
     call.do("ls")
     call.term_.single_refname("do", code)
-    call.hcs_.initiate(">sss", "do", nullptr())
+    call.hcs_.initiate(">sss", "do", nullptr(), code)
     call.do("whoami")
     

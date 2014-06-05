@@ -15,12 +15,12 @@ def cv_pmf():
     
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) != 1:
-        call.ioa_("Usage: cv_pmf [pmf file]")
+        call.ioa_("Usage: cv_pmf [project_id]")
         return
         
-    pmf_file = arg_list.args.pop()
-    project_id, ext = os.path.splitext(pmf_file)
-    pdt_file = pmf_file.replace(ext, ".pdt")
+    project_id = arg_list.args.pop()
+    pmf_file = project_id + ".pmf"
+    pdt_file = project_id + ".pdt"
     
     # pdtab = system.session_thread.pdt.get(project_id)
     # call.user_info_.whoami(person, project)
@@ -30,6 +30,11 @@ def cv_pmf():
     
     call.sys_.get_current_directory(current_dir)
     pmf_path = system.hardware.filesystem.path2path(current_dir.name, pmf_file)
+    if not system.hardware.filesystem.file_exists(pmf_path):
+        call.ioa_("{0}.pmf file not found", project_id)
+        return
+    # end if
+    
     with open(pmf_path, "r") as f:
         pmf_data = load_pmf(f)
     # end with
@@ -37,7 +42,8 @@ def cv_pmf():
     
     pdtab = ProjectDefinitionTable(project_id, pmf_data['alias'], pmf_data['admin'])
     for user in pmf_data['users']:
-        pdtab.add_user(user['person_id'], user.get('command_processor', ""))
+        pdtab.add_user(
+        user['person_id'], user.get('command_processor', ""))
     # end for
     pprint(pdtab)
     pdt_path = system.hardware.filesystem.path2path(current_dir.name, pdt_file)

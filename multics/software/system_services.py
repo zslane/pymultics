@@ -367,6 +367,7 @@ class DynamicLinker(QtCore.QObject):
             
             #== Try to find the segment and add it to the KST
             for multics_path in search_paths:
+                print "...searching", multics_path
                 native_path = self.__filesystem.path2path(multics_path)
                 # print native_path
                 module_path = os.path.join(native_path, segment_name + ".py")
@@ -381,7 +382,7 @@ class DynamicLinker(QtCore.QObject):
                         
                     self.__known_segment_table[segment_name] = SegmentDescriptor(self.__system_services, segment_name, module_path, module)
                     entry_point = self.__known_segment_table[segment_name].segment
-                    # print entry_point
+                    print "   found", entry_point
                     return entry_point
                 # end if
             # end for
@@ -391,15 +392,15 @@ class DynamicLinker(QtCore.QObject):
         self._unlink_segment(segment_name)
         
     def _find_segment(self, segment_name):
-        # print "Searching for segment", segment_name
+        print "Searching for segment", segment_name
         try:
             entry_point = self.__system_function_table[segment_name].segment
-            # print "...found in SFT"
+            print "...found in SFT"
             return entry_point
         except KeyError:
             try:
                 entry_point = self.__known_segment_table[segment_name].segment
-                # print "...found in KST"
+                print "...found in KST"
                 return entry_point
             except KeyError:
                 raise SegmentFault(segment_name)

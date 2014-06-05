@@ -59,7 +59,7 @@ class hcs_(SystemExecutable):
         else:
             process_dir.name = None
     
-    def initiate(self, dirname, segment_name, segment):
+    def initiate(self, dirname, segment_name, segment, code):
         seg_ptr = self.system.dynamic_linker.load(dirname, segment_name)
         if segment:
             segment.data_ptr = seg_ptr

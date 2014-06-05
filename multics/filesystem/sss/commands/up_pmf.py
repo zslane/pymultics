@@ -17,15 +17,11 @@ def up_pmf():
     
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) != 1:
-        call.ioa_("Usage: up_pmf [pdt file]")
+        call.ioa_("Usage: up_pmf [project_id]")
         return
         
-    pdt_file = arg_list.args.pop()
-    if not pdt_file.endswith(".pdt"):
-        call.ioa_("File must be a .pdt file")
-        return
-        
-    project_id, _ = os.path.split(pdt_file)
+    project_id = arg_list.args.pop()
+    pdt_file = project_id + ".pdt"
     
     pdtab = system.session_thread.pdt.get(project_id)
     call.user_info_.whoami(person, project)

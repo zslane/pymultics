@@ -13,7 +13,7 @@ def lock_test():
     filename = "locktest"
     
     call.ioa_("Opening {0}>{1}", dirname, filename)
-    call.hcs_.initiate(dirname, filename, segment)
+    call.hcs_.initiate(dirname, filename, segment, code)
     locktest_file = segment.ptr
     if not locktest_file:
         call.hcs_.make_seg(dirname, filename, segment("locktest"), code)
