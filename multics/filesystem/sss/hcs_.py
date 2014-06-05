@@ -119,4 +119,3 @@ class hcs_(SystemExecutable):
         
     def make_path(self, dir_name, entryname, output):
         output.path = self.__filesystem.path2path(dir_name, entryname)
-        

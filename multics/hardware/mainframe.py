@@ -258,7 +258,11 @@ class VirtualMulticsFileSystem(QtCore.QObject):
     def read_file(self, filepath):
         filepath = self.native_path(filepath)
         with open(filepath, "rb") as f:
-            return pickle.load(f)
+            try:
+                return pickle.load(f)
+            except:
+                f.seek(0)
+                return f.read()
             
     def get_mod_time(self, filepath):
         filepath = self.native_path(filepath)

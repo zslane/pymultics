@@ -45,6 +45,14 @@ class sys_(SystemExecutable):
         else:
             code.val = error_table_.no_directory_entry
     
+    def get_abs_path(self, name, output):
+        if name.startswith(">"):
+            output.path = self.system.hardware.filesystem._resolve_path(name)
+            return
+        # end if
+        current_dir = self.system.session_thread.session.process.directory_stack[-1]
+        output.path = self.system.hardware.filesystem.merge_path(current_dir, name)
+    
     def split_path_(self, full_path, dir_name, entryname):
         rev_full_path = full_path[::-1]
         e, _, d = rev_full_path.partition(">")
