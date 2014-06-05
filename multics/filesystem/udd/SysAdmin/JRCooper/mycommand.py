@@ -19,7 +19,8 @@ declare (test_ = entry)
 def mycommand():
     declare (args = parm,
              segment = parm,
-             code = parm)
+             code = parm,
+             local_var = "local variable")
     
     call.cu_.arg_list(args)
     call.ioa_("arg_list: {0}", args.list)
@@ -31,6 +32,7 @@ def mycommand():
     s = unique_name_(x)
     call.ioa_("shriekname is {0}", s)
     call.active_function()
+    call.ioa_("local_var = {0}", local_var)
     
     dirname = ">udd>SysAdmin>JRCooper"
     filename = "test.data"

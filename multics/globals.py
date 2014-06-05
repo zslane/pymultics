@@ -192,10 +192,21 @@ class Injector(object):
                 if member_name == name + "_structure":
                     member_object = member_object()
                     # print "Injecting", member_object, "into", pframe.f_globals['__name__'], "as", name
-                    pframe.f_globals[name] = member_object
+                    # pframe.f_globals[name] = member_object
+                    pframe.f_globals.update({name:member_object})
                 else:
-                    # print "Injecting", member_object, "into", pframe.f_globals['__name__'], "as", member_name
-                    pframe.f_globals[member_name] = member_object
+                    # print "Injecting", member_name, "into", pframe.f_globals['__name__'], "with value", member_object
+                    # pframe.f_globals[member_name] = member_object
+                    pframe.f_globals.update({member_name:member_object})
+                # end if
+            # end for
+        # end if
+        
+    @staticmethod
+    def inject_local(pframe, name, initial_value):
+        if pframe:
+            # print "Injecting", name, "into", pframe.f_globals['__name__'], "with initial value", initial_value
+            pframe.f_globals.update({name:initial_value})
         
     @staticmethod
     def find_pframe():
@@ -234,9 +245,13 @@ class declare(object):
             elif type(dcl_type) is parameter_with_init:
                 #== Creates and injects a parm object with an initial value
                 Injector.inject_parm(pframe, fn_name, dcl_type.initial_value)
-            elif dcl_type.type == PL1.Function or dcl_type.type == PL1.Procedure:
+            elif type(dcl_type) in [PL1.FuncSignature, PL1.ProcSignature]:
                 #== Creates and injects a LinkageReference object
                 Injector.inject_func(pframe, fn_name, call)
+            else:
+                #== Creates a normal local variable
+                name, initial_value = fn_name, dcl_type
+                Injector.inject_local(pframe, name, initial_value)
         
 dcl = declare
 
