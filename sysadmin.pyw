@@ -74,6 +74,8 @@ class PersonNameTableModel(QtCore.QAbstractTableModel):
                 return name_entry.default_project_id
             elif col == 3:
                 return "Yes" if name_entry.encrypted_password else "No"
+                
+        return None
 
 class ProjectDefinitionTableUi(QtGui.QWidget):
     def __init__(self, filepath, parent=None):
@@ -84,6 +86,7 @@ class ProjectDefinitionTableUi(QtGui.QWidget):
         self.users_table_view = ProjectUsersTableView()
         self.users_table_view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         self.users_table_view.setModel(self.model.users_model)
+        self.users_table_view.resizeColumnToContents(1)
         
         self.admins_table_view = ProjectAdminsTableView()
         self.admins_table_view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
@@ -159,12 +162,12 @@ class ProjectUsersModel(QtCore.QAbstractTableModel):
         return 0 if index.isValid() else len(self.users)
         
     def columnCount(self, index):
-        return 0 if index.isValid() else 1
+        return 0 if index.isValid() else 2
     
     def headerData(self, section, orientation, role):
         if orientation == QtCore.Qt.Horizontal:
             if role == QtCore.Qt.DisplayRole:
-                return ["Person Id"][section]
+                return ["Person Id", "Command Processor"][section]
             elif role == QtCore.Qt.TextAlignmentRole:
                 return QtCore.Qt.AlignLeft
             # end if
@@ -176,8 +179,17 @@ class ProjectUsersModel(QtCore.QAbstractTableModel):
         if not index.isValid():
             return None
             
+        row = index.row()
+        col = index.column()
+        
         if role == QtCore.Qt.DisplayRole:
-            return self.person_id_list[index.row()]
+            user = self.users[self.person_id_list[row]]
+            if col == 0:
+                return user.person_id
+            elif col == 1:
+                return user.cp_path or "Default"
+                
+        return None
 
 class SysAdminWindow(QtGui.QMainWindow):
     def __init__(self):

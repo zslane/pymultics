@@ -1,13 +1,12 @@
 
-from ..globals import *
-from query_info import *
+from multics.globals import *
 
-from PySide import QtCore, QtGui
+include.query_info
 
-class CommandShell(QtCore.QObject):
+class default_cp(CommandProcessor):
 
     def __init__(self, system_services):
-        super(CommandShell, self).__init__()
+        super(default_cp, self).__init__(self.__class__.__name__, system_services)
         
         self.__system_services = system_services
         self.__command_prompt = "! "
@@ -24,7 +23,6 @@ class CommandShell(QtCore.QObject):
         
     def _main_loop(self):
         declare (command_line = parm)
-        query_info = query_info_structure()
         query_info.suppress_name_sw = True
         query_info.suppress_spacing = True
         
@@ -32,7 +30,7 @@ class CommandShell(QtCore.QObject):
         while code == 0:
             try:
                 call.ioa_.nnl(self.__command_prompt)
-                call.command_query_(query_info, command_line, "command shell")
+                call.command_query_(query_info, command_line, "listener")
                 self.__command_history.append(command_line.val)
                 code = self._parse_and_execute(command_line.val)
             except BreakCondition:
@@ -74,9 +72,6 @@ class CommandShell(QtCore.QObject):
             
             return 0
     
-    def _on_condition__break(self):
-        pass
-
     def _cleanup(self):
         pass
         

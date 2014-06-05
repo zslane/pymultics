@@ -11,7 +11,7 @@ class VirtualMulticsProcess(QtCore.QObject):
 
     PROCESS_TIMER_DURATION = 1.0
     
-    def __init__(self, system_services, login_session):
+    def __init__(self, system_services, login_session, command_processor):
         super(VirtualMulticsProcess, self).__init__()
         
         self.__system_services = system_services
@@ -20,7 +20,7 @@ class VirtualMulticsProcess(QtCore.QObject):
         self.__process_dir = None
         self.__mbx = None
         self.__process_stack = ProcessStack()
-        self.__command_shell = None
+        self.__command_processor = command_processor
         
     @property
     def process_id(self):
@@ -47,8 +47,8 @@ class VirtualMulticsProcess(QtCore.QObject):
         return self.__process_stack.directory_stack
         
     @property
-    def command_shell(self):
-        return self.__command_shell
+    def command_processor(self):
+        return self.__command_processor
         
     def start(self):
         declare (process_dir  = parm,
@@ -75,8 +75,8 @@ class VirtualMulticsProcess(QtCore.QObject):
         return self._main_loop()
         
     def kill(self):
-        if self.__command_shell:
-            self.__command_shell.kill()
+        if self.__command_processor:
+            self.__command_processor.kill()
         # end if
         self._cleanup()
     
@@ -103,9 +103,9 @@ class VirtualMulticsProcess(QtCore.QObject):
     
     def _main_loop(self):
         self.__system_services.llout("New process started on %s\n" % (datetime.datetime.now().ctime()))
-        from command_shell import CommandShell
-        self.__command_shell = CommandShell(self.__system_services)
-        code = self.__command_shell.start()
+        # from command_processor import CommandShell
+        # self.__command_processor = CommandShell(self.__system_services)
+        code = self.__command_processor.start()
         
         # do any cleanup necessary at the VirtualMulticsProcess level
         self._cleanup()
@@ -113,12 +113,12 @@ class VirtualMulticsProcess(QtCore.QObject):
         return code
     
     def _on_condition__break(self):
-        if self.__command_shell:
-            self.__command_shell._on_condition__break()
+        if self.__command_processor:
+            self.__command_processor._on_condition__break()
         
     def _cleanup(self):
         declare (code = parm)
-        self.__command_shell = None
+        self.__command_processor = None
         call.timer_manager_.reset_alarm_call(self._process_mbx)
         self._delete_mbx()
         call.hcs_.delete_branch_(self.__process_dir, code)

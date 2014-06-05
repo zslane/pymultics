@@ -10,6 +10,8 @@ include.pdt
 
 class LoginSessionManager(QtCore.QThread):
 
+    DEFAULT_CP_PATH = ">sss>default_cp"
+    
     def __init__(self, system_services):
         super(LoginSessionManager, self).__init__()
         
@@ -186,8 +188,9 @@ class LoginSessionManager(QtCore.QThread):
                 pdt = self.__project_definition_tables.get(proj)
                 if pdt and pdt.recognizes(person_id):
                     user_id = person_id + "." + pdt.project_id
+                    cp_path = pdt.users[person_id].cp_path or self.DEFAULT_CP_PATH
                     from login_session import LoginSession
-                    return LoginSession(self.__system_services, self, user_id)
+                    return LoginSession(self.__system_services, self, user_id, cp_path)
                 # end if
             # end if
         except:

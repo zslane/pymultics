@@ -55,6 +55,10 @@ error_table_ = PL1.Enum("error_table_",
 )
 
 class Executable(QtCore.QObject):
+    """
+    Executables are created within the SegmentDescriptor constructor to
+    represent both procedure$entrypoint executables and pure functions.
+    """
     def __init__(self, segment_name, fn=None):
         super(Executable, self).__init__()
         
@@ -80,6 +84,19 @@ class SystemExecutable(Executable):
         
         self.system = system_services
         
+class CommandProcessor(SystemExecutable):
+    def __init__(self, segment_name, system_services):
+        super(CommandProcessor, self).__init__(segment_name, system_services)
+        
+    def start(self):
+        raise LinkageError(self.__segment_name, "start (command processor entry point)")
+        
+    def kill(self):
+        raise LinkageError(self.__segment_name, "kill (command processor kill point)")
+        
+    def _on_condition__break(self):
+        pass
+
 __system_services = None
 call = None
 

@@ -6,7 +6,7 @@ from PySide import QtCore, QtGui
 
 class LoginSession(QtCore.QObject):
 
-    def __init__(self, system_services, login_session_manager, user_id):
+    def __init__(self, system_services, login_session_manager, user_id, cp_path):
         super(LoginSession, self).__init__()
         
         self.__system_services = system_services
@@ -15,6 +15,7 @@ class LoginSession(QtCore.QObject):
         self.__user_id = user_id
         self.__homedir = None
         self.__process = None
+        self.__cp_path = cp_path
         
     @property
     def process(self):
@@ -55,11 +56,19 @@ class LoginSession(QtCore.QObject):
         self.__login_session_manager.register_process(self.__user_id, process_id, process_dir)
         
     def _main_loop(self):
+        declare (command = parm)
+        
         code = 0
         while code != System.LOGOUT and code != System.SHUTDOWN:
-            from vmprocess import VirtualMulticsProcess
-            self.__process = VirtualMulticsProcess(self.__system_services, self)
-            code = self.__process.start()
+            call.hcs_.get_entry_point(self.__cp_path, command)
+            if command.processor == nullptr():
+                self.__system_services.llout("Could not find/run command processor %s. Logging out.\n" % (self.__cp_path))
+                code = System.LOGOUT
+            else:
+                from vmprocess import VirtualMulticsProcess
+                self.__process = VirtualMulticsProcess(self.__system_services, self, command.processor)
+                code = self.__process.start()
+            # end if
         # end while
         
         # do any cleanup necessary at the LoginSession level

@@ -18,8 +18,8 @@ class ProjectDefinitionTable(object):
         except:
             raise MulticsCondition(error_table_.no_such_user)
             
-    def add_user(self, person_id):
-        self.users[person_id] = ProjectUserQuota(person_id)
+    def add_user(self, person_id, cp_path=""):
+        self.users[person_id] = ProjectUserConfig(person_id, cp_path)
         
     def remove_user(self, person_id):
         try:
@@ -35,8 +35,9 @@ class ProjectDefinitionTable(object):
         users = str(self.users.keys())
         return "<%s.%s project_id: %s, admins = %s, users = %s>" % (__name__, self.__class__.__name__, project_id, admins, users)
         
-class ProjectUserQuota(object):
+class ProjectUserConfig(object):
 
-    def __init__(self, person_id):
+    def __init__(self, person_id, cp_path):
         self.person_id = person_id
+        self.cp_path = cp_path
         

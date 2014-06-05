@@ -2,5 +2,5 @@ alias: m
 admin: [JRCooper]
 users:
  - { person_id: JRCooper }
- - { person_id: Foo }
+ - { person_id: Foo, command_processor: >sss>gcos_sim }
  

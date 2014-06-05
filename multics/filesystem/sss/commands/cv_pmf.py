@@ -37,7 +37,7 @@ def cv_pmf():
     
     pdtab = ProjectDefinitionTable(project_id, pmf_data['alias'], pmf_data['admin'])
     for user in pmf_data['users']:
-        pdtab.add_user(user['person_id'])
+        pdtab.add_user(user['person_id'], user.get('command_processor', ""))
     # end for
     pprint(pdtab)
     pdt_path = system.hardware.filesystem.path2path(current_dir.name, pdt_file)
