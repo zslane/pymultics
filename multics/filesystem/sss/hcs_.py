@@ -60,13 +60,9 @@ class hcs_(SystemExecutable):
             process_dir.name = None
     
     def initiate(self, dirname, segment_name, segment):
-        segment.data_ptr = self.system.dynamic_linker.load(dirname, segment_name)
-        # multics_path = dirname + ">" + segment_name
-        # native_path = self.__filesystem.path2path(multics_path)
-        # try:
-            # segment.data_ptr = self.__filesystem.segment_data_ptr(native_path)
-        # except:
-            # segment.data_ptr = nullptr()
+        seg_ptr = self.system.dynamic_linker.load(dirname, segment_name)
+        if segment:
+            segment.data_ptr = seg_ptr
         
     def make_seg(self, dirname, segment_name, segment, code):
         if dirname == "":

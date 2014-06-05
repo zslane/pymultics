@@ -11,7 +11,8 @@ class MyData(object):
         
 declare (clock_          = entry . returns (fixed.bin(32)),
          unique_name_    = entry . returns (char('*')),
-         active_function = entry . returns (fixed.bin))
+         active_function = entry,
+         do              = entry (char('*')))
 
 declare (test_ = entry)
 
@@ -29,7 +30,7 @@ def mycommand():
     call.ioa_("clock_() = {0}", x)
     s = unique_name_(x)
     call.ioa_("shriekname is {0}", s)
-    active_function()
+    call.active_function()
     
     dirname = ">udd>SysAdmin>JRCooper"
     filename = "test.data"
@@ -94,4 +95,9 @@ def mycommand():
     
     if data3.ptr != nullptr():
         call.hcs_.delentry_seg(data3.ptr, code)
+    
+    call.do("ls")
+    call.term_.single_refname("do", code)
+    call.hcs_.initiate(">sss", "do", nullptr())
+    call.do("whoami")
     

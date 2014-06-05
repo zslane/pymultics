@@ -343,7 +343,9 @@ class DynamicLinker(QtCore.QObject):
             except:
                 # import traceback
                 # traceback.print_exc()
-                return nullptr()
+                # return nullptr()
+                print "...failed to find/load file...trying to snap it instead"
+                return self.snap(segment_name, dir_name)
         
     def snap(self, segment_name, known_location=None):
         try:
