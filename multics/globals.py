@@ -77,6 +77,12 @@ class Executable(QtCore.QObject):
         
     def __getattr__(self, entry_point_name):
         raise LinkageError(self.__segment_name, entry_point_name)
+        
+    def __repr__(self):
+        if self.__fn:
+            return "<%s.%sCommand %s>" % (__name__, self.__class__.__name__, self.__segment_name)
+        else:
+            return super(Executable, self).__repr__()
     
 class SystemExecutable(Executable):
     def __init__(self, segment_name, system_services):
