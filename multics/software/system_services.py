@@ -313,7 +313,7 @@ class DynamicLinker(QtCore.QObject):
                 del self.__known_segment_table[segment_name]
     
     def load(self, dir_name, segment_name):
-        print "Trying to load", dir_name, segment_name
+        # print "Trying to load", dir_name, segment_name
         multics_path = dir_name + ">" + segment_name
         native_path = self.__filesystem.path2path(multics_path)
         
@@ -321,7 +321,7 @@ class DynamicLinker(QtCore.QObject):
             #== First look in the KST for a matching filepath
             for segment_data_ptr in self.__known_segment_table.values():
                 if segment_data_ptr.filepath == native_path:
-                    print "...found in KST by filepath", segment_data_ptr
+                    # print "...found in KST by filepath", segment_data_ptr
                     return segment_data_ptr
                 # end if
             # end for
@@ -330,11 +330,11 @@ class DynamicLinker(QtCore.QObject):
             #== the KST by filepath. If that search doesn't find the segment,
             #== then how could it be in the KST at all?
             segment_data_ptr = self.__known_segment_table[segment_name]
-            print "...found in KST", segment_data_ptr
+            # print "...found in KST", segment_data_ptr
             return segment_data_ptr
             
         except KeyError:
-            print "...opening", native_path
+            # print "...opening", native_path
             try:
                 segment_data_ptr = self.__filesystem.segment_data_ptr(native_path)
                 print "  ", segment_data_ptr
@@ -343,8 +343,8 @@ class DynamicLinker(QtCore.QObject):
             except:
                 # import traceback
                 # traceback.print_exc()
-                # return nullptr()
-                print "...failed to find/load file...trying to snap it instead"
+                # return null()
+                # print "...failed to find/load file...trying to snap it instead"
                 return self.snap(segment_name, dir_name)
         
     def snap(self, segment_name, known_location=None):
@@ -367,7 +367,7 @@ class DynamicLinker(QtCore.QObject):
             
             #== Try to find the segment and add it to the KST
             for multics_path in search_paths:
-                print "...searching", multics_path
+                # print "...searching", multics_path
                 native_path = self.__filesystem.path2path(multics_path)
                 # print native_path
                 module_path = os.path.join(native_path, segment_name + ".py")
@@ -382,7 +382,7 @@ class DynamicLinker(QtCore.QObject):
                         
                     self.__known_segment_table[segment_name] = SegmentDescriptor(self.__system_services, segment_name, module_path, module)
                     entry_point = self.__known_segment_table[segment_name].segment
-                    print "   found", entry_point
+                    # print "   found", entry_point
                     return entry_point
                 # end if
             # end for
@@ -392,28 +392,28 @@ class DynamicLinker(QtCore.QObject):
         self._unlink_segment(segment_name)
         
     def _find_segment(self, segment_name):
-        print "Searching for segment", segment_name
+        # print "Searching for segment", segment_name
         try:
             entry_point = self.__system_function_table[segment_name].segment
-            print "...found in SFT"
+            # print "...found in SFT"
             return entry_point
         except KeyError:
             try:
                 entry_point = self.__known_segment_table[segment_name].segment
-                print "...found in KST"
+                # print "...found in KST"
                 return entry_point
             except KeyError:
                 raise SegmentFault(segment_name)
 
     def _unlink_segment(self, segment_name):
-        print "Unlinking segment", segment_name
+        # print "Unlinking segment", segment_name
         try:
             del self.__system_function_table[segment_name]
-            print "...removed from SFT"
+            # print "...removed from SFT"
         except KeyError:
             try:
                 del self.__known_segment_table[segment_name]
-                print "...removed from KST"
+                # print "...removed from KST"
             except KeyError:
                 raise SegmentFault(segment_name)
     

@@ -205,7 +205,7 @@ class Injector(object):
     @staticmethod
     def inject_local(pframe, name, initial_value):
         if pframe:
-            # print "Injecting", name, "into", pframe.f_globals['__name__'], "with initial value", initial_value
+            print "Injecting", name, "into", pframe.f_globals['__name__'], "with initial value", repr(initial_value)
             pframe.f_globals.update({name:initial_value})
         
     @staticmethod
@@ -224,7 +224,7 @@ class alloc(object):
     def __init__(self, objtype):
         setattr(self, objtype.__name__, objtype())
 
-def nullptr():
+def null():
     return None
     
 class declare(object):
@@ -248,8 +248,13 @@ class declare(object):
             elif type(dcl_type) in [PL1.FuncSignature, PL1.ProcSignature]:
                 #== Creates and injects a LinkageReference object
                 Injector.inject_func(pframe, fn_name, call)
+            elif type(dcl_type) == PL1.Type:
+                #== Creates and injects a PL1.Type local variable converted to a python type
+                name, initial_value = fn_name, dcl_type.toPython()
+                print "declaring", name, dcl_type
+                Injector.inject_local(pframe, name, initial_value)
             else:
-                #== Creates a normal local variable
+                #== Creates a normal (python type) local variable
                 name, initial_value = fn_name, dcl_type
                 Injector.inject_local(pframe, name, initial_value)
         

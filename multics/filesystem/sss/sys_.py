@@ -89,7 +89,7 @@ class sys_(SystemExecutable):
             return
         # end try
         call.hcs_.initiate(session_block.process_dir, "process_mbx", process_mbx_segment, code)
-        if process_mbx_segment.ptr != nullptr():
+        if process_mbx_segment.ptr != null():
             call.set_lock_.lock(process_mbx_segment.ptr, 5, code)
         else:
             code.val = error_table_.lock_not_locked

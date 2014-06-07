@@ -61,7 +61,7 @@ class LoginSession(QtCore.QObject):
         code = 0
         while code != System.LOGOUT and code != System.SHUTDOWN:
             call.hcs_.get_entry_point(self.__cp_path, command)
-            if command.processor == nullptr():
+            if command.processor == null():
                 self.__system_services.llout("Could not find/run command processor %s. Logging out.\n" % (self.__cp_path))
                 code = System.LOGOUT
             elif not self.__system_services.hardware.filesystem.file_exists(self.homedir):

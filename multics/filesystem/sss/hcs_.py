@@ -93,7 +93,7 @@ class hcs_(SystemExecutable):
         except:
             import traceback
             traceback.print_exc()
-            segment.data_ptr = nullptr()
+            segment.data_ptr = null()
             code.val = error_table_.fileioerr
             
     def delentry_seg(self, segment_data_ptr, code):

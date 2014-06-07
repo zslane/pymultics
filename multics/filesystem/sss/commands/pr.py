@@ -20,7 +20,7 @@ def pr():
     call.sys_.get_abs_path(filename, full)
     call.sys_.split_path_(full.path, directory, entry)
     call.hcs_.initiate(directory.name, entry.name, segment, code)
-    if segment.ptr == nullptr():
+    if segment.ptr == null():
         call.ioa_("File not found {0}", filename)
     else:
         file_text = segment.ptr()

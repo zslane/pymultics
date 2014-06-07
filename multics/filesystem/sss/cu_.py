@@ -21,7 +21,7 @@ class cu_(SystemExecutable):
             arg.str = self.__argument_string.split()[arg_no]
             code.val = 0
         except KeyError:
-            arg.str = nullptr()
+            arg.str = null()
             code.val = error_table_.noarg
         
     def arg_string(self, starting_with=0):

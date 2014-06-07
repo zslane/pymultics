@@ -9,10 +9,32 @@ class MyData(object):
     def __repr__(self):
         return "<MyData x:%d, y:%d, z:%d>" % (self.x, self.y, self.z)
         
+universe = PL1.Structure(
+    number         = fixed.bin,
+    pdir           = PL1.Array(10) (char(32)),
+    user           = PL1.Array(10) (char(21)),
+    unique_id      = PL1.Array(10) (fixed.bin),
+    holes          = fixed.bin,
+    black_hole     = PL1.Array(5) (char(8)),
+    password       = char(10),
+    robot          = PL1.Array(2) (PL1.Structure(
+        name       = char(5),
+        energy     = fixed.bin,
+        condition  = char(7),
+        location   = char(8),
+        controller = char(21),
+        )),
+    notifications  = PL1.Array(5) (PL1.Structure(
+        person_id  = char(21),
+        project_id = char(9),
+        )),
+    lock           = bit(36),
+)
+
 declare (clock_          = entry . returns (fixed.bin(32)),
          unique_name_    = entry . returns (char('*')),
          active_function = entry,
-         do              = entry (char('*')))
+         do              = entry . options (variable))
 
 declare (test_ = entry)
 
@@ -20,7 +42,9 @@ def mycommand():
     declare (args = parm,
              segment = parm,
              code = parm,
-             local_var = "local variable")
+             local_var = fixed.decimal(12, 6) . init ([0, 2, 3.1415]),
+             test1_bits = bit(6) . init ("0b110101"),
+             test2_bits = bit(6) . init ("0b011001")) 
     
     call.cu_.arg_list(args)
     call.ioa_("arg_list: {0}", args.list)
@@ -33,6 +57,12 @@ def mycommand():
     call.ioa_("shriekname is {0}", s)
     call.active_function()
     call.ioa_("local_var = {0}", local_var)
+    call.ioa_("test1_bits = {0} ({1})", test1_bits, int(test1_bits))
+    call.ioa_("test2_bits = {0} ({1})", test2_bits, int(test2_bits))
+    test3_bits = test1_bits & test2_bits
+    call.ioa_("test3_bits = {0} ({1})", test3_bits, int(test3_bits))
+    universe.robot[1].controller = "JRCooper"
+    print universe
     
     dirname = ">udd>SysAdmin>JRCooper"
     filename = "test.data"
@@ -61,7 +91,7 @@ def mycommand():
         call.ioa_("Error deleting {0}>{1}", dirname, filename)
         return
         
-    call.hcs_.make_seg(dirname, filename, segment([]), code)
+    call.hcs_.make_seg(dirname, filename, segment(universe), code)
     data = segment.ptr
     if not data:
         call.ioa_("Error creating {0}>{1}", dirname, filename)
@@ -87,11 +117,11 @@ def mycommand():
     else:
         call.ioa_("data3 = {0}", data3.ptr)
     
-    if data3.ptr != nullptr():
+    if data3.ptr != null():
         call.hcs_.delentry_seg(data3.ptr, code)
     
-    call.do("ls")
+    call.do("who")
     call.term_.single_refname("do", code)
-    call.hcs_.initiate(">sss", "do", nullptr(), code)
+    call.hcs_.initiate(">sss", "do", null(), code)
     call.do("whoami")
     
