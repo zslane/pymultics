@@ -36,12 +36,11 @@ declare (clock_          = entry . returns (fixed.bin(32)),
          active_function = entry,
          do              = entry . options (variable))
 
-declare (test_ = entry)
-
 def mycommand():
-    declare (args = parm,
-             segment = parm,
-             code = parm,
+    declare (args       = parm,
+             segment    = parm,
+             code       = parm,
+             test_      = entry,
              local_var  = fixed.decimal(12, 6) . init ([0, 2, 3.1415]), # <-- pythonic but not PL1-ish...use Dim() instead
              my_table   = Dim(3, 4) (fixed.decimal(6, 4) . init (3.1415)),
              test0_bits = bit('*') . init ("0b100110101"),

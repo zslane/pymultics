@@ -1,3 +1,6 @@
 *.py[cod]
 multics/hardware/.hardware_state
 multics/filesystem/pdd/*
+multics/filesystem/sc1/*.pdt
+multics/filesystem/sc1/person_name_table
+multics/filesystem/sc1/whotab

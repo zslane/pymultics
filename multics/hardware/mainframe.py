@@ -186,6 +186,15 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             if not os.path.exists(native_path):
                 os.mkdir(native_path)
                 
+        system_directories = [
+            self.system_control_dir,
+        ]
+        
+        for directory in system_directories:
+            native_path = self.path2path(directory)
+            with open(os.path.join(native_path, ".system_directory"), "wb") as f:
+                pass
+                
     def path2path(self, p, f=""):
         if ">" in p:
             p = p.replace(">", "\\").lstrip("\\")

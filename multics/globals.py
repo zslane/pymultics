@@ -234,7 +234,9 @@ class declare(object):
                 #== Creates and injects a parm object with an initial value
                 Injector.inject_parm(pframe, fn_name, dcl_type.initial_value)
             elif type(dcl_type) in [PL1.FuncSignature, PL1.ProcSignature]:
-                #== Creates and injects a LinkageReference object
+                #== Creates and injects a LinkageReference object. Inclusion of
+                #== PL1.ProcSignature here allows methods inside Executable
+                #== objects to be called with regular function call syntax.
                 Injector.inject_func(pframe, fn_name, call)
             else:
                 print "declaring", fn_name, dcl_type

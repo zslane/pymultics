@@ -277,7 +277,7 @@ class DynamicLinker(QtCore.QObject):
         
     def _initialize_system_functions(self):
         import types
-        excluded_symbols = ["system_privileged"]
+        excluded_symbols = ["system_privileged", "traceback_print_exc"]
         for module_name, module_path in self.__filesystem.list_segments(self.__filesystem.system_library_standard):
             module = self._load_python_code(module_name, module_path)
             if module:
