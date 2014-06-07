@@ -49,6 +49,9 @@ class LoginSessionManager(QtCore.QThread):
         # end with
         pprint(self.__whotab)
         
+    def _default_home_dir(self, person_id, project_id):
+        return ">".join([self.__system_services.hardware.filesystem.user_dir_dir, person_id, project_id])
+        
     def run(self):
         declare (code = parm)
         
@@ -188,6 +191,7 @@ class LoginSessionManager(QtCore.QThread):
                 pdt = self.__project_definition_tables.get(proj)
                 if pdt and pdt.recognizes(person_id):
                     user_id = person_id + "." + pdt.project_id
+                    home_dir = pdt.users[person_id].home_dir or self._default_home_dir(person_id, pdt.project_id)
                     cp_path = pdt.users[person_id].cp_path or self.DEFAULT_CP_PATH
                     from login_session import LoginSession
                     return LoginSession(self.__system_services, self, user_id, cp_path)

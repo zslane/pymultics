@@ -11,20 +11,20 @@ class MyData(object):
         
 universe = PL1.Structure(
     number         = fixed.bin,
-    pdir           = PL1.Array(10) (char(32)),
-    user           = PL1.Array(10) (char(21)),
-    unique_id      = PL1.Array(10) (fixed.bin),
+    pdir           = Dim(10) (char(32)),
+    user           = Dim(10) (char(21)),
+    unique_id      = Dim(10) (fixed.bin),
     holes          = fixed.bin,
-    black_hole     = PL1.Array(5) (char(8)),
+    black_hole     = Dim(5) (char(8)),
     password       = char(10),
-    robot          = PL1.Array(2) (PL1.Structure(
+    robot          = Dim(2) (PL1.Structure(
         name       = char(5),
         energy     = fixed.bin,
         condition  = char(7),
         location   = char(8),
         controller = char(21),
         )),
-    notifications  = PL1.Array(5) (PL1.Structure(
+    notifications  = Dim(5) (PL1.Structure(
         person_id  = char(21),
         project_id = char(9),
         )),
@@ -42,9 +42,11 @@ def mycommand():
     declare (args = parm,
              segment = parm,
              code = parm,
-             local_var = fixed.decimal(12, 6) . init ([0, 2, 3.1415]),
+             local_var  = fixed.decimal(12, 6) . init ([0, 2, 3.1415]), # <-- pythonic but not PL1-ish...use Dim() instead
+             my_table   = Dim(3, 4) (fixed.decimal(6, 4) . init (3.1415)),
+             test0_bits = bit('*') . init ("0b100110101"),
              test1_bits = bit(6) . init ("0b110101"),
-             test2_bits = bit(6) . init ("0b011001")) 
+             test2_bits = bit(6) . init ("0b011001"))
     
     call.cu_.arg_list(args)
     call.ioa_("arg_list: {0}", args.list)
@@ -57,12 +59,11 @@ def mycommand():
     call.ioa_("shriekname is {0}", s)
     call.active_function()
     call.ioa_("local_var = {0}", local_var)
+    call.ioa_("test0_bits = {0} ({1})", test0_bits, int(test0_bits))
     call.ioa_("test1_bits = {0} ({1})", test1_bits, int(test1_bits))
     call.ioa_("test2_bits = {0} ({1})", test2_bits, int(test2_bits))
     test3_bits = test1_bits & test2_bits
     call.ioa_("test3_bits = {0} ({1})", test3_bits, int(test3_bits))
-    universe.robot[1].controller = "JRCooper"
-    print universe
     
     dirname = ">udd>SysAdmin>JRCooper"
     filename = "test.data"
@@ -91,7 +92,7 @@ def mycommand():
         call.ioa_("Error deleting {0}>{1}", dirname, filename)
         return
         
-    call.hcs_.make_seg(dirname, filename, segment(universe), code)
+    call.hcs_.make_seg(dirname, filename, segment(local_var), code)
     data = segment.ptr
     if not data:
         call.ioa_("Error creating {0}>{1}", dirname, filename)

@@ -1,4 +1,6 @@
-from decimal import Decimal as PyDecimal
+
+class Python(object):
+    from decimal import Decimal
 
 class PL1(object):
 
@@ -15,7 +17,7 @@ class PL1(object):
     
     Procedure = 0
     Function = 1
-
+    
     class Type(object):
         def __init__(self, type, base, size, prec=0):
             self.type = type
@@ -37,7 +39,7 @@ class PL1(object):
         def toPython(self):
             if self.data is not None:
                 if type(self.data) == list:
-                    return [ self.pythonType()(val) for val in self.data ]
+                    return list( self.pythonType()(val) for val in self.data )
                 elif type(self.data) == tuple:
                     return tuple( self.pythonType()(val) for val in self.data )
                 else:
@@ -63,14 +65,20 @@ class PL1(object):
             elif self.type == PL1.Cstring:
                 return str
             elif self.type == PL1.Bstring:
-                return bitstring
+                return self.BitstringFactory
                 
         def DecimalFactory(self, val=0):
             fmt = "%%%d.%df" % (self.size, self.prec)
-            return PyDecimal(fmt % val)
+            return Python.Decimal(fmt % val)
+            
+        def BitstringFactory(self, val=""):
+            return bitstring(self.size, val)
         
         def __call__(self, size, prec=0):
             return PL1.Type(self.type, self.base, size, prec)
+            
+        def __getattr__(self, attrname):
+            return self
             
         def __repr__(self):
             if self.type == PL1.Pointer:
@@ -178,7 +186,7 @@ class PL1(object):
             self.value = value
             
         def __eq__(self, rhs):
-            if rhs == 0: # <-- special case: allow comparison with 0 literal
+            if rhs == 0: # <-- special case: allow comparison with 0 literal (the 'success' code)
                 return self.value == 0
             return type(self) == type(rhs) and self.value == rhs.value
         
@@ -193,38 +201,91 @@ class PL1(object):
             for member_name, value in members.items():
                 setattr(self, member_name, PL1.EnumValue(enum_name, member_name, value))
     
-    class Array(object):
-        def __init__(self, size):
-            self.size = size
+    # class Array(object):
+        # def __init__(self, *sizes):
+            # self.dimensions = list(sizes)
             
-        def __call__(self, dcl_type):
-            a = []
-            for i in range(self.size):
-                a.append(dcl_type.copy())
-            return a
+        # def __call__(self, dcl_type):
+            # return self._make_nested_arrays(self.dimensions, dcl_type)
+            
+        # def _make_nested_arrays(self, dimensions, dcl_type):
+            # size, dimensions = dimensions[0], dimensions[1:]
+            # a = []
+            # for i in range(size):
+                # if dimensions:
+                    # a.append(self._make_nested_arrays(dimensions, dcl_type))
+                # else:
+                    # a.append(dcl_type.copy())
+                # # end if
+            # # end for
+            # return a
     
 #-- end class PL1
-    
+
+class Dim(object):
+    def __init__(self, *sizes):
+        self.dimensions = list(sizes)
+        
+    def __call__(self, dcl_type):
+        return self._make_nested_arrays(self.dimensions, dcl_type)
+        
+    def _make_nested_arrays(self, dimensions, dcl_type):
+        size, dimensions = dimensions[0], dimensions[1:]
+        a = []
+        for i in range(size):
+            if dimensions:
+                a.append(self._make_nested_arrays(dimensions, dcl_type))
+            else:
+                a.append(dcl_type.copy())
+            # end if
+        # end for
+        return a
+
 class bitstring(object):
-    def __init__(self, initial_value=""):
+
+    UNLIMITED = 0
+        
+    def __init__(self, num_bits, initial_value=""):
+        if num_bits == "*":
+            self.num_bits = self.UNLIMITED
+        elif num_bits > 0:
+            self.num_bits = num_bits
+        else:
+            raise ValueError("invalid bit string size {0}".format(num_bits))
+        # end if
         self._set(initial_value)
         
     def _set(self, value):
         self.__value = []
         
         if type(value) is bitstring:
-            self.__value = value.__value[:]
+            self.__value = value.__value[-self.num_bits:]
             return
         # end if
         
         if type(value) is int:
-            value = bin(value)
+            if self.num_bits == self.UNLIMITED:
+                value = "{0:#b}".format(value)
+            else:
+                value = "{0:#0{width}b}".format(value, width=self.num_bits + 2)
+            # end if
+        elif type(value) is str:
+            if self.num_bits == self.UNLIMITED:
+                zero_value = "{0:#b}".format(0)
+            else:
+                zero_value = "{0:#0{width}b}".format(0, width=self.num_bits + 2)
+            # end if
+            value = value or zero_value
         else:
-            value = value or "0b0"
+            raise TypeError(value)
+        # end if
+        
+        if (self.num_bits != self.UNLIMITED) and (len(value) > self.num_bits + 2):
+            raise OverflowError(value)
         # end if
         
         if value.lower().startswith("0b"):
-            for bit in value[:1:-1]:
+            for bit in value[2:]:
                 if bit in ["0", "1"]:
                     self.__value.append(int(bit))
                 else:
@@ -233,44 +294,45 @@ class bitstring(object):
             # end for
         else:
             raise ValueError(value)
-            
+        
+    def v(self):
+        return self.__value
+
+    def _int(self, num_bits):
+        return reduce(lambda x, y: (x << 1) + y, self.__value[-num_bits:])
+    
     def __call__(self, index):
-        return self.__value[len(self.__value) - index - 1]
+        return self.__value[index]
         
     def __getitem__(self, index):
-        return self.__value[len(self.__value) - index - 1]
+        return self.__value[index]
         
     def __setitem__(self, index, value):
-        self.__value[len(self.__value) - index - 1] = value
+        self.__value[index] = value
         
     def __and__(self, rhs):
         if type(rhs) is bitstring:
-            self._set(self.__int__() & rhs.__int__())
-            return self
+            return bitstring(self.num_bits, self.__int__() & rhs._int(self.num_bits))
         else:
             raise TypeError(rhs)
             
     def __or__(self, rhs):
         if type(rhs) is bitstring:
-            self._set(self.__int__() | rhs.__int__())
-            return self
+            return bitstring(self.num_bits, self.__int__() | rhs._int(self.num_bits))
         else:
             raise TypeError(rhs)
         
     def __xor__(self, rhs):
         if type(rhs) is bitstring:
-            self._set(self.__int__() ^ rhs.__int__())
-            return self
+            return bitstring(self.num_bits, self.__int__() ^ rhs._int(self.num_bits))
         else:
             raise TypeError(rhs)
     
     def __lshift__(self, n):
-        self._set(self.__int__() << n)
-        return self
+        return bitstring(self.UNLIMITED, self.__int__() << n)
         
     def __rshift__(self, n):
-        self._set(self.__int__() >> n)
-        return self
+        return bitstring(self.num_bits, self.__int__() >> n)
     
     def __eq__(self, rhs):
         if type(rhs) is str:
@@ -286,13 +348,13 @@ class bitstring(object):
         return not self.__eq__(rhs)
         
     def __int__(self):
-        return int("0b%s" % ("".join(map(str, self.__value[::-1]))), 2)
+        return reduce(lambda x, y: (x << 1) + y, self.__value)
         
     def __bool__(self):
         return any(self.__value)
     
     def __repr__(self):
-        return '"%s"b' % ("".join(map(str, self.__value[::-1])))
+        return '"%s"b' % ("".join(map(str, self.__value)))
         
 #-- end class bitstring
 

@@ -63,7 +63,7 @@ def list_users():
 
     call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table, code)
     if person_name_table.ptr:
-        call.ioa_("Person Id Alias     Dflt Proj Password?")
+        call.ioa_("Person Id Alias     D Project Password?")
         call.ioa_("--------- --------- --------- ---------")
         for person_id in person_name_table.ptr.name_entries:
             call.ioa_("{0:9} {1:9} {2:9} {3}", person_id,

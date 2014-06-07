@@ -122,7 +122,7 @@ class TerminalWindow(QtGui.QMainWindow):
         HEARTBEAT_PERIOD = 100
         self.timerid = self.startTimer(HEARTBEAT_PERIOD)
         
-        self.move(100, 50)
+        self.move(300, 50)
     
     def timerEvent(self, event):
         self.heartbeat.emit()

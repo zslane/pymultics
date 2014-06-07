@@ -40,10 +40,10 @@ class PersonNameTableModel(QtCore.QAbstractTableModel):
         # end with
         self.person_ids = self.person_name_table.person_id_list()
         
-    def rowCount(self, index):
+    def rowCount(self, index=QtCore.QModelIndex()):
         return 0 if index.isValid() else len(self.person_ids)
         
-    def columnCount(self, index):
+    def columnCount(self, index=QtCore.QModelIndex()):
         return 0 if index.isValid() else 4
     
     def headerData(self, section, orientation, role):
@@ -86,7 +86,8 @@ class ProjectDefinitionTableUi(QtGui.QWidget):
         self.users_table_view = ProjectUsersTableView()
         self.users_table_view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         self.users_table_view.setModel(self.model.users_model)
-        self.users_table_view.resizeColumnToContents(1)
+        for col in range(1, self.model.users_model.columnCount()):
+            self.users_table_view.resizeColumnToContents(col)
         
         self.admins_table_view = ProjectAdminsTableView()
         self.admins_table_view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
@@ -127,10 +128,10 @@ class ProjectAdminsModel(QtCore.QAbstractTableModel):
         
         self.admins = admins
         
-    def rowCount(self, index):
+    def rowCount(self, index=QtCore.QModelIndex()):
         return 0 if index.isValid() else len(self.admins)
         
-    def columnCount(self, index):
+    def columnCount(self, index=QtCore.QModelIndex()):
         return 0 if index.isValid() else 1
     
     def headerData(self, section, orientation, role):
@@ -158,16 +159,16 @@ class ProjectUsersModel(QtCore.QAbstractTableModel):
         self.users = users
         self.person_id_list = self.users.keys()
         
-    def rowCount(self, index):
+    def rowCount(self, index=QtCore.QModelIndex()):
         return 0 if index.isValid() else len(self.users)
         
-    def columnCount(self, index):
-        return 0 if index.isValid() else 2
+    def columnCount(self, index=QtCore.QModelIndex()):
+        return 0 if index.isValid() else 3
     
     def headerData(self, section, orientation, role):
         if orientation == QtCore.Qt.Horizontal:
             if role == QtCore.Qt.DisplayRole:
-                return ["Person Id", "Command Processor"][section]
+                return ["Person Id", "Home Directory", "Command Processor"][section]
             elif role == QtCore.Qt.TextAlignmentRole:
                 return QtCore.Qt.AlignLeft
             # end if
@@ -187,6 +188,8 @@ class ProjectUsersModel(QtCore.QAbstractTableModel):
             if col == 0:
                 return user.person_id
             elif col == 1:
+                return user.home_dir or "Default"
+            elif col == 2:
                 return user.cp_path or "Default"
                 
         return None

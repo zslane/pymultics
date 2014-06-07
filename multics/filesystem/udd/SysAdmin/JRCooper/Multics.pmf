@@ -3,5 +3,5 @@ admin: [JRCooper]
 users:
  - { person_id: JRCooper }
  - { person_id: Foo, command_processor: >sss>gcos_sim }
- - { person_id: Bar }
+ - { person_id: Bar, home_dir: >udd>Multics>Common }
  

@@ -192,11 +192,9 @@ class Injector(object):
                 if member_name == name + "_structure":
                     member_object = member_object()
                     # print "Injecting", member_object, "into", pframe.f_globals['__name__'], "as", name
-                    # pframe.f_globals[name] = member_object
                     pframe.f_globals.update({name:member_object})
                 else:
                     # print "Injecting", member_name, "into", pframe.f_globals['__name__'], "with value", member_object
-                    # pframe.f_globals[member_name] = member_object
                     pframe.f_globals.update({member_name:member_object})
                 # end if
             # end for
@@ -248,15 +246,20 @@ class declare(object):
             elif type(dcl_type) in [PL1.FuncSignature, PL1.ProcSignature]:
                 #== Creates and injects a LinkageReference object
                 Injector.inject_func(pframe, fn_name, call)
-            elif type(dcl_type) == PL1.Type:
-                #== Creates and injects a PL1.Type local variable converted to a python type
-                name, initial_value = fn_name, dcl_type.toPython()
-                print "declaring", name, dcl_type
-                Injector.inject_local(pframe, name, initial_value)
             else:
-                #== Creates a normal (python type) local variable
-                name, initial_value = fn_name, dcl_type
-                Injector.inject_local(pframe, name, initial_value)
+                print "declaring", fn_name, dcl_type
+                #== Creates and injects a local variable
+                Injector.inject_local(pframe, fn_name, self.get_initial_value(dcl_type))
+                
+    def get_initial_value(self, initial_value):
+        if type(initial_value) is PL1.Type:
+            return initial_value.toPython()
+        elif type(initial_value) is list:
+            return list( self.get_initial_value(t) for t in initial_value )
+        elif type(initial_value) is tuple:
+            return tuple( self.get_initial_value(t) for t in initial_value )
+        else:
+            return initial_value
         
 dcl = declare
 
