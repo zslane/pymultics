@@ -26,9 +26,10 @@ def admin():
     declare (command  = parm . init (""),
              person   = parm,
              project  = parm,
+             acct     = parm,
              arg_list = parm)
     
-    call.user_info_.whoami(person, project)
+    call.user_info_.whoami(person, project, acct)
     if project.id != "SysAdmin":
         call.ioa_("You are not authorized to use the {0} command", MAIN)
         return
@@ -63,10 +64,10 @@ def list_users():
 
     call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table, code)
     if person_name_table.ptr:
-        call.ioa_("Person Id Alias     D Project Password?")
-        call.ioa_("--------- --------- --------- ---------")
+        call.ioa_("Person Id              Alias     D Project Password?")
+        call.ioa_("---------------------- --------- --------- ---------")
         for person_id in person_name_table.ptr.name_entries:
-            call.ioa_("{0:9} {1:9} {2:9} {3}", person_id,
+            call.ioa_("{0:22} {1:9} {2:9} {3}", person_id,
                 person_name_table.ptr.name_entries[person_id].alias,
                 person_name_table.ptr.name_entries[person_id].default_project_id,
                 "Yes" if person_name_table.ptr.name_entries[person_id].encrypted_password else "No")

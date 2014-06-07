@@ -7,6 +7,7 @@ from PySide import QtCore, QtGui
 
 include.pnt
 include.pdt
+include.pit
 
 class LoginSessionManager(QtCore.QThread):
 
@@ -50,7 +51,7 @@ class LoginSessionManager(QtCore.QThread):
         pprint(self.__whotab)
         
     def _default_home_dir(self, person_id, project_id):
-        return ">".join([self.__system_services.hardware.filesystem.user_dir_dir, person_id, project_id])
+        return ">".join([self.__system_services.hardware.filesystem.user_dir_dir, project_id, person_id])
         
     def run(self):
         declare (code = parm)
@@ -66,7 +67,7 @@ class LoginSessionManager(QtCore.QThread):
         
     def kill(self):
         if self.__session:
-            self._remove_user_from_whotab(self.__session.user_id)
+            self._remove_user_from_whotab(pit.user_id)
             self.__session.kill()
         # end if
     
@@ -99,6 +100,7 @@ class LoginSessionManager(QtCore.QThread):
             # end with
         # end if
         print "PERSON NAME TABLE:"
+        print "------------------"
         pprint(self.__person_name_table)
         
         #== Make a dictionary of PDTs (project definition tables)
@@ -123,6 +125,7 @@ class LoginSessionManager(QtCore.QThread):
             # end for
         # end if
         print "PROJECT DEFINITION TABLES:"
+        print "--------------------------"
         pprint(self.__project_definition_tables)
         
         #== Get a pointer to the WHOTAB (create it if necessary)
@@ -133,6 +136,7 @@ class LoginSessionManager(QtCore.QThread):
             self.__whotab = segment.ptr
         # end if
         print "WHOTAB:"
+        print "-------"
         pprint(self.__whotab)
     
     def _main_loop(self):
@@ -171,11 +175,11 @@ class LoginSessionManager(QtCore.QThread):
         
         self.__session = self._authenticate(user_id, password)
         if self.__session:
-            self._add_user_to_whotab(self.__session.user_id, self.__session.login_time)
+            self._add_user_to_whotab(pit.user_id, pit.time_login)
             
             code = self.__session.start()
             
-            self._remove_user_from_whotab(self.__session.user_id)
+            self._remove_user_from_whotab(pit.user_id)
             self.__session = None
         else:
             code = System.INVALID_LOGIN
@@ -190,11 +194,12 @@ class LoginSessionManager(QtCore.QThread):
                 proj = proj or self.__person_name_table.get_default_project_id(person_id)
                 pdt = self.__project_definition_tables.get(proj)
                 if pdt and pdt.recognizes(person_id):
-                    user_id = person_id + "." + pdt.project_id
-                    home_dir = pdt.users[person_id].home_dir or self._default_home_dir(person_id, pdt.project_id)
+                    pit.login_name = person_id
+                    pit.project = pdt.project_id
+                    pit.homedir = pdt.users[person_id].home_dir or self._default_home_dir(person_id, pdt.project_id)
                     cp_path = pdt.users[person_id].cp_path or self.DEFAULT_CP_PATH
                     from login_session import LoginSession
-                    return LoginSession(self.__system_services, self, user_id, cp_path)
+                    return LoginSession(self.__system_services, self, cp_path, pit)
                 # end if
             # end if
         except:

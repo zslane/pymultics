@@ -128,12 +128,14 @@ class LinkageReference(object):
     def __init__(self, name, dynamic_linker):
         self.dynamic_linker = dynamic_linker
         self.name = name
+        
     def __call__(self, *args, **kwargs):
         entry_point = self.dynamic_linker.snap(self.name)
         if entry_point:
             return entry_point(*args, **kwargs)
         else:
             raise SegmentFault(self.name)
+            
     def __getattr__(self, entry_point_name):
         segment = self.dynamic_linker.snap(self.name)
         if segment:
@@ -141,6 +143,7 @@ class LinkageReference(object):
                 return getattr(segment, entry_point_name)
             except:
                 raise LinkageError(entry_point_name)
+            # end try
         else:
             raise SegmentFault(self.name)
         
@@ -155,29 +158,23 @@ class Injector(object):
     def __init__(self):
         pass
         
-    #== This is for making the 'declare . foo' coding pattern available
-    def __getattr__(self, fn_name):
-        Injector.inject_func(Injector.find_pframe(), fn_name, call)
-        
     @staticmethod
     def inject_func(pframe, name, dynamic_linker):
         if pframe:
             fn = LinkageReference(name, dynamic_linker)
             # print "Injecting", fn, "into", pframe.f_globals['__name__'], "as", name
             pframe.f_globals.update({name:fn})
-        # end if
         
     @staticmethod
     def inject_parm(pframe, name, initial_value=None):
         if pframe:
             p = parameter(initial_value)
-            if initial_value is not None:
-                with_init_string = "with initial value {0}".format(initial_value)
-            else:
-                with_init_string = ""
+            # if initial_value is not None:
+                # with_init_string = "with initial value {0}".format(initial_value)
+            # else:
+                # with_init_string = ""
             # print "Injecting", p, "into", pframe.f_globals['__name__'], "as", name, with_init_string
             pframe.f_globals.update({name:p})
-        # end if
         
     @staticmethod
     def inject_incl(pframe, name):
@@ -196,9 +193,6 @@ class Injector(object):
                 else:
                     # print "Injecting", member_name, "into", pframe.f_globals['__name__'], "with value", member_object
                     pframe.f_globals.update({member_name:member_object})
-                # end if
-            # end for
-        # end if
         
     @staticmethod
     def inject_local(pframe, name, initial_value):
@@ -218,10 +212,6 @@ class Injector(object):
         # end while
         return pframe
         
-class alloc(object):
-    def __init__(self, objtype):
-        setattr(self, objtype.__name__, objtype())
-
 def null():
     return None
     
@@ -230,9 +220,9 @@ class declare(object):
     #== is expected that the instantiated object won't even be assigned to anything.
     #== Example:
     #==
-    #==     declare (get_pdir = entry.returns (charstar),
-    #==              acl_list = parm,
-    #==              code     = parm)
+    #==     declare (get_pdir_ = entry . returns (char ('*')),
+    #==              acl_list  = parm,
+    #==              code      = parm)
     #==
     def __init__(self, **kwargs):
         pframe = Injector.find_pframe()
@@ -291,7 +281,6 @@ class parameter(object):
         else:
             self.value = value
             return self
-        # end if
         
     @staticmethod
     def init(initial_value):

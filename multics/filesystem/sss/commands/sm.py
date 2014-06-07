@@ -10,12 +10,13 @@ def sm():
     def send_msg(recipient, message, code):
         declare (mbx_segment = parm,
                  person      = parm,
-                 project     = parm)
+                 project     = parm,
+                 acct        = parm)
         call.sys_.lock_process_mbx_(recipient, mbx_segment, code)
         if code.val != 0:
             return
         process_mbx = mbx_segment.ptr
-        call.user_info_.whoami(person, project)
+        call.user_info_.whoami(person, project, acct)
         user_id = person.id + "." + project.id
         with process_mbx:
             process_mbx.messages.append({'type':"user_message", 'from':user_id, 'time':datetime.datetime.now(), 'text':message})

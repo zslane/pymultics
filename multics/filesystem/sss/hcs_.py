@@ -63,6 +63,7 @@ class hcs_(SystemExecutable):
         seg_ptr = self.system.dynamic_linker.load(dirname, segment_name)
         if segment:
             segment.data_ptr = seg_ptr
+        code.val = 0 if seg_ptr else error_table_.fileioerr
         
     def make_seg(self, dirname, segment_name, segment, code):
         if dirname == "":

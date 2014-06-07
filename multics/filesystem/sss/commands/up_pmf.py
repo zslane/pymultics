@@ -13,6 +13,7 @@ def up_pmf():
     declare (arg_list    = parm,
              person      = parm,
              project     = parm,
+             acct        = parm,
              current_dir = parm)
     
     call.cu_.arg_list(arg_list)
@@ -24,7 +25,7 @@ def up_pmf():
     pdt_file = project_id + ".pdt"
     
     pdtab = system.session_thread.pdt.get(project_id)
-    call.user_info_.whoami(person, project)
+    call.user_info_.whoami(person, project, acct)
     if not ((pdtab and person.id in pdtab.admins) or (project.id == "SysAdmin")):
         call.ioa_("You are not authorized to upload PDT files")
         return

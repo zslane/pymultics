@@ -23,7 +23,7 @@ def cv_pmf():
     pdt_file = project_id + ".pdt"
     
     # pdtab = system.session_thread.pdt.get(project_id)
-    # call.user_info_.whoami(person, project)
+    # call.user_info_.whoami(person, project, acct)
     # if (persion.id not in pdtab.admins) and (project.id != "SysAdmin"):
         # call.ioa_("You are not authorized to upload PDT files")
         # return

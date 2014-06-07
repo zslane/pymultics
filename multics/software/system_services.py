@@ -268,7 +268,11 @@ class DynamicLinker(QtCore.QObject):
     def initialize(self):
         self._initialize_system_functions()
         self._initialize_system_preloads()
+        print "SYSTEM FUNCTION TABLE:"
+        print "----------------------"
         pprint(self.__system_function_table)
+        print "KNOWN SEGMENT TABLE:"
+        print "--------------------"
         pprint(self.__known_segment_table)
         
     def _initialize_system_functions(self):
@@ -337,7 +341,7 @@ class DynamicLinker(QtCore.QObject):
             # print "...opening", native_path
             try:
                 segment_data_ptr = self.__filesystem.segment_data_ptr(native_path)
-                print "  ", segment_data_ptr
+                # print "Adding to KST:", segment_name, "->", segment_data_ptr
                 self.__known_segment_table[segment_name] = segment_data_ptr
                 return segment_data_ptr
             except:

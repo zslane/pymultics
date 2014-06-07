@@ -11,7 +11,7 @@ class VirtualMulticsProcess(QtCore.QObject):
 
     PROCESS_TIMER_DURATION = 1.0
     
-    def __init__(self, system_services, login_session, command_processor):
+    def __init__(self, system_services, login_session, command_processor, pit):
         super(VirtualMulticsProcess, self).__init__()
         
         self.__system_services = system_services
@@ -21,6 +21,7 @@ class VirtualMulticsProcess(QtCore.QObject):
         self.__mbx = None
         self.__process_stack = ProcessStack()
         self.__command_processor = command_processor
+        self.__pit = pit
         
     @property
     def process_id(self):
@@ -52,6 +53,7 @@ class VirtualMulticsProcess(QtCore.QObject):
         
     def start(self):
         declare (process_dir  = parm,
+                 data         = parm,
                  code         = parm,
                  search_paths = parm)
                  
@@ -62,6 +64,12 @@ class VirtualMulticsProcess(QtCore.QObject):
             return System.LOGOUT
         # end if
         self.__process_dir = process_dir.name
+        self.__pit.process_id = self.__process_id
+        call.hcs_.make_seg(self.__process_dir, "pit", data(self.__pit), code)
+        if code.val != 0:
+            self.__system_services.llout("Failed to create process initialization table. Logging out.\n")
+            return System.LOGOUT
+        # end if
         
         self._create_mbx()
         self.__login_session.register_process(self.__process_id, self.__process_dir)

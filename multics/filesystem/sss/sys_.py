@@ -7,11 +7,17 @@ class sys_(SystemExecutable):
         super(sys_, self).__init__(self.__class__.__name__, system_services)
         
     def get_default_search_paths(self, search_paths):
+        declare (get_pdir_ = entry . returns (char ('*')),
+                 pit       = parm,
+                 code      = parm)
+        call.hcs_.initiate(get_pdir_(), "pit", pit, code)
+        
         path_list = [
             ">sss",
             ">sss>commands",
-            self.system.session_thread.session.homedir,
+            pit.data.homedir,
         ]
+        
         search_paths.list = path_list
         
     def get_search_paths(self, search_paths):
@@ -23,9 +29,6 @@ class sys_(SystemExecutable):
     def get_users(self, users):
         users.list = self.system.session_thread.whotab.session_blocks.keys()
 
-    def get_home_directory(self, home_dir):
-        home_dir.name = self.system.session_thread.session.homedir
-        
     def get_current_directory(self, current_dir):
         current_dir.name = self.system.session_thread.session.process.directory_stack[-1]
         
