@@ -34,6 +34,7 @@ universe = PL1.Structure(
 declare (clock_          = entry . returns (fixed.bin(32)),
          unique_name_    = entry . returns (char('*')),
          active_function = entry,
+         pr              = entry . options (variable),
          do              = entry . options (variable))
 
 def mycommand():
@@ -124,4 +125,5 @@ def mycommand():
     call.term_.single_refname("do", code)
     call.hcs_.initiate(">sss", "do", null(), code)
     call.do("whoami")
+    call.pr("Multics.pmf")
     
