@@ -1,0 +1,138 @@
+
+starrunners: star: procedure options (variable);
+
+          dcl       ioa_                          entry options (variable);
+          dcl       ioa_$nnl                      entry options (variable);
+          dcl       getline                       entry options (variable);
+          dcl       do                            entry options (variable);
+          
+          dcl       hcs_$make_seg                 entry (char (*), char (*), char (*), fixed bin (5), ptr, fixed bin (35));
+          dcl       hcs_$initiate                 entry (char (*), char (*), char (*), fixed bin (1), fixed bin (2), ptr, fixed bin (35));
+          dcl       hcs_$delentry_seg             entry (ptr, fixed bin (35));
+          dcl       hcs_$set_ring_brackets        entry (char (*), char (*), (3) fixed bin (3), fixed bin (35));
+          
+          dcl       timer_manager_$alarm_call     entry (fixed bin (71), bit (2), entry);
+          dcl       timer_manager_$reset_alarm_call entry (entry);
+          
+          dcl       get_pdir_                     entry returns (char (168));
+          dcl       pdir                          char (32) init ("");
+          dcl       edir                          char (32) init ("");
+          
+          dcl       set_acl                       entry (char (*), char (*), char (*));
+          dcl       entry                         char (45) init ("");
+          dcl       acl                           char (2) init ("rw");
+          dcl       whom                          char (5) init ("*.*.*");
+          
+          dcl       print                         entry (char (*), char (*));
+          dcl       helpfile                      char (25) init (">udd>sct>game>s>star.help");
+          
+          dcl       read_password_                entry (char (*), char (*));
+          
+          dcl       com_err_                      entry options (variable);
+          dcl       MAIN                          char (11) init ("starrunners");
+          dcl       version                       char (5) init ("4.4");
+          
+          dcl       user_info_$whoami             entry (char (*), char (*), char (*));
+          dcl       person                        char (32) init ("");
+          dcl       project                       char (9) init ("");
+          dcl       access                        char (3) init ("no");
+          
+          dcl       term_$single_refname          entry (char (*) aligned, fixed bin (35));
+          dcl       DO_dir                        char (4) init (">sss");
+          dcl       DO                            char (2) init ("do");
+          
+          dcl       cu_$arg_count                 entry (fixed bin, fixed bin (35));
+          dcl       cu_$arg_ptr                   entry (fixed bin, ptr, fixed bin (21), fixed bin (35));
+          dcl       argn                          fixed bin init (0);
+          dcl       argp                          ptr init (null ());
+          dcl       argl                          fixed bin (21) init (0);
+          dcl       arg                           char (argl) based (argp);
+          
+          dcl       input                         char (256) varying init ("");
+          dcl       shiptype                      char (14) init ("");
+          dcl       dname                         char (14) init (">udd>sct>g>dbd");
+          dcl       ename                         char (10) init ("sv4.4.ship");
+          dcl       xname                         char (10) init ("sv4.4.univ");
+          dcl       aname                         char (10) init ("sv1.2.info");
+          dcl       ring_brackets                 (3) fixed bin (3) init (5, 5, 5);
+          dcl       code                          fixed bin (35) init (0);
+          dcl       allowed_chars                 char (87) init ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 !$%&'()*:=-[]{}<>.,/?_|^");
+          dcl       enter_admin_loop              bit (1) init ("0"b);
+          dcl       video_mode                    bit (1) init ("0"b);
+          dcl       accept_notifications          bit (1) init ("0"b);
+          dcl       on_the_list                   bit (1) init ("0"b);
+          dcl       list_players                  bit (1) init ("0"b);
+          dcl       target                        char (10) init ("");
+          dcl       (x, y, z)                     fixed bin init (0);
+          
+          dcl       (univptr, my, enemy, adminptr) internal static ptr init (null ());
+          
+          dcl       1 admin_info                  aligned based (adminptr),
+                      2 game_admin                char (21),
+                      2 user_info_line            char (30),
+                      2 com_query_line            char (30),
+                      2 star_comn                 fixed bin,
+                      2 star_coms                 (admin_info.star_comn) char (21);
+                      
+          dcl       1 universe                    aligned based (univptr),
+                      2 number                    fixed bin,
+                      2 pdir                      (10) char (32),
+                      2 user                      (10) char (21),
+                      2 unique_id                 (10) fixed bin,
+                      2 holes                     fixed bin,
+                      2 black_hole                (5) char (8),
+                      2 password                  char (10),
+                      2 robot                     (20),
+                        3 name                    char (5),
+                        3 energy                  fixed bin,
+                        3 condition               char (7),
+                        3 location                char (8),
+                        3 controller              char (21),
+                      2 notifications             (50),
+                        3 person_id               char (21),
+                        3 project_id              char (9),
+                      2 lock                      fixed bin (36);
+                      
+          dcl       1 ship                        aligned based,
+                      2 user                      char (32),
+                      2 unique_id                 fixed bin,
+                      2 name                      char (10),
+                      2 type                      char (14),
+                      2 energy_cur                fixed bin,
+                      2 energy_old                fixed bin,
+                      2 energy_max                fixed bin,
+                      2 shields_cur               fixed bin,
+                      2 shields_old               fixed bin,
+                      2 shields_max               fixed bin,
+                      2 torps_cur                 fixed bin,
+                      2 torps_old                 fixed bin,
+                      2 torps_max                 fixed bin,
+                      2 life_cur                  fixed bin,
+                      2 life_old                  fixed bin,
+                      2 condition                 char (12),
+                      2 location                  char (8),
+                      2 message                   char (256),
+                      2 fromname                  char (10),
+                      2 fromtype                  char (14),
+                      2 deathmes                  char (4),
+                      2 deadname                  char (10),
+                      2 deadtype                  char (14),
+                      2 cloak_on                  bit (1),
+                      2 tractor_on                bit (1),
+                      2 tracname                  char (10),
+                      2 monitored_by              char (10),
+                      2 monname                   char (10),
+                      2 montype                   char (14),
+                      2 monloc                    char (8),
+                      2 black_hole                char (8),
+                      2 psionics                  bit (1),
+                      2 psi_num                   fixed bin,
+                      2 psi_name                  (0: 10) char (10),
+                      2 psi_type                  (0: 10) char (14),
+                      2 psi_mes                   (0: 10) char (8),
+                      2 lock                      bit (36);
+                      
+          dcl       continue_to_signal_           entry (fixed bin (35));
+          dcl       quit                          condition;
+          dcl       seg_fault_error               condition;
+          dcl       finish                        condition;
