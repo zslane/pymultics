@@ -68,6 +68,8 @@ class Listener(SystemExecutable):
                 
             except BreakCondition:
                 call.hcs_.signal_break()
+            except DisconnectCondition:
+                code.val = System.LOGOUT
             except ShutdownCondition:
                 code.val = System.SHUTDOWN
             except (SegmentFault, LinkageError, InvalidSegmentFault):

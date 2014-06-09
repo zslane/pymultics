@@ -33,6 +33,7 @@ class LoginSession(QtCore.QObject):
         else:
             self.__command_processor = command.processor
             self.__pit.time_login = datetime.datetime.now()
+            self.__login_session_manager._add_user_to_whotab(self.__pit.user_id, self.__pit.time_login)
             self.__system_services.llout("\n%s logged in on %s\n" % (self.__pit.user_id, self.__pit.time_login.ctime()))
             return self._main_loop()
         

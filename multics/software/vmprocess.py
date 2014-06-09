@@ -21,7 +21,7 @@ class VirtualMulticsProcess(QtCore.QObject):
         self.__process_id = None
         self.__process_dir = None
         self.__mbx = None
-        self.__process_stack = ProcessStack()
+        self.__process_stack = ProcessStack(pit)
         
     @property
     def process_id(self):
@@ -69,8 +69,6 @@ class VirtualMulticsProcess(QtCore.QObject):
         
         self._create_mbx()
         self.__login_session.register_process(self.__process_id, self.__process_dir)
-        call.sys_.get_default_search_paths(search_paths)
-        self.__process_stack.search_paths = search_paths.list
         
         #== Start the MBX process timer
         call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_mbx)
@@ -85,9 +83,8 @@ class VirtualMulticsProcess(QtCore.QObject):
     
     def _create_mbx(self):
         declare (segment = parm . init (ProcessMbx()))
-        call.hcs_.make_seg(self.__process_dir, "process_mbx", segment, code)
+        call.hcs_.make_seg(self.__process_dir, self.__pit.login_name + ".mbx", segment, code)
         self.__mbx = segment.ptr
-        print self.__mbx
         
     def _delete_mbx(self):
         declare (code = parm)
@@ -123,6 +120,7 @@ class VirtualMulticsProcess(QtCore.QObject):
         call.timer_manager_.reset_alarm_call(self._process_mbx)
         self._delete_mbx()
         call.hcs_.delete_branch_(self.__process_dir, code)
+        #== clear_kst() would not be necessary as the KST would just disappear when the process ends.
         call.hcs_.clear_kst()
         
     def _dispatch_mbx_message(self, mbx_message):
@@ -141,8 +139,12 @@ class ProcessStack(object):
     #== because even though it is data only those methods know or care about, the data
     #== really 'belongs' to the process, not the system service.
     
-    def __init__(self):
-        self.search_paths = []
+    def __init__(self, pit):
+        self.search_paths = [
+            ">sss",
+            ">sss>commands",
+            pit.homedir,
+        ]
         self.directory_stack = []
         #== More attributes added as needed by system services...
         

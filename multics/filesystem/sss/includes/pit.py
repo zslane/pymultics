@@ -16,3 +16,7 @@ class pit_structure(PL1.Structure):
     def user_id(self):
         return self.login_name + "." + self.project
         
+    @property
+    def instance_tag(self):
+        return ["", "a", "m", "z"][self.process_type]
+        

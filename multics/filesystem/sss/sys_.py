@@ -1,24 +1,9 @@
-import datetime
 
 from multics.globals import *
 
 class sys_(SystemExecutable):
     def __init__(self, system_services):
         super(sys_, self).__init__(self.__class__.__name__, system_services)
-        
-    def get_default_search_paths(self, search_paths):
-        declare (get_pdir_ = entry . returns (char ('*')),
-                 pit       = parm,
-                 code      = parm)
-        call.hcs_.initiate(get_pdir_(), "pit", pit, code)
-        
-        path_list = [
-            ">sss",
-            ">sss>commands",
-            pit.data.homedir,
-        ]
-        
-        search_paths.list = path_list
         
     def get_search_paths(self, search_paths):
         search_paths.list = self.system.session_thread.session.process.search_paths
@@ -91,7 +76,8 @@ class sys_(SystemExecutable):
             code.val = error_table_.no_such_user
             return
         # end try
-        call.hcs_.initiate(session_block.process_dir, "process_mbx", process_mbx_segment, code)
+        person_id, _, _ = user_id.partition(".")
+        call.hcs_.initiate(session_block.process_dir, person_id + ".mbx", process_mbx_segment, code)
         if process_mbx_segment.ptr != null():
             call.set_lock_.lock(process_mbx_segment.ptr, 5, code)
         else:

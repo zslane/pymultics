@@ -15,6 +15,7 @@ class LoginSessionManager(QtCore.QThread):
     
     def __init__(self, system_services):
         super(LoginSessionManager, self).__init__()
+        self.setObjectName("Initializer.SysDaemon")
         
         self.__system_services = system_services
         self.__process_id = None
@@ -23,6 +24,7 @@ class LoginSessionManager(QtCore.QThread):
         self.__project_definition_tables = {}
         self.__person_name_table = None
         self.__session = None
+        self.__known_segment_table = {}
         
     @property
     def session(self):
@@ -35,6 +37,13 @@ class LoginSessionManager(QtCore.QThread):
     @property
     def pdt(self):
         return self.__project_definition_tables
+        
+    #== kst() would be a Process method, and LoginSessionManager becomes the Initializer process.
+    #== clear_kst() would not be necessary as the KST would just disappear when the process ends.
+    def kst(self):
+        return self.__known_segment_table
+    def clear_kst(self):
+        self.__known_segment_table = {}
         
     def _add_user_to_whotab(self, user_id, login_time):
         #== Add a session block to the LOGIN DB for this session
@@ -72,15 +81,12 @@ class LoginSessionManager(QtCore.QThread):
         
         # do any cleanup necessary at the LoginSessionManager level in response to a clean SHUTDOWN
         call.hcs_.delete_branch_(self.__process_dir, code)
-        self.__session = None
         
         self.__system_services.shutdown()
-            
+        
     def kill(self):
-        if self.__session:
-            self._remove_user_from_whotab(pit.user_id)
-            self.__session.kill()
-        # end if
+        # self.kill_message_daemon()
+        pass
     
     def register_process(self, user_id, process_id, process_dir):
         with self.__whotab:
@@ -149,6 +155,8 @@ class LoginSessionManager(QtCore.QThread):
         print "WHOTAB:"
         print "-------"
         pprint(self.__whotab)
+        
+        # self.start_message_daemon()
     
     def _main_loop(self):
         LISTEN = 0
@@ -163,6 +171,7 @@ class LoginSessionManager(QtCore.QThread):
             
             try:
                 state = self._user_login()
+                
             except BreakCondition:
                 self.__system_services.set_input_mode(QtGui.QLineEdit.Normal)
                 call.hcs_.signal_break()
@@ -186,7 +195,7 @@ class LoginSessionManager(QtCore.QThread):
         
         self.__session = self._authenticate(user_id, password)
         if self.__session:
-            self._add_user_to_whotab(pit.user_id, pit.time_login)
+            # self._add_user_to_whotab(pit.user_id, pit.time_login) # <-- called in LoginSession.start() now
             
             code = self.__session.start()
             
@@ -251,12 +260,18 @@ class MessageDaemon(QtCore.QThread):
 
     def __init__(self, system_services):
         super(MessageDaemon, self).__init__()
+        self.setObjectName("Message.SysDaemon")
         
+        self.__system_services = system_services
+        
+    def kill(self):
+        self.__process_id = 0
+        
+    def run(self):
         declare (process_dir  = parm,
                  clock_       = entry . returns (fixed.bin(32)),
                  code         = parm)
         
-        self.__system_services = system_services
         self.__process_id = clock_()
         call.hcs_.create_process_dir(self.__process_id, process_dir, code)
         if code.val != 0:
@@ -264,12 +279,6 @@ class MessageDaemon(QtCore.QThread):
             self.__process_id = 0
         else:
             self.__process_dir = process_dir.name
-        
-    def kill(self):
-        self.__process_id = 0
-        
-    def run(self):
-        declare (code = parm)
         
         count = 0
         while self.__process_id:
