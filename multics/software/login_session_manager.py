@@ -53,6 +53,17 @@ class LoginSessionManager(QtCore.QThread):
     def _default_home_dir(self, person_id, project_id):
         return ">".join([self.__system_services.hardware.filesystem.user_dir_dir, project_id, person_id])
         
+    def start_message_daemon(self):
+        self.__message_daemon = MessageDaemon(self.__system_services)
+        self.__message_daemon.start()
+        
+    def kill_message_daemon(self):
+        if self.__message_daemon:
+            self.__message_daemon.kill()
+            while self.__message_daemon.isRunning():
+                QtCore.QThread.msleep(1000)
+            self.__message_daemon = None
+    
     def run(self):
         declare (code = parm)
         
@@ -64,7 +75,7 @@ class LoginSessionManager(QtCore.QThread):
         self.__session = None
         
         self.__system_services.shutdown()
-        
+            
     def kill(self):
         if self.__session:
             self._remove_user_from_whotab(pit.user_id)
@@ -203,7 +214,7 @@ class LoginSessionManager(QtCore.QThread):
                 # end if
             # end if
         except:
-            # traceback_print_exc()
+            # call.dump_traceback_()
             pass
         # end try
         self.__system_services.llout("Unrecognized user id/password\n\n")
@@ -235,3 +246,38 @@ class LoginSessionBlock(object):
         
     def __repr__(self):
         return "<%s.%s login_time: %s, process_id: %s, process_dir: %s>" % (__name__, self.__class__.__name__, self.login_time.ctime() if self.login_time else None, self.process_id, self.process_dir)
+
+class MessageDaemon(QtCore.QThread):
+
+    def __init__(self, system_services):
+        super(MessageDaemon, self).__init__()
+        
+        declare (process_dir  = parm,
+                 clock_       = entry . returns (fixed.bin(32)),
+                 code         = parm)
+        
+        self.__system_services = system_services
+        self.__process_id = clock_()
+        call.hcs_.create_process_dir(self.__process_id, process_dir, code)
+        if code.val != 0:
+            self.__system_services.llout("Failed to create message daemon process directory.\n")
+            self.__process_id = 0
+        else:
+            self.__process_dir = process_dir.name
+        
+    def kill(self):
+        self.__process_id = 0
+        
+    def run(self):
+        declare (code = parm)
+        
+        count = 0
+        while self.__process_id:
+            QtCore.QThread.msleep(2000)
+            self.__system_services.llout("Message.SysDaemon.z alive\n")
+            # count += 1
+            if count == 10:
+                break
+            # end if
+        # end while
+        call.hcs_.delete_branch_(self.__process_dir, code)

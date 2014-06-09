@@ -52,6 +52,7 @@ error_table_ = PL1.Enum("error_table_",
     locked_by_other_process = -12,
     noarg = -13,
     no_directory_entry = -14, # non-existant file or directory
+    no_command_name_available = -15,
 )
 
 class Executable(QtCore.QObject):
@@ -90,18 +91,12 @@ class SystemExecutable(Executable):
         
         self.system = system_services
         
-class CommandProcessor(SystemExecutable):
-    def __init__(self, segment_name, system_services):
-        super(CommandProcessor, self).__init__(segment_name, system_services)
+class CommandProcessor(Executable):
+    def __init__(self, segment_name):
+        super(CommandProcessor, self).__init__(segment_name)
         
-    def start(self):
-        raise LinkageError(self.__segment_name, "start (command processor entry point)")
-        
-    def kill(self):
-        raise LinkageError(self.__segment_name, "kill (command processor kill point)")
-        
-    def _on_condition__break(self):
-        pass
+    def execute(self):
+        raise LinkageError(self.__segment_name, "execute (command processor entry point)")
 
 __system_services = None
 call = None
@@ -309,8 +304,3 @@ class Includer(object):
         Injector.inject_incl(pframe, include_name)
         
 include = Includer()
-
-def traceback_print_exc():
-    import traceback
-    traceback.print_exc()
-    

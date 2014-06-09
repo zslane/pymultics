@@ -39,20 +39,20 @@ def admin():
         query_info.yes_or_no_sw = False
         query_info.explanation_ptr = admin_usage_text
         call.command_query_(query_info, command, MAIN)
-        cmd, _, argument_string = command.string.partition(" ")
-        if cmd:
-            call.cu_.set_command_line_(cmd, argument_string)
-            if cmd == "list_users" or cmd == "lu":
+        if command.line:
+            call.cu_.set_command_string_(command.line)
+            call.cu_.get_command_name(command, code)
+            if command.name == "list_users" or command.name == "lu":
                 list_users()
-            elif cmd == "add_user" or cmd == "au":
+            elif command.name == "add_user" or command.name == "au":
                 add_user()
-            elif cmd == "delete_user" or cmd == "du":
+            elif command.name == "delete_user" or command.name == "du":
                 delete_user()
-            elif cmd == "rename_user" or cmd == "ru":
+            elif command.name == "rename_user" or command.name == "ru":
                 rename_user()
-            elif cmd == "help":
+            elif command.name == "help":
                 call.ioa_(admin_usage_text)
-            elif cmd != "quit" and cmd != "q":
+            elif command.name != "quit" and command.name != "q":
                 call.ioa_("Unrecgonized {0} command", MAIN)
                 call.ioa_(admin_usage_text)
     

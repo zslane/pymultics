@@ -8,4 +8,4 @@ class do(Executable):
     def procedure(self, cmd_string, *args, **kwargs):
         declare (code = parm)
         cmd_line = cmd_string.format(*args, **kwargs)
-        call.cp_.execute(cmd_line, code)
+        call.cu_.cp(cmd_line, code)

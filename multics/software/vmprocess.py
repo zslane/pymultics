@@ -11,17 +11,17 @@ class VirtualMulticsProcess(QtCore.QObject):
 
     PROCESS_TIMER_DURATION = 1.0
     
-    def __init__(self, system_services, login_session, command_processor, pit):
+    def __init__(self, system_services, login_session, core_function, pit):
         super(VirtualMulticsProcess, self).__init__()
         
         self.__system_services = system_services
         self.__login_session = login_session
+        self.__core_function = core_function
+        self.__pit = pit
         self.__process_id = None
         self.__process_dir = None
         self.__mbx = None
         self.__process_stack = ProcessStack()
-        self.__command_processor = command_processor
-        self.__pit = pit
         
     @property
     def process_id(self):
@@ -47,10 +47,6 @@ class VirtualMulticsProcess(QtCore.QObject):
     def directory_stack(self):
         return self.__process_stack.directory_stack
         
-    @property
-    def command_processor(self):
-        return self.__command_processor
-        
     def start(self):
         declare (process_dir  = parm,
                  data         = parm,
@@ -75,7 +71,6 @@ class VirtualMulticsProcess(QtCore.QObject):
         self.__login_session.register_process(self.__process_id, self.__process_dir)
         call.sys_.get_default_search_paths(search_paths)
         self.__process_stack.search_paths = search_paths.list
-        call.sys_.accept_messages_(True)
         
         #== Start the MBX process timer
         call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_mbx)
@@ -83,8 +78,8 @@ class VirtualMulticsProcess(QtCore.QObject):
         return self._main_loop()
         
     def kill(self):
-        if self.__command_processor:
-            self.__command_processor.kill()
+        if self.__core_function:
+            self.__core_function.kill()
         # end if
         self._cleanup()
     
@@ -111,7 +106,7 @@ class VirtualMulticsProcess(QtCore.QObject):
     
     def _main_loop(self):
         self.__system_services.llout("New process started on %s\n" % (datetime.datetime.now().ctime()))
-        code = self.__command_processor.start()
+        code = self.__core_function.start()
         
         # do any cleanup necessary at the VirtualMulticsProcess level
         self._cleanup()
@@ -119,12 +114,12 @@ class VirtualMulticsProcess(QtCore.QObject):
         return code
     
     def _on_condition__break(self):
-        if self.__command_processor:
-            self.__command_processor._on_condition__break()
+        if self.__core_function:
+            self.__core_function._on_condition__break()
         
     def _cleanup(self):
         declare (code = parm)
-        self.__command_processor = None
+        self.__core_function = None
         call.timer_manager_.reset_alarm_call(self._process_mbx)
         self._delete_mbx()
         call.hcs_.delete_branch_(self.__process_dir, code)
