@@ -103,6 +103,7 @@ class SystemServices(QtCore.QObject):
             # end if
             
             self._msleep(self.IDLE_DELAY_TIME) # in milliseconds
+            QtCore.QCoreApplication.processEvents()
         # end while
         
         if self.__hardware.io.terminal_closed():
@@ -172,6 +173,21 @@ class SystemServices(QtCore.QObject):
         self.__session_thread = LoginSessionManager(self)
         self.__session_thread.start()
     
+    def start2(self):
+        from process_overseer import ProcessOverseer
+        self.process_overseer = ProcessOverseer(self)
+        #== Create Initializer process
+        include.login_info
+        login_info.person_id = "Initializer"
+        login_info.project_id = "SysDaemon"
+        login_info.process_type = 3 # daemon
+        login_info.process_id = 0o777777000000
+        login_info.homedir = ">sc1"
+        login_info.cp_path = ">sss>user_control"
+        from answering_service import AnsweringService
+        self.initializer = self.process_overseer.create_process(login_info, AnsweringService)
+        self.initializer.start()
+    
 class SystemTimer(object):
 
     def __init__(self, interval, callback_slot, callback_args=None):
@@ -200,10 +216,19 @@ class SystemTimer(object):
         
     def check(self):
         if self.triggered():
-            if self.__callback_args is not None:
-                self.__callback_slot(self.__callback_args)
+            if type(self.__callback_slot) is TimerEntry:
+                with self.__callback_slot as callback_fn:
+                    if self.__callback_args is not None:
+                        callback_fn(self.__callback_args)
+                    else:
+                        callback_fn()
+                    # end if
+                # end with
             else:
-                self.__callback_slot()
+                if self.__callback_args is not None:
+                    self.__callback_slot(self.__callback_args)
+                else:
+                    self.__callback_slot()
         
     def triggered(self):
         if self.__started:
@@ -322,45 +347,41 @@ class DynamicLinker(QtCore.QObject):
         process = self.__system_services.get_calling_process()
         process.clear_kst()
     
-    @property
-    def known_segment_table(self):
+    def get_kst(self):
         # return self.__known_segment_table
-        process = self.__system_services.get_calling_process()
-        return process.kst()
+        process = get_calling_process_()
+        try:
+            return process.kst()
+        except:
+            # return None
+            return self.__system_services.session_thread.kst()
         
     def load(self, dir_name, segment_name):
         # print "Trying to load", dir_name, segment_name
         multics_path = dir_name + ">" + segment_name
         native_path = self.__filesystem.path2path(multics_path)
         
-        try:
-            #== First look in the KST for a matching filepath
-            for segment_data_ptr in self.known_segment_table.values():
-                if segment_data_ptr.filepath == native_path:
-                    # print "...found in KST by filepath", segment_data_ptr
-                    return segment_data_ptr
-                # end if
-            # end for
-            
-            #== This part might not make sense anymore now that we first search
-            #== the KST by filepath. If that search doesn't find the segment,
-            #== then how could it be in the KST at all?
-            segment_data_ptr = self.known_segment_table[segment_name]
-            # print "...found in KST", segment_data_ptr
-            return segment_data_ptr
-            
-        except KeyError:
-            # print "...opening", native_path
-            try:
-                segment_data_ptr = self.__filesystem.segment_data_ptr(native_path)
-                # print "Adding to KST:", segment_name, "->", segment_data_ptr
-                self.known_segment_table[segment_name] = segment_data_ptr
+        #== First look in the KST for a matching filepath
+        for segment_data_ptr in self.get_kst().values():
+            if segment_data_ptr.filepath == native_path:
+                # print "...found in KST by filepath", segment_data_ptr
                 return segment_data_ptr
-            except:
-                # print "...failed to find/load file...trying to snap it instead"
-                return self.snap(segment_name, dir_name)
+            # end if
+        # end for
+        
+        # print "...opening", native_path
+        try:
+            segment_data_ptr = self.__filesystem.segment_data_ptr(native_path)
+            # print "Adding to KST:", segment_name, "->", segment_data_ptr
+            self.get_kst()[segment_name] = segment_data_ptr
+            return segment_data_ptr
+        except:
+            # print "...failed to find/load file...trying to snap it instead"
+            return self.snap(segment_name, dir_name)
         
     def snap(self, segment_name, known_location=None):
+        declare (get_wdir_ = entry . returns (char(168)))
+        
         try:
             entry_point = self._find_segment(segment_name)
             return entry_point
@@ -376,7 +397,7 @@ class DynamicLinker(QtCore.QObject):
                     search_paths = [ self.__filesystem.system_library_standard ]
                 # end try
                 try:
-                    current_dir = self.__system_services.session_thread.session.process.directory_stack[-1]
+                    current_dir = get_wdir_()
                     search_paths.insert(0, current_dir)
                 except:
                     pass
@@ -398,8 +419,8 @@ class DynamicLinker(QtCore.QObject):
                         self.dump_traceback_()
                         raise InvalidSegmentFault(segment_name)
                         
-                    self.known_segment_table[segment_name] = SegmentDescriptor(self.__system_services, segment_name, module_path, module)
-                    entry_point = self.known_segment_table[segment_name].segment
+                    self.get_kst()[segment_name] = SegmentDescriptor(self.__system_services, segment_name, module_path, module)
+                    entry_point = self.get_kst()[segment_name].segment
                     # print "   found", entry_point
                     return entry_point
                 # end if
@@ -417,9 +438,9 @@ class DynamicLinker(QtCore.QObject):
             return entry_point
         except KeyError:
             try:
-                # process = QtCore.QThread.currentThread()
-                # print "Current process", process.objectName(), segment_name
-                entry_point = self.known_segment_table[segment_name].segment
+                process = get_calling_process_()
+                print "Current process", process.objectName(), segment_name
+                entry_point = self.get_kst()[segment_name].segment
                 # print "...found in KST"
                 return entry_point
             except KeyError:
@@ -432,7 +453,7 @@ class DynamicLinker(QtCore.QObject):
             # print "...removed from SFT"
         except KeyError:
             try:
-                del self.known_segment_table[segment_name]
+                del self.get_kst()[segment_name]
                 # print "...removed from KST"
             except KeyError:
                 raise SegmentFault(segment_name)

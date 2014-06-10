@@ -25,7 +25,7 @@ class LoginSessionManager(QtCore.QThread):
         self.__person_name_table = None
         self.__session = None
         self.__known_segment_table = {}
-        
+            
     @property
     def session(self):
         return self.__session
@@ -37,6 +37,43 @@ class LoginSessionManager(QtCore.QThread):
     @property
     def pdt(self):
         return self.__project_definition_tables
+        
+    @property
+    def stack(self):
+        return self.session.process.stack
+        
+    @property
+    def search_paths(self):
+        return self.session.process.search_paths
+        
+    @search_paths.setter
+    def search_paths(self, path_list):
+        self.session.process.search_paths = path_list
+        
+    @property
+    def directory_stack(self):
+        return self.session.process.directory_stack
+        
+    def id(self):
+        return self.session.process.id()
+        
+    def dir(self):
+        return self.session.process.dir()
+        
+    def pds(self):
+        return self.session.process.pds()
+        
+    def pit(self):
+        return self.session.process.pit()
+        
+    def mbx(self):
+        return self.session.process.mbx()
+        
+    def uid(self):
+        return self.session.process.uid()
+        
+    def gid(self):
+        return self.session.process.gid()
         
     #== kst() would be a Process method, and LoginSessionManager becomes the Initializer process.
     #== clear_kst() would not be necessary as the KST would just disappear when the process ends.
@@ -100,7 +137,7 @@ class LoginSessionManager(QtCore.QThread):
                  branch      = parm,
                  segment     = parm,
                  code        = parm)
-        
+                
         self.__process_id = 0o777777000000
         call.hcs_.create_process_dir(self.__process_id, process_dir, code)
         self.__process_dir = process_dir.name
@@ -214,6 +251,10 @@ class LoginSessionManager(QtCore.QThread):
                 proj = proj or self.__person_name_table.get_default_project_id(person_id)
                 pdt = self.__project_definition_tables.get(proj)
                 if pdt and pdt.recognizes(person_id):
+                    if (person_id + "." + pdt.project_id) in self.__whotab.session_blocks:
+                        self.__system_services.llout("%s is already logged in\n\n" % (person_id + "." + pdt.project_id))
+                        return None
+                    # end if                    
                     pit.login_name = person_id
                     pit.project = pdt.project_id
                     pit.homedir = pdt.users[person_id].home_dir or self._default_home_dir(person_id, pdt.project_id)
@@ -246,12 +287,12 @@ class LoginDatabase(object):
         
 class LoginSessionBlock(object):
 
-    def __init__(self, login_time):
+    def __init__(self, login_time, process_id=None, process_dir=None):
         super(LoginSessionBlock, self).__init__()
         
         self.login_time = login_time
-        self.process_id = None
-        self.process_dir = None
+        self.process_id = process_id
+        self.process_dir = process_dir
         
     def __repr__(self):
         return "<%s.%s login_time: %s, process_id: %s, process_dir: %s>" % (__name__, self.__class__.__name__, self.login_time.ctime() if self.login_time else None, self.process_id, self.process_dir)

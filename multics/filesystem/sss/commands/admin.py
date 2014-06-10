@@ -130,6 +130,9 @@ def add_user():
                 password = ""
             # end if
             encrypted_password, pubkey = system.encrypt_password(password)
+        else:
+            call.ioa_("Unrecognized argument {0}", arg)
+            return
         # end if
     # end while
     

@@ -16,12 +16,13 @@ def sm():
         if code.val != 0:
             return
         process_mbx = mbx_segment.ptr
+        print process_mbx.filepath
         call.user_info_.whoami(person, project, acct)
         user_id = person.id + "." + project.id
         with process_mbx:
             process_mbx.messages.append({'type':"user_message", 'from':user_id, 'time':datetime.datetime.now(), 'text':message})
         # end with
-        call.set_lock_.unlock(process_mbx, code)
+        call.sys_.unlock_process_mbx_(process_mbx, code)
     
     call.cu_.arg_count(arg_count)
     if arg_count.val < 2:

@@ -2,7 +2,8 @@
 from multics.globals import *
 
 declare (unique_name_ = entry . returns (fixed.bin(32)),
-         get_pdir_    = entry . returns (char('*')))
+         get_pdir_    = entry . returns (char(168)),
+         get_wdir_    = entry . returns (char(168)))
 
 class hcs_(SystemExecutable):
     def __init__(self, system_services):
@@ -23,7 +24,7 @@ class hcs_(SystemExecutable):
                 path = segment_name
             else:
                 try:
-                    current_dir = self.system.session_thread.session.process.directory_stack[-1]
+                    current_dir = get_wdir_()
                 except:
                     current_dir = get_pdir_()
                 # end try

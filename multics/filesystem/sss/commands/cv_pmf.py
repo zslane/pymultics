@@ -11,7 +11,7 @@ include.pdt
 def cv_pmf():
 
     declare (arg_list    = parm,
-             current_dir = parm)
+             get_wdir_   = entry . returns (char(168)))
     
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) != 1:
@@ -28,8 +28,8 @@ def cv_pmf():
         # call.ioa_("You are not authorized to upload PDT files")
         # return
     
-    call.sys_.get_current_directory(current_dir)
-    pmf_path = system.hardware.filesystem.path2path(current_dir.name, pmf_file)
+    current_dir = get_wdir_()
+    pmf_path = system.hardware.filesystem.path2path(current_dir, pmf_file)
     if not system.hardware.filesystem.file_exists(pmf_path):
         call.ioa_("{0}.pmf file not found", project_id)
         return
@@ -45,7 +45,7 @@ def cv_pmf():
         pdtab.add_user(user['person_id'], user.get('home_dir', ""), user.get('command_processor', ""))
     # end for
     pprint(pdtab)
-    pdt_path = system.hardware.filesystem.path2path(current_dir.name, pdt_file)
+    pdt_path = system.hardware.filesystem.path2path(current_dir, pdt_file)
     with open(pdt_path, "wb") as f:
         pickle.dump(pdtab, f)
     # end with

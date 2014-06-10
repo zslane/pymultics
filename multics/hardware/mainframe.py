@@ -16,6 +16,9 @@ class VirtualMulticsHardware(QtCore.QObject):
     __version__ = "v1.0.0"
     
     def __init__(self):
+        t = QtCore.QThread.currentThread()
+        t.setObjectName("VT220.Terminal")
+        
         self._create_hardware_resources()
 
         #== Create hardware subsystems
@@ -104,6 +107,7 @@ class IOSubsystem(QtCore.QObject):
         self.__break_signal = False
         self.__closed_signal = False
         self.__terminal = None
+        self.__terminal_process_id = 0
 
     def _receive_string(self, s):
         self.__linefeed = False
@@ -129,6 +133,16 @@ class IOSubsystem(QtCore.QObject):
             self.__terminal.io.breakSignal.connect(self._receive_break)
             self.__terminal.closed.connect(self._close_terminal)
 
+    def attach_tty_process(self, process_id):
+        self.__terminal_process_id = process_id
+        
+    def detach_tty_process(self, process_id):
+        if self.__terminal_process_id == process_id:
+            self.__terminal_process_id = 0
+            
+    def attached_tty_process(self):
+        return self.__terminal_process_id
+        
     def linefeed_received(self):
         flag, self.__linefeed = self.__linefeed, False
         return flag
@@ -333,6 +347,9 @@ class MemoryMappedIOPtr(object):
     def filepath(self):
         return self.__filepath
         
+    def update(self):
+        self._update_data(self.CACHE_OUT)
+    
     def _set(self, attrname, value):
         super(MemoryMappedIOPtr, self).__setattr__("_%s%s" % (self.__class__.__name__, attrname), value)
         

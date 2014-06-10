@@ -47,11 +47,34 @@ class VirtualMulticsProcess(QtCore.QObject):
     def directory_stack(self):
         return self.__process_stack.directory_stack
         
+    def id(self):
+        return self.__process_id
+        
+    def dir(self):
+        return self.__process_dir
+        
+    def kst(self):
+        return self.__known_segment_table # <-- will exist here one day
+        
+    def pds(self):
+        return self.__process_stack
+        
+    def pit(self):
+        return self.__pit
+        
+    def mbx(self):
+        return self.__mbx
+        
+    def uid(self):
+        return "%s.%s" % (self.__pit.login_name, self.__pit.project)
+        
+    def gid(self):
+        return "%s.%s.%s" % (self.__pit.login_name, self.__pit.project, self.__pit.instance_tag)
+        
     def start(self):
         declare (process_dir  = parm,
                  data         = parm,
-                 code         = parm,
-                 search_paths = parm)
+                 code         = parm)
                  
         self.__process_id = clock_()
         call.hcs_.create_process_dir(self.__process_id, process_dir, code)
@@ -71,7 +94,8 @@ class VirtualMulticsProcess(QtCore.QObject):
         self.__login_session.register_process(self.__process_id, self.__process_dir)
         
         #== Start the MBX process timer
-        call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_mbx)
+        self.__timer_entry = TimerEntry(self._process_mbx)
+        call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self.__timer_entry)
         
         return self._main_loop()
         
@@ -93,13 +117,13 @@ class VirtualMulticsProcess(QtCore.QObject):
     @QtCore.Slot()
     def _process_mbx(self):
         if self.__mbx.messages:
-            call.timer_manager_.reset_alarm_call(self._process_mbx)
+            call.timer_manager_.reset_alarm_call(self.__timer_entry)
             #== Process mbx messages one per timer trigger
             with self.__mbx:
                 next_message = self.__mbx.messages.pop(0)
             # end with
             self._dispatch_mbx_message(next_message)
-            call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_mbx)
+            call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self.__timer_entry)
     
     def _main_loop(self):
         self.__system_services.llout("New process started on %s\n" % (datetime.datetime.now().ctime()))
@@ -117,7 +141,7 @@ class VirtualMulticsProcess(QtCore.QObject):
     def _cleanup(self):
         declare (code = parm)
         self.__core_function = None
-        call.timer_manager_.reset_alarm_call(self._process_mbx)
+        call.timer_manager_.reset_alarm_call(self.__timer_entry)
         self._delete_mbx()
         call.hcs_.delete_branch_(self.__process_dir, code)
         #== clear_kst() would not be necessary as the KST would just disappear when the process ends.
@@ -147,6 +171,7 @@ class ProcessStack(object):
         ]
         self.directory_stack = []
         #== More attributes added as needed by system services...
+        self.lock_id = clock_()
         
     def assert_create(self, attrname, attrtype):
         if not hasattr(self, attrname):
