@@ -108,7 +108,7 @@ class user_control(CommandProcessor):
         person_id = self.__person_name_table.person_id(login_name)
         try:
             encrypted_password, pubkey = self.__person_name_table.get_password(person_id)
-            if (not pubkey) or (rsa.encode(password, pubkey) == encrypted_password):
+            if (not pubkey) or (self.supervisor.encrypt_password(password, pubkey) == encrypted_password):
                 project = project or self.__person_name_table.get_default_project_id(person_id)
                 pdt = self.__project_definition_tables.get(project)
                 if pdt and pdt.recognizes(person_id):
@@ -121,7 +121,7 @@ class user_control(CommandProcessor):
                 # end if
             # end if
         except:
-            # call.dump_traceback_()
+            call.dump_traceback_()
             pass
         # end try
         self.supervisor.llout("Unrecognized user id/password\n\n")

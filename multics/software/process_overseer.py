@@ -112,8 +112,8 @@ class ProcessOverseer(object):
         process_env.core_function = core_function
         
         #== Create a Process object
-        from vmprocess2 import NewVirtualMulticsProcess
-        process = NewVirtualMulticsProcess(self.supervisor, process_env)
+        from vmprocess import VirtualMulticsProcess
+        process = VirtualMulticsProcess(self.supervisor, process_env)
         self.__running_processes.append(process)
         print "Created", process, isinstance(process, QtCore.QThread)
         

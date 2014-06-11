@@ -26,7 +26,6 @@ class SystemServices(QtCore.QObject):
         
         self.__hardware = hardware
         self.__dynamic_linker = DynamicLinker(self)
-        # self.__session_thread = None
         self.__initializer = None
         self.__daemons = []
         self.__startup_datetime = None
@@ -36,7 +35,6 @@ class SystemServices(QtCore.QObject):
         self.__project_definition_tables = {}
         self.__whotab = None
         
-        # self.__hardware.io.terminalClosed.connect(self._kill_session_thread)
         self.__hardware.io.terminalClosed.connect(self._kill_daemons)
         self.__hardware.io.heartbeat.connect(self._heartbeat)
         
@@ -228,16 +226,12 @@ class SystemServices(QtCore.QObject):
             self._kill_process(daemon_process)
         # end for
         
-    def start0(self):
-        from login_session_manager import LoginSessionManager
-        self.__session_thread = LoginSessionManager(self)
-        self.__session_thread.start()
-    
     def start(self):
         self._load_user_data()
         
         from process_overseer import ProcessOverseer
         self.process_overseer = ProcessOverseer(self)
+        
         #== Create Initializer process
         include.login_info
         login_info.person_id = "Initializer"
@@ -253,6 +247,7 @@ class SystemServices(QtCore.QObject):
                 self.llout("Failed to create Initializer process")
             else:
                 self.__initializer.start()
+            # end if
         except:
             self.dynamic_linker.dump_traceback_()
             
@@ -291,6 +286,7 @@ class SystemServices(QtCore.QObject):
                     pdt.add_user("JRCooper")
                     call.hcs_.make_seg(self.hardware.filesystem.system_control_dir, segment_name, segment(pdt), code)
                     segment_list.append(segment_name)
+                # end for
             # end if
             for segment_name in segment_list:
                 if segment_name.endswith(".pdt"):

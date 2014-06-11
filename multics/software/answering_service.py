@@ -112,22 +112,6 @@ class AnsweringService(SystemExecutable):
         return self.process_overseer.create_process(login_info, Listener)
     
     def _user_login(self):
-        # self.supervisor.llout("\n")
-        # user_lookup = None
-        # while not user_lookup:
-            # user_id = ""
-            # while user_id == "":
-                # self.supervisor.llout("username: ")
-                # user_id = self.supervisor.llin(block=True)
-                # self.supervisor.llout(user_id + "\n")
-            # # end while
-            # self.supervisor.llout("password:\n")
-            # self.supervisor.set_input_mode(QtGui.QLineEdit.Password)
-            # password = self.supervisor.llin(block=True)
-            # self.supervisor.set_input_mode(QtGui.QLineEdit.Normal)
-            
-            # user_lookup = self._authenticate(user_id, password)
-        # # end while
         user_lookup = self.user_control.do_login(self.supervisor,
                                                  self.__person_name_table,
                                                  self.__project_definition_tables,
@@ -149,90 +133,13 @@ class AnsweringService(SystemExecutable):
         
         return process
         
-    def _authenticate(self, user_id, password):
-        login_name, _, project = user_id.partition(".")
-        person_id = self.__person_name_table.person_id(login_name)
-        # print "Logging in as", person_id
-        try:
-            encrypted_password, pubkey = self.__person_name_table.get_password(person_id)
-            if (not pubkey) or (rsa.encode(password, pubkey) == encrypted_password):
-                project = project or self.__person_name_table.get_default_project_id(person_id)
-                pdt = self.__project_definition_tables.get(project)
-                # print "Using PDT", pdt, pdt.recognizes(person_id)
-                if pdt and pdt.recognizes(person_id):
-                    user_id = person_id + "." + pdt.project_id
-                    if user_id in self.__whotab.entries:
-                        self.supervisor.llout("%s is already logged in\n\n" % (user_id))
-                        return None
-                    # end if
-                    return (person_id, pdt)
-                # end if
-            # end if
-        except:
-            # call.dump_traceback_()
-            pass
-        # end try
-        self.supervisor.llout("Unrecognized user id/password\n\n")
-        return None
-    
     def _on_condition__break(self):
         pass
         
     def _initialize(self):
-        declare (process_dir = parm,
-                 branch      = parm,
-                 segment     = parm,
-                 code        = parm)
-        
-        #== Get a pointer to the PNT (create it if necessary)
-        call.hcs_.initiate(self.supervisor.hardware.filesystem.system_control_dir, "person_name_table", segment, code)
-        self.__person_name_table = segment.ptr
-        # if not self.__person_name_table:
-            # call.hcs_.make_seg(self.supervisor.hardware.filesystem.system_control_dir, "person_name_table", segment(PersonNameTable()), code)
-            # self.__person_name_table = segment.ptr
-            # #== Add JRCooper/jrc as a valid user to start with
-            # with self.__person_name_table:
-                # self.__person_name_table.add_person("JRCooper", alias="jrc", default_project_id="SysAdmin")
-            # end with
-        # end if
-        # print "PERSON NAME TABLE:"
-        # print "------------------"
-        # pprint(self.__person_name_table)
-        
-        #== Make a dictionary of PDTs (project definition tables)
-        call.hcs_.get_directory_contents(self.supervisor.hardware.filesystem.system_control_dir, branch, segment, code)
-        if code.val == 0:
-            #== Add SysAdmin as a project with JRCooper as a recognized user
-            # if not any([ name.endswith(".pdt") for name in segment.list ]):
-                # for project_id, alias in [("SysAdmin", "sa")]:
-                    # segment_name = "%s.pdt" % (project_id)
-                    # pdt = ProjectDefinitionTable(project_id, alias, ["JRCooper"])
-                    # pdt.add_user("JRCooper")
-                    # call.hcs_.make_seg(self.supervisor.hardware.filesystem.system_control_dir, segment_name, segment(pdt), code)
-                    # segment.list.append(segment_name)
-            # end if
-            for segment_name in segment.list:
-                if segment_name.endswith(".pdt"):
-                    call.hcs_.initiate(self.supervisor.hardware.filesystem.system_control_dir, segment_name, segment, code)
-                    self.__project_definition_tables[segment.ptr.project_id] = segment.ptr
-                    self.__project_definition_tables[segment.ptr.alias] = segment.ptr
-                # end if
-            # end for
-        # end if
-        # print "PROJECT DEFINITION TABLES:"
-        # print "--------------------------"
-        # pprint(self.__project_definition_tables)
-        
-        #== Get a pointer to the WHOTAB (create it if necessary)
-        call.hcs_.initiate(self.supervisor.hardware.filesystem.system_control_dir, "whotab", segment, code)
-        self.__whotab = segment.ptr
-        # if not self.__whotab:
-            # call.hcs_.make_seg(self.supervisor.hardware.filesystem.system_control_dir, "whotab", segment(WhoTable()), code)
-            # self.__whotab = segment.ptr
-        # # end if
-        # print "WHOTAB:"
-        # print "-------"
-        # pprint(self.__whotab)
+        self.__person_name_table = self.supervisor.pnt
+        self.__project_definition_tables = self.supervisor.pdt
+        self.__whotab = self.supervisor.whotab
         
     def _cleanup(self):
         pass

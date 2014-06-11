@@ -5,12 +5,12 @@ from ..globals import *
 
 from PySide import QtCore, QtGui
 
-class NewVirtualMulticsProcess(QtCore.QThread):
+class VirtualMulticsProcess(QtCore.QThread):
 
     PROCESS_TIMER_DURATION = 1.0
     
     def __init__(self, supervisor, process_env):
-        super(NewVirtualMulticsProcess, self).__init__()
+        super(VirtualMulticsProcess, self).__init__()
         self.supervisor = supervisor
         self.__process_env = process_env
         self.__known_segment_table = {}
