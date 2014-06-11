@@ -26,18 +26,23 @@ class SystemServices(QtCore.QObject):
         
         self.__hardware = hardware
         self.__dynamic_linker = DynamicLinker(self)
-        self.__session_thread = None
+        # self.__session_thread = None
         self.__initializer = None
         self.__daemons = []
         self.__startup_datetime = None
         self.__shutdown_datetime = None
         self.__system_timers = {}
+        self.__person_name_table = None
+        self.__project_definition_tables = {}
+        self.__whotab = None
         
-        self.__hardware.io.terminalClosed.connect(self._kill_session_thread)
+        # self.__hardware.io.terminalClosed.connect(self._kill_session_thread)
         self.__hardware.io.terminalClosed.connect(self._kill_daemons)
         self.__hardware.io.heartbeat.connect(self._heartbeat)
         
         multics.globals._register_system_services(self, self.__dynamic_linker)
+        
+        self._load_site_config()
         
     @property
     def hardware(self):
@@ -48,6 +53,15 @@ class SystemServices(QtCore.QObject):
     @property
     def dynamic_linker(self):
         return self.__dynamic_linker
+    @property
+    def pnt(self):
+        return self.__person_name_table
+    @property
+    def pdt(self):
+        return self.__project_definition_tables
+    @property
+    def whotab(self):
+        return self.__whotab
     
     def _msleep(self, milliseconds):
         QtCore.QThread.msleep(milliseconds)
@@ -63,6 +77,14 @@ class SystemServices(QtCore.QObject):
             else:
                 timer.check()
         
+    def _load_site_config(self):
+        SYSTEMROOT = os.path.dirname(self.hardware.filesystem.FILESYSTEMROOT)
+        with open(os.path.join(SYSTEMROOT, "site.config"), "r") as f:
+            config_text = f.read()
+        # end with
+        self.site_config = eval(config_text)
+        self.site_config['site_name'] = os.path.basename(os.path.dirname(SYSTEMROOT))
+    
     def _send_system_greeting(self):
         self.__hardware.io.put_output("%s\n" % (self.__hardware.announce))
         self.__hardware.io.put_output("System Services %s started on %s\n" % (self.__version__, self.__startup_datetime.ctime()))
@@ -165,6 +187,9 @@ class SystemServices(QtCore.QObject):
         print "Adding daemon process", process.objectName()
         self.__daemons.insert(0, process)
         
+    def get_daemon_processes(self):
+        return self.__daemons
+        
     def _kill_session_thread(self):
         if self.__session_thread:
             self.__session_thread.kill()
@@ -209,6 +234,8 @@ class SystemServices(QtCore.QObject):
         self.__session_thread.start()
     
     def start(self):
+        self._load_user_data()
+        
         from process_overseer import ProcessOverseer
         self.process_overseer = ProcessOverseer(self)
         #== Create Initializer process
@@ -227,7 +254,66 @@ class SystemServices(QtCore.QObject):
             else:
                 self.__initializer.start()
         except:
-            self.__dynamic_linker.dump_traceback_()
+            self.dynamic_linker.dump_traceback_()
+            
+    def _load_user_data(self):
+        declare (process_dir = parm,
+                 branch      = parm,
+                 segment     = parm,
+                 code        = parm)
+        
+        call = multics.globals.call
+        
+        #== Get a pointer to the PNT (create it if necessary)
+        call.hcs_.initiate(self.hardware.filesystem.system_control_dir, "person_name_table", segment, code)
+        self.__person_name_table = segment.ptr
+        if not self.__person_name_table:
+            call.hcs_.make_seg(self.hardware.filesystem.system_control_dir, "person_name_table", segment(PersonNameTable()), code)
+            self.__person_name_table = segment.ptr
+            #== Add JRCooper/jrc as a valid user to start with
+            with self.__person_name_table:
+                self.__person_name_table.add_person("JRCooper", alias="jrc", default_project_id="SysAdmin")
+            # end with
+        # end if
+        print "PERSON NAME TABLE:"
+        print "------------------"
+        pprint(self.__person_name_table)
+        
+        #== Make a dictionary of PDTs (project definition tables)
+        call.hcs_.get_directory_contents(self.hardware.filesystem.system_control_dir, branch, segment, code)
+        if code.val == 0:
+            segment_list = segment.list
+            #== Add SysAdmin as a project with JRCooper as a recognized user
+            if not any([ name.endswith(".pdt") for name in segment_list ]):
+                for project_id, alias in [("SysAdmin", "sa")]:
+                    segment_name = "%s.pdt" % (project_id)
+                    pdt = ProjectDefinitionTable(project_id, alias, ["JRCooper"])
+                    pdt.add_user("JRCooper")
+                    call.hcs_.make_seg(self.hardware.filesystem.system_control_dir, segment_name, segment(pdt), code)
+                    segment_list.append(segment_name)
+            # end if
+            for segment_name in segment_list:
+                if segment_name.endswith(".pdt"):
+                    call.hcs_.initiate(self.hardware.filesystem.system_control_dir, segment_name, segment, code)
+                    self.__project_definition_tables[segment.ptr.project_id] = segment.ptr
+                    self.__project_definition_tables[segment.ptr.alias] = segment.ptr
+                # end if
+            # end for
+        # end if
+        print "PROJECT DEFINITION TABLES:"
+        print "--------------------------"
+        pprint(self.__project_definition_tables)
+        
+        #== Get a pointer to the WHOTAB (create it if necessary)
+        call.hcs_.initiate(self.hardware.filesystem.system_control_dir, "whotab", segment, code)
+        self.__whotab = segment.ptr
+        if not self.__whotab:
+            call.hcs_.make_seg(self.hardware.filesystem.system_control_dir, "whotab", segment(WhoTable()), code)
+            self.__whotab = segment.ptr
+        # end if
+        print "WHOTAB:"
+        print "-------"
+        pprint(self.__whotab)
     
 class SystemTimer(object):
 

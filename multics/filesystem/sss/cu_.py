@@ -27,13 +27,16 @@ class cu_(SystemExecutable):
             arg.str = null()
             code.val = error_table_.noarg
         
-    def arg_string(self, starting_with=0):
+    def arg_string(self, before, result, starting_with=0):
         s = self.__argument_string
         d = []
         for i in range(starting_with):
             discard, _, s = s.strip().partition(" ")
             d.append(discard)
         # end for
+        before.list = d
+        result.val = s.strip()
+        return
         if d:
             return (d, s.strip())
         else:

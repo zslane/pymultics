@@ -11,25 +11,29 @@ class set_lock_(SystemExecutable):
         super(set_lock_, self).__init__(self.__class__.__name__, system_services)
         
     def lock(self, segment_data_ptr, wait_time, code):
-        self.system.session_thread.session.process.stack.assert_create("file_locks", dict)
+        declare (process_id_list = parm)
+        process = get_calling_process_()
+        process.stack.assert_create("file_locks", dict)
         lock_id = segment_data_ptr.filepath
-        if lock_id in self.system.session_thread.session.process.stack.file_locks:
+        if lock_id in process.stack.file_locks:
             code.val = error_table_.locked_by_this_process
         try:
-            process_id = self.system.session_thread.session.process.process_id
-            file_lock = FileLock(segment_data_ptr, process_id, wait_time, self.system.session_thread.whotab)
+            process_id = process.id()
+            call.sys_.get_process_ids(process_id_list)
+            file_lock = FileLock(segment_data_ptr, process_id, wait_time, process_id_list.ids)
             code.val = file_lock.acquire()
-            self.system.session_thread.session.process.stack.file_locks[lock_id] = file_lock
+            process.stack.file_locks[lock_id] = file_lock
         except FileLockException as e:
             code.val = e.code
         
     def unlock(self, segment_data_ptr, code):
-        self.system.session_thread.session.process.stack.assert_create("file_locks", dict)
+        process = get_calling_process_()
+        process.stack.assert_create("file_locks", dict)
         lock_id = segment_data_ptr.filepath
-        file_lock = self.system.session_thread.session.process.stack.file_locks.get(lock_id)
+        file_lock = process.stack.file_locks.get(lock_id)
         if file_lock:
             file_lock.release()
-            del self.system.session_thread.session.process.stack.file_locks[lock_id]
+            del process.stack.file_locks[lock_id]
             code.val = 0
         else:
             code.val = error_table_.lock_not_locked
@@ -45,7 +49,7 @@ class FileLock(object):
         compatible as it doesn't rely on msvcrt or fcntl for the locking.
     """
     
-    def __init__(self, segment_data_ptr, process_id, timeout, whotab):
+    def __init__(self, segment_data_ptr, process_id, timeout, process_id_list):
         """ Prepare the file locker. Specify the file to lock and optionally
             the maximum timeout and the delay between each attempt to lock.
         """
@@ -53,7 +57,7 @@ class FileLock(object):
         self.is_locked = False
         self.lockfile = os.path.join(dirname, "%s.lock" % (filename))
         self.timeout = timeout
-        self.whotab = whotab
+        self.process_id_list = process_id_list
         self.process_id = process_id
         self.delay = 0.05
         self.fd = None
@@ -108,7 +112,7 @@ class FileLock(object):
         # end with
         
     def invalid_lock_id(self):
-        valid_processes = self.whotab.get_process_ids()
+        valid_processes = self.process_id_list
         with open(self.lockfile, "rb") as f:
             lock_owner_id = pickle.load(f)
         # end with

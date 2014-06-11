@@ -7,17 +7,40 @@ class sys_(SystemExecutable):
     def __init__(self, system_services):
         super(sys_, self).__init__(self.__class__.__name__, system_services)
         
-    def get_users(self, users):
-        whotab = self._get_whotab()
-        # users.list = whotab.session_blocks.keys()
-        users.list = whotab.entries.keys()
-
-    def _get_whotab(self):
-        declare (whotab = parm,
-                 code   = parm)
-        call.hcs_.initiate(self.system.hardware.filesystem.system_control_dir, "whotab", whotab, code)
-        return whotab.ptr
+    def get_userid_long(self, short_name, long_name, code):
+        short_person_id, _, short_project_id = short_name.partition(".")
+        
+        long_person_id = self.system.pnt.aliases.get(short_person_id) or short_person_id
+        
+        if not short_project_id:
+            long_name.val = long_person_id
+            code.val = 0
+            return
+        # end if
+        
+        for pdt in self.system.pdt.values():
+            if short_project_id == pdt.project_id or short_project_id == pdt.alias:
+                    long_project_id = pdt.project_id
+                    break
+                # end if
+            # end if
+        else:
+            code.val = error_table_.no_such_user
+            return
+        # end for
+        
+        long_name.val = long_person_id + "." + long_project_id
+        code.val = 0
     
+    def get_users(self, users):
+        users.list = self.system.whotab.entries.keys()
+
+    def get_daemons(self, daemons):
+        daemons.list = [ process.uid() for process in self.system.get_daemon_processes() ]
+        
+    def get_process_ids(self, process_ids):
+        process_ids.list = self.system.whotab.get_process_ids()
+        
     def get_rel_directory(self, dir_ref, relative_to, out_dir, code):
         if relative_to == "":
             relative_to = get_wdir_()
@@ -74,9 +97,7 @@ class sys_(SystemExecutable):
     
     def lock_process_mbx_(self, user_id, process_mbx_segment, code):
         try:
-            whotab = self._get_whotab()
-            # whotab_entry = whotab.session_blocks[user_id]
-            whotab_entry = whotab.entries[user_id]
+            whotab_entry = self.system.whotab.entries[user_id]
         except KeyError:
             code.val = error_table_.no_such_user
             return

@@ -1,3 +1,4 @@
+import os
 
 from multics.globals import *
 
@@ -8,11 +9,6 @@ login_usage_text = (
 """
 )
 
-class site_config(object):
-
-    site_location = "Casa De Vida 156, Los Angeles"
-    site_name = "System P"
-    
 class user_control(CommandProcessor):
 
     def __init__(self):
@@ -22,6 +18,14 @@ class user_control(CommandProcessor):
         self.__project_definition_tables = None
         self.__whotab = None
         
+    def display_login_banner(self):
+        load = len(os.listdir(self.supervisor.hardware.filesystem.path2path(self.supervisor.hardware.filesystem.process_dir_dir)))
+        self.supervisor.llout("\nVirtual Multics MR0.2: %s, %s\nLoad = %0.1f out of %0.1f: users = %d\n" % (
+            self.supervisor.site_config['site_location'],
+            self.supervisor.site_config['site_name'],
+            load, self.supervisor.site_config['maximum_load'],
+            len(self.__whotab.entries)))
+            
     def do_login(self, supervisor, pnt, pdt, whotab):
     
         declare (command_name = parm,
@@ -32,7 +36,7 @@ class user_control(CommandProcessor):
         self.__project_definition_tables = pdt
         self.__whotab = whotab
         
-        self.supervisor.llout("\nVirtual Multics MR0.2: %s, %s\nusers = %d\n" % (site_config.site_location, site_config.site_name, len(whotab.entries)))
+        self.display_login_banner()
         
         user_lookup = None
         while not user_lookup:

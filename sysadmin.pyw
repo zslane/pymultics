@@ -116,6 +116,7 @@ class ProjectDefinitionTableModel(QtCore.QAbstractItemModel):
             self.project_definition_table = pickle.load(f)
         # end with
         
+        self.alias = self.project_definition_table.alias
         self.users_model = ProjectUsersModel(self.project_definition_table.users)
         self.admins_model = ProjectAdminsModel(self.project_definition_table.admins)
         
@@ -237,6 +238,9 @@ class SysAdminWindow(QtGui.QMainWindow):
                 #end if
             else:
                 pdt_ui = ProjectDefinitionTableUi(filepath)
+                if pdt_ui.model.alias:
+                    tab_title += " (%s)" % (pdt_ui.model.alias)
+                # end if
                 self.tab_widget.addTab(pdt_ui, tab_title)
                 self.tab_widget.setCurrentIndex(self.tab_widget.count() - 1)
                 self.pdt_ui_list.append(pdt_ui)

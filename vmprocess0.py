@@ -7,12 +7,12 @@ from PySide import QtCore, QtGui
 
 declare (clock_ = entry . returns (fixed.bin(32)))
 
-class VirtualMulticsProcess(QtCore.QObject):
+class OldVirtualMulticsProcess(QtCore.QObject):
 
     PROCESS_TIMER_DURATION = 1.0
     
     def __init__(self, system_services, login_session, core_function, pit):
-        super(VirtualMulticsProcess, self).__init__()
+        super(OldVirtualMulticsProcess, self).__init__()
         
         self.__system_services = system_services
         self.__login_session = login_session

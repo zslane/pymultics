@@ -53,8 +53,8 @@ class LoginSession(QtCore.QObject):
             from listener import Listener
             core_function = Listener(self.__system_services, self.__command_processor)
             
-            from vmprocess import VirtualMulticsProcess
-            self.__process = VirtualMulticsProcess(self.__system_services, self, core_function, self.__pit)
+            from vmprocess0 import OldVirtualMulticsProcess
+            self.__process = OldVirtualMulticsProcess(self.__system_services, self, core_function, self.__pit)
             
             code = self.__process.start()
         # end while
