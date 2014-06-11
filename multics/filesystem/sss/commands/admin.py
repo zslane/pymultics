@@ -27,7 +27,8 @@ def admin():
              person   = parm,
              project  = parm,
              acct     = parm,
-             arg_list = parm)
+             arg_list = parm,
+             code     = parm)
     
     call.user_info_.whoami(person, project, acct)
     if project.id != "SysAdmin":

@@ -254,7 +254,7 @@ class LoginSessionManager(QtCore.QThread):
                     if (person_id + "." + pdt.project_id) in self.__whotab.session_blocks:
                         self.__system_services.llout("%s is already logged in\n\n" % (person_id + "." + pdt.project_id))
                         return None
-                    # end if                    
+                    # end if
                     pit.login_name = person_id
                     pit.project = pdt.project_id
                     pit.homedir = pdt.users[person_id].home_dir or self._default_home_dir(person_id, pdt.project_id)

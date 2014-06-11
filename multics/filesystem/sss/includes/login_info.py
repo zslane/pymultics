@@ -7,7 +7,7 @@ class login_info_structure(PL1.Structure):
     def __init__(self):
         PL1.Structure.__init__(self,
             version      = login_info_version_1,
-            person_id    = ""
+            person_id    = "",
             project_id   = "",
             process_type = 0, # 1 = interactive, 2 = absentee, 3 = daemon
             process_id   = 0,

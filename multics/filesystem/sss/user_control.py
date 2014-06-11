@@ -1,11 +1,18 @@
 
 from multics.globals import *
 
+from PySide import QtCore, QtGui
+
 login_usage_text = (
-"""Usage: login|l [person_id]{{.project_id}} {{-change_password|-cp}}
+"""Usage: login|l [person_id] {{project_id}} {{-change_password|-cp}}
 """
 )
 
+class site_config(object):
+
+    site_location = "Casa De Vida 156, Los Angeles"
+    site_name = "System P"
+    
 class user_control(CommandProcessor):
 
     def __init__(self):
@@ -15,13 +22,17 @@ class user_control(CommandProcessor):
         self.__project_definition_tables = None
         self.__whotab = None
         
-    def do_login(self, pnt, pdt, whotab):
+    def do_login(self, supervisor, pnt, pdt, whotab):
+    
         declare (command_name = parm,
                  code         = parm)
                  
+        self.supervisor = supervisor
         self.__person_name_table = pnt
         self.__project_definition_tables = pdt
         self.__whotab = whotab
+        
+        self.supervisor.llout("\nVirtual Multics MR0.2: %s, %s\nusers = %d\n" % (site_config.site_location, site_config.site_name, len(whotab.entries)))
         
         user_lookup = None
         while not user_lookup:
@@ -30,16 +41,19 @@ class user_control(CommandProcessor):
                 command_line = self.supervisor.llin(block=True)
                 self.supervisor.llout(command_line + "\n")
                 if command_line:
-                    call.cu_.set_command_string_(command.line)
+                    call.cu_.set_command_string_(command_line)
                     call.cu_.get_command_name(command_name, code)
                     if command_name.val== "login" or command_name.val == "l":
                         user_lookup = self.login()
+                    elif command_name.val == "help" or command_name.val == "?":
+                        call.ioa_("Available commands:\n  login,l [person_id] {{project_id}} {{-change_password|-cp}}\n  help,?")
+                        command_line = ""
                     # end if
                 # end if
             # end while
         # end while
         return user_lookup
-            
+        
     def login(self):
         declare (arg_list = parm,
                  code     = parm)
@@ -52,18 +66,22 @@ class user_control(CommandProcessor):
             show_usage()
             return
             
+        project = ""
         change_password = False
         
-        user_id = arg_list.args.pop(0)
+        login_name = arg_list.args.pop(0)
         
         i = 0
         while i < len(arg_list.args):
             arg = arg_list.args[i]
-            if arg == "-change_password" or arg == "-cp":
+            if i == 0 and not arg.startswith("-"):
+                project = arg
+                i += 1
+            elif arg == "-change_password" or arg == "-cp":
                 change_password = True
                 i += 1
             else:
-                self.supervisor.llout("Unrecognized argument {0}", arg)
+                call.ioa_("Unrecognized argument {0}", arg)
                 return
             # end if
         # end while
@@ -73,19 +91,21 @@ class user_control(CommandProcessor):
         password = self.supervisor.llin(block=True)
         self.supervisor.set_input_mode(QtGui.QLineEdit.Normal)
         
-        (person_id, pdt) = self._authenticate(user_id, password)
+        user_lookup = self._authenticate(login_name, project, password)
         
-        if person_id and change_password:
+        if user_lookup and change_password:
+            person_id, _ = user_lookup
             self._change_user_password(person_id)
+        # end if
         
-        return (person_id, pdt)
+        return user_lookup
         
-    def _authenticate(self, user_id, password):
-        login_name, _, project = user_id.partition(".")
+    def _authenticate(self, login_name, project, password):
         person_id = self.__person_name_table.person_id(login_name)
         try:
             encrypted_password, pubkey = self.__person_name_table.get_password(person_id)
             if (not pubkey) or (rsa.encode(password, pubkey) == encrypted_password):
+                project = project or self.__person_name_table.get_default_project_id(person_id)
                 pdt = self.__project_definition_tables.get(project)
                 if pdt and pdt.recognizes(person_id):
                     user_id = person_id + "." + pdt.project_id

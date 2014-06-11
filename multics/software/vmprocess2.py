@@ -14,6 +14,7 @@ class NewVirtualMulticsProcess(QtCore.QThread):
         self.supervisor = supervisor
         self.__process_env = process_env
         self.__known_segment_table = {}
+        self.exit_code = 0
         
         self.setObjectName(self.gid())
         
@@ -81,7 +82,7 @@ class NewVirtualMulticsProcess(QtCore.QThread):
             call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self.__timer_entry)
     
     def _main_loop(self):
-        self.__system_services.llout("New process for %s started on %s\n" % (self.uid(), datetime.datetime.now().ctime()))
+        self.supervisor.llout("New process for %s started on %s\n" % (self.uid(), datetime.datetime.now().ctime()))
         code = self.__process_env.core_function.start()
         return code
     
@@ -90,7 +91,7 @@ class NewVirtualMulticsProcess(QtCore.QThread):
         
     def _initialize(self):
         #== Start the MBX process timer
-        self.__timer_entry = TimerEntry(self.__process_mbx)
+        self.__timer_entry = TimerEntry(self._process_mbx)
         call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self.__timer_entry)
     
     def _cleanup(self):

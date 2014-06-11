@@ -79,7 +79,6 @@ class hcs_(SystemExecutable):
         native_path = self.__filesystem.path2path(multics_path)
         
         if self.__filesystem.file_exists(native_path):
-            # segment.data_ptr = self.__filesystem.segment_data_ptr(native_path)
             segment.data_ptr = self.system.dynamic_linker.load(dirname, segment_name)
             code.val = error_table_.namedup
             return
@@ -87,7 +86,6 @@ class hcs_(SystemExecutable):
         
         try:
             #== Create the file on disk
-            # segment.data_ptr = self.__filesystem.segment_data_ptr(native_path, segment.data_ptr)
             self.__filesystem.segment_data_ptr(native_path, segment.data_ptr)
             #== Make sure the segment gets into the KST
             segment.data_ptr = self.system.dynamic_linker.load(dirname, segment_name)
@@ -107,6 +105,7 @@ class hcs_(SystemExecutable):
         if self.__filesystem.file_exists(dir_path):
             code.val = error_table_.namedup
         else:
+            print "Creating", dir_path
             code.val = self.__filesystem.mkdir(dir_path)
         
     def delete_branch_(self, dir_name, code):

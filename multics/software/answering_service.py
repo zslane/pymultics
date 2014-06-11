@@ -32,62 +32,53 @@ class AnsweringService(SystemExecutable):
     def kill(self):
         self._cleanup()
         
-    def _old(self):
-        LISTEN = 0
-        PROMPT = 1
-        state = LISTEN
-        while state != System.SHUTDOWN:
-            if state == LISTEN:
-                self.supervisor.wait_for_linefeed()
-                self.supervisor.llout("\n")
-                state = PROMPT
-            # end if
-            
-            try:
-                state = self._user_login()
-                
-            except BreakCondition:
-                self.supervisor.set_input_mode(QtGui.QLineEdit.Normal)
-                call.hcs_.signal_break()
-            # end try
-            
-            if state == System.LOGOUT:
-                state = LISTEN
-        # end while
-                
     def _main_loop(self):
         self._initialize()
         
         shutting_down = False
         while not shutting_down:
             #== See if any terminals are trying to log in
-            if (not self.supervisor.hardware.io.attached_tty_process and
+            if (not self.supervisor.hardware.io.attached_tty_process() and
                 self.supervisor.hardware.io.linefeed_received()):
                 try:
                     process = self._user_login()
                     if process:
+                        print "Attaching tty to process", process.id(), process.objectName()
                         self.supervisor.hardware.io.attach_tty_process(process.id())
+                        print "Starting process", process.objectName()
                         process.start()
-                    else:
-                        self.supervisor.llout("Error creating process!")
                     # end if
                     
                 except BreakCondition:
                     self.__system_services.set_input_mode(QtGui.QLineEdit.Normal)
                     call.hcs_.signal_break()
+                
+                except DisconnectCondition:
+                    shutting_down = True
                 # end try
+                
+            elif self.supervisor.hardware.io.terminal_closed() and self.process_overseer.running_processes == []:
+                shutting_down = True
             # end if
             
             #== See if any processes have terminated with LOGOUT or NEW_PROC exit codes
             for process in self.process_overseer.running_processes:
-                if not process.isRunning():
+                user_id = process.uid()
+                if process.exit_code != 0:
                     self.process_overseer.destroy_process(process)
                     
                     if process.exit_code == System.LOGOUT:
+                        self.supervisor.llout("%s logged out on %s\n" % (user_id, datetime.datetime.now().ctime()))
+                        print "%s logged out on %s" % (user_id, datetime.datetime.now().ctime())
+                        #== Remove the session block in the LOGIN DB corresponding to this session
+                        with self.__whotab:
+                            del self.__whotab.entries[user_id]
+                        # end with
+                        pprint(self.__whotab)
                         self.supervisor.hardware.io.detach_tty_process(process.id())
                         
                     elif process.exit_code == System.NEW_PROCESS:
-                        person_id, _, project_id = process.uid()
+                        person_id, _, project_id = user_id
                         pdt = self.__project_definition_tables.get(project_id)
                         process = self._new_process(person_id, pdt)
                         if process:
@@ -96,7 +87,7 @@ class AnsweringService(SystemExecutable):
                             self.supervisor.llout("Error creating process!")
                         # end if
                         
-                    elif process.exit_code == System.SHUTDOWN
+                    elif process.exit_code == System.SHUTDOWN:
                         shutting_down = True
                     # end if
                     
@@ -121,42 +112,53 @@ class AnsweringService(SystemExecutable):
         return self.process_overseer.create_process(login_info, Listener)
     
     def _user_login(self):
-        self.supervisor.llout("\n")
-        user_lookup = None
-        while not user_lookup:
-            user_id = ""
-            while user_id == "":
-                self.supervisor.llout("username: ")
-                user_id = self.supervisor.llin(block=True)
-                self.supervisor.llout(user_id + "\n")
-            # end while
-            self.supervisor.llout("password:\n")
-            self.supervisor.set_input_mode(QtGui.QLineEdit.Password)
-            password = self.supervisor.llin(block=True)
-            self.supervisor.set_input_mode(QtGui.QLineEdit.Normal)
+        # self.supervisor.llout("\n")
+        # user_lookup = None
+        # while not user_lookup:
+            # user_id = ""
+            # while user_id == "":
+                # self.supervisor.llout("username: ")
+                # user_id = self.supervisor.llin(block=True)
+                # self.supervisor.llout(user_id + "\n")
+            # # end while
+            # self.supervisor.llout("password:\n")
+            # self.supervisor.set_input_mode(QtGui.QLineEdit.Password)
+            # password = self.supervisor.llin(block=True)
+            # self.supervisor.set_input_mode(QtGui.QLineEdit.Normal)
             
-            user_lookup = self._authenticate(user_id, password)
-        # end while
+            # user_lookup = self._authenticate(user_id, password)
+        # # end while
+        user_lookup = self.user_control.do_login(self.supervisor,
+                                                 self.__person_name_table,
+                                                 self.__project_definition_tables,
+                                                 self.__whotab)
         
         login_info.time_login = datetime.datetime.now()
         
         person_id, pdt = user_lookup
         process = self._new_process(person_id, pdt)
         
-        #== Add the user to the whotab
-        with self.__whotab:
-            self.__whotab.entries[user_id] = WhotabEntry(login_info.time_login, process.id(), process.dir())
-        # end with
+        if process:
+            #== Add the user to the whotab
+            with self.__whotab:
+                self.__whotab.entries[login_info.user_id] = WhotabEntry(login_info.time_login, process.id(), process.dir())
+            # end with
+            
+            self.supervisor.llout("\n%s logged in on %s\n" % (login_info.user_id, login_info.time_login.ctime()))
+        # end if
         
-        self.supervisor.llout("\n%s logged in on %s\n" % (login_info.user_id, login.time_login.ctime()))
+        return process
         
     def _authenticate(self, user_id, password):
         login_name, _, project = user_id.partition(".")
         person_id = self.__person_name_table.person_id(login_name)
+        # print "Logging in as", person_id
         try:
             encrypted_password, pubkey = self.__person_name_table.get_password(person_id)
             if (not pubkey) or (rsa.encode(password, pubkey) == encrypted_password):
+                project = project or self.__person_name_table.get_default_project_id(person_id)
                 pdt = self.__project_definition_tables.get(project)
+                # print "Using PDT", pdt, pdt.recognizes(person_id)
                 if pdt and pdt.recognizes(person_id):
                     user_id = person_id + "." + pdt.project_id
                     if user_id in self.__whotab.entries:

@@ -188,7 +188,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         super(VirtualMulticsFileSystem, self).__init__()
         
         self._create_filesystem_directories()
-        print self._resolve_path(">udd>sct>jrc<jjl<<m>rah")
+        # print self._resolve_path(">udd>sct>jrc<jjl<<m>rah")
         
     def _create_filesystem_directories(self):
         self.system_control_dir = ">sc1"

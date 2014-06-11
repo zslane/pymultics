@@ -134,7 +134,7 @@ def get_calling_process_():
 class TimerEntry(object):
     def __init__(self, callback):
         self.parent_process = QtCore.QThread.currentThread()
-        print "Creating TimerEntry for", callback, "in", self.parent_process.objectName()
+        # print "Creating TimerEntry for", callback, "in", self.parent_process.objectName()
         self.callback_fn = callback
         
     def __enter__(self):
@@ -327,6 +327,7 @@ class Includer(object):
         pass
         
     def __getattr__(self, include_name):
+        # print "INCLUDE."+include_name
         pframe = Injector.find_pframe()
         Injector.inject_incl(pframe, include_name)
         

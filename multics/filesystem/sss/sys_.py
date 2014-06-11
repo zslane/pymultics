@@ -8,8 +8,16 @@ class sys_(SystemExecutable):
         super(sys_, self).__init__(self.__class__.__name__, system_services)
         
     def get_users(self, users):
-        users.list = self.system.session_thread.whotab.session_blocks.keys()
+        whotab = self._get_whotab()
+        # users.list = whotab.session_blocks.keys()
+        users.list = whotab.entries.keys()
 
+    def _get_whotab(self):
+        declare (whotab = parm,
+                 code   = parm)
+        call.hcs_.initiate(self.system.hardware.filesystem.system_control_dir, "whotab", whotab, code)
+        return whotab.ptr
+    
     def get_rel_directory(self, dir_ref, relative_to, out_dir, code):
         if relative_to == "":
             relative_to = get_wdir_()
@@ -42,16 +50,16 @@ class sys_(SystemExecutable):
         
     def change_current_directory(self, dir_ref, code):
         if dir_ref.startswith(">"):
-            self.push_directory(dir_ref)
-            code.val = 0
+            new_dir = dir_ref
         else:
             cur_dir = get_wdir_()
             new_dir = self.system.hardware.filesystem.merge_path(cur_dir, dir_ref)
-            if self.system.hardware.filesystem.file_exists(new_dir):
-                self.push_directory(new_dir)
-                code.val = 0
-            else:
-                code.val = error_table_.no_directory_entry
+        # end if
+        if self.system.hardware.filesystem.file_exists(new_dir):
+            self.push_directory(new_dir)
+            code.val = 0
+        else:
+            code.val = error_table_.no_directory_entry
     
     def push_directory(self, dir_name):
         process = get_calling_process_()
@@ -66,13 +74,15 @@ class sys_(SystemExecutable):
     
     def lock_process_mbx_(self, user_id, process_mbx_segment, code):
         try:
-            session_block = self.system.session_thread.whotab.session_blocks[user_id]
+            whotab = self._get_whotab()
+            # whotab_entry = whotab.session_blocks[user_id]
+            whotab_entry = whotab.entries[user_id]
         except KeyError:
             code.val = error_table_.no_such_user
             return
         # end try
         person_id, _, _ = user_id.partition(".")
-        call.hcs_.initiate(session_block.process_dir, person_id + ".mbx", process_mbx_segment, code)
+        call.hcs_.initiate(whotab_entry.process_dir, person_id + ".mbx", process_mbx_segment, code)
         if process_mbx_segment.ptr != null():
             call.set_lock_.lock(process_mbx_segment.ptr, 5, code)
         else:
