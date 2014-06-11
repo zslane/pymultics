@@ -12,11 +12,15 @@ class MulticsCondition(Exception):
     
 class BreakCondition(MulticsCondition):
     def __init__(self):
-        super(MulticsCondition, self).__init__()
+        super(BreakCondition, self).__init__()
         
 class ShutdownCondition(MulticsCondition):
     def __init__(self):
         super(ShutdownCondition, self).__init__()
+
+class DisconnectCondition(MulticsCondition):
+    def __init__(self):
+        super(DisconnectCondition, self).__init__()
 
 class SegmentFault(MulticsCondition):
     def __init__(self, entry_point_name):
@@ -52,6 +56,7 @@ error_table_ = PL1.Enum("error_table_",
     locked_by_other_process = -12,
     noarg = -13,
     no_directory_entry = -14, # non-existant file or directory
+    no_command_name_available = -15,
 )
 
 class Executable(QtCore.QObject):
@@ -90,25 +95,19 @@ class SystemExecutable(Executable):
         
         self.system = system_services
         
-class CommandProcessor(SystemExecutable):
-    def __init__(self, segment_name, system_services):
-        super(CommandProcessor, self).__init__(segment_name, system_services)
+class CommandProcessor(Executable):
+    def __init__(self, segment_name):
+        super(CommandProcessor, self).__init__(segment_name)
         
-    def start(self):
-        raise LinkageError(self.__segment_name, "start (command processor entry point)")
-        
-    def kill(self):
-        raise LinkageError(self.__segment_name, "kill (command processor kill point)")
-        
-    def _on_condition__break(self):
-        pass
+    def execute(self):
+        raise LinkageError(self.__segment_name, "execute (command processor entry point)")
 
-__system_services = None
+_system_services = None
 call = None
 
 def _register_system_services(system_services, dynamic_linker):
-    global __system_services
-    __system_services = system_services
+    global _system_services
+    _system_services = system_services
     global call
     call = dynamic_linker
 
@@ -116,14 +115,37 @@ def system_privileged(fn):
     def decorated(*args, **kw):
         # my_globals={}
         # my_globals.update(fn.__globals__)
-        # my_globals['system'] = __system_services
+        # my_globals['system'] = _system_services
         # call_fn = types.FunctionType(fn.func_code, my_globals)
         # return call_fn(*args, **kw)
-        fn.__globals__['system'] = __system_services
+        fn.__globals__['system'] = _system_services
         return fn(*args, **kw)
     decorated.__name__ = fn.__name__
     return decorated
 
+async_process = None
+def get_calling_process_():
+    if async_process is not None:
+        return async_process
+    else:
+        calling_process = QtCore.QThread.currentThread()
+        return calling_process
+
+class TimerEntry(object):
+    def __init__(self, callback):
+        self.parent_process = QtCore.QThread.currentThread()
+        # print "Creating TimerEntry for", callback, "in", self.parent_process.objectName()
+        self.callback_fn = callback
+        
+    def __enter__(self):
+        global async_process
+        async_process = self.parent_process
+        return self.callback_fn
+        
+    def __exit__(self, etype, value, traceback):
+        global async_process
+        async_process = None
+    
 class LinkageReference(object):
     def __init__(self, name, dynamic_linker):
         self.dynamic_linker = dynamic_linker
@@ -305,12 +327,8 @@ class Includer(object):
         pass
         
     def __getattr__(self, include_name):
+        # print "INCLUDE."+include_name
         pframe = Injector.find_pframe()
         Injector.inject_incl(pframe, include_name)
         
 include = Includer()
-
-def traceback_print_exc():
-    import traceback
-    traceback.print_exc()
-    

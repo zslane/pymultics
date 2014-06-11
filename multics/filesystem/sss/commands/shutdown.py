@@ -3,7 +3,8 @@ import datetime
 from multics.globals import *
 
 def shutdown():
-    declare (cu_      = entry . returns (varying),
+    declare (before   = parm,
+             result   = parm,
              arg_list = parm)
     
     message = ""
@@ -33,7 +34,8 @@ def shutdown():
                 # end if
             elif arg == "-m":
                 if arg_list.args:
-                    _, message = cu_.arg_string(i)
+                    cu_.arg_string(before, result, i)
+                    message = result.val
                     break
                 else:
                     call.ioa_("shutdown -m argument requires an argument")

@@ -39,7 +39,7 @@ def pr(*func_args):
             import cPickle as pickle
             file_text = pickle.dumps(file_text)
         # end if
-        system.hardware.io.put_output(file_text + "\n")
+        system.llout(file_text + "\n")
 
 def _isprintable(s):
     if type(s) is str:

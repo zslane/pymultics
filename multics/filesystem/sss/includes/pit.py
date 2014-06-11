@@ -1,9 +1,12 @@
 
 from multics.globals import *
 
+pit_version_1 = 1
+
 class pit_structure(PL1.Structure):
     def __init__(self):
         PL1.Structure.__init__(self,
+            pit_version  = pit_version_1,
             login_name   = "",
             project      = "",
             process_type = 1, # 1 = interactive, 2 = absentee, 3 = daemon
@@ -15,4 +18,8 @@ class pit_structure(PL1.Structure):
     @property
     def user_id(self):
         return self.login_name + "." + self.project
+        
+    @property
+    def instance_tag(self):
+        return ["", "a", "m", "z"][self.process_type]
         

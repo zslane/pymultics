@@ -4,8 +4,24 @@ from multics.globals import *
 
 @system_privileged
 def get_pdir_():
-    return system.session_thread.session.process.process_dir
+    process = get_calling_process_()
+    return process.dir()
 
+@system_privileged
+def get_process_id_():
+    process = get_calling_process_()
+    return process.id()
+
+@system_privileged
+def get_lock_id_():
+    process = get_calling_process_()
+    return process.stack.lock_id
+    
+@system_privileged
+def get_wdir_():
+    process = get_calling_process_()
+    return process.directory_stack[-1]
+    
 @system_privileged
 def clock_():
     return system.hardware.clock.current_time()

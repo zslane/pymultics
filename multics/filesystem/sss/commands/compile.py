@@ -6,7 +6,7 @@ from multics.globals import *
 def compile():
     declare (arg_list    = parm,
              arg_count   = parm,
-             current_dir = parm,
+             get_wdir_   = entry . returns (char(168)),
              source_file = parm,
              object_file = parm,
              code        = parm)
@@ -21,11 +21,11 @@ def compile():
     file_name = arg_list.args.pop(0)
     module_name, _ = os.path.splitext(file_name)
     out_file_name = module_name + ".pyo"
-    call.sys_.get_current_directory(current_dir)
-    call.ioa_("Compiling {0} to {1} in {2}", file_name, out_file_name, current_dir.name)
+    current_dir = get_wdir_()
+    call.ioa_("Compiling {0} to {1} in {2}", file_name, out_file_name, current_dir)
     try:
-        call.hcs_.make_path(current_dir.name, file_name, source_file)
-        call.hcs_.make_path(current_dir.name, out_file_name, object_file)
+        call.hcs_.make_path(current_dir, file_name, source_file)
+        call.hcs_.make_path(current_dir, out_file_name, object_file)
         py_compile.compile(source_file.path, object_file.path)
     except:
         import sys
