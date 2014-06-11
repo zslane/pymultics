@@ -257,6 +257,9 @@ class SystemServices(QtCore.QObject):
                  segment     = parm,
                  code        = parm)
         
+        include.pdt
+        include.whotab
+
         call = multics.globals.call
         
         #== Get a pointer to the PNT (create it if necessary)
