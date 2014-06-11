@@ -6,7 +6,7 @@ import rsa
 import time
 import datetime
 
-import multics.globals
+# import multics.globals
 from ..globals import *
 
 from PySide import QtCore, QtGui
@@ -38,7 +38,8 @@ class SystemServices(QtCore.QObject):
         self.__hardware.io.terminalClosed.connect(self._kill_daemons)
         self.__hardware.io.heartbeat.connect(self._heartbeat)
         
-        multics.globals._register_system_services(self, self.__dynamic_linker)
+        # multics.globals._register_system_services(self, self.__dynamic_linker)
+        GlobalEnvironment.register_system_services(self, self.__dynamic_linker)
         
         self._load_site_config()
         
@@ -188,15 +189,6 @@ class SystemServices(QtCore.QObject):
     def get_daemon_processes(self):
         return self.__daemons
         
-    def _kill_session_thread(self):
-        if self.__session_thread:
-            self.__session_thread.kill()
-            if self.__session_thread.isRunning():
-                while self.__session_thread.session:
-                    self._msleep(self.IDLE_DELAY_TIME)
-                # end while
-                self.__session_thread.terminate()
-                
     def _kill_process(self, process):
         declare (users = parm)
         
@@ -260,7 +252,7 @@ class SystemServices(QtCore.QObject):
         include.pdt
         include.whotab
 
-        call = multics.globals.call
+        # call = multics.globals.call
         
         #== Get a pointer to the PNT (create it if necessary)
         call.hcs_.initiate(self.hardware.filesystem.system_control_dir, "person_name_table", segment, code)

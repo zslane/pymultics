@@ -59,7 +59,7 @@ error_table_ = PL1.Enum("error_table_",
     no_command_name_available = -15,
 )
 
-class Executable(QtCore.QObject):
+class Executable(object):
     """
     Executables are created within the SegmentDescriptor constructor to
     represent both procedure$entrypoint executables and pure functions.
@@ -102,14 +102,31 @@ class CommandProcessor(Executable):
     def execute(self):
         raise LinkageError(self.__segment_name, "execute (command processor entry point)")
 
-_system_services = None
+# def _find_pframe():
+    # import inspect
+    # cframe = inspect.currentframe()
+    # # print "...stepping back from", cframe.f_globals['__name__']+"."+cframe.f_code.co_name
+    # pframe = cframe.f_back
+    # while pframe and pframe.f_globals['__name__'] == __name__:
+        # # print "...stepping back from", pframe.f_globals['__name__']+"."+pframe.f_code.co_name
+        # pframe = pframe.f_back
+    # # end while
+    # return pframe
+    
+# _system_services = None
 call = None
 
-def _register_system_services(system_services, dynamic_linker):
-    global _system_services
-    _system_services = system_services
-    global call
-    call = dynamic_linker
+class GlobalEnvironment(object):
+
+    supervisor = None
+    
+    @staticmethod
+    def register_system_services(supervisor, dynamic_linker):
+        GlobalEnvironment.supervisor = supervisor
+        # global _system_services
+        # _system_services = supervisor
+        global call
+        call = dynamic_linker
 
 def system_privileged(fn):
     def decorated(*args, **kw):
@@ -118,7 +135,7 @@ def system_privileged(fn):
         # my_globals['system'] = _system_services
         # call_fn = types.FunctionType(fn.func_code, my_globals)
         # return call_fn(*args, **kw)
-        fn.__globals__['system'] = _system_services
+        fn.__globals__['system'] = GlobalEnvironment.supervisor #_system_services
         return fn(*args, **kw)
     decorated.__name__ = fn.__name__
     return decorated
