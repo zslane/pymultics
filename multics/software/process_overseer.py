@@ -123,12 +123,24 @@ class ProcessOverseer(object):
         
         return process
         
-    def destroy_process(self, process):
+    def destroy_process(self, process, keep_process_data=False):
         declare (code = parm)
-        call.set_lock_.lock(process.mbx(), 5, code)
-        call.hcs_.delentry_seg(process.mbx(), code)
-        call.set_lock_.unlock(process.mbx(), code)
-        call.hcs_.delete_branch_(process.dir(), code)
+        
+        print "Waiting for", process.objectName(), "to terminate"
+        process.kill()
+        process.wait(2000)
+        
+        if not keep_process_data:
+            try:
+                call.set_lock_.lock(process.mbx(), 5, code)
+                call.hcs_.delentry_seg(process.mbx(), code)
+            finally:
+                call.set_lock_.unlock(process.mbx(), code)
+            # end try
+                
+            call.hcs_.delete_branch_(process.dir(), code)
+        # end if
+        
         self.__running_processes.remove(process)
     
     def _print_error_message(self, s):
@@ -155,6 +167,7 @@ class ProcessStack(object):
             homedir,
         ]
         self.directory_stack = []
+        self.process_timers = {}
         #== More attributes added as needed by system services...
         
     def assert_create(self, attrname, attrtype):

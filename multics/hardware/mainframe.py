@@ -16,7 +16,7 @@ class VirtualMulticsHardware(QtCore.QObject):
 
     __version__ = "v1.0.0"
     
-    def __init__(self):
+    def __init__(self, init_args=[]):
         t = QtCore.QThread.currentThread()
         t.setObjectName("Multics.Supervisor")
         
@@ -24,7 +24,7 @@ class VirtualMulticsHardware(QtCore.QObject):
 
         #== Create hardware subsystems
         self.__io_subsystem = IOSubsystem()
-        self.__filesystem = VirtualMulticsFileSystem()
+        self.__filesystem = VirtualMulticsFileSystem(init_args)
 
         system_includes_path = os.path.join(self.filesystem.path2path(self.filesystem.system_library_standard), "includes")
         if system_includes_path not in sys.path:
@@ -189,13 +189,14 @@ class VirtualMulticsFileSystem(QtCore.QObject):
 
     FILESYSTEMROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "filesystem")
 
-    def __init__(self):
+    def __init__(self, init_args=[]):
         super(VirtualMulticsFileSystem, self).__init__()
         
-        self._create_filesystem_directories()
+        self._create_filesystem_directories(init_args)
+        
         # print self._resolve_path(">udd>sct>jrc<jjl<<m>rah")
         
-    def _create_filesystem_directories(self):
+    def _create_filesystem_directories(self, init_args):
         self.system_control_dir = ">sc1"
         self.system_library_standard = ">sss"
         self.process_dir_dir = ">pdd"
@@ -207,6 +208,18 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             self.process_dir_dir,
             self.user_dir_dir,
         ]
+        
+        #== If the -clean|-c boot argument was supplied then clean the filesystem.
+        if "-clean" in init_args or "-c" in init_args:
+            #== Delete pdd so it starts out completely empty
+            print "Wiping", self.process_dir_dir
+            native_path = self.path2path(self.process_dir_dir)
+            shutil.rmtree(native_path, ignore_errors=True)
+            #== Delete the whotab so it won't contain any erroneous users
+            print "Deleting whotab"
+            native_path = self.path2path(self.system_control_dir, "whotab")
+            os.remove(native_path)
+        # end if
         
         for directory in directory_list:
             native_path = self.path2path(directory)
@@ -221,7 +234,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             native_path = self.path2path(directory)
             with open(os.path.join(native_path, ".system_directory"), "wb") as f:
                 pass
-                
+    
     def path2path(self, p, f=""):
         if ">" in p:
             p = p.replace(">", "\\").lstrip("\\")
@@ -405,7 +418,7 @@ class MemoryMappedIOPtr(object):
             pass
         else:
             self._update_data(self.CACHE_OUT)
-
+        
     def delete_file(self):
         try:
             self.__filesystem.delete_file(self.__filepath)
@@ -416,3 +429,24 @@ class MemoryMappedIOPtr(object):
     def __repr__(self):
         return repr(self.__data)
         
+class LockedSegment(object):
+
+    def __init__(self, memory_mapped_ptr, timeout):
+        self.__ptr = memory_mapped_ptr
+        self.__timeout = timeout
+        
+    def __enter__(self):
+        declare (code = parm)
+        call.set_lock_.lock(self.__ptr, self.__timeout, code)
+        if code.val != 0:
+            self.__ptr = None
+        return code.val
+        
+    def __exit__(self, etype, value, traceback):
+        declare (code = parm)
+        if etype:
+            pass
+        elif self.__ptr:
+            self.__ptr.update()
+            call.set_lock_.unlock(self.__ptr, code)
+            

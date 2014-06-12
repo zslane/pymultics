@@ -16,19 +16,17 @@ class command_query_(SystemExecutable):
         if not info_ptr.suppress_spacing:
             question = "\n" + question + "  "
             
-        self._timer_entry = TimerEntry(self._repeat_question)
-        
         call.ioa_.nnl(question)
         while True:
             if info_ptr.repeat_time >= 30:
-                call.timer_manager_.alarm_call(info_ptr.repeat_time, self._timer_entry, question)
+                call.timer_manager_.alarm_call(info_ptr.repeat_time, self._repeat_question, question)
                 
             answer.val = self._get_input(block=True)
             if info_ptr.echo_answer_sw:
                 self.system.llout(answer.val + "\n")
             # end if
             
-            call.timer_manager_.reset_alarm_call(self._timer_entry)
+            call.timer_manager_.reset_alarm_call(self._repeat_question)
             
             if answer.val.strip() == "?":
                 explanation = info_ptr.explanation_ptr

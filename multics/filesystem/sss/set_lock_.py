@@ -6,17 +6,30 @@ import cPickle as pickle
 
 from multics.globals import *
 
+from PySide import QtCore
+
 class set_lock_(SystemExecutable):
     def __init__(self, system_services):
         super(set_lock_, self).__init__(self.__class__.__name__, system_services)
         
     def lock(self, segment_data_ptr, wait_time, code):
         declare (process_id_list = parm)
+        
         process = get_calling_process_()
+        #== Skip locking if the supervisor is trying to lock. It doesn't have anywhere to
+        #== store the FileLock object.
+        if process.objectName() == "Multics.Supervisor":
+            code.val = error_table_.lock_not_locked
+            return
+        # end if
+        
         process.stack.assert_create("file_locks", dict)
         lock_id = segment_data_ptr.filepath
         if lock_id in process.stack.file_locks:
             code.val = error_table_.locked_by_this_process
+            return
+        # end if
+        
         try:
             process_id = process.id()
             call.sys_.get_process_ids(process_id_list)
@@ -26,6 +39,7 @@ class set_lock_(SystemExecutable):
             #== wasn't locking it in order to safely delete it. If the file has been
             #== deleted, then return error_table_.no_directory_entry in the result code.
             if not os.path.exists(segment_data_ptr.filepath):
+                print "    File doesn't exist!", filepath
                 file_lock.release()
                 code.val = error_table_.no_directory_entry
             else:
@@ -36,6 +50,13 @@ class set_lock_(SystemExecutable):
         
     def unlock(self, segment_data_ptr, code):
         process = get_calling_process_()
+        #== Skip unlocking if the supervisor is trying to unlock. It doesn't have anywhere to
+        #== store the FileLock object.
+        if process.objectName() == "Multics.Supervisor":
+            code.val = error_table_.lock_not_locked
+            return
+        # end if
+        
         process.stack.assert_create("file_locks", dict)
         lock_id = segment_data_ptr.filepath
         file_lock = process.stack.file_locks.get(lock_id)
@@ -87,7 +108,9 @@ class FileLock(object):
         while True:
             try:
                 self.fd = os.open(self.lockfile, os.O_CREAT|os.O_EXCL|os.O_RDWR)
-                self.store_process_id()
+                os.write(self.fd, str(self.process_id))
+                os.close(self.fd)
+                # self.store_process_id()
                 break;
                 
             except OSError as e:
@@ -95,8 +118,8 @@ class FileLock(object):
                     raise FileLockException(error_table_.no_w_permission)
                 elif e.errno != errno.EEXIST:
                     raise FileLockException(e.errno)
-                elif self.invalid_lock_id():
-                    code = error_table_.invalid_lock_reset
+                # elif self.invalid_lock_id2():
+                    # code = error_table_.invalid_lock_reset
                     
                 if (time.clock() - start_time) >= self.timeout:
                     raise FileLockException(error_table_.lock_wait_time_exceeded)
@@ -118,6 +141,16 @@ class FileLock(object):
         with open(self.lockfile, "wb") as f:
             pickle.dump(self.process_id, f)
         # end with
+        
+    def invalid_lock_id2(self):
+        fd = os.open(self.lockfile, os.O_RDWR)
+        s = os.read(fd, 32)
+        os.lseek(fd, 0, 0)
+        lock_owner_id = int(s)
+        if lock_owner_id not in self.process_id_list:
+            os.write(fd, str(self.process_id))
+        os.close(fd)
+        return lock_owner_id not in self.process_id_list
         
     def invalid_lock_id(self):
         valid_processes = self.process_id_list

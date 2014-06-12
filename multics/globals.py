@@ -1,7 +1,9 @@
 import os
 import re
 import types
-from contextlib import contextmanager
+import datetime
+import contextlib
+# from contextlib import contextmanager
 
 from pl1types import *
 
@@ -60,7 +62,7 @@ error_table_ = PL1.Enum("error_table_",
     no_command_name_available = -15,
 )
 
-class Executable(object):
+class Executable(QtCore.QObject):
     """
     Executables are created within the SegmentDescriptor constructor to
     represent both procedure$entrypoint executables and pure functions.
@@ -135,8 +137,11 @@ def loop_do():
     if GlobalEnvironment.supervisor.hardware.io.break_received():
         raise BreakCondition
     # end if
+    if GlobalEnvironment.supervisor.shutting_down():
+        raise ShutdownCondition
+    # end if
 
-@contextmanager
+@contextlib.contextmanager
 def do_loop(container):
     # container.exit_code = 0
     try:
@@ -150,6 +155,8 @@ def do_loop(container):
             container.exit_code = System.SHUTDOWN
             print "Shutdown signal detected by", container
         # end if
+            
+        QtCore.QCoreApplication.processEvents()
 
         yield
         
@@ -176,29 +183,10 @@ def system_privileged(fn):
     decorated.__name__ = fn.__name__
     return decorated
 
-async_process = None
 def get_calling_process_():
-    if async_process is not None:
-        return async_process
-    else:
-        calling_process = QtCore.QThread.currentThread()
-        return calling_process
+    calling_process = QtCore.QThread.currentThread()
+    return calling_process
 
-class TimerEntry(object):
-    def __init__(self, callback):
-        self.parent_process = QtCore.QThread.currentThread()
-        # print "Creating TimerEntry for", callback, "in", self.parent_process.objectName()
-        self.callback_fn = callback
-        
-    def __enter__(self):
-        global async_process
-        async_process = self.parent_process
-        return self.callback_fn
-        
-    def __exit__(self, etype, value, traceback):
-        global async_process
-        async_process = None
-    
 class LinkageReference(object):
     def __init__(self, name, dynamic_linker):
         self.dynamic_linker = dynamic_linker
@@ -385,3 +373,13 @@ class Includer(object):
         Injector.inject_incl(pframe, include_name)
         
 include = Includer()
+
+class ProcessMbxMessage(dict):
+    def __init__(self, msgtype, **fields):
+        # msg_data = {
+            # 'type': msgtype,
+            # 'time': datetime.datetime.now(),
+        # }
+        super(ProcessMbxMessage, self).__init__(fields)
+        self['type'] = msgtype
+        self['time'] = datetime.datetime.now()

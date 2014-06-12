@@ -29,12 +29,33 @@ def sm():
         call.user_info_.whoami(person, project, acct)
         sender = person.id + "." + project.id
         
-        call.sys_.get_daemon("Messenger.SysDaemon", messenger)
-        message_mbx = messenger.ptr.mbx()
-        with message_mbx:
-            message_mbx.messages.append({'type':"user_message_request", 'from':sender, 'to': recipient, 'time':datetime.datetime.now(), 'text':message})
-        # end with
-        # print message_mbx
+        msg = ProcessMbxMessage("interactive_message", **{'from':sender, 'to':sender, 'text':message})
+        
+        try:
+            print get_calling_process_().objectName()+" inside send_msg()"
+            call.sys_.lock_process_mbx_("Messenger.SysDaemon", mbx_segment, code)
+            if code.val != 0:
+                print "send_msg: Could not lock Messenger.mbx"
+                print code.val
+                return
+            # end if
+            
+            message_mbx = mbx_segment.ptr
+            with message_mbx:
+                message_mbx.messages.append(msg)
+            # end with
+        
+        except:
+            call.dump_traceback_()
+        finally:
+            print get_calling_process_().objectName()+" inside send_msg()"
+            call.sys_.unlock_process_mbx_(mbx_segment.ptr, code)
+            if code.val != 0:
+                print "send_msg: Could not unlock Messenger.mbx"
+                print code.val
+            # end if
+        # end try
+        
     #-- end def send_msg
     
     call.cu_.arg_count(arg_count)

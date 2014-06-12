@@ -6,6 +6,8 @@ def shutdown():
     declare (before   = parm,
              result   = parm,
              messenger = parm,
+             mbx_segment = parm,
+             code        = parm,
              arg_list = parm)
     
     message = "System is shutting down. "
@@ -48,12 +50,25 @@ def shutdown():
             # end if
         # end while
     # end if
+    
     print shutdown_time.ctime(), message
-    call.sys_.get_daemon("Messenger.SysDaemon", messenger)
-    message_mbx = messenger.ptr.mbx()
-    with message_mbx:
-        message_mbx.messages.append({'type':"shutdown_announcement", 'from':"Multics.Supervisor", 'to': "*.*", 'time':datetime.datetime.now(), 'text':message})
-    # end with
+    msg = ProcessMbxMessage("shutdown_announcement", **{'from':"Multics.Supervisor", 'to':"*.*", 'text':message})
+        
+    try:
+        call.sys_.lock_process_mbx_("Messenger.SysDaemon", mbx_segment, code)
+        if code.val != 0:
+            return
+        # end if
+        
+        message_mbx = mbx_segment.ptr
+        with message_mbx:
+            # message_mbx.messages.append({'type':"shutdown_announcement", 'from':"Multics.Supervisor", 'to': "*.*", 'time':datetime.datetime.now(), 'text':message})
+            message_mbx.messages.append(msg)
+        # end with
+        
+    finally:
+        call.sys_.unlock_process_mbx_(mbx_segment.ptr, code)
+    # end try
     
     raise ShutdownCondition
     

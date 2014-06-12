@@ -111,14 +111,22 @@ class sys_(SystemExecutable):
             directory.name = None
     
     def lock_process_mbx_(self, user_id, process_mbx_segment, code):
+        declare (daemon = parm)
         try:
-            whotab_entry = self.system.whotab.entries[user_id]
-        except KeyError:
+            if user_id.endswith("SysDaemon"):
+                self.get_daemon(user_id, daemon)
+                process_dir = daemon.process.dir()
+            else:
+                whotab_entry = self.system.whotab.entries[user_id]
+                process_dir = whotab_entry.process_dir
+            # end if
+        except:
             code.val = error_table_.no_such_user
             return
         # end try
+        
         person_id, _, _ = user_id.partition(".")
-        call.hcs_.initiate(whotab_entry.process_dir, person_id + ".mbx", process_mbx_segment, code)
+        call.hcs_.initiate(process_dir, person_id + ".mbx", process_mbx_segment, code)
         if process_mbx_segment.ptr != null():
             call.set_lock_.lock(process_mbx_segment.ptr, 5, code)
         else:

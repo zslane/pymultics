@@ -22,10 +22,6 @@ class SystemServices(QtCore.QObject):
     def __init__(self, hardware):
         super(SystemServices, self).__init__()
         
-        # system_includes_path = os.path.join(hardware.filesystem.path2path(hardware.filesystem.system_library_standard), "includes")
-        # if system_includes_path not in sys.path:
-            # sys.path.append(system_includes_path)
-        
         self.__hardware = hardware
         self.__dynamic_linker = DynamicLinker(self)
         self.__initializer = None
@@ -39,7 +35,7 @@ class SystemServices(QtCore.QObject):
         self.__shutdown_signal = False
         
         self.__hardware.io.terminalClosed.connect(self._kill_daemons)
-        self.__hardware.io.heartbeat.connect(self._heartbeat)
+        # self.__hardware.io.heartbeat.connect(self._heartbeat)
         
         # multics.globals._register_system_services(self, self.__dynamic_linker)
         GlobalEnvironment.register_system_services(self, self.__dynamic_linker)
@@ -140,6 +136,8 @@ class SystemServices(QtCore.QObject):
                 raise ShutdownCondition
             # end if
             
+            QtCore.QCoreApplication.processEvents()
+            
             self._msleep(self.IDLE_DELAY_TIME) # in milliseconds
         # end while
         
@@ -159,6 +157,8 @@ class SystemServices(QtCore.QObject):
         
     def wait_for_linefeed(self):
         while not self.__hardware.io.linefeed_received():
+            QtCore.QCoreApplication.processEvents()
+            
             self._msleep(self.IDLE_DELAY_TIME) # in milliseconds
         # end while
         self.__hardware.io.flush_input()
@@ -168,14 +168,7 @@ class SystemServices(QtCore.QObject):
         
     def make_timer(self, interval, callback, data=None):
         timer = SystemTimer(interval, callback, data)
-        self.__system_timers[(callback,)] = timer
         return timer
-    
-    def kill_timer(self, callback):
-        try:
-            self.__system_timers[(callback,)].kill()
-        except:
-            pass
     
     def sleep(self, seconds):
         self._msleep(seconds * 1000)
@@ -205,31 +198,12 @@ class SystemServices(QtCore.QObject):
         self.__daemons.insert(0, process)
         
     def get_daemon_processes(self):
-        return self.__daemons
+        return [ daemon for daemon in self.__daemons if daemon.isRunning() ]
         
     def _kill_process(self, process):
-        declare (users = parm)
-        
         if process:
-            process.kill()
-            print "Waiting for", process.objectName(), "to terminate"
-            count = 10
-            while process.isRunning():
-                self._msleep(self.IDLE_DELAY_TIME)
-                count -= 1
-                if count == 0:
-                    print "...timed out waiting"
-                    process.terminate()
-                    break
-                # end if
-            # end while
-            if process == self.__initializer:
-                self.__dynamic_linker.sys_.get_users(users)
-                if users.val != []:
-                    return
-                # end if
-            # end if
-            self.process_overseer.destroy_process(process)            
+            keep_process_data = (process == self.__initializer)
+            self.process_overseer.destroy_process(process, keep_process_data)
     
     def _kill_daemons(self):
         for daemon_process in self.__daemons:
@@ -373,19 +347,10 @@ class SystemTimer(object):
         
     def check(self):
         if self.triggered():
-            if type(self.__callback_slot) is TimerEntry:
-                with self.__callback_slot as callback_fn:
-                    if self.__callback_args is not None:
-                        callback_fn(self.__callback_args)
-                    else:
-                        callback_fn()
-                    # end if
-                # end with
+            if self.__callback_args is not None:
+                self.__callback_slot(self.__callback_args)
             else:
-                if self.__callback_args is not None:
-                    self.__callback_slot(self.__callback_args)
-                else:
-                    self.__callback_slot()
+                self.__callback_slot()
         
     def triggered(self):
         if self.__started:

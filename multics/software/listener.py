@@ -10,6 +10,7 @@ class Listener(SystemExecutable):
         
         self.supervisor = supervisor
         self.__default_command_processor = command_processor
+        self.__default_command_processor.setParent(self)
         self.__process = None
         self.__command_prompt = "! "
         self.__command_history = []
@@ -97,6 +98,14 @@ class Listener(SystemExecutable):
         call.cu_.set_ready_procedure(self.ready)
         call.cu_.set_ready_mode(True)
         self.__homedir = homedir.val
+        
+        mbx_handlers = {
+            'interactive_message': self._interactive_message_handler,
+        }
+        self.__process.register_mbx_handlers(mbx_handlers)
+            
+    def _interactive_message_handler(self, mbx_message):
+        call.sys_.recv_message_(mbx_message)
     
     def _cleanup(self):
         pass

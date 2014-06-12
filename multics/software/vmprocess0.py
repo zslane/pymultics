@@ -94,8 +94,7 @@ class OldVirtualMulticsProcess(QtCore.QObject):
         self.__login_session.register_process(self.__process_id, self.__process_dir)
         
         #== Start the MBX process timer
-        self.__timer_entry = TimerEntry(self._process_mbx)
-        call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self.__timer_entry)
+        call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_mbx)
         
         return self._main_loop()
         
@@ -117,13 +116,13 @@ class OldVirtualMulticsProcess(QtCore.QObject):
     @QtCore.Slot()
     def _process_mbx(self):
         if self.__mbx.messages:
-            call.timer_manager_.reset_alarm_call(self.__timer_entry)
+            call.timer_manager_.reset_alarm_call(self._process_mbx)
             #== Process mbx messages one per timer trigger
             with self.__mbx:
                 next_message = self.__mbx.messages.pop(0)
             # end with
             self._dispatch_mbx_message(next_message)
-            call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self.__timer_entry)
+            call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_mbx)
     
     def _main_loop(self):
         self.__system_services.llout("New process started on %s\n" % (datetime.datetime.now().ctime()))
@@ -141,7 +140,7 @@ class OldVirtualMulticsProcess(QtCore.QObject):
     def _cleanup(self):
         declare (code = parm)
         self.__core_function = None
-        call.timer_manager_.reset_alarm_call(self.__timer_entry)
+        call.timer_manager_.reset_alarm_call(self._process_mbx)
         self._delete_mbx()
         call.hcs_.delete_branch_(self.__process_dir, code)
         #== clear_kst() would not be necessary as the KST would just disappear when the process ends.

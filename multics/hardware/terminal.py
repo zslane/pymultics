@@ -119,7 +119,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.setWindowTitle("Virtual VT220 Terminal")
         self.setStyleSheet("QWidget, QMainWindow { background: #444444; border: 1px solid #252525; }")
         
-        HEARTBEAT_PERIOD = 100
+        HEARTBEAT_PERIOD = 200
         self.timerid = self.startTimer(HEARTBEAT_PERIOD)
         
         self.move(300, 50)

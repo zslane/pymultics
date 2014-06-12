@@ -7,8 +7,14 @@ class timer_manager_(SystemExecutable):
         
     def alarm_call(self, time, routine, data_ptr=None):
         timer = self.system.make_timer(time, routine, data_ptr)
+        process = get_calling_process_()
+        process.stack.process_timers[routine] = timer
         timer.start()
         
     def reset_alarm_call(self, routine):
-        self.system.kill_timer(routine)
+        process = get_calling_process_()
+        timer = process.stack.process_timers.pop(routine, None)
+        if timer:
+            timer.kill()
+        # end if
         

@@ -24,8 +24,9 @@ class Messenger(SystemExecutable):
         
         while self.exit_code == 0:
             with do_loop(self):
-                self._process_mbx()
+                pass
             # end with
+            QtCore.QThread.msleep(200)
         # end while
         
         # do any cleanup necessary at the core function level
@@ -38,51 +39,50 @@ class Messenger(SystemExecutable):
         
     def _initialize(self):
         self.__mbx = self.__process.mbx()
-    
-    def _process_mbx(self):
-        try:
-            if self.__mbx.messages:
-                #== Process mbx messages one per main loop iteration
-                with self.__mbx:
-                    next_message = self.__mbx.messages.pop(0)
-                # end with
-                self._dispatch_mbx_message(next_message)
-            # end if
-        except:
-            print "ERROR in messenger._process_mbx()!"
-            print type(self.__mbx)
-            self.exit_code = -1
-            
+        mbx_handlers = {
+            'interactive_message': self._interactive_message_handler,
+            'shutdown_announcement': self._interactive_message_handler,
+        }
+        self.__process.register_mbx_handlers(mbx_handlers)
+                
     def _cleanup(self):
         pass
         
-    def _dispatch_mbx_message(self, mbx_message):
+    def _interactive_message_handler(self, mbx_message):
         declare (users = parm)
         
         print self.__process.objectName(), "process message found", mbx_message
         
-        if mbx_message['type'] == "user_message_request" or mbx_message['type'] == "shutdown_announcement":
+        if (mbx_message['type'] == "interactive_message" or
+            mbx_message['type'] == "shutdown_announcement"):
             call.sys_.get_users(users, mbx_message['to'])
             for user_id in users.list:
-                self._deliver_user_message(user_id, mbx_message)
+                self._deliver_interactive_message(user_id, mbx_message)
             # end for
         
-    def _deliver_user_message(self, recipient, mbx_message):
+    def _deliver_interactive_message(self, recipient, mbx_message):
         declare (mbx_segment = parm,
                  code        = parm)
                  
-        call.sys_.lock_process_mbx_(recipient, mbx_segment, code)
-        if code.val != 0:
-            return
-        # end if
-        print self.__process.uid(), "delivering user message to", recipient
-        process_mbx = mbx_segment.ptr
-        with process_mbx:
-            if mbx_message['type'] == "user_message_request":
-                mbx_message['type'] = "user_message_delivery"
-            # end if
-            mbx_message['to'] = recipient
-            process_mbx.messages.append(mbx_message)
-        # end with
-        call.sys_.unlock_process_mbx_(process_mbx, code)
+        mbx_message['to'] = recipient
         
+        try:
+            call.sys_.lock_process_mbx_(recipient, mbx_segment, code)
+            if code.val != 0:
+                print "Could not lock %s" % mbx_segment.ptr.filepath
+                return
+            # end if
+            
+            print self.__process.uid(), "delivering interactive message to", recipient
+            
+            process_mbx = mbx_segment.ptr
+            with process_mbx:
+                process_mbx.messages.append(mbx_message)
+            # end with
+            
+        finally:
+            call.sys_.unlock_process_mbx_(mbx_segment.ptr, code)
+            if code.val != 0:
+                print "Could not unlock %s" % mbx_segment.ptr.filepath
+            # end if
+            

@@ -22,6 +22,7 @@ class AnsweringService(SystemExecutable):
         
         self.supervisor = supervisor
         self.user_control = command_processor
+        self.user_control.setParent(self)
         self.process_overseer = ProcessOverseer(supervisor)
         self.__process = None
         self.__person_name_table = None
@@ -40,7 +41,7 @@ class AnsweringService(SystemExecutable):
         self._initialize()
         
         shutting_down = False
-        while not shutting_down:
+        while not (shutting_down and self.process_overseer.running_processes == []):
             #== See if any terminals are trying to log in
             if (not self.supervisor.hardware.io.attached_tty_process() and
                 self.supervisor.hardware.io.linefeed_received()):
@@ -61,7 +62,7 @@ class AnsweringService(SystemExecutable):
                     shutting_down = True
                 # end try
                 
-            elif self.supervisor.hardware.io.terminal_closed() and self.process_overseer.running_processes == []:
+            elif self.supervisor.hardware.io.terminal_closed():
                 shutting_down = True
             # end if
             
@@ -92,6 +93,7 @@ class AnsweringService(SystemExecutable):
                         # end if
                         
                     if process.exit_code == System.SHUTDOWN:
+                        self.supervisor.shutdown()
                         shutting_down = True
                     # end if
                     
@@ -102,7 +104,7 @@ class AnsweringService(SystemExecutable):
         # do any cleanup necessary at the CommandShell level
         self._cleanup()
         
-        self.supervisor.shutdown()
+        # self.supervisor.shutdown()
         
         return 0
         
