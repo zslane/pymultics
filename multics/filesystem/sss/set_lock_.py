@@ -22,7 +22,15 @@ class set_lock_(SystemExecutable):
             call.sys_.get_process_ids(process_id_list)
             file_lock = FileLock(segment_data_ptr, process_id, wait_time, process_id_list.ids)
             code.val = file_lock.acquire()
-            process.stack.file_locks[lock_id] = file_lock
+            #== Make sure that if we had to wait for the lock that the previous locker
+            #== wasn't locking it in order to safely delete it. If the file has been
+            #== deleted, then return error_table_.no_directory_entry in the result code.
+            if not os.path.exists(segment_data_ptr.filepath):
+                file_lock.release()
+                code.val = error_table_.no_directory_entry
+            else:
+                process.stack.file_locks[lock_id] = file_lock
+            # end if
         except FileLockException as e:
             code.val = e.code
         

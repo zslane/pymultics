@@ -10,6 +10,7 @@ from PySide import QtCore, QtGui
 include.pnt
 include.pdt
 include.whotab
+include.pit
 include.login_info
 
 class AnsweringService(SystemExecutable):
@@ -22,11 +23,14 @@ class AnsweringService(SystemExecutable):
         self.supervisor = supervisor
         self.user_control = command_processor
         self.process_overseer = ProcessOverseer(supervisor)
+        self.__process = None
         self.__person_name_table = None
         self.__project_definition_tables = {}
         self.__whotab = None
+        self.exit_code = 0
         
-    def start(self):
+    def start(self, owning_process):
+        self.__process = owning_process
         return self._main_loop()
         
     def kill(self):
@@ -67,7 +71,7 @@ class AnsweringService(SystemExecutable):
                 if process.exit_code != 0:
                     self.process_overseer.destroy_process(process)
                     
-                    if process.exit_code == System.LOGOUT:
+                    if process.exit_code == System.LOGOUT or process.exit_code == System.SHUTDOWN:
                         self.supervisor.llout("%s logged out on %s\n" % (user_id, datetime.datetime.now().ctime()))
                         print "%s logged out on %s" % (user_id, datetime.datetime.now().ctime())
                         #== Remove the session block in the LOGIN DB corresponding to this session
@@ -87,7 +91,7 @@ class AnsweringService(SystemExecutable):
                             self.supervisor.llout("Error creating process!")
                         # end if
                         
-                    elif process.exit_code == System.SHUTDOWN:
+                    if process.exit_code == System.SHUTDOWN:
                         shutting_down = True
                     # end if
                     
@@ -98,6 +102,8 @@ class AnsweringService(SystemExecutable):
         # do any cleanup necessary at the CommandShell level
         self._cleanup()
         
+        self.supervisor.shutdown()
+        
         return 0
         
     def _default_home_dir(self, person_id, project_id):
@@ -106,6 +112,7 @@ class AnsweringService(SystemExecutable):
     def _new_process(self, person_id, pdt):
         login_info.person_id = person_id
         login_info.project_id = pdt.project_id
+        login_info.process_type = pit_process_type_interactive
         login_info.homedir = pdt.users[person_id].home_dir or self._default_home_dir(person_id, pdt.project_id)
         login_info.cp_path = pdt.users[person_id].cp_path or self.DEFAULT_CP_PATH
         from listener import Listener

@@ -10,12 +10,14 @@ class Listener(SystemExecutable):
         
         self.supervisor = supervisor
         self.__default_command_processor = command_processor
+        self.__process = None
         self.__command_prompt = "! "
         self.__command_history = []
         self.__homedir = ""
         self.exit_code = 0
         
-    def start(self):
+    def start(self, owning_process):
+        self.__process = owning_process
         return self._main_loop()
         
     def kill(self):

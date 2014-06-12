@@ -121,7 +121,7 @@ class user_control(CommandProcessor):
                 # end if
             # end if
         except:
-            call.dump_traceback_()
+            # call.dump_traceback_()
             pass
         # end try
         self.supervisor.llout("Unrecognized user id/password\n\n")

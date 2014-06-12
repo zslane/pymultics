@@ -6,10 +6,12 @@ import rsa
 import time
 import datetime
 
-# import multics.globals
 from ..globals import *
+from pit import *
 
 from PySide import QtCore, QtGui
+
+include.login_info
 
 class SystemServices(QtCore.QObject):
 
@@ -20,9 +22,9 @@ class SystemServices(QtCore.QObject):
     def __init__(self, hardware):
         super(SystemServices, self).__init__()
         
-        system_includes_path = os.path.join(hardware.filesystem.path2path(hardware.filesystem.system_library_standard), "includes")
-        if system_includes_path not in sys.path:
-            sys.path.append(system_includes_path)
+        # system_includes_path = os.path.join(hardware.filesystem.path2path(hardware.filesystem.system_library_standard), "includes")
+        # if system_includes_path not in sys.path:
+            # sys.path.append(system_includes_path)
         
         self.__hardware = hardware
         self.__dynamic_linker = DynamicLinker(self)
@@ -34,6 +36,7 @@ class SystemServices(QtCore.QObject):
         self.__person_name_table = None
         self.__project_definition_tables = {}
         self.__whotab = None
+        self.__shutdown_signal = False
         
         self.__hardware.io.terminalClosed.connect(self._kill_daemons)
         self.__hardware.io.heartbeat.connect(self._heartbeat)
@@ -105,9 +108,16 @@ class SystemServices(QtCore.QObject):
         self.__dynamic_linker.initialize()
         
     def shutdown(self):
+        # NEED TO ADD SHUTDOWN MESSAGE TO PROCESS MBX
         self.__shutdown_datetime = datetime.datetime.now()
         self._send_system_farewell()
+        print get_calling_process_().objectName(), "calling system_services.shutdown()"
         self.__hardware.shutdown()
+        self.__shutdown_signal = True
+        
+    def shutting_down(self):
+        # NEED TO CHECK PROCESS MBX FOR SHUTDOWN MESSAGE
+        return self.__shutdown_signal
         
     #== LOW-LEVEL I/O ==#
     #== These functions can be used to do basic TTY I/O in the absence of
@@ -125,6 +135,10 @@ class SystemServices(QtCore.QObject):
             if self.__hardware.io.break_received():
                 raise BreakCondition
             # end if
+            if self.shutting_down():
+                print "Shutdown signal detected by", get_calling_process_().objectName()
+                raise ShutdownCondition
+            # end if
             
             self._msleep(self.IDLE_DELAY_TIME) # in milliseconds
         # end while
@@ -134,6 +148,10 @@ class SystemServices(QtCore.QObject):
         # end if
         if self.__hardware.io.break_received():
             raise BreakCondition
+        # end if
+        if self.shutting_down():
+            print "Shutdown signal detected by", get_calling_process_().objectName()
+            raise ShutdownCondition
         # end if
         
         input = self.__hardware.io.get_input()
@@ -194,7 +212,7 @@ class SystemServices(QtCore.QObject):
         
         if process:
             process.kill()
-            print "Waiting for", process.objectName(), "to finish"
+            print "Waiting for", process.objectName(), "to terminate"
             count = 10
             while process.isRunning():
                 self._msleep(self.IDLE_DELAY_TIME)
@@ -219,16 +237,18 @@ class SystemServices(QtCore.QObject):
         # end for
         
     def start(self):
-        self._load_user_data()
+        self._load_user_accounts_data()
         
         from process_overseer import ProcessOverseer
         self.process_overseer = ProcessOverseer(self)
         
-        #== Create Initializer process
-        include.login_info
+        self._create_initializer_process()
+        self._create_messenger_process()
+        
+    def _create_initializer_process(self):
         login_info.person_id = "Initializer"
         login_info.project_id = "SysDaemon"
-        login_info.process_type = 3 # daemon
+        login_info.process_type = pit_process_type_daemon
         login_info.process_id = 0o777777000000
         login_info.homedir = ">sc1"
         login_info.cp_path = ">sss>user_control"
@@ -242,16 +262,35 @@ class SystemServices(QtCore.QObject):
             # end if
         except:
             self.dynamic_linker.dump_traceback_()
+        
+    def _create_messenger_process(self):
+        login_info.person_id = "Messenger"
+        login_info.project_id = "SysDaemon"
+        login_info.process_type = pit_process_type_daemon
+        login_info.process_id = 0
+        login_info.homedir = ">sc1"
+        # login_info.cp_path = ">sss>user_control"
+        try:
+            from messenger import Messenger
+            daemon = self.process_overseer.create_process(login_info, Messenger)
+            if not daemon:
+                self.llout("Failed to create Messenger process")
+            else:
+                daemon.start()
+            # end if
+        except:
+            self.dynamic_linker.dump_traceback_()
             
-    def _load_user_data(self):
+    def _load_user_accounts_data(self):
         declare (process_dir = parm,
                  branch      = parm,
                  segment     = parm,
                  code        = parm)
         
-        include.pdt
-        include.whotab
-
+        from pnt import PersonNameTable
+        from pdt import ProjectDefinitionTable
+        from whotab import WhoTable
+        from multics.globals import call
         # call = multics.globals.call
         
         #== Get a pointer to the PNT (create it if necessary)
@@ -497,7 +536,7 @@ class DynamicLinker(QtCore.QObject):
             return segment_data_ptr
         except:
             # print "...failed to find/load file...trying to snap it instead"
-            return self.snap(segment_name, dir_name)
+            return None # self.snap(segment_name, dir_name)
         
     def snap(self, segment_name, known_location=None):
         declare (get_wdir_ = entry . returns (char(168)))

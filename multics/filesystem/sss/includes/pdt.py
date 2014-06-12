@@ -1,4 +1,6 @@
 
+from multics.pl1types import PL1
+# from multics.globals import MulticsCondition, error_table_
 from multics.globals import *
 
 class ProjectDefinitionTable(object):
@@ -12,12 +14,6 @@ class ProjectDefinitionTable(object):
     def recognizes(self, person_id):
         return person_id in self.users
         
-    def get_user_quota(self, person_id):
-        try:
-            return self.users[person_id]
-        except:
-            raise MulticsCondition(error_table_.no_such_user)
-            
     def add_user(self, person_id, home_dir="", cp_path=""):
         self.users[person_id] = ProjectUserConfig(person_id, home_dir, cp_path)
         

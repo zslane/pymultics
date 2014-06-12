@@ -5,13 +5,14 @@ from multics.globals import *
 def shutdown():
     declare (before   = parm,
              result   = parm,
+             messenger = parm,
              arg_list = parm)
     
-    message = ""
+    message = "System is shutting down. "
+    shutdown_time = datetime.datetime.now() + datetime.timedelta(minutes=5)
+    
     call.cu_.arg_list(arg_list)
-    if not arg_list.args:
-        shutdown_time = datetime.datetime.now() + datetime.timedelta(minutes=5)
-    else:
+    if arg_list.args:
         acceptible_units = ["minutes", "seconds"]
         i = 0
         while arg_list.args:
@@ -34,8 +35,8 @@ def shutdown():
                 # end if
             elif arg == "-m":
                 if arg_list.args:
-                    cu_.arg_string(before, result, i)
-                    message = result.val
+                    call.cu_.arg_string(before, result, i)
+                    message += result.val
                     break
                 else:
                     call.ioa_("shutdown -m argument requires an argument")
@@ -48,6 +49,11 @@ def shutdown():
         # end while
     # end if
     print shutdown_time.ctime(), message
-                    
+    call.sys_.get_daemon("Messenger.SysDaemon", messenger)
+    message_mbx = messenger.ptr.mbx()
+    with message_mbx:
+        message_mbx.messages.append({'type':"shutdown_announcement", 'from':"Multics.Supervisor", 'to': "*.*", 'time':datetime.datetime.now(), 'text':message})
+    # end with
+    
     raise ShutdownCondition
     

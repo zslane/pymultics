@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import time
 import glob
 import shutil
@@ -17,7 +18,7 @@ class VirtualMulticsHardware(QtCore.QObject):
     
     def __init__(self):
         t = QtCore.QThread.currentThread()
-        t.setObjectName("VT220.Terminal")
+        t.setObjectName("Multics.Supervisor")
         
         self._create_hardware_resources()
 
@@ -25,6 +26,10 @@ class VirtualMulticsHardware(QtCore.QObject):
         self.__io_subsystem = IOSubsystem()
         self.__filesystem = VirtualMulticsFileSystem()
 
+        system_includes_path = os.path.join(self.filesystem.path2path(self.filesystem.system_library_standard), "includes")
+        if system_includes_path not in sys.path:
+            sys.path.append(system_includes_path)
+        
     def _create_hardware_resources(self):
         self.__startup_time = self._load_hardware_statefile()
         self.__clock = HardwareClock(self.__startup_time)

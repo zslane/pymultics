@@ -115,9 +115,9 @@ class ProcessOverseer(object):
         from vmprocess import VirtualMulticsProcess
         process = VirtualMulticsProcess(self.supervisor, process_env)
         self.__running_processes.append(process)
-        print "Created", process, isinstance(process, QtCore.QThread)
+        print "Created", process
         
-        if process_env.pit.process_type == 3: # daemon
+        if process_env.pit.process_type == pit_process_type_daemon:
             self.supervisor.add_daemon_process(process)
         # end if
         
@@ -125,7 +125,9 @@ class ProcessOverseer(object):
         
     def destroy_process(self, process):
         declare (code = parm)
+        call.set_lock_.lock(process.mbx(), 5, code)
         call.hcs_.delentry_seg(process.mbx(), code)
+        call.set_lock_.unlock(process.mbx(), code)
         call.hcs_.delete_branch_(process.dir(), code)
         self.__running_processes.remove(process)
     
@@ -168,6 +170,7 @@ class ProcessMbx(object):
         if not self.messages:
             return "<%s.%s with %d messages>" % (__name__, self.__class__.__name__, len(self.messages))
         else:
+            from pprint import pformat
             s = pformat(self.messages)
-            return "<%s.%s with %d messages>\n%s" % (__name__, self.__class__.__name__, len(self.messages), s)
+            return "<%s.%s with %d messages>\n%s\n" % (__name__, self.__class__.__name__, len(self.messages), s)
         

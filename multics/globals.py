@@ -1,6 +1,7 @@
 import os
 import re
 import types
+from contextlib import contextmanager
 
 from pl1types import *
 
@@ -118,16 +119,51 @@ call = None
 
 class GlobalEnvironment(object):
 
-    supervisor = None
+    supervisor    = None
+    async_process = None
     
     @staticmethod
     def register_system_services(supervisor, dynamic_linker):
         GlobalEnvironment.supervisor = supervisor
-        # global _system_services
-        # _system_services = supervisor
         global call
         call = dynamic_linker
 
+def loop_do():
+    if GlobalEnvironment.supervisor.hardware.io.terminal_closed():
+        raise DisconnectCondition
+    # end if
+    if GlobalEnvironment.supervisor.hardware.io.break_received():
+        raise BreakCondition
+    # end if
+
+@contextmanager
+def do_loop(container):
+    # container.exit_code = 0
+    try:
+        if GlobalEnvironment.supervisor.hardware.io.terminal_closed():
+            container.exit_code = System.LOGOUT
+        # end if
+        if GlobalEnvironment.supervisor.hardware.io.break_received():
+            call.hcs_.signal_break()
+        # end if
+        if GlobalEnvironment.supervisor.shutting_down():
+            container.exit_code = System.SHUTDOWN
+            print "Shutdown signal detected by", container
+        # end if
+
+        yield
+        
+    except ShutdownCondition:
+        container.exit_code = System.SHUTDOWN
+    except (SegmentFault, LinkageError, InvalidSegmentFault):
+        call.dump_traceback_()
+        container.exit_code = -1
+    except:
+        #== FOR DEBUGGING THE SIMULATION
+        call.dump_traceback_()
+        container.exit_code = -1
+    # end try
+    
 def system_privileged(fn):
     def decorated(*args, **kw):
         # my_globals={}

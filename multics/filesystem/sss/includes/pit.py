@@ -1,7 +1,11 @@
 
-from multics.globals import *
+from multics.pl1types import PL1
 
 pit_version_1 = 1
+
+pit_process_type_interactive = 1
+pit_process_type_absentee = 2
+pit_process_type_daemon = 3
 
 class pit_structure(PL1.Structure):
     def __init__(self):
@@ -9,7 +13,7 @@ class pit_structure(PL1.Structure):
             pit_version  = pit_version_1,
             login_name   = "",
             project      = "",
-            process_type = 1, # 1 = interactive, 2 = absentee, 3 = daemon
+            process_type = pit_process_type_interactive,
             homedir      = "",
             time_login   = None,
             process_id   = 0,

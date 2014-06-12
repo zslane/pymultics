@@ -1,6 +1,4 @@
 
-from multics.globals import *
-
 class WhoTable(object):
 
     def __init__(self):

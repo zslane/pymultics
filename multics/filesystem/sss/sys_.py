@@ -9,34 +9,49 @@ class sys_(SystemExecutable):
         
     def get_userid_long(self, short_name, long_name, code):
         short_person_id, _, short_project_id = short_name.partition(".")
+        long_person_id, long_project_id = short_person_id, short_project_id
         
-        long_person_id = self.system.pnt.aliases.get(short_person_id) or short_person_id
-        
-        if not short_project_id:
-            long_name.val = long_person_id
-            code.val = 0
-            return
+        if short_person_id != "*":
+            long_person_id = self.system.pnt.aliases.get(short_person_id) or short_person_id
+            
+            if not short_project_id:
+                long_name.val = long_person_id
+                code.val = 0
+                return
+            # end if
         # end if
         
-        for pdt in self.system.pdt.values():
-            if short_project_id == pdt.project_id or short_project_id == pdt.alias:
-                    long_project_id = pdt.project_id
-                    break
+        if short_project_id != "*":
+            for pdt in self.system.pdt.values():
+                if short_project_id == pdt.project_id or short_project_id == pdt.alias:
+                        long_project_id = pdt.project_id
+                        break
+                    # end if
                 # end if
-            # end if
-        else:
-            code.val = error_table_.no_such_user
-            return
-        # end for
+            else:
+                code.val = error_table_.no_such_user
+                return
+            # end for
+        # end if
         
         long_name.val = long_person_id + "." + long_project_id
         code.val = 0
     
-    def get_users(self, users):
-        users.list = self.system.whotab.entries.keys()
-
+    def get_users(self, users, matching="*.*"):
+        matching = matching.replace(".", r"\.").replace("*", r"(\w+)")
+        users.list = filter(lambda k: re.match(matching, k), self.system.whotab.entries.keys())
+        
     def get_daemons(self, daemons):
         daemons.list = [ process.uid() for process in self.system.get_daemon_processes() ]
+        
+    def get_daemon(self, which, daemon):
+        for process in self.system.get_daemon_processes():
+            if process.uid() == which:
+                daemon.ptr = process
+                return
+            # end if
+        # end for
+        daemon.ptr = null()
         
     def get_process_ids(self, process_ids):
         process_ids.list = self.system.whotab.get_process_ids()
@@ -119,6 +134,6 @@ class sys_(SystemExecutable):
     def recv_message_(self, message_packet):
         process = get_calling_process_()
         process.stack.assert_create("accepting_messages", bool)
-        if process.stack.accepting_messages:
+        if process.stack.accepting_messages or message_packet['type'] == "shutdown_announcement":
             call.ioa_("Message from {0} on {1}: {2}", message_packet['from'], message_packet['time'].ctime(), message_packet['text'])
             

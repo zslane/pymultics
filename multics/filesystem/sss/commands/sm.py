@@ -10,6 +10,8 @@ def sm():
              
     def send_msg(recipient, message, code):
         declare (mbx_segment = parm,
+                 users       = parm,
+                 messenger   = parm,
                  long_name   = parm,
                  person      = parm,
                  project     = parm,
@@ -20,17 +22,20 @@ def sm():
             return
         # end if
         recipient = long_name.val
-        call.sys_.lock_process_mbx_(recipient, mbx_segment, code)
-        if code.val != 0:
-            return
-        # end if
-        process_mbx = mbx_segment.ptr
+        
+        call.sys_.get_users(users, recipient)
+        print "Users matching recipient:", users.list
+        
         call.user_info_.whoami(person, project, acct)
-        user_id = person.id + "." + project.id
-        with process_mbx:
-            process_mbx.messages.append({'type':"user_message", 'from':user_id, 'time':datetime.datetime.now(), 'text':message})
+        sender = person.id + "." + project.id
+        
+        call.sys_.get_daemon("Messenger.SysDaemon", messenger)
+        message_mbx = messenger.ptr.mbx()
+        with message_mbx:
+            message_mbx.messages.append({'type':"user_message_request", 'from':sender, 'to': recipient, 'time':datetime.datetime.now(), 'text':message})
         # end with
-        call.sys_.unlock_process_mbx_(process_mbx, code)
+        # print message_mbx
+    #-- end def send_msg
     
     call.cu_.arg_count(arg_count)
     if arg_count.val < 2:

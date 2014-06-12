@@ -1,4 +1,6 @@
 
+from multics.pl1types import PL1
+# from multics.globals import MulticsCondition, error_table_
 from multics.globals import *
 
 class PersonNameTable(object):
@@ -38,14 +40,14 @@ class PersonNameTable(object):
             name = self.resolve_alias(name) or name
             return self.name_entries[name].default_project_id
         except:
-            raise MulticsCondition(error_table_no_such_user)
+            raise MulticsCondition(error_table_.no_such_user)
             
     def set_default_project_id(self, name, default_project_id):
         try:
             name = self.resolve_alias(name) or name
             self.name_entries[name].default_project_id = default_project_id
         except:
-            raise MulticsCondition(error_table_no_such_user)
+            raise MulticsCondition(error_table_.no_such_user)
         
     def get_password(self, name):
         try:
@@ -59,7 +61,7 @@ class PersonNameTable(object):
             name = self.resolve_alias(name) or name
             self.name_entries[name].encrypted_password = encrypted_password
         except:
-            raise MulticsCondition(error_table_no_such_user)
+            raise MulticsCondition(error_table_.no_such_user)
         
     def __repr__(self):
         return "<%s.%s\n  name_entries: %s\n  aliases:      %s>" % (__name__, self.__class__.__name__, str(self.name_entries), str(self.aliases))
