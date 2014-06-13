@@ -218,7 +218,10 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             #== Delete the whotab so it won't contain any erroneous users
             print "Deleting whotab"
             native_path = self.path2path(self.system_control_dir, "whotab")
-            os.remove(native_path)
+            try:
+                os.remove(native_path)
+            except:
+                pass
         # end if
         
         for directory in directory_list:

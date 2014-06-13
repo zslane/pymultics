@@ -23,7 +23,7 @@ def lock_test():
             return
             
     call.ioa_("Locking {0}>{1}...", dirname, filename)
-    call.set_lock_.lock(locktest_file, 10, code)
+    call.set_lock_.lock(locktest_file, 30, code)
     if code.val != 0:
         if code.val == error_table_.invalid_lock_reset:
             call.ioa_("Invalid lock reset")

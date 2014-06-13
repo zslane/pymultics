@@ -21,6 +21,7 @@ class SystemServices(QtCore.QObject):
     
     def __init__(self, hardware):
         super(SystemServices, self).__init__()
+        self.setObjectName("Multics.Supervisor")
         
         self.__hardware = hardware
         self.__dynamic_linker = DynamicLinker(self)
@@ -32,13 +33,18 @@ class SystemServices(QtCore.QObject):
         self.__person_name_table = None
         self.__project_definition_tables = {}
         self.__whotab = None
+        self.__shutdown_time_left = -1
+        self.__shutdown_message = ""
         self.__shutdown_signal = False
         
         self.__hardware.io.terminalClosed.connect(self._kill_daemons)
         self.__hardware.io.heartbeat.connect(self._heartbeat)
         
-        # multics.globals._register_system_services(self, self.__dynamic_linker)
         GlobalEnvironment.register_system_services(self, self.__dynamic_linker)
+        
+        from process_overseer import ProcessOverseer, ProcessStack
+        self.__process_overseer = ProcessOverseer(self)
+        self.__system_stack = ProcessStack()
         
         self._load_site_config()
         
@@ -46,8 +52,8 @@ class SystemServices(QtCore.QObject):
     def hardware(self):
         return self.__hardware
     @property
-    def session_thread(self):
-        return self.__session_thread
+    def fs(self):
+        return self.__hardware.filesystem
     @property
     def dynamic_linker(self):
         return self.__dynamic_linker
@@ -60,6 +66,12 @@ class SystemServices(QtCore.QObject):
     @property
     def whotab(self):
         return self.__whotab
+    @property
+    def stack(self):
+        return self.__system_stack
+        
+    def id(self):
+        return 0
     
     def _msleep(self, milliseconds):
         QtCore.QThread.msleep(milliseconds)
@@ -76,7 +88,7 @@ class SystemServices(QtCore.QObject):
                 timer.check()
         
     def _load_site_config(self):
-        SYSTEMROOT = os.path.dirname(self.hardware.filesystem.FILESYSTEMROOT)
+        SYSTEMROOT = os.path.dirname(self.fs.FILESYSTEMROOT)
         with open(os.path.join(SYSTEMROOT, "site.config"), "r") as f:
             config_text = f.read()
         # end with
@@ -102,12 +114,13 @@ class SystemServices(QtCore.QObject):
         self.__startup_datetime = datetime.datetime.now()
         self._send_system_greeting()
         self.__dynamic_linker.initialize()
+        DEFAULT_SHUTDOWN_TIME = 10 * 60 # 10 minutes
+        self.add_system_timer(DEFAULT_SHUTDOWN_TIME, self._shutdown_task)
         
     def shutdown(self):
         print get_calling_process_().objectName() + " calling system_services.shutdown()"
         self.__shutdown_signal = True
-        timer = self.make_timer(0.5, self._shutdown_procedure)
-        self.__system_timers[self._shutdown_procedure] = timer
+        timer = self.add_system_timer(3, self._shutdown_procedure)
         timer.start()
         
     def _shutdown_procedure(self):
@@ -119,6 +132,91 @@ class SystemServices(QtCore.QObject):
         
     def shutting_down(self):
         return self.__shutdown_signal
+        
+    def shutdown_started(self):
+        return self.__system_timers[self._shutdown_task].active()
+    
+    def start_shutdown(self, time_left, message):
+        self.__shutdown_time_left = time_left
+        self.__shutdown_message = message
+        self._shutdown_task()
+        
+    def cancel_shutdown(self):
+        CANCELLED = -1
+        if self.shutdown_started():
+            self.__system_timers[self._shutdown_task].stop()
+            self._send_shutdown_message("shutdown_announcement", CANCELLED)
+    
+    def _send_shutdown_message(self, msgtype, how_long=-1):
+        declare (mbx_segment = parm,
+                 code        = parm)
+        
+        announcement = ""
+        if msgtype == "shutdown_announcement":
+            if how_long > 0:
+                if how_long >= 60:
+                    how_long /= 60
+                    units = "minutes"
+                else:
+                    units = "seconds"
+                # end if
+                announcement = "System is shutting down in %d %s. %s" % (how_long, units, self.__shutdown_message)
+            else:
+                announcement = "System shutdown cancelled."
+            # end if
+        # end if
+        
+        msg = ProcessMbxMessage(msgtype, **{'from':"Multics.Supervisor", 'to':"*.*", 'text':announcement})
+        
+        from multics.globals import call
+        
+        try:
+            call.sys_.lock_process_mbx_("Messenger.SysDaemon", mbx_segment, code)
+            if code.val != 0:
+                return
+            # end if
+            
+            message_mbx = mbx_segment.ptr
+            with message_mbx:
+                message_mbx.messages.append(msg)
+            # end with
+            
+        except:
+            call.dump_traceback_()
+            
+        finally:
+            call.sys_.unlock_process_mbx_(mbx_segment.ptr, code)
+            if code.val != 0:
+                return
+            # end if
+        # end try
+    
+    def _shutdown_task(self):
+        self.__system_timers[self._shutdown_task].stop()
+        
+        if self.__shutdown_time_left > 0:
+            self._send_shutdown_message("shutdown_announcement", self.__shutdown_time_left)
+            
+            if self.__shutdown_time_left > 600: # 10 mins
+                next_time = 600
+                self.__shutdown_time_left -= 600
+            elif self.__shutdown_time_left > 60: # 1 min
+                next_time = 60
+                self.__shutdown_time_left -= 60
+            elif self.__shutdown_time_left > 15:
+                next_time = 10
+                self.__shutdown_time_left -= 10
+            else:
+                next_time = self.__shutdown_time_left
+                self.__shutdown_time_left = 0
+            # end if
+            
+            self.__system_timers[self._shutdown_task].start(next_time)
+            
+        elif self.__shutdown_time_left == 0:
+            # declare (flags = bit(2) . init("0b11"))
+            # self._send_shutdown_message("shutdown")
+            self.shutdown()
         
     #== LOW-LEVEL I/O ==#
     #== These functions can be used to do basic TTY I/O in the absence of
@@ -180,6 +278,11 @@ class SystemServices(QtCore.QObject):
         timer = SystemTimer(interval, callback, data)
         return timer
     
+    def add_system_timer(self, interval, callback, data=None):
+        timer = self.make_timer(interval, callback, data)
+        self.__system_timers[callback] = timer
+        return timer
+    
     def sleep(self, seconds):
         self._msleep(seconds * 1000)
         
@@ -213,7 +316,7 @@ class SystemServices(QtCore.QObject):
     def _kill_process(self, process):
         if process:
             keep_process_data = (process == self.__initializer)
-            self.process_overseer.destroy_process(process, keep_process_data)
+            self.__process_overseer.destroy_process(process, keep_process_data)
     
     def _kill_daemons(self):
         for daemon_process in self.__daemons[:]:
@@ -223,10 +326,6 @@ class SystemServices(QtCore.QObject):
         
     def start(self):
         self._load_user_accounts_data()
-        
-        from process_overseer import ProcessOverseer
-        self.process_overseer = ProcessOverseer(self)
-        
         self._create_initializer_process()
         self._create_messenger_process()
         
@@ -239,7 +338,7 @@ class SystemServices(QtCore.QObject):
         login_info.cp_path = ">sss>user_control"
         try:
             from answering_service import AnsweringService
-            self.__initializer = self.process_overseer.create_process(login_info, AnsweringService)
+            self.__initializer = self.__process_overseer.create_process(login_info, AnsweringService)
             if not self.__initializer:
                 self.llout("Failed to create Initializer process")
             else:
@@ -257,7 +356,7 @@ class SystemServices(QtCore.QObject):
         # login_info.cp_path = ">sss>user_control"
         try:
             from messenger import Messenger
-            daemon = self.process_overseer.create_process(login_info, Messenger)
+            daemon = self.__process_overseer.create_process(login_info, Messenger)
             if not daemon:
                 self.llout("Failed to create Messenger process")
             else:
@@ -279,10 +378,10 @@ class SystemServices(QtCore.QObject):
         # call = multics.globals.call
         
         #== Get a pointer to the PNT (create it if necessary)
-        call.hcs_.initiate(self.hardware.filesystem.system_control_dir, "person_name_table", segment, code)
+        call.hcs_.initiate(self.fs.system_control_dir, "person_name_table", segment, code)
         self.__person_name_table = segment.ptr
         if not self.__person_name_table:
-            call.hcs_.make_seg(self.hardware.filesystem.system_control_dir, "person_name_table", segment(PersonNameTable()), code)
+            call.hcs_.make_seg(self.fs.system_control_dir, "person_name_table", segment(PersonNameTable()), code)
             self.__person_name_table = segment.ptr
             #== Add JRCooper/jrc as a valid user to start with
             with self.__person_name_table:
@@ -294,7 +393,7 @@ class SystemServices(QtCore.QObject):
         pprint(self.__person_name_table)
         
         #== Make a dictionary of PDTs (project definition tables)
-        call.hcs_.get_directory_contents(self.hardware.filesystem.system_control_dir, branch, segment, code)
+        call.hcs_.get_directory_contents(self.fs.system_control_dir, branch, segment, code)
         if code.val == 0:
             segment_list = segment.list
             #== Add SysAdmin as a project with JRCooper as a recognized user
@@ -303,13 +402,13 @@ class SystemServices(QtCore.QObject):
                     segment_name = "%s.pdt" % (project_id)
                     pdt = ProjectDefinitionTable(project_id, alias, ["JRCooper"])
                     pdt.add_user("JRCooper")
-                    call.hcs_.make_seg(self.hardware.filesystem.system_control_dir, segment_name, segment(pdt), code)
+                    call.hcs_.make_seg(self.fs.system_control_dir, segment_name, segment(pdt), code)
                     segment_list.append(segment_name)
                 # end for
             # end if
             for segment_name in segment_list:
                 if segment_name.endswith(".pdt"):
-                    call.hcs_.initiate(self.hardware.filesystem.system_control_dir, segment_name, segment, code)
+                    call.hcs_.initiate(self.fs.system_control_dir, segment_name, segment, code)
                     self.__project_definition_tables[segment.ptr.project_id] = segment.ptr
                     self.__project_definition_tables[segment.ptr.alias] = segment.ptr
                 # end if
@@ -320,10 +419,10 @@ class SystemServices(QtCore.QObject):
         pprint(self.__project_definition_tables)
         
         #== Get a pointer to the WHOTAB (create it if necessary)
-        call.hcs_.initiate(self.hardware.filesystem.system_control_dir, "whotab", segment, code)
+        call.hcs_.initiate(self.fs.system_control_dir, "whotab", segment, code)
         self.__whotab = segment.ptr
         if not self.__whotab:
-            call.hcs_.make_seg(self.hardware.filesystem.system_control_dir, "whotab", segment(WhoTable()), code)
+            call.hcs_.make_seg(self.fs.system_control_dir, "whotab", segment(WhoTable()), code)
             self.__whotab = segment.ptr
         # end if
         print "WHOTAB:"
@@ -339,7 +438,9 @@ class SystemTimer(object):
         self.__alive = True
         self.__started = False
         
-    def start(self):
+    def start(self, new_interval=None):
+        if new_interval is not None:
+            self.__interval_time = new_interval
         self.__started = True
         self.__start_time = time.clock()
         

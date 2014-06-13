@@ -185,7 +185,10 @@ def system_privileged(fn):
 
 def get_calling_process_():
     calling_process = QtCore.QThread.currentThread()
-    return calling_process
+    if calling_process.objectName() == "Multics.Supervisor":
+        return GlobalEnvironment.supervisor
+    else:
+        return calling_process
 
 class LinkageReference(object):
     def __init__(self, name, dynamic_linker):

@@ -101,7 +101,7 @@ class Listener(SystemExecutable):
         mbx_handlers = {
             'interactive_message': self._interactive_message_handler,
             'shutdown_announcement': self._interactive_message_handler,
-            'shutdown':            self._shutdown_handler,
+            # 'shutdown':            self._shutdown_handler,
         }
         self.__process.register_mbx_handlers(mbx_handlers)
         
@@ -110,7 +110,6 @@ class Listener(SystemExecutable):
     
     def _shutdown_handler(self, mbx_message):
         print get_calling_process_().objectName() + " invoking _shutdown_handler"
-        call.sys_.signal_shutdown()
         self.exit_code = System.LOGOUT
     
     def _cleanup(self):

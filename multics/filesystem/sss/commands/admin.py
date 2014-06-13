@@ -34,7 +34,8 @@ def admin():
     if project.id != "SysAdmin":
         call.ioa_("You are not authorized to use the {0} command", MAIN)
         return
-        
+    # end if
+    
     while command.string != "quit" and command.string != "q":
         query_info.suppress_name_sw = False
         query_info.yes_or_no_sw = False

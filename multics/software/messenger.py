@@ -41,10 +41,10 @@ class Messenger(SystemExecutable):
         mbx_handlers = {
             'interactive_message': self._interactive_message_handler,
             'shutdown_announcement': self._interactive_message_handler,
-            'shutdown': self._interactive_message_handler,
+            # 'shutdown': self._interactive_message_handler,
         }
         self.__process.register_mbx_handlers(mbx_handlers)
-                
+        
     def _cleanup(self):
         pass
         
@@ -67,6 +67,7 @@ class Messenger(SystemExecutable):
             call.sys_.lock_process_mbx_(recipient, mbx_segment, code)
             if code.val != 0:
                 print "Could not lock %s" % mbx_segment.ptr.filepath
+                print "  code =", code.val
                 return
             # end if
             
@@ -81,5 +82,6 @@ class Messenger(SystemExecutable):
             call.sys_.unlock_process_mbx_(mbx_segment.ptr, code)
             if code.val != 0:
                 print "Could not unlock %s" % mbx_segment.ptr.filepath
+                print "  code =", code.val
             # end if
             

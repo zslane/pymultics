@@ -16,16 +16,9 @@ class set_lock_(SystemExecutable):
         declare (process_id_list = parm)
         
         process = get_calling_process_()
-        #== Skip locking if the supervisor is trying to lock. It doesn't have anywhere to
-        #== store the FileLock object.
-        if process.objectName() == "Multics.Supervisor":
-            code.val = error_table_.lock_not_locked
-            return
-        # end if
-        
-        process.stack.assert_create("file_locks", dict)
+        file_locks = process.stack.assert_create("file_locks", dict)
         lock_id = segment_data_ptr.filepath
-        if lock_id in process.stack.file_locks:
+        if lock_id in file_locks:
             code.val = error_table_.locked_by_this_process
             return
         # end if
@@ -36,33 +29,26 @@ class set_lock_(SystemExecutable):
             file_lock = FileLock(segment_data_ptr, process_id, wait_time, process_id_list.ids)
             code.val = file_lock.acquire()
             #== Make sure that if we had to wait for the lock that the previous locker
-            #== wasn't locking it in order to safely delete it. If the file has been
+            #== wasn't locking it in order to set_lock_.lock()safely delete it. If the file has been
             #== deleted, then return error_table_.no_directory_entry in the result code.
             if not os.path.exists(segment_data_ptr.filepath):
                 print "    File doesn't exist!", filepath
                 file_lock.release()
                 code.val = error_table_.no_directory_entry
             else:
-                process.stack.file_locks[lock_id] = file_lock
+                file_locks[lock_id] = file_lock
             # end if
         except FileLockException as e:
             code.val = e.code
         
     def unlock(self, segment_data_ptr, code):
         process = get_calling_process_()
-        #== Skip unlocking if the supervisor is trying to unlock. It doesn't have anywhere to
-        #== store the FileLock object.
-        if process.objectName() == "Multics.Supervisor":
-            code.val = error_table_.lock_not_locked
-            return
-        # end if
-        
-        process.stack.assert_create("file_locks", dict)
+        file_locks = process.stack.assert_create("file_locks", dict)
         lock_id = segment_data_ptr.filepath
-        file_lock = process.stack.file_locks.get(lock_id)
+        file_lock = file_locks.get(lock_id)
         if file_lock:
             file_lock.release()
-            del process.stack.file_locks[lock_id]
+            del file_locks[lock_id]
             code.val = 0
         else:
             code.val = error_table_.lock_not_locked

@@ -161,12 +161,14 @@ class ProcessStack(object):
     #== because even though it is data only those methods know or care about, the data
     #== really 'belongs' to the process, not the system service.
     
-    def __init__(self, homedir):
+    def __init__(self, homedir=""):
         self.search_paths = [
             ">sss",
             ">sss>commands",
-            homedir,
         ]
+        if homedir:
+            self.search_paths.append(homedir)
+        # end if
         self.directory_stack = []
         self.process_timers = {}
         #== More attributes added as needed by system services...
@@ -174,6 +176,7 @@ class ProcessStack(object):
     def assert_create(self, attrname, attrtype):
         if not hasattr(self, attrname):
             setattr(self, attrname, attrtype())
+        return getattr(self, attrname)
 
 class ProcessMbx(object):
 

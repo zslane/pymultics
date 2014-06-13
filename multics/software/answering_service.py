@@ -45,6 +45,7 @@ class AnsweringService(SystemExecutable):
                 #== See if any terminals are trying to log in
                 if (not self.supervisor.hardware.io.attached_tty_process() and
                     self.supervisor.hardware.io.linefeed_received()):
+                        self.supervisor.hardware.io.flush_input()
                         process = self._user_login()
                         if process:
                             print "Attaching tty to process", process.id(), process.objectName()

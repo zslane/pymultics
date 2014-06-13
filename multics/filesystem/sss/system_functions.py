@@ -26,6 +26,10 @@ def get_wdir_():
 def clock_():
     return system.hardware.clock.current_time()
     
+@system_privileged
+def shutdown_started_():
+    return system.shutdown_started()
+    
 __xlate_table = string.maketrans(string.hexdigits[:16], "BWrtxJNmwpHZbLqz")
 
 def unique_name_(value, xlate_table=[]):

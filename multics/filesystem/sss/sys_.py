@@ -9,6 +9,7 @@ class sys_(SystemExecutable):
         
     def get_userid_long(self, short_name, long_name, code):
         short_person_id, _, short_project_id = short_name.partition(".")
+        short_project_id = short_project_id or "*"
         long_person_id, long_project_id = short_person_id, short_project_id
         
         if short_person_id != "*":
@@ -147,3 +148,10 @@ class sys_(SystemExecutable):
             
     def signal_shutdown(self):
         self.system.shutdown()
+        
+    def start_shutdown(self, how_long, message):
+        self.system.start_shutdown(how_long, message)
+        
+    def cancel_shutdown(self):
+        self.system.cancel_shutdown()
+        
