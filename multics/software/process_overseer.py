@@ -126,9 +126,10 @@ class ProcessOverseer(object):
     def destroy_process(self, process, keep_process_data=False):
         declare (code = parm)
         
-        print "Waiting for", process.objectName(), "to terminate"
+        print get_calling_process_().objectName() + " process_overseer waiting for " + process.objectName() + " to terminate"
         process.kill()
-        process.wait(2000)
+        if not process.wait():
+            print "[[[ %s did not terminate ]]]" % (process.objectName())
         
         if not keep_process_data:
             try:

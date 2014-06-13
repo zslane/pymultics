@@ -97,7 +97,7 @@ class ProcessWorker(QtCore.QObject):
             
             #== Process mbx messages one per timer trigger ==#
             try:
-                print self.objectName()+"._process_mbx calling set_lock_.lock"
+                # print self.objectName()+"._process_mbx calling set_lock_.lock"
                 call.set_lock_.lock(self.__process_env.mbx, 3, code)
                 if code.val != 0:
                     print "Could not lock %s" % self.__process_env.mbx.filepath
@@ -109,7 +109,7 @@ class ProcessWorker(QtCore.QObject):
                 # end with
                 
             finally:
-                print self.objectName()+"._process_mbx calling set_lock_.unlock"
+                # print self.objectName()+"._process_mbx calling set_lock_.unlock"
                 call.set_lock_.unlock(self.__process_env.mbx, code)
                 if code.val != 0:
                     print "Could not unlock %s" % self.__process_env.mbx.filepath
@@ -154,7 +154,7 @@ class ProcessWorker(QtCore.QObject):
         # if self.__timerid:
             # self.killTimer(self.__timerid)
             # self.__timerid = 0
-        print QtCore.QThread.currentThread().objectName(), "process terminating"
+        print QtCore.QThread.currentThread().objectName() + " process terminating"
         
     def _dispatch_mbx_message(self, mbx_message):
         print "(%s)" % (get_calling_process_().objectName()), self.objectName(), "process message found", mbx_message
@@ -223,21 +223,26 @@ class VirtualMulticsProcess(QtCore.QObject):
         self.worker = ProcessWorker(supervisor, process_env)
         self.thread = ProcessThread(self.worker)
         
+        self.thread.finished.connect(self._thread_finished)
+        
         self.worker.moveToThread(self.thread)
         self.thread.start()
         
         self.setObjectName(self.worker.gid())
         
+    def _thread_finished(self):
+        print self.thread.objectName() + " finished signal detected"
+        
     def start(self):
         QtCore.QMetaObject.invokeMethod(self.worker, "start", QtCore.Qt.QueuedConnection)
         
     def kill(self):
-        # self.worker.kill()
+        print self.objectName() + ".kill() called"
         self.worker.deleteLater()
         self.thread.quit()
         
     def wait(self, *args, **kwargs):
-        self.thread.wait(*args, **kwargs)
+        return self.thread.wait(*args, **kwargs)
         
     def isRunning(self):
         return self.thread.isRunning()

@@ -35,7 +35,7 @@ class SystemServices(QtCore.QObject):
         self.__shutdown_signal = False
         
         self.__hardware.io.terminalClosed.connect(self._kill_daemons)
-        # self.__hardware.io.heartbeat.connect(self._heartbeat)
+        self.__hardware.io.heartbeat.connect(self._heartbeat)
         
         # multics.globals._register_system_services(self, self.__dynamic_linker)
         GlobalEnvironment.register_system_services(self, self.__dynamic_linker)
@@ -104,15 +104,20 @@ class SystemServices(QtCore.QObject):
         self.__dynamic_linker.initialize()
         
     def shutdown(self):
-        # NEED TO ADD SHUTDOWN MESSAGE TO PROCESS MBX
+        print get_calling_process_().objectName() + " calling system_services.shutdown()"
+        self.__shutdown_signal = True
+        timer = self.make_timer(0.5, self._shutdown_procedure)
+        self.__system_timers[self._shutdown_procedure] = timer
+        timer.start()
+        
+    def _shutdown_procedure(self):
+        self.__system_timers[self._shutdown_procedure].stop()
+        self._kill_daemons()
         self.__shutdown_datetime = datetime.datetime.now()
         self._send_system_farewell()
-        print get_calling_process_().objectName(), "calling system_services.shutdown()"
         self.__hardware.shutdown()
-        self.__shutdown_signal = True
         
     def shutting_down(self):
-        # NEED TO CHECK PROCESS MBX FOR SHUTDOWN MESSAGE
         return self.__shutdown_signal
         
     #== LOW-LEVEL I/O ==#
@@ -132,7 +137,7 @@ class SystemServices(QtCore.QObject):
                 raise BreakCondition
             # end if
             if self.shutting_down():
-                print "Shutdown signal detected by", get_calling_process_().objectName()
+                print "Shutdown signal detected by " + get_calling_process_().objectName()
                 raise ShutdownCondition
             # end if
             
@@ -148,7 +153,7 @@ class SystemServices(QtCore.QObject):
             raise BreakCondition
         # end if
         if self.shutting_down():
-            print "Shutdown signal detected by", get_calling_process_().objectName()
+            print "Shutdown signal detected by " + get_calling_process_().objectName()
             raise ShutdownCondition
         # end if
         
@@ -158,6 +163,11 @@ class SystemServices(QtCore.QObject):
     def wait_for_linefeed(self):
         while not self.__hardware.io.linefeed_received():
             QtCore.QCoreApplication.processEvents()
+            
+            if self.shutting_down():
+                print "Shutdown signal detected by " + get_calling_process_().objectName()
+                raise ShutdownCondition
+            # end if
             
             self._msleep(self.IDLE_DELAY_TIME) # in milliseconds
         # end while
@@ -206,8 +216,9 @@ class SystemServices(QtCore.QObject):
             self.process_overseer.destroy_process(process, keep_process_data)
     
     def _kill_daemons(self):
-        for daemon_process in self.__daemons:
+        for daemon_process in self.__daemons[:]:
             self._kill_process(daemon_process)
+            self.__daemons.remove(daemon_process)
         # end for
         
     def start(self):

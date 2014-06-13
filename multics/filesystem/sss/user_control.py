@@ -26,7 +26,7 @@ class user_control(CommandProcessor):
             load, self.supervisor.site_config['maximum_load'],
             len(self.__whotab.entries)))
             
-    def do_login(self, supervisor, pnt, pdt, whotab):
+    def login_ui(self, supervisor, pnt, pdt, whotab):
     
         declare (command_name = parm,
                  code         = parm)
@@ -48,7 +48,7 @@ class user_control(CommandProcessor):
                     call.cu_.set_command_string_(command_line)
                     call.cu_.get_command_name(command_name, code)
                     if command_name.val== "login" or command_name.val == "l":
-                        user_lookup = self.login()
+                        user_lookup = self.login_command()
                     elif command_name.val == "help" or command_name.val == "?":
                         call.ioa_("Available commands:\n  login,l [person_id] {{project_id}} {{-change_password|-cp}}\n  help,?")
                         command_line = ""
@@ -58,7 +58,7 @@ class user_control(CommandProcessor):
         # end while
         return user_lookup
         
-    def login(self):
+    def login_command(self):
         declare (arg_list = parm,
                  code     = parm)
         

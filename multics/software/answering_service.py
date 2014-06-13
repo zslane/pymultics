@@ -22,7 +22,6 @@ class AnsweringService(SystemExecutable):
         
         self.supervisor = supervisor
         self.user_control = command_processor
-        self.user_control.setParent(self)
         self.process_overseer = ProcessOverseer(supervisor)
         self.__process = None
         self.__person_name_table = None
@@ -42,40 +41,51 @@ class AnsweringService(SystemExecutable):
         
         shutting_down = False
         while not (shutting_down and self.process_overseer.running_processes == []):
-            #== See if any terminals are trying to log in
-            if (not self.supervisor.hardware.io.attached_tty_process() and
-                self.supervisor.hardware.io.linefeed_received()):
-                try:
-                    process = self._user_login()
-                    if process:
-                        print "Attaching tty to process", process.id(), process.objectName()
-                        self.supervisor.hardware.io.attach_tty_process(process.id())
-                        print "Starting process", process.objectName()
-                        process.start()
-                    # end if
+            try:
+                #== See if any terminals are trying to log in
+                if (not self.supervisor.hardware.io.attached_tty_process() and
+                    self.supervisor.hardware.io.linefeed_received()):
+                        process = self._user_login()
+                        if process:
+                            print "Attaching tty to process", process.id(), process.objectName()
+                            self.supervisor.hardware.io.attach_tty_process(process.id())
+                            print "Starting process", process.objectName()
+                            process.start()
+                        # end if
                     
-                except BreakCondition:
-                    self.__system_services.set_input_mode(QtGui.QLineEdit.Normal)
-                    call.hcs_.signal_break()
-                
-                except DisconnectCondition:
+                elif self.supervisor.hardware.io.terminal_closed():
                     shutting_down = True
-                # end try
-                
-            elif self.supervisor.hardware.io.terminal_closed():
+                    
+                elif self.supervisor.shutting_down():
+                    print "INITIALIZER DETECTED SHUTDOWN"
+                    shutting_down = True
+                # end if
+            
+            except BreakCondition:
+                self.__system_services.set_input_mode(QtGui.QLineEdit.Normal)
+                call.hcs_.signal_break()
+            
+            except DisconnectCondition:
                 shutting_down = True
-            # end if
+            # end try
+            
+            except ShutdownCondition:
+                shutting_down = True
+            # end try
             
             #== See if any processes have terminated with LOGOUT or NEW_PROC exit codes
             for process in self.process_overseer.running_processes:
+                if shutting_down:
+                    print get_calling_process_().objectName() + " shutting down but waiting for user processes to terminate"
+                
                 user_id = process.uid()
                 if process.exit_code != 0:
                     self.process_overseer.destroy_process(process)
                     
-                    if process.exit_code == System.LOGOUT or process.exit_code == System.SHUTDOWN:
+                    if process.exit_code == System.LOGOUT:
                         self.supervisor.llout("%s logged out on %s\n" % (user_id, datetime.datetime.now().ctime()))
                         print "%s logged out on %s" % (user_id, datetime.datetime.now().ctime())
-                        #== Remove the session block in the LOGIN DB corresponding to this session
+                        #== Remove the entry in the whotab corresponding to this user
                         with self.__whotab:
                             del self.__whotab.entries[user_id]
                         # end with
@@ -83,19 +93,24 @@ class AnsweringService(SystemExecutable):
                         self.supervisor.hardware.io.detach_tty_process(process.id())
                         
                     elif process.exit_code == System.NEW_PROCESS:
-                        person_id, _, project_id = user_id
+                        self.supervisor.hardware.io.detach_tty_process(process.id())
+                        person_id, _, project_id = user_id.partition(".")
                         pdt = self.__project_definition_tables.get(project_id)
                         process = self._new_process(person_id, pdt)
                         if process:
+                            print "Starting new process", process.objectName()
                             process.start()
+                            #== Update the entry in the whotab corresponding to this user
+                            with self.__whotab:
+                                self.__whotab.entries[user_id].process_id = process.id()
+                                self.__whotab.entries[user_id].process_dir = process.dir()
+                            # end with
+                            pprint(self.__whotab)
+                            print "Attaching tty to process", process.id(), process.objectName()
+                            self.supervisor.hardware.io.attach_tty_process(process.id())
                         else:
                             self.supervisor.llout("Error creating process!")
                         # end if
-                        
-                    if process.exit_code == System.SHUTDOWN:
-                        self.supervisor.shutdown()
-                        shutting_down = True
-                    # end if
                     
                 # end if
             # end for
@@ -121,7 +136,7 @@ class AnsweringService(SystemExecutable):
         return self.process_overseer.create_process(login_info, Listener)
     
     def _user_login(self):
-        user_lookup = self.user_control.do_login(self.supervisor,
+        user_lookup = self.user_control.login_ui(self.supervisor,
                                                  self.__person_name_table,
                                                  self.__project_definition_tables,
                                                  self.__whotab)

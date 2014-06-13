@@ -145,3 +145,5 @@ class sys_(SystemExecutable):
         if process.stack.accepting_messages or message_packet['type'] == "shutdown_announcement":
             call.ioa_("Message from {0} on {1}: {2}", message_packet['from'], message_packet['time'].ctime(), message_packet['text'])
             
+    def signal_shutdown(self):
+        self.system.shutdown()

@@ -160,8 +160,8 @@ def do_loop(container):
 
         yield
         
-    except ShutdownCondition:
-        container.exit_code = System.SHUTDOWN
+    # except ShutdownCondition:
+        # container.exit_code = System.SHUTDOWN
     except (SegmentFault, LinkageError, InvalidSegmentFault):
         call.dump_traceback_()
         container.exit_code = -1

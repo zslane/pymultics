@@ -10,7 +10,6 @@ class Listener(SystemExecutable):
         
         self.supervisor = supervisor
         self.__default_command_processor = command_processor
-        self.__default_command_processor.setParent(self)
         self.__process = None
         self.__command_prompt = "! "
         self.__command_history = []
@@ -73,7 +72,7 @@ class Listener(SystemExecutable):
             except DisconnectCondition:
                 self.exit_code = System.LOGOUT
             except ShutdownCondition:
-                self.exit_code = System.SHUTDOWN
+                self.exit_code = System.LOGOUT
             except (SegmentFault, LinkageError, InvalidSegmentFault):
                 call.dump_traceback_()
             except:
@@ -101,11 +100,18 @@ class Listener(SystemExecutable):
         
         mbx_handlers = {
             'interactive_message': self._interactive_message_handler,
+            'shutdown_announcement': self._interactive_message_handler,
+            'shutdown':            self._shutdown_handler,
         }
         self.__process.register_mbx_handlers(mbx_handlers)
-            
+        
     def _interactive_message_handler(self, mbx_message):
         call.sys_.recv_message_(mbx_message)
+    
+    def _shutdown_handler(self, mbx_message):
+        print get_calling_process_().objectName() + " invoking _shutdown_handler"
+        call.sys_.signal_shutdown()
+        self.exit_code = System.LOGOUT
     
     def _cleanup(self):
         pass

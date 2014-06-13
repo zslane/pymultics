@@ -7,7 +7,6 @@ class Messenger(SystemExecutable):
         super(Messenger, self).__init__(self.__class__.__name__, supervisor)
         
         self.supervisor = supervisor
-        # self.__default_command_processor = command_processor
         self.__process = None
         self.__mbx = None
         self.exit_code = 0
@@ -42,6 +41,7 @@ class Messenger(SystemExecutable):
         mbx_handlers = {
             'interactive_message': self._interactive_message_handler,
             'shutdown_announcement': self._interactive_message_handler,
+            'shutdown': self._interactive_message_handler,
         }
         self.__process.register_mbx_handlers(mbx_handlers)
                 
@@ -51,14 +51,11 @@ class Messenger(SystemExecutable):
     def _interactive_message_handler(self, mbx_message):
         declare (users = parm)
         
-        print self.__process.objectName(), "process message found", mbx_message
+        print self.__process.objectName(), "handling message", mbx_message
         
-        if (mbx_message['type'] == "interactive_message" or
-            mbx_message['type'] == "shutdown_announcement"):
-            call.sys_.get_users(users, mbx_message['to'])
-            for user_id in users.list:
-                self._deliver_interactive_message(user_id, mbx_message)
-            # end for
+        call.sys_.get_users(users, mbx_message['to'])
+        for user_id in users.list:
+            self._deliver_interactive_message(user_id, mbx_message)
         
     def _deliver_interactive_message(self, recipient, mbx_message):
         declare (mbx_segment = parm,

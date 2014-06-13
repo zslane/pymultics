@@ -18,3 +18,6 @@ class timer_manager_(SystemExecutable):
             timer.kill()
         # end if
         
+    def sleep(self, time, flags):
+        self.system.sleep(time)
+        
