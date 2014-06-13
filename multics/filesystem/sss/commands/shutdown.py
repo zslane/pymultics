@@ -104,10 +104,13 @@ def _shutdown_task():
             _time_left -= 600
         elif _time_left > 60: # 1 min
             next_time = 60
-            _time_left = max(0, _time_left - 60)
-        elif _time_left >= 10: # 10 secs
+            _time_left -= 60
+        elif _time_left > 15:
             next_time = 10
-            _time_left = max(0, _time_left - 10)
+            _time_left -= 10
+        else:
+            next_time = _time_left
+            _time_left = 0
         # end if
         
         call.timer_manager_.alarm_call(next_time, _shutdown_task)

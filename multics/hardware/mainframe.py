@@ -317,6 +317,14 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         filepath = self.native_path(filepath)
         return os.path.getmtime(filepath)
         
+    def get_size(self, filepath):
+        filepath = self.native_path(filepath)
+        return os.path.getsize(filepath)
+        
+    def get_mod_data(self, filepath):
+        filepath = self.native_path(filepath)
+        return (os.path.getmtime(filepath), os.path.getsize(filepath))
+    
     def mkdir(self, filepath):
         filepath = self.native_path(filepath)
         try:
@@ -357,7 +365,7 @@ class MemoryMappedIOPtr(object):
     def __init__(self, filesystem, filepath):
         self._set("__filesystem", filesystem)
         self._set("__filepath", filepath)
-        self._set("__last_modified_time", None)
+        self._set("__last_modified", None)
         self._set("__data", None)
         self._update_data(self.CACHE_IN)
         
@@ -374,17 +382,17 @@ class MemoryMappedIOPtr(object):
     def _update_data(self, direction):
         if direction == self.CACHE_IN:
             if self.__filesystem.file_exists(self.__filepath):
-                mod_time = self.__filesystem.get_mod_time(self.__filepath)
-                if self.__last_modified_time != mod_time:
+                mod_data = self.__filesystem.get_mod_data(self.__filepath)
+                if self.__last_modified != mod_data:
                     self._set("__data", self.__filesystem.read_file(self.__filepath))
-                    self._set("__last_modified_time", mod_time)
+                    self._set("__last_modified", mod_data)
                 # end if
             else:
                 raise SegmentFault(os.path.basename(self.__filepath))
             # end if
         elif direction == self.CACHE_OUT:
             self.__filesystem.write_file(self.__filepath, self.__data)
-            self._set("__last_modified_time", self.__filesystem.get_mod_time(self.__filepath))
+            self._set("__last_modified", self.__filesystem.get_mod_data(self.__filepath))
     
     def __getattr__(self, attrname):
         self._update_data(self.CACHE_IN)

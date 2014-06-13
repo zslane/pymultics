@@ -57,7 +57,6 @@ class AnsweringService(SystemExecutable):
                     shutting_down = True
                     
                 elif self.supervisor.shutting_down():
-                    print "INITIALIZER DETECTED SHUTDOWN"
                     shutting_down = True
                 # end if
             
@@ -75,8 +74,8 @@ class AnsweringService(SystemExecutable):
             
             #== See if any processes have terminated with LOGOUT or NEW_PROC exit codes
             for process in self.process_overseer.running_processes:
-                if shutting_down:
-                    print get_calling_process_().objectName() + " shutting down but waiting for user processes to terminate"
+                # if shutting_down:
+                    # print get_calling_process_().objectName() + " shutting down but waiting for user processes to terminate"
                 
                 user_id = process.uid()
                 if process.exit_code != 0:
