@@ -35,8 +35,17 @@ def who():
         # end if
     # end for
     
-    call.sys_.get_users(users)
-    call.sys_.get_daemons(daemons)
+    if show_users:
+        call.sys_.get_users(users)
+    else:
+        users.list = []
+    # end if
+    
+    if show_daemons:
+        call.sys_.get_daemons(daemons)
+    else:
+        daemons.list = []
+    # end if
     
     who_list = []
     if show_daemons:
@@ -52,7 +61,7 @@ def who():
     # end if
     
     if show_header:
-        _display_header(len(users.list), len(daemons.list))
+        _display_header(show_users, len(users.list), show_daemons, len(daemons.list))
     # end if
     
     # call.ioa_("{0} user{1} logged in", len(users.list), "s" if len(users.list) > 1 else "")
@@ -68,12 +77,18 @@ def who():
         call.ioa_("  {0}", line)
     
 @system_privileged
-def _display_header(num_users, num_daemons):
+def _display_header(show_users, num_users, show_daemons, num_daemons):
     import os
     load = len(os.listdir(system.hardware.filesystem.path2path(system.hardware.filesystem.process_dir_dir)))
-    call.ioa_("Virtual Multics 0.2, load {0:0.1f}/{1:0.2f}; {2} users\n  {3} users, {4} daemons.",
+    
+    stat_list = []
+    if show_users:
+        stat_list.append("{0} users".format(num_users))
+    if show_daemons:
+        stat_list.append("{0} daemons".format(num_daemons))
+        
+    call.ioa_("Virtual Multics 0.2, load {0:0.1f}/{1:0.2f}; {2} users\n  {3}.",
         load, system.site_config['maximum_load'],
         num_users + num_daemons,
-        num_users,
-        num_daemons)
+        ", ".join(stat_list))
         

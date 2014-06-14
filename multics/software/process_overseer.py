@@ -59,6 +59,7 @@ class ProcessOverseer(object):
         pit.project      = login_info.project_id
         pit.process_type = login_info.process_type
         pit.homedir      = login_info.homedir
+        pit.no_start_up  = login_info.no_start_up
         pit.time_login   = login_info.time_login #datetime.datetime.now()
         pit.process_id   = process_id
         

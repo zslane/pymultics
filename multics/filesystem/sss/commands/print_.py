@@ -4,12 +4,12 @@ from multics.globals import *
 @system_privileged
 def print_(*func_args):
 
-    declare (arg_list = parm,
+    declare (arg_list  = parm,
              directory = parm,
-             entry = parm,
-             full = parm,
-             segment  = parm,
-             code     = parm)
+             entry     = parm,
+             full      = parm,
+             segment   = parm,
+             code      = parm)
              
     if func_args:
         arg_list.args = list(func_args)
@@ -19,6 +19,7 @@ def print_(*func_args):
     if len(arg_list.args) == 0:
         call.ioa_("Usage: print [file]")
         return
+    # end if
         
     filename = arg_list.args.pop(0)
     call.sys_.get_abs_path(filename, full)

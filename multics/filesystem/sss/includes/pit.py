@@ -15,6 +15,7 @@ class pit_structure(PL1.Structure):
             project      = "",
             process_type = pit_process_type_interactive,
             homedir      = "",
+            no_start_up  = False,
             time_login   = None,
             process_id   = 0,
         )

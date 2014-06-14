@@ -121,9 +121,8 @@ def mycommand():
     if data3.ptr != null():
         call.hcs_.delentry_seg(data3.ptr, code)
     
-    call.do("who")
+    call.do("who -dmn")
     call.term_.single_refname("do", code)
     call.hcs_.initiate(">sss", "do", null(), code)
     call.do("whoami")
-    call.pr("Multics.pmf")
-    
+    call.print_("Multics.pmf")

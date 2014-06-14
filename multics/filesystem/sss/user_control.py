@@ -4,8 +4,20 @@ from multics.globals import *
 
 from PySide import QtCore, QtGui
 
-login_usage_text = (
-"""Usage: login|l [person_id] {{project_id}} {{-change_password|-cp}}
+login_help_text = (
+"""    login, l [person_id] {{project_id}} {{-control_args}}
+        -change_password, -cpw
+        -home_dir [path], -h [path]
+        -no_start_up, -ns
+"""
+)
+
+help_text = (
+"""Available commands:
+""" +
+login_help_text +
+"""
+    help, ?
 """
 )
 
@@ -38,8 +50,8 @@ class user_control(CommandProcessor):
         
         self.display_login_banner()
         
-        user_lookup = None
-        while not user_lookup:
+        login_options = None
+        while not login_options:
             command_line = ""
             while command_line == "":
                 try:
@@ -49,9 +61,9 @@ class user_control(CommandProcessor):
                         call.cu_.set_command_string_(command_line)
                         call.cu_.get_command_name(command_name, code)
                         if command_name.val== "login" or command_name.val == "l":
-                            user_lookup = self.login_command()
+                            login_options = self.login_command()
                         elif command_name.val == "help" or command_name.val == "?":
-                            call.ioa_("Available commands:\n  login,l [person_id] {{project_id}} {{-change_password|-cp}}\n  help,?")
+                            call.ioa_(help_text)
                             command_line = ""
                         # end if
                     # end if
@@ -62,14 +74,14 @@ class user_control(CommandProcessor):
                 # end try
             # end while
         # end while
-        return user_lookup
+        return login_options
         
     def login_command(self):
         declare (arg_list = parm,
                  code     = parm)
         
         def show_usage():
-            call.ioa_(login_usage_text)
+            call.ioa_("Usage:\n" + login_help_text)
         
         call.cu_.arg_list(arg_list)
         if len(arg_list.args) == 0:
@@ -78,20 +90,40 @@ class user_control(CommandProcessor):
             
         project = ""
         change_password = False
+        login_options = {}
+        login_options['project_id'] = ""
         
         login_name = arg_list.args.pop(0)
         
         i = 0
         while i < len(arg_list.args):
             arg = arg_list.args[i]
-            if i == 0 and not arg.startswith("-"):
-                project = arg
-                i += 1
-            elif arg == "-change_password" or arg == "-cp":
+            i += 1
+            
+            if i == 1 and not arg.startswith("-"):
+                login_options['project_id'] = arg
+                
+            elif arg == "-change_password" or arg == "-cpw":
                 change_password = True
-                i += 1
+                
+            elif arg == "-home_dir" or arg == "-hd":
+                if i < len(arg_list.args):
+                    login_options['home_dir'] = arg_list.args[i]
+                    i += 1
+                else:
+                    call.ioa_("-home_dir requires a path argument")
+                    return
+                # end if
+                
+            elif arg == "-no_start_up" or arg == "-ns":
+                login_options['no_start_up'] = True
+                
+            elif arg.startswith("-"):
+                call.ioa_("Unrecognized control argument {0}", arg)
+                return
+                
             else:
-                call.ioa_("Unrecognized argument {0}", arg)
+                show_usage()
                 return
             # end if
         # end while
@@ -100,19 +132,23 @@ class user_control(CommandProcessor):
         
         self.supervisor.llout("password:\n")
         password = self.supervisor.llin(block=True)
-            
-        user_lookup = self._authenticate(login_name, project, password)
         
-        if user_lookup and change_password:
-            person_id, _ = user_lookup
-            self._change_user_password(person_id)
+        user_lookup = self._authenticate(login_name, login_options['project_id'], password, login_options)
+        if user_lookup:
+            person_id, pdt = user_lookup
+            login_options['person_id'] = person_id
+            login_options['project_id'] = pdt.project_id
+            login_options['pdt'] = pdt
+            if change_password:
+                self._change_user_password(login_options['person_id'])
+            # end if
         # end if
         
         self.supervisor.set_input_mode(QtGui.QLineEdit.Normal)
         
-        return user_lookup
+        return login_options
         
-    def _authenticate(self, login_name, project, password):
+    def _authenticate(self, login_name, project, password, options):
         person_id = self.__person_name_table.person_id(login_name)
         try:
             encrypted_password, pubkey = self.__person_name_table.get_password(person_id)

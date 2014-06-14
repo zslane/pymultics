@@ -391,7 +391,7 @@ class MemoryMappedIOPtr(object):
                     self._set("__last_modified", mod_data)
                 # end if
             else:
-                raise SegmentFault(os.path.basename(self.__filepath))
+                raise SegmentFault(self.__filepath)
             # end if
         elif direction == self.CACHE_OUT:
             self.__filesystem.write_file(self.__filepath, self.__data)

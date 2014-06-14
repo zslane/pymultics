@@ -7,6 +7,14 @@ class sys_(SystemExecutable):
     def __init__(self, system_services):
         super(sys_, self).__init__(self.__class__.__name__, system_services)
         
+        self.__command_exit_code = 0
+        
+    def set_exit_code(self, code):
+        self.__command_exit_code = code
+        
+    def get_exit_code(self, code):
+        code.val = self.__command_exit_code
+        
     def get_userid_long(self, short_name, long_name, code):
         short_person_id, _, short_project_id = short_name.partition(".")
         short_project_id = short_project_id or "*"

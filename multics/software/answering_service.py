@@ -3,7 +3,6 @@ import datetime
 from pprint import pprint
 
 from ..globals import *
-from process_overseer import ProcessOverseer
 
 from PySide import QtCore, QtGui
 
@@ -22,6 +21,7 @@ class AnsweringService(SystemExecutable):
         
         self.supervisor = supervisor
         self.user_control = command_processor
+        from process_overseer import ProcessOverseer
         self.process_overseer = ProcessOverseer(supervisor)
         self.__process = None
         self.__person_name_table = None
@@ -75,45 +75,16 @@ class AnsweringService(SystemExecutable):
             
             #== See if any processes have terminated with LOGOUT or NEW_PROC exit codes
             for process in self.process_overseer.running_processes:
-                # if shutting_down:
-                    # print get_calling_process_().objectName() + " shutting down but waiting for user processes to terminate"
-                
-                user_id = process.uid()
                 if process.exit_code != 0:
-                    self.process_overseer.destroy_process(process)
-                    
                     if process.exit_code == System.LOGOUT:
-                        self.supervisor.llout("%s logged out on %s\n" % (user_id, datetime.datetime.now().ctime()))
-                        print "%s logged out on %s" % (user_id, datetime.datetime.now().ctime())
-                        #== Remove the entry in the whotab corresponding to this user
-                        with self.__whotab:
-                            del self.__whotab.entries[user_id]
-                        # end with
-                        pprint(self.__whotab)
-                        self.supervisor.hardware.io.detach_tty_process(process.id())
+                        self._user_logout(process)
                         
                     elif process.exit_code == System.NEW_PROCESS:
-                        self.supervisor.hardware.io.detach_tty_process(process.id())
-                        person_id, _, project_id = user_id.partition(".")
-                        pdt = self.__project_definition_tables.get(project_id)
-                        process = self._new_process(person_id, pdt)
-                        if process:
-                            print "Starting new process", process.objectName()
-                            process.start()
-                            #== Update the entry in the whotab corresponding to this user
-                            with self.__whotab:
-                                self.__whotab.entries[user_id].process_id = process.id()
-                                self.__whotab.entries[user_id].process_dir = process.dir()
-                            # end with
-                            pprint(self.__whotab)
-                            print "Attaching tty to process", process.id(), process.objectName()
-                            self.supervisor.hardware.io.attach_tty_process(process.id())
-                        else:
-                            self.supervisor.llout("Error creating process!")
-                        # end if
-                    
+                        self._user_new_proc(process)
+                    # end if
                 # end if
             # end for
+            
         # end while
         
         self._cleanup()
@@ -123,26 +94,26 @@ class AnsweringService(SystemExecutable):
     def _default_home_dir(self, person_id, project_id):
         return ">".join([self.supervisor.hardware.filesystem.user_dir_dir, project_id, person_id])
         
-    def _new_process(self, person_id, pdt):
-        login_info.person_id = person_id
-        login_info.project_id = pdt.project_id
+    def _new_process(self, person_id, pdt, login_options={}):
+        # pprint(login_options)
+        login_info.person_id    = person_id
+        login_info.project_id   = pdt.project_id
         login_info.process_type = pit_process_type_interactive
-        login_info.homedir = pdt.users[person_id].home_dir or self._default_home_dir(person_id, pdt.project_id)
-        login_info.cp_path = pdt.users[person_id].cp_path or self.DEFAULT_CP_PATH
+        login_info.homedir      = login_options.get('home_dir') or pdt.users[person_id].home_dir or self._default_home_dir(person_id, pdt.project_id)
+        login_info.cp_path      = pdt.users[person_id].cp_path or self.DEFAULT_CP_PATH
+        login_info.no_start_up  = login_options.get('no_start_up', False)
         from listener import Listener
         return self.process_overseer.create_process(login_info, Listener)
     
     def _user_login(self):
-        user_lookup = self.user_control.login_ui(self.supervisor,
-                                                 self.__person_name_table,
-                                                 self.__project_definition_tables,
-                                                 self.__whotab)
+        login_options = self.user_control.login_ui(self.supervisor,
+                                                   self.__person_name_table,
+                                                   self.__project_definition_tables,
+                                                   self.__whotab)
         
         login_info.time_login = datetime.datetime.now()
         
-        person_id, pdt = user_lookup
-        process = self._new_process(person_id, pdt)
-        
+        process = self._new_process(login_options['person_id'], login_options['pdt'], login_options)
         if process:
             #== Add the user to the whotab
             with self.__whotab:
@@ -154,6 +125,53 @@ class AnsweringService(SystemExecutable):
         
         return process
         
+    def _user_logout(self, process):
+        user_id = process.uid()
+        self.supervisor.hardware.io.detach_tty_process(process.id())
+        self.process_overseer.destroy_process(process)
+        
+        self.supervisor.llout("%s logged out on %s\n" % (user_id, datetime.datetime.now().ctime()))
+        print "%s logged out on %s" % (user_id, datetime.datetime.now().ctime())
+        
+        #== Remove the entry in the whotab corresponding to this user
+        with self.__whotab:
+            del self.__whotab.entries[user_id]
+        # end with
+        pprint(self.__whotab)
+        
+    def _user_new_proc(self, process):
+        user_id = process.uid()
+        pit = process.pit()
+        person_id, _, project_id = user_id.partition(".")
+        pdt = self.__project_definition_tables.get(project_id)
+        login_options = {
+            'person_id': person_id,
+            'project_id': project_id,
+            'pdt': pdt,
+            'home_dir': pit.homedir,
+            'no_start_up': pit.no_start_up,
+        }
+        login_options.update(process.stack.new_proc_options)
+        
+        self.supervisor.hardware.io.detach_tty_process(process.id())
+        self.process_overseer.destroy_process(process)
+        
+        process = self._new_process(person_id, pdt, login_options)
+        if process:
+            print "Starting new process", process.objectName()
+            process.start()
+            #== Update the entry in the whotab corresponding to this user
+            with self.__whotab:
+                self.__whotab.entries[user_id].process_id = process.id()
+                self.__whotab.entries[user_id].process_dir = process.dir()
+            # end with
+            pprint(self.__whotab)
+            print "Attaching tty to process", process.id(), process.objectName()
+            self.supervisor.hardware.io.attach_tty_process(process.id())
+        else:
+            self.supervisor.llout("Error creating process!")
+        # end if
+    
     def _on_condition__break(self):
         pass
         

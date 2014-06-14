@@ -27,28 +27,6 @@ class Listener(SystemExecutable):
         if ready_mode:
             call.ioa_.nnl(self.__command_prompt)
     
-    def _run_start_up_script(self, homedir):
-        declare (code = parm)
-        
-        native_path = self.supervisor.hardware.filesystem.path2path(homedir, "start_up.py")
-        if self.supervisor.hardware.filesystem.file_exists(native_path):
-            print "Running user start_up.py script"
-            execfile(native_path, globals())
-        # end if
-        native_path = self.supervisor.hardware.filesystem.path2path(homedir, "start_up.ec")
-        if self.supervisor.hardware.filesystem.file_exists(native_path):
-            print "Running user start_up.ec script"
-            with open(native_path, "r") as f:
-                for command_line in f:
-                    call.cu_.cp(command_line, code)
-                    if code.val != 0:
-                        return code.val
-                    # end if
-                # end for
-            # end with
-        # end if
-        return 0
-        
     def _main_loop(self):
         declare (command_line = parm,
                  code         = parm)
@@ -57,8 +35,11 @@ class Listener(SystemExecutable):
         
         self._initialize()
         
-        self.exit_code = self._run_start_up_script(self.__homedir)
+        if not self.__process.pit().no_start_up:
+            call.cu_.cp("exec_com start_up new_proc interactive", code)
+        # end if
         
+        self.exit_code = 0
         while self.exit_code == 0:
             try:
                 call.cu_.ready_proc()

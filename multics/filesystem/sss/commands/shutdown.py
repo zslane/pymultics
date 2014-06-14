@@ -2,7 +2,7 @@
 from multics.globals import *
 
 MAIN = "shutdown"
-    
+
 def shutdown():
     declare (shutdown_started_ = entry . returns (bit(1)))
     

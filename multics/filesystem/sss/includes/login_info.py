@@ -14,6 +14,7 @@ class login_info_structure(PL1.Structure):
             homedir      = "",
             time_login   = None,
             cp_path      = "",
+            no_start_up  = False,
         )
     
     @property
