@@ -2,7 +2,7 @@
 from multics.globals import *
 
 @system_privileged
-def pr(*func_args):
+def print_(*func_args):
 
     declare (arg_list = parm,
              directory = parm,
@@ -17,7 +17,7 @@ def pr(*func_args):
         call.cu_.arg_list(arg_list)
     # end if
     if len(arg_list.args) == 0:
-        call.ioa_("Usage: pr [file]")
+        call.ioa_("Usage: print [file]")
         return
         
     filename = arg_list.args.pop(0)

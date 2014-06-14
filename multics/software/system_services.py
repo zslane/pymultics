@@ -600,6 +600,11 @@ class DynamicLinker(QtCore.QObject):
     def snap(self, segment_name, known_location=None):
         declare (get_wdir_ = entry . returns (char(168)))
         
+        #== Special case segment names: 'print',
+        if segment_name == "print":
+            segment_name = "print_"
+        # end if
+        
         try:
             entry_point = self._find_segment(segment_name)
             return entry_point

@@ -130,7 +130,7 @@ class GlobalEnvironment(object):
         global call
         call = dynamic_linker
 
-def check_conditions(ignore_break_signal=False):
+def check_conditions_(ignore_break_signal=False):
     if GlobalEnvironment.supervisor.hardware.io.terminal_closed():
         raise DisconnectCondition
     # end if

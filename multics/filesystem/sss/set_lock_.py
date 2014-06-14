@@ -114,7 +114,7 @@ class FileLock(object):
                     (time.clock() - start_time) >= self.timeout):
                     raise FileLockException(error_table_.lock_wait_time_exceeded)
                 else:
-                    check_conditions()
+                    check_conditions_()
                     
                 time.sleep(self.delay)
                 
