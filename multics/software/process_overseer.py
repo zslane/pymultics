@@ -88,16 +88,16 @@ class ProcessOverseer(object):
         # end if
         pds = segment.ptr
         
-        #== Create the process message segment (Person_Id.mbx)
-        call.hcs_.initiate(process_dir.val, login_info.person_id + ".mbx", segment, code)
+        #== Create the process message segment (process.ms)
+        call.hcs_.initiate(process_dir.val, "process.ms", segment, code)
         if segment.ptr == null():
-            call.hcs_.make_seg(process_dir.val, login_info.person_id + ".mbx", segment(ProcessMbx()), code)
+            call.hcs_.make_seg(process_dir.val, "process.ms", segment(ProcessMsg()), code)
             if code.val != 0:
                 self._print_error_message("Failed to create process message segment.")
                 return null() #ystem.LOGOUT
             # end if
         # end if
-        mbx = segment.ptr
+        msg = segment.ptr
         
         #== Create the core function object
         core_function = CoreFunction(self.supervisor, command_processor.ptr)
@@ -108,7 +108,7 @@ class ProcessOverseer(object):
         process_env.process_dir = process_dir.val
         process_env.pit = pit
         process_env.pds = pds
-        process_env.mbx = mbx
+        process_env.msg = msg
         process_env.core_function = core_function
         
         #== Create a Process object
@@ -133,10 +133,10 @@ class ProcessOverseer(object):
         
         if not keep_process_data:
             try:
-                call.set_lock_.lock(process.mbx(), 5, code)
-                call.hcs_.delentry_seg(process.mbx(), code)
+                call.set_lock_.lock(process.msg(), 5, code)
+                call.hcs_.delentry_seg(process.msg(), code)
             finally:
-                call.set_lock_.unlock(process.mbx(), code)
+                call.set_lock_.unlock(process.msg(), code)
             # end try
                 
             call.hcs_.delete_branch_(process.dir(), code)
@@ -178,7 +178,7 @@ class ProcessStack(object):
             setattr(self, attrname, attrtype())
         return getattr(self, attrname)
 
-class ProcessMbx(object):
+class ProcessMsg(object):
 
     def __init__(self):
         self.messages = []

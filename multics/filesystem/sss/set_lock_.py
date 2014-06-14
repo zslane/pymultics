@@ -38,6 +38,8 @@ class set_lock_(SystemExecutable):
             else:
                 file_locks[lock_id] = file_lock
             # end if
+        except MulticsCondition:
+            raise
         except FileLockException as e:
             code.val = e.code
         
@@ -89,6 +91,7 @@ class FileLock(object):
             exceeds self.timeout number of seconds, in which case it throws 
             an exception.
         """
+        FOREVER = -1
         code = 0
         start_time = time.clock()
         while True:
@@ -107,8 +110,11 @@ class FileLock(object):
                 # elif self.invalid_lock_id2():
                     # code = error_table_.invalid_lock_reset
                     
-                if (time.clock() - start_time) >= self.timeout:
+                if (self.timeout != FOREVER and
+                    (time.clock() - start_time) >= self.timeout):
                     raise FileLockException(error_table_.lock_wait_time_exceeded)
+                else:
+                    check_conditions()
                     
                 time.sleep(self.delay)
                 

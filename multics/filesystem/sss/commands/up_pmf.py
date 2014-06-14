@@ -1,11 +1,7 @@
-import os
-import re
-import shutil
-from pprint import pprint
 
 from multics.globals import *
 
-include.pdt
+# include.pdt
 
 @system_privileged
 def up_pmf():
@@ -22,25 +18,28 @@ def up_pmf():
     if len(arg_list.args) != 1:
         call.ioa_("Usage: up_pmf [project_id]")
         return
-        
+    # end if
+    
     project_id = arg_list.args.pop()
     pdt_file = project_id + ".pdt"
     
-    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, pdt_file, pdt, code)
+    call.hcs_.initiate(system.fs.system_control_dir, pdt_file, pdt, code)
     call.user_info_.whoami(person, project, acct)
     if not ((pdt.ptr and person.id in pdt.ptr.admins) or (project.id == "SysAdmin")):
         call.ioa_("You are not authorized to upload {0}", pdt_file)
         return
+    # end if
     
     src_dir = get_wdir_()
-    dst_dir = system.hardware.filesystem.system_control_dir
-    src_pdt_path = system.hardware.filesystem.path2path(src_dir, pdt_file)
-    dst_pdt_path = system.hardware.filesystem.path2path(dst_dir, pdt_file)
     
-    if not os.path.exists(src_pdt_path):
+    if not system.fs.file_exists(system.fs.path2path(src_dir, pdt_file)):
         call.ioa_("File not found {0}", pdt_file)
         return
-        
-    shutil.move(src_pdt_path, dst_pdt_path)
+    # end if
     
-    call.ioa_("{0} uploaded", pdt_file)
+    msg = ProcessMessage("upload_pmf_request", **{'src_dir':src_dir, 'src_file':pdt_file})
+    call.sys_.add_process_msg("Initializer.SysDaemon", msg, code)
+    if code.val != 0:
+        call.ioa_("Upload failed. {0}", code.val)
+    else:
+        call.ioa_("{0} uploaded", pdt_file)

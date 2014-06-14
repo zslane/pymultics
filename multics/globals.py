@@ -130,25 +130,30 @@ class GlobalEnvironment(object):
         global call
         call = dynamic_linker
 
-def loop_do():
+def check_conditions(ignore_break_signal=False):
     if GlobalEnvironment.supervisor.hardware.io.terminal_closed():
         raise DisconnectCondition
     # end if
-    if GlobalEnvironment.supervisor.hardware.io.break_received():
+    if (not ignore_break_signal and
+        GlobalEnvironment.supervisor.hardware.io.break_received()):
         raise BreakCondition
     # end if
     if GlobalEnvironment.supervisor.shutting_down():
         raise ShutdownCondition
     # end if
 
+    QtCore.QCoreApplication.processEvents()
+    
 @contextlib.contextmanager
-def do_loop(container):
+def do_loop(container, ignore_break_signal=False):
     # container.exit_code = 0
     try:
         if GlobalEnvironment.supervisor.hardware.io.terminal_closed():
             container.exit_code = System.LOGOUT
         # end if
-        if GlobalEnvironment.supervisor.hardware.io.break_received():
+        if (not ignore_break_signal and
+            GlobalEnvironment.supervisor.hardware.io.break_received()):
+            print "Break signal detected by", container
             call.hcs_.signal_break()
         # end if
         if GlobalEnvironment.supervisor.shutting_down():
@@ -377,12 +382,12 @@ class Includer(object):
         
 include = Includer()
 
-class ProcessMbxMessage(dict):
+class ProcessMessage(dict):
     def __init__(self, msgtype, **fields):
         # msg_data = {
             # 'type': msgtype,
             # 'time': datetime.datetime.now(),
         # }
-        super(ProcessMbxMessage, self).__init__(fields)
+        super(ProcessMessage, self).__init__(fields)
         self['type'] = msgtype
         self['time'] = datetime.datetime.now()

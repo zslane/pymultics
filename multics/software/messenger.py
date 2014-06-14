@@ -8,7 +8,6 @@ class Messenger(SystemExecutable):
         
         self.supervisor = supervisor
         self.__process = None
-        self.__mbx = None
         self.exit_code = 0
         
     def start(self, owning_process):
@@ -22,10 +21,9 @@ class Messenger(SystemExecutable):
         self._initialize()
         
         while self.exit_code == 0:
-            with do_loop(self):
-                pass
+            with do_loop(self, ignore_break_signal=True):
+                QtCore.QThread.msleep(200)
             # end with
-            QtCore.QThread.msleep(200)
         # end while
         
         # do any cleanup necessary at the core function level
@@ -37,51 +35,28 @@ class Messenger(SystemExecutable):
         pass
         
     def _initialize(self):
-        self.__mbx = self.__process.mbx()
-        mbx_handlers = {
+        msg_handlers = {
             'interactive_message': self._interactive_message_handler,
             'shutdown_announcement': self._interactive_message_handler,
-            # 'shutdown': self._interactive_message_handler,
+            'shutdown': self._interactive_message_handler,
         }
-        self.__process.register_mbx_handlers(mbx_handlers)
+        self.__process.register_msg_handlers(msg_handlers)
         
     def _cleanup(self):
         pass
         
-    def _interactive_message_handler(self, mbx_message):
+    def _interactive_message_handler(self, message):
         declare (users = parm)
         
-        print self.__process.objectName(), "handling message", mbx_message
+        print self.__process.objectName(), "handling message", message
         
-        call.sys_.get_users(users, mbx_message['to'])
+        call.sys_.get_users(users, message['to'])
         for user_id in users.list:
-            self._deliver_interactive_message(user_id, mbx_message)
+            self._deliver_interactive_message(user_id, message)
+    
+    def _deliver_interactive_message(self, recipient, message):
+        declare (code = parm)
+        print self.__process.uid(), "delivering interactive message to", recipient
+        message['to'] = recipient
+        call.sys_.add_process_msg(recipient, message, code)
         
-    def _deliver_interactive_message(self, recipient, mbx_message):
-        declare (mbx_segment = parm,
-                 code        = parm)
-                 
-        mbx_message['to'] = recipient
-        
-        try:
-            call.sys_.lock_process_mbx_(recipient, mbx_segment, code)
-            if code.val != 0:
-                print "Could not lock %s" % mbx_segment.ptr.filepath
-                print "  code =", code.val
-                return
-            # end if
-            
-            print self.__process.uid(), "delivering interactive message to", recipient
-            
-            process_mbx = mbx_segment.ptr
-            with process_mbx:
-                process_mbx.messages.append(mbx_message)
-            # end with
-            
-        finally:
-            call.sys_.unlock_process_mbx_(mbx_segment.ptr, code)
-            if code.val != 0:
-                print "Could not unlock %s" % mbx_segment.ptr.filepath
-                print "  code =", code.val
-            # end if
-            

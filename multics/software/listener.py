@@ -98,17 +98,17 @@ class Listener(SystemExecutable):
         call.cu_.set_ready_mode(True)
         self.__homedir = homedir.val
         
-        mbx_handlers = {
-            'interactive_message': self._interactive_message_handler,
+        msg_handlers = {
+            'interactive_message':   self._interactive_message_handler,
             'shutdown_announcement': self._interactive_message_handler,
-            # 'shutdown':            self._shutdown_handler,
+            'shutdown':              self._shutdown_handler,
         }
-        self.__process.register_mbx_handlers(mbx_handlers)
+        self.__process.register_msg_handlers(msg_handlers)
         
-    def _interactive_message_handler(self, mbx_message):
-        call.sys_.recv_message_(mbx_message)
+    def _interactive_message_handler(self, message):
+        call.sys_.recv_message_(message)
     
-    def _shutdown_handler(self, mbx_message):
+    def _shutdown_handler(self, message):
         print get_calling_process_().objectName() + " invoking _shutdown_handler"
         self.exit_code = System.LOGOUT
     

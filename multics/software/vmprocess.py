@@ -16,7 +16,7 @@ class ProcessWorker(QtCore.QObject):
         self.__process_env = process_env
         self.__known_segment_table = {}
         self.__timerid = 0
-        self.__registered_mbx_handlers = {}
+        self.__registered_msg_handlers = {}
         self.exit_code = 0
         
         self.setObjectName(self.uid() + ".Worker")
@@ -56,8 +56,8 @@ class ProcessWorker(QtCore.QObject):
     def pit(self):
         return self.__process_env.pit
         
-    def mbx(self):
-        return self.__process_env.mbx
+    def msg(self):
+        return self.__process_env.msg
         
     def uid(self):
         return "%s.%s" % (self.__process_env.pit.login_name, self.__process_env.pit.project)
@@ -83,45 +83,45 @@ class ProcessWorker(QtCore.QObject):
         # print QtCore.QThread.currentThread().objectName(), "timerEvent!"
         self._process_timers()
     
-    def register_mbx_handlers(self, handler_table):
-        self.__registered_mbx_handlers.update(handler_table)
+    def register_msg_handlers(self, handler_table):
+        self.__registered_msg_handlers.update(handler_table)
     
     @QtCore.Slot()
-    def _process_mbx(self):
+    def _process_messages(self):
         declare (code = parm)
         next_message = ""
-        # print QtCore.QThread.currentThread().objectName(), "executing _process_mbx()"
+        # print QtCore.QThread.currentThread().objectName(), "executing _process_messages()"
         
-        if self.__process_env.mbx.messages:
-            call.timer_manager_.reset_alarm_call(self._process_mbx)
+        if self.__process_env.msg.messages:
+            call.timer_manager_.reset_alarm_call(self._process_messages)
             
-            #== Process mbx messages one per timer trigger ==#
+            #== Process msg messages one per timer trigger ==#
             try:
-                # print self.objectName()+"._process_mbx calling set_lock_.lock"
-                call.set_lock_.lock(self.__process_env.mbx, 3, code)
+                # print self.objectName()+"._process_messages calling set_lock_.lock"
+                call.set_lock_.lock(self.__process_env.msg, 3, code)
                 if code.val != 0:
-                    print "Could not lock %s" % self.__process_env.mbx.filepath
+                    print "Could not lock %s" % self.__process_env.msg.filepath
                     return
                 # end if
                 
-                with self.__process_env.mbx:
-                    next_message = self.__process_env.mbx.messages.pop(0)
+                with self.__process_env.msg:
+                    next_message = self.__process_env.msg.messages.pop(0)
                 # end with
                 
             finally:
-                # print self.objectName()+"._process_mbx calling set_lock_.unlock"
-                call.set_lock_.unlock(self.__process_env.mbx, code)
+                # print self.objectName()+"._process_messages calling set_lock_.unlock"
+                call.set_lock_.unlock(self.__process_env.msg, code)
                 if code.val != 0:
-                    print "Could not unlock %s" % self.__process_env.mbx.filepath
+                    print "Could not unlock %s" % self.__process_env.msg.filepath
                     return
                 # end if
             # end try
             
             if next_message:
-                self._dispatch_mbx_message(next_message)
+                self._dispatch_msg_message(next_message)
             # end if
             
-            call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_mbx)
+            call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
     
     def _main_loop(self):
         self.supervisor.llout("New process for %s started on %s\n" % (self.uid(), datetime.datetime.now().ctime()))
@@ -135,10 +135,10 @@ class ProcessWorker(QtCore.QObject):
         #== Create the internal process heartbeat timer. It processes the high-level
         #== 'process timers', created with timer_manager_.
         HEARTBEAT_PERIOD = 250
-        self.timerid = self.startTimer(HEARTBEAT_PERIOD)
+        self.__timerid = self.startTimer(HEARTBEAT_PERIOD)
         
         #== Start the event MBX process timer
-        call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_mbx)
+        call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
     
     def _process_timers(self):
         for routine_key in self.stack.process_timers.keys():
@@ -150,17 +150,17 @@ class ProcessWorker(QtCore.QObject):
         
     def _cleanup(self):
         #== Kill the MBX process timer
-        call.timer_manager_.reset_alarm_call(self._process_mbx)
+        call.timer_manager_.reset_alarm_call(self._process_messages)
         # if self.__timerid:
             # self.killTimer(self.__timerid)
             # self.__timerid = 0
         print QtCore.QThread.currentThread().objectName() + " process terminating"
         
-    def _dispatch_mbx_message(self, mbx_message):
-        print "(%s)" % (get_calling_process_().objectName()), self.objectName(), "process message found", mbx_message
-        handler = self.__registered_mbx_handlers.get(mbx_message['type'])
+    def _dispatch_msg_message(self, msg_message):
+        print "(%s)" % (get_calling_process_().objectName()), self.objectName(), "process message found", msg_message
+        handler = self.__registered_msg_handlers.get(msg_message['type'])
         if handler:
-            handler(mbx_message)
+            handler(msg_message)
     
 #-- end class ProcessWorker
 
@@ -204,8 +204,8 @@ class ProcessThread(QtCore.QThread):
     def pit(self):
         return self.worker.pit()
         
-    def mbx(self):
-        return self.worker.mbx()
+    def msg(self):
+        return self.worker.msg()
         
     def uid(self):
         return self.worker.uid()
@@ -286,8 +286,8 @@ class VirtualMulticsProcess(QtCore.QObject):
     def pit(self):
         return self.worker.pit()
         
-    def mbx(self):
-        return self.worker.mbx()
+    def msg(self):
+        return self.worker.msg()
         
     def uid(self):
         return self.worker.uid()

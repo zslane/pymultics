@@ -42,18 +42,24 @@ class user_control(CommandProcessor):
         while not user_lookup:
             command_line = ""
             while command_line == "":
-                command_line = self.supervisor.llin(block=True)
-                self.supervisor.llout(command_line + "\n")
-                if command_line:
-                    call.cu_.set_command_string_(command_line)
-                    call.cu_.get_command_name(command_name, code)
-                    if command_name.val== "login" or command_name.val == "l":
-                        user_lookup = self.login_command()
-                    elif command_name.val == "help" or command_name.val == "?":
-                        call.ioa_("Available commands:\n  login,l [person_id] {{project_id}} {{-change_password|-cp}}\n  help,?")
-                        command_line = ""
+                try:
+                    command_line = self.supervisor.llin(block=True)
+                    self.supervisor.llout(command_line + "\n")
+                    if command_line:
+                        call.cu_.set_command_string_(command_line)
+                        call.cu_.get_command_name(command_name, code)
+                        if command_name.val== "login" or command_name.val == "l":
+                            user_lookup = self.login_command()
+                        elif command_name.val == "help" or command_name.val == "?":
+                            call.ioa_("Available commands:\n  login,l [person_id] {{project_id}} {{-change_password|-cp}}\n  help,?")
+                            command_line = ""
+                        # end if
                     # end if
-                # end if
+                except BreakCondition:
+                    self.supervisor.set_input_mode(QtGui.QLineEdit.Normal)
+                    self.display_login_banner()
+                    command_line = ""
+                # end try
             # end while
         # end while
         return user_lookup
@@ -91,16 +97,18 @@ class user_control(CommandProcessor):
         # end while
         
         self.supervisor.set_input_mode(QtGui.QLineEdit.Password)
+        
         self.supervisor.llout("password:\n")
         password = self.supervisor.llin(block=True)
-        self.supervisor.set_input_mode(QtGui.QLineEdit.Normal)
-        
+            
         user_lookup = self._authenticate(login_name, project, password)
         
         if user_lookup and change_password:
             person_id, _ = user_lookup
             self._change_user_password(person_id)
         # end if
+        
+        self.supervisor.set_input_mode(QtGui.QLineEdit.Normal)
         
         return user_lookup
         
@@ -134,8 +142,6 @@ class user_control(CommandProcessor):
         new_password = self.supervisor.llin(block=True)
         self.supervisor.llout("new password again:\n")
         confirm_password = self.supervisor.llin(block=True)
-        
-        self.supervisor.set_input_mode(QtGui.QLineEdit.Normal)
         
         if new_password == confirm_password:
             current = self.__person_name_table.name_entries[person_id]

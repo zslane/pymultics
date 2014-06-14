@@ -111,7 +111,33 @@ class sys_(SystemExecutable):
         else:
             directory.name = None
     
-    def lock_process_mbx_(self, user_id, process_mbx_segment, code):
+    def add_process_msg(self, user_id, message, code):
+        declare (segment = parm)
+        try:
+            call.sys_.lock_process_ms_(user_id, segment, code)
+            if code.val != 0:
+                print "sys_.add_process_msg: Could not lock %s process.ms"
+                print code.val
+                return
+            # end if
+            
+            msg_segment = segment.ptr
+            with msg_segment:
+                msg_segment.messages.append(message)
+            # end with
+        
+        except:
+            call.dump_traceback_()
+            
+        finally:
+            call.sys_.unlock_process_ms_(segment.ptr, code)
+            if code.val != 0:
+                print "sys_.add_process_msg: Could not unlock %s process.ms"
+                print code.val
+            # end if
+        # end try
+    
+    def lock_process_ms_(self, user_id, process_msg_segment, code):
         declare (daemon = parm)
         try:
             if user_id.endswith("SysDaemon"):
@@ -127,14 +153,38 @@ class sys_(SystemExecutable):
         # end try
         
         person_id, _, _ = user_id.partition(".")
-        call.hcs_.initiate(process_dir, person_id + ".mbx", process_mbx_segment, code)
-        if process_mbx_segment.ptr != null():
-            call.set_lock_.lock(process_mbx_segment.ptr, 5, code)
+        call.hcs_.initiate(process_dir, "process.ms", process_msg_segment, code)
+        if process_msg_segment.ptr != null():
+            call.set_lock_.lock(process_msg_segment.ptr, 5, code)
         else:
             code.val = error_table_.lock_not_locked
             
-    def unlock_process_mbx_(self, process_mbx_segment, code):
-        call.set_lock_.unlock(process_mbx_segment, code)
+    def unlock_process_ms_(self, process_msg_segment, code):
+        call.set_lock_.unlock(process_msg_segment, code)
+    
+    def lock_user_mbx_(self, user_id, mailbox_segment, code):
+        declare (pit = parm)
+        try:
+            whotab_entry = self.system.whotab.entries[user_id]
+            call.hcs_.initiate(whotab_entry.process_dir, "pit", pit, code)
+            if code.val != 0:
+                return
+            # end if
+            homedir = pit.data.homedir
+        except:
+            code.val = error_table_.no_such_user
+            return
+        # end try
+        
+        person_id, _, _ = user_id.partition(".")
+        call.hcs_.initiate(homedir, person_id + ".mbx", mailbox_segment, code)
+        if mailbox_segment.ptr != null():
+            call.set_lock_.lock(mailbox_segment.ptr, 5, code)
+        else:
+            code.val = error_table_.lock_not_locked
+            
+    def unlock_user_mbx_(self, mailbox_segment, code):
+        call.set_lock_.unlock(mailbox_segment, code)
     
     def accept_messages_(self, flag):
         process = get_calling_process_()
@@ -145,6 +195,9 @@ class sys_(SystemExecutable):
         process.stack.assert_create("accepting_messages", bool)
         if process.stack.accepting_messages or message_packet['type'] == "shutdown_announcement":
             call.ioa_("Message from {0} on {1}: {2}", message_packet['from'], message_packet['time'].ctime(), message_packet['text'])
+        else:
+            # STORE IN MAILBOX SOME DAY
+            pass
             
     def signal_shutdown(self):
         self.system.shutdown()

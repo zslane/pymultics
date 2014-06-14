@@ -1,4 +1,4 @@
-import rsa
+import shutil
 import datetime
 from pprint import pprint
 
@@ -45,25 +45,25 @@ class AnsweringService(SystemExecutable):
                 #== See if any terminals are trying to log in
                 if (not self.supervisor.hardware.io.attached_tty_process() and
                     self.supervisor.hardware.io.linefeed_received()):
-                        self.supervisor.hardware.io.flush_input()
-                        process = self._user_login()
-                        if process:
-                            print "Attaching tty to process", process.id(), process.objectName()
-                            self.supervisor.hardware.io.attach_tty_process(process.id())
-                            print "Starting process", process.objectName()
-                            process.start()
-                        # end if
+                    self.supervisor.hardware.io.flush_input()
+                    process = self._user_login()
+                    if process:
+                        print "Attaching tty to process", process.id(), process.objectName()
+                        self.supervisor.hardware.io.attach_tty_process(process.id())
+                        print "Starting process", process.objectName()
+                        process.start()
+                    # end if
                     
-                elif self.supervisor.hardware.io.terminal_closed():
-                    shutting_down = True
+                # elif self.supervisor.hardware.io.terminal_closed():
+                    # shutting_down = True
                     
-                elif self.supervisor.shutting_down():
-                    shutting_down = True
+                # elif self.supervisor.shutting_down():
+                    # shutting_down = True
+                    
+                else:
+                    # QtCore.QCoreApplication.processEvents()
+                    check_conditions(ignore_break_signal=True)
                 # end if
-            
-            except BreakCondition:
-                self.__system_services.set_input_mode(QtGui.QLineEdit.Normal)
-                call.hcs_.signal_break()
             
             except DisconnectCondition:
                 shutting_down = True
@@ -116,10 +116,7 @@ class AnsweringService(SystemExecutable):
             # end for
         # end while
         
-        # do any cleanup necessary at the CommandShell level
         self._cleanup()
-        
-        # self.supervisor.shutdown()
         
         return 0
         
@@ -164,7 +161,38 @@ class AnsweringService(SystemExecutable):
         self.__person_name_table = self.supervisor.pnt
         self.__project_definition_tables = self.supervisor.pdt
         self.__whotab = self.supervisor.whotab
+        msg_handlers = {
+            'upload_pmf_request': self._upload_pmf_request_handler,
+        }
+        self.__process.register_msg_handlers(msg_handlers)
         
     def _cleanup(self):
         pass
         
+    def _upload_pmf_request_handler(self, message):
+        declare (pdt  = parm,
+                 code = parm)
+                 
+        pdt_file = message['src_file']
+        src_dir = message['src_dir']
+        dst_dir = self.supervisor.fs.system_control_dir
+        src_pdt_path = system.fs.path2path(src_dir, pdt_file)
+        dst_pdt_path = system.fs.path2path(dst_dir, pdt_file)
+        shutil.move(src_pdt_path, dst_pdt_path)
+        
+        #== Create user home directories if necessary
+        call.hcs_.initiate(dst_dir, pdt_file, pdt, code)
+        if pdt.ptr != null():
+            for user_config in pdt.ptr.users.values():
+                homedir = user_config.home_dir or self._default_home_dir(user_config.person_id, pdt.ptr.project_id)
+                if not self.supervisor.fs.file_exists(homedir):
+                    self._create_new_home_dir(user_config.person_id, pdt.ptr.project_id, homedir)
+                    
+    def _create_new_home_dir(self, person_id, project_id, homedir):
+        declare (segment = parm,
+                 code    = parm)
+        
+        code.val = self.supervisor.fs.mkdir(homedir)
+        if code.val == 0:
+            call.hcs_.make_seg(homedir, person_id + ".mbx", segment(dict), code)
+            

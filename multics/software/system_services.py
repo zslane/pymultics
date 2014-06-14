@@ -106,7 +106,8 @@ class SystemServices(QtCore.QObject):
     
     def _on_condition__break(self):
         # do cleanup ... like clearing application timers and stuff
-        self.__session_thread._on_condition__break()
+        # self.__session_thread._on_condition__break()
+        pass
         
     #== STARTUP/SHUTDOWN ==#
     
@@ -148,8 +149,7 @@ class SystemServices(QtCore.QObject):
             self._send_shutdown_message("shutdown_announcement", CANCELLED)
     
     def _send_shutdown_message(self, msgtype, how_long=-1):
-        declare (mbx_segment = parm,
-                 code        = parm)
+        declare (code    = parm)
         
         announcement = ""
         if msgtype == "shutdown_announcement":
@@ -166,30 +166,10 @@ class SystemServices(QtCore.QObject):
             # end if
         # end if
         
-        msg = ProcessMbxMessage(msgtype, **{'from':"Multics.Supervisor", 'to':"*.*", 'text':announcement})
-        
         from multics.globals import call
         
-        try:
-            call.sys_.lock_process_mbx_("Messenger.SysDaemon", mbx_segment, code)
-            if code.val != 0:
-                return
-            # end if
-            
-            message_mbx = mbx_segment.ptr
-            with message_mbx:
-                message_mbx.messages.append(msg)
-            # end with
-            
-        except:
-            call.dump_traceback_()
-            
-        finally:
-            call.sys_.unlock_process_mbx_(mbx_segment.ptr, code)
-            if code.val != 0:
-                return
-            # end if
-        # end try
+        msg = ProcessMessage(msgtype, **{'from':"Multics.Supervisor", 'to':"*.*", 'text':announcement})
+        call.sys_.add_process_msg("Messenger.SysDaemon", msg, code)
     
     def _shutdown_task(self):
         self.__system_timers[self._shutdown_task].stop()
@@ -214,8 +194,8 @@ class SystemServices(QtCore.QObject):
             self.__system_timers[self._shutdown_task].start(next_time)
             
         elif self.__shutdown_time_left == 0:
-            # declare (flags = bit(2) . init("0b11"))
-            # self._send_shutdown_message("shutdown")
+            declare (flags = bit(2) . init("0b11"))
+            self._send_shutdown_message("shutdown") # <-- this is how we force shutdown logout for other logged in users
             self.shutdown()
         
     #== LOW-LEVEL I/O ==#
@@ -232,6 +212,7 @@ class SystemServices(QtCore.QObject):
                 raise DisconnectCondition
             # end if
             if self.__hardware.io.break_received():
+                print "Break signal detected by " + get_calling_process_().objectName()
                 raise BreakCondition
             # end if
             if self.shutting_down():
@@ -248,6 +229,7 @@ class SystemServices(QtCore.QObject):
             raise DisconnectCondition
         # end if
         if self.__hardware.io.break_received():
+            print "Break signal detected by " + get_calling_process_().objectName()
             raise BreakCondition
         # end if
         if self.shutting_down():

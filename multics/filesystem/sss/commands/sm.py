@@ -9,52 +9,27 @@ def sm():
              code      = parm)
              
     def send_msg(recipient, message, code):
-        declare (mbx_segment = parm,
-                 users       = parm,
-                 messenger   = parm,
-                 long_name   = parm,
-                 person      = parm,
-                 project     = parm,
-                 acct        = parm)
+    
+        declare (users     = parm,
+                 long_name = parm,
+                 person    = parm,
+                 project   = parm,
+                 acct      = parm)
         
         call.sys_.get_userid_long(recipient, long_name, code)
         if code.val != 0:
             return
         # end if
-        recipient = long_name.val
         
-        call.sys_.get_users(users, recipient)
+        call.sys_.get_users(users, long_name.val)
         print "Users matching recipient:", users.list
         
         call.user_info_.whoami(person, project, acct)
         sender = person.id + "." + project.id
-        
-        msg = ProcessMbxMessage("interactive_message", **{'from':sender, 'to':recipient, 'text':message})
-        
-        try:
-            # print get_calling_process_().objectName()+" inside send_msg()"
-            call.sys_.lock_process_mbx_("Messenger.SysDaemon", mbx_segment, code)
-            if code.val != 0:
-                print "send_msg: Could not lock Messenger.mbx"
-                print code.val
-                return
-            # end if
-            
-            message_mbx = mbx_segment.ptr
-            with message_mbx:
-                message_mbx.messages.append(msg)
-            # end with
-        
-        except:
-            call.dump_traceback_()
-        finally:
-            # print get_calling_process_().objectName()+" inside send_msg()"
-            call.sys_.unlock_process_mbx_(mbx_segment.ptr, code)
-            if code.val != 0:
-                print "send_msg: Could not unlock Messenger.mbx"
-                print code.val
-            # end if
-        # end try
+        msg = ProcessMessage("interactive_message", **{'from':sender, 'to':long_name.val, 'text':message})
+        call.sys_.add_process_msg("Messenger.SysDaemon", msg, code)
+        if code.val != 0:
+            call.ioa_("Could not send message to {0}", recipient)
         
     #-- end def send_msg
     
