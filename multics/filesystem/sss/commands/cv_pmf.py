@@ -1,5 +1,3 @@
-import os
-import re
 import cPickle as pickle
 from pprint import pprint
 
@@ -35,8 +33,9 @@ def cv_pmf():
         return
     # end if
     
+    pmf_data = None
     with open(pmf_path, "r") as f:
-        pmf_data = load_pmf(f)
+        pmf_data = load_pmf2(f)
     # end with
     pprint(pmf_data)
     
@@ -52,14 +51,24 @@ def cv_pmf():
     
     call.ioa_("{0} written", pdt_file)
     
+def load_pmf2(f):
+    return eval(f.read())
+    
 def load_pmf(f):
+    import re
     alias = ""
     admin_list = []
     users_list = []
     reading_users = False
     
     for line in f:
-        line = line.strip()
+        pos = command_string.find("#")
+        if pos != -1:
+            return command_string[:pos].strip()
+        else:
+            line = line.strip()
+        # end if
+        
         if line == "":
             continue
             
@@ -90,7 +99,7 @@ def load_pmf(f):
                 users_list.append(d)
                 continue
                 
-        raise Exception("Syntax error in PMF file:\n{0}".format(line))
+        raise SyntaxError("Syntax error in PMF file:\n{0}".format(line))
             
     return {'alias': alias, 'admin': admin_list, 'users': users_list }
     
