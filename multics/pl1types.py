@@ -150,9 +150,12 @@ class PL1(object):
     class Structure(object):
         def __init__(self, **attrs):
             def toPythonList(x): return [ toType(elem) for elem in x ]
+            def toArray(x): return PL1.Array([ toType(elem) for elem in x ], x.array_type)
             def toType(x):
                 if type(x) is PL1.Type:
                     return x.toPython()
+                elif type(x) is PL1.Array:
+                    return toArray(x)
                 elif type(x) is list:
                     return toPythonList(x)
                 else:
@@ -201,25 +204,38 @@ class PL1(object):
             for member_name, value in members.items():
                 setattr(self, member_name, PL1.EnumValue(enum_name, member_name, value))
     
-    # class Array(object):
-        # def __init__(self, *sizes):
-            # self.dimensions = list(sizes)
+    class Array(list):
+        class Expander(object):
+            def __init__(self, array):
+                self.array = array
+                self.size = len(array)
+            def __iadd__(self, value):
+                self.size += value
+                self.array._expand(value)
+                return self
+            def __int__(self):
+                return self.size
+            def __long__(self):
+                return self.size
             
-        # def __call__(self, dcl_type):
-            # return self._make_nested_arrays(self.dimensions, dcl_type)
+        def __init__(self, array, dcl_type):
+            super(PL1.Array, self).__init__()
+            self.extend(array)
+            self.array_type = dcl_type
+            self.size = PL1.Array.Expander(self)
             
-        # def _make_nested_arrays(self, dimensions, dcl_type):
-            # size, dimensions = dimensions[0], dimensions[1:]
-            # a = []
-            # for i in range(size):
-                # if dimensions:
-                    # a.append(self._make_nested_arrays(dimensions, dcl_type))
-                # else:
-                    # a.append(dcl_type.copy())
-                # # end if
-            # # end for
-            # return a
-    
+        def expand(self, num_elements):
+            self.size += num_elements
+            
+        def _expand(self, num_elements):
+            for i in range(num_elements):
+                if type(self.array_type) is PL1.Structure:
+                    self.append(self.array_type.copy())
+                elif type(self.array_type) is PL1.Type:
+                    self.append(self.array_type.toPython())
+                else:
+                    self.append(self.array_type())
+                
 #-- end class PL1
 
 class Dim(object):
@@ -231,6 +247,7 @@ class Dim(object):
         
     def _make_nested_arrays(self, dimensions, dcl_type):
         size, dimensions = dimensions[0], dimensions[1:]
+        if size == "*": size = 0
         a = []
         for i in range(size):
             if dimensions:
@@ -239,7 +256,8 @@ class Dim(object):
                 a.append(dcl_type.copy())
             # end if
         # end for
-        return a
+        # return a
+        return PL1.Array(a, dcl_type)
 
 class bitstring(object):
 

@@ -37,6 +37,8 @@ declare (clock_          = entry . returns (fixed.bin(32)),
          pr              = entry . options (variable),
          do              = entry . options (variable))
 
+include.sl_info
+
 def mycommand():
     declare (args       = parm,
              segment    = parm,
@@ -44,10 +46,15 @@ def mycommand():
              test_      = entry,
              local_var  = fixed.decimal(12, 6) . init ([0, 2, 3.1415]), # <-- pythonic but not PL1-ish...use Dim() instead
              my_table   = Dim(3, 4) (fixed.decimal(6, 4) . init (3.1415)),
+             dyn_array  = Dim('*') (fixed.decimal(4, 2)),
              test0_bits = bit('*') . init ("0b100110101"),
              test1_bits = bit(6) . init ("0b110101"),
              test2_bits = bit(6) . init ("0b011001"))
     
+    dyn_array.size += 5
+    call.ioa_("dyn_array: {0}", dyn_array)
+    sl_info.paths.size += 4
+    call.ioa_("sl_info: {0}", sl_info)
     call.cu_.arg_list(args)
     call.ioa_("arg_list: {0}", args.list)
     call.test_()
