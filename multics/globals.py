@@ -60,6 +60,10 @@ error_table_ = PL1.Enum("error_table_",
     noarg = -13,
     no_directory_entry = -14, # non-existant file or directory
     no_command_name_available = -15,
+    no_search_list = -16,
+    new_search_list = -17,
+    action_not_performed = -18,
+    noentry = -19,
 )
 
 class Executable(QtCore.QObject):

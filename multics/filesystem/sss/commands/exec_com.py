@@ -6,6 +6,9 @@ def exec_com():
     declare (get_wdir_ = entry . returns (char(168)))
     
     declare (arg_list  = parm,
+             person    = parm,
+             project   = parm,
+             acct      = parm,
              homedir   = parm,
              full_path = parm,
              code      = parm)
@@ -21,26 +24,41 @@ def exec_com():
     # end if
     
     if arg_list.args and arg_list.args[0] == "new_proc":
+        if arg_list.args != []:
+            process_type_string = arg_list.args.pop(0)
+        # end if
+        
+        #== Start with site directory for start_up.ec scripts
+        script_dirs = [system.fs.user_dir_dir]
+        
+        #== Add project directory
+        call.user_info_.whoami(person, project, acct)
+        script_dirs.append(system.fs.merge_path(system.fs.user_dir_dir, project.id))
+        
+        #== Add user's home directory
         call.user_info_.homedir(homedir)
-        native_path = system.fs.path2path(homedir.val, script_file)
+        script_dirs.append(homedir.val)
     else:
         call.sys_.get_abs_path(script_file, full_path)
-        native_path = system.fs.path2path(full_path.val)
+        script_dirs = [full_path.val]
     # end if
     
-    if system.fs.file_exists(native_path):
-        print "exec_com: Running %s script" % (script_file)
-        with open(native_path, "r") as f:
-            lines = f.readlines()
-        # end with
-        for command_line in lines:
-            command_line = command_line.strip()
-            if command_line:
-                call.cu_.cp(command_line, code)
-                if code.val != 0:
-                    return code.val
+    for script_dir in script_dirs:
+        native_path = system.fs.path2path(script_dir, script_file)
+        if system.fs.file_exists(native_path):
+            print "exec_com: Running %s script" % (script_dir + ">" + script_file)
+            with open(native_path, "r") as f:
+                lines = f.readlines()
+            # end with
+            for command_line in lines:
+                command_line = command_line.strip()
+                if command_line:
+                    call.cu_.cp(command_line, code)
+                    if code.val != 0:
+                        return code.val
+                    # end if
                 # end if
-            # end if
-        # end for
+            # end for
+        # for
     # end if
     return 0

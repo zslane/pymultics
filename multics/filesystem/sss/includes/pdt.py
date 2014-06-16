@@ -5,10 +5,9 @@ from multics.globals import *
 
 class ProjectDefinitionTable(object):
 
-    def __init__(self, project_id, alias="", admins=[]):
+    def __init__(self, project_id, alias=""):
         self.project_id = project_id
         self.alias = alias
-        self.admins = admins
         self.users = {}
         
     def recognizes(self, person_id):
@@ -27,9 +26,8 @@ class ProjectDefinitionTable(object):
         project_id = self.project_id
         if self.alias:
             project_id += " (%s)" % (self.alias)
-        admins = str(self.admins)
         users = str(self.users.keys())
-        return "<%s.%s project_id: %s, admins = %s, users = %s>" % (__name__, self.__class__.__name__, project_id, admins, users)
+        return "<%s.%s project_id: %s, users = %s>" % (__name__, self.__class__.__name__, project_id, users)
         
 class ProjectUserConfig(object):
 

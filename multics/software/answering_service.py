@@ -189,18 +189,29 @@ class AnsweringService(SystemExecutable):
         
     def _upload_pmf_request_handler(self, message):
         declare (pdt  = parm,
+                 sat  = parm,
                  code = parm)
                  
         pdt_file = message['src_file']
         src_dir = message['src_dir']
         dst_dir = self.supervisor.fs.system_control_dir
-        src_pdt_path = system.fs.path2path(src_dir, pdt_file)
-        dst_pdt_path = system.fs.path2path(dst_dir, pdt_file)
+        src_pdt_path = self.supervisor.fs.path2path(src_dir, pdt_file)
+        dst_pdt_path = self.supervisor.fs.path2path(dst_dir, pdt_file)
         shutil.move(src_pdt_path, dst_pdt_path)
         
-        #== Create user home directories if necessary
         call.hcs_.initiate(dst_dir, pdt_file, pdt, code)
         if pdt.ptr != null():
+            #== Add project to the system_administrator_table if necessary
+            call.hcs_.initiate(self.supervisor.fs.system_control_dir, "system_administrator_table", sat, code)
+            if sat.ptr != null():
+                if pdt.ptr.project_id not in sat.ptr.projects:
+                    with sat.ptr:
+                        sat.ptr.add_project(pdt.ptr.project_id, pdt.ptr.filepath, pdt.ptr.alias)
+                    # end with
+                # end if
+            # end if
+            
+            #== Create user home directories if necessary
             for user_config in pdt.ptr.users.values():
                 homedir = user_config.home_dir or self._default_home_dir(user_config.person_id, pdt.ptr.project_id)
                 if not self.supervisor.fs.file_exists(homedir):

@@ -1,3 +1,4 @@
+import copy_reg
 
 class Python(object):
     from decimal import Decimal
@@ -150,7 +151,7 @@ class PL1(object):
     class Structure(object):
         def __init__(self, **attrs):
             def toPythonList(x): return [ toType(elem) for elem in x ]
-            def toArray(x): return PL1.Array([ toType(elem) for elem in x ], x.array_type)
+            def toArray(x): return PL1.Array([ toType(elem) for elem in x.array_list ], x.array_type)
             def toType(x):
                 if type(x) is PL1.Type:
                     return x.toPython()
@@ -204,38 +205,67 @@ class PL1(object):
             for member_name, value in members.items():
                 setattr(self, member_name, PL1.EnumValue(enum_name, member_name, value))
     
-    class Array(list):
-        class Expander(object):
-            def __init__(self, array):
-                self.array = array
-                self.size = len(array)
-            def __iadd__(self, value):
-                self.size += value
-                self.array._expand(value)
-                return self
-            def __int__(self):
-                return self.size
-            def __long__(self):
-                return self.size
-            
+    class Array(object):
         def __init__(self, array, dcl_type):
             super(PL1.Array, self).__init__()
-            self.extend(array)
+            # self.extend(array)
+            self.array_list = array
             self.array_type = dcl_type
-            self.size = PL1.Array.Expander(self)
+            # self.size = PL1.ArrayExpander(self)
             
+        def __getnewargs__(self):
+            return (self.array_list, self.array_type)
+            
+        def pop(self, index):
+            # self.size.popping()
+            # return super(PL1.Array, self).pop(index)
+            return self.array_list.pop(index)
+            
+        def __delitem__(self, index):
+            n = len(self)
+            # super(PL1.Array, self).__delitem__(index)
+            del self.array_list[index]
+            # self.size.popping(n - len(self))
+        
         def expand(self, num_elements):
-            self.size += num_elements
+            # self.size += num_elements
+            pass
             
         def _expand(self, num_elements):
             for i in range(num_elements):
                 if type(self.array_type) is PL1.Structure:
-                    self.append(self.array_type.copy())
+                    # self.append(self.array_type.copy())
+                    self.array_list.append(self.array_type.copy())
                 elif type(self.array_type) is PL1.Type:
-                    self.append(self.array_type.toPython())
+                    # self.append(self.array_type.toPython())
+                    self.array_list.append(self.array_type.toPython())
                 else:
-                    self.append(self.array_type())
+                    # self.append(self.array_type())
+                    self.array_list.append(self.array_type())
+                    
+        def _shrink(self, num_elements):
+            del self.array_list[-num_elements:]
                 
+    class ArrayExpander(object):
+        def __init__(self, array):
+            self.array = array
+            # self.size = len(array)
+            self.size = len(array.array_list)
+        def __iadd__(self, value):
+            self.size += value
+            self.array._expand(value)
+            return self
+        def __isub__(self, value):
+            self.size -= value
+            self.array._shrink(value)
+            return self
+        def __int__(self):
+            return self.size
+        def __long__(self):
+            return self.size
+        def popping(self, value=1):
+            self.size -= value
+            
 #-- end class PL1
 
 class Dim(object):
@@ -256,8 +286,8 @@ class Dim(object):
                 a.append(dcl_type.copy())
             # end if
         # end for
-        # return a
-        return PL1.Array(a, dcl_type)
+        return a
+        # return PL1.Array(a, dcl_type)
 
 class bitstring(object):
 
@@ -399,3 +429,8 @@ variable = PL1.Option.variable
 
 #== This is defined just so PL1.Structures can be pickled
 Structure = PL1.Structure
+Array = PL1.Array
+
+# def pickle_Array(a):
+    # return Array, (a.array_list, a.array_type)
+# copy_reg.pickle(Array, pickle_Array)

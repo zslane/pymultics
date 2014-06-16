@@ -12,6 +12,7 @@ from pit import *
 from PySide import QtCore, QtGui
 
 include.login_info
+include.sl_info
 
 class SystemServices(QtCore.QObject):
 
@@ -382,7 +383,7 @@ class SystemServices(QtCore.QObject):
             if not any([ name.endswith(".pdt") for name in segment_list ]):
                 for project_id, alias in [("SysAdmin", "sa")]:
                     segment_name = "%s.pdt" % (project_id)
-                    pdt = ProjectDefinitionTable(project_id, alias, ["JRCooper"])
+                    pdt = ProjectDefinitionTable(project_id, alias)
                     pdt.add_user("JRCooper")
                     call.hcs_.make_seg(self.fs.system_control_dir, segment_name, segment(pdt), code)
                     segment_list.append(segment_name)
@@ -521,6 +522,7 @@ class DynamicLinker(QtCore.QObject):
         self.__filesystem = system_services.hardware.filesystem
         self.__system_function_table = {}
         self.__system_segment_table = {}
+        self.__segfault_count = 0
         
     def initialize(self):
         self._initialize_system_functions()
@@ -564,6 +566,10 @@ class DynamicLinker(QtCore.QObject):
         process = self.__system_services.get_calling_process()
         process.clear_kst()
     
+    @property
+    def segfault_count(self):
+        return self.__segfault_count
+        
     @property
     def known_segment_table(self):
         # return self.__known_segment_table
@@ -611,23 +617,15 @@ class DynamicLinker(QtCore.QObject):
             
         except SegmentFault:
             # print "...segment fault"
+            self.__segfault_count += 1
             if known_location:
                 search_paths = [ known_location ]
             else:
                 try:
-                    # search_paths = self.__system_services.session_thread.session.process.search_paths[:]
                     process = get_calling_process_()
-                    search_paths = process.search_paths[:]
+                    search_paths = process.search_paths
                 except:
                     search_paths = [ self.__filesystem.system_library_standard ]
-                # end try
-                try:
-                    current_dir = get_wdir_()
-                    search_paths.insert(0, current_dir)
-                    # print "...added", current_dir, "to search paths"
-                except:
-                    # print "...not adding current working dir to search paths"
-                    pass
                 # end try
             # end if
             

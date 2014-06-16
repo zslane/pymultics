@@ -1,6 +1,5 @@
 import os
 import time
-import glob
 import errno
 import cPickle as pickle
 

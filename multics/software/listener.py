@@ -1,3 +1,4 @@
+import datetime
 
 from ..globals import *
 
@@ -11,7 +12,7 @@ class Listener(SystemExecutable):
         self.supervisor = supervisor
         self.__default_command_processor = command_processor
         self.__process = None
-        self.__command_prompt = "! "
+        self.__prev_command_time = None
         self.__command_history = []
         self.__homedir = ""
         self.exit_code = 0
@@ -25,7 +26,11 @@ class Listener(SystemExecutable):
         
     def ready(self, ready_mode):
         if ready_mode:
-            call.ioa_.nnl(self.__command_prompt)
+            now = datetime.datetime.now()
+            delta, self.__prev_command_time = now - self.__prev_command_time, now
+            
+            ready_message = "r %s %0.3f %d" % (now.strftime("%H%M"), delta.total_seconds(), call.segfault_count)
+            call.ioa_(ready_message)
     
     def _main_loop(self):
         declare (command_line = parm,
@@ -78,6 +83,7 @@ class Listener(SystemExecutable):
         call.cu_.set_ready_procedure(self.ready)
         call.cu_.set_ready_mode(True)
         self.__homedir = homedir.val
+        self.__prev_command_time = datetime.datetime.now()
         
         msg_handlers = {
             'interactive_message':   self._interactive_message_handler,

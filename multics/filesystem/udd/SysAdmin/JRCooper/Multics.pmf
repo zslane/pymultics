@@ -1,6 +1,5 @@
 ### Project Master File: Multics (old style)
 #alias: m
-#admin: [JRCooper]
 #users:
 # - { person_id: JRCooper }
 # - { person_id: Foo, command_processor: >sss>gcos_sim }
@@ -9,7 +8,6 @@
 ### Project Master File: Multics
 {
     'alias': "m",
-    'admin': ["JRCooper"],
     'users': [
         { 'person_id': "JRCooper" },
         { 'person_id': "Foo", 'command_processor': ">sss>gcos_sim" },

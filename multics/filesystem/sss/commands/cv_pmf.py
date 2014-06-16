@@ -20,12 +20,6 @@ def cv_pmf():
     pmf_file = project_id + ".pmf"
     pdt_file = project_id + ".pdt"
     
-    # pdtab = system.session_thread.pdt.get(project_id)
-    # call.user_info_.whoami(person, project, acct)
-    # if (persion.id not in pdtab.admins) and (project.id != "SysAdmin"):
-        # call.ioa_("You are not authorized to upload PDT files")
-        # return
-    
     current_dir = get_wdir_()
     pmf_path = system.hardware.filesystem.path2path(current_dir, pmf_file)
     if not system.hardware.filesystem.file_exists(pmf_path):
@@ -39,7 +33,7 @@ def cv_pmf():
     # end with
     pprint(pmf_data)
     
-    pdtab = ProjectDefinitionTable(project_id, pmf_data['alias'], pmf_data['admin'])
+    pdtab = ProjectDefinitionTable(project_id, pmf_data['alias'])
     for user in pmf_data['users']:
         pdtab.add_user(user['person_id'], user.get('home_dir', ""), user.get('command_processor', ""))
     # end for
@@ -77,12 +71,6 @@ def load_pmf(f):
             alias = m.group(1).strip()
             continue
             
-        m = re.match(r"admin\s*:\s*\[(.*)\]\s*$", line)
-        if m:
-            admin_list = re.split(r"\s*,\s*", m.group(1).strip())
-            reading_users = False
-            continue
-        
         elif re.match(r"users\s*:\s*$", line):
             reading_users = True
             continue

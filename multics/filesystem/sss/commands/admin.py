@@ -1,6 +1,7 @@
 
 from multics.globals import *
 
+include.sat
 include.query_info
 
 admin_usage_text = (
@@ -9,6 +10,11 @@ admin_usage_text = (
     add_user, au
     delete_user, du
     rename_user, ru
+    refresh_sat, rs
+    list_projects, lp
+    list_project_admins, lpa
+    add_project_admin, apa,
+    delete_project_admin, dpa,
     quit, q
     help, ?"""
     )
@@ -52,7 +58,17 @@ def admin():
                 delete_user()
             elif command.name == "rename_user" or command.name == "ru":
                 rename_user()
-            elif command.name == "help":
+            elif command.name == "refresh_sat" or command.name == "rs":
+                refresh_sat()
+            elif command.name == "list_projects" or command.name == "lp":
+                list_projects()
+            elif command.name == "list_project_admins" or command.name == "lpa":
+                list_project_admins()
+            elif command.name == "add_project_admin" or command.name == "apa":
+                add_project_admin()
+            elif command.name == "delete_project_admin" or command.name == "dpa":
+                delete_project_admin()
+            elif command.name == "help": # '?' handled by command_query_
                 call.ioa_(admin_usage_text)
             elif command.name != "quit" and command.name != "q":
                 call.ioa_("Unrecgonized {0} command", MAIN)
@@ -64,7 +80,7 @@ def list_users():
              person_name_table = parm,
              code              = parm)
 
-    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "person_name_table", person_name_table, code)
     if person_name_table.ptr:
         call.ioa_("Person Id              Alias     D Project Password?")
         call.ioa_("---------------------- --------- --------- ---------")
@@ -138,7 +154,7 @@ def add_user():
         # end if
     # end while
     
-    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "person_name_table", person_name_table, code)
     if person_name_table.ptr:
         if person_id in person_name_table.ptr.alias_list():
             person_id = person_name_table.ptr.resolve_alias(person_id)
@@ -169,7 +185,7 @@ def delete_user():
         
     person_id = arg_list.args.pop(0)
     
-    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "person_name_table", person_name_table, code)
     if person_name_table.ptr:
         if person_id in person_name_table.ptr.alias_list():
             person_id = person_name_table.ptr.resolve_alias(person_id)
@@ -201,7 +217,7 @@ def rename_user():
     old_person_id = arg_list.args.pop(0)
     new_person_id = arg_list.args.pop(0)
     
-    call.hcs_.initiate(system.hardware.filesystem.system_control_dir, "person_name_table", person_name_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "person_name_table", person_name_table, code)
     if person_name_table.ptr:
         if old_person_id in person_name_table.ptr.person_id_list():
             person_name_entry = person_name_table.ptr.name_entries[old_person_id]
@@ -216,3 +232,144 @@ def rename_user():
         else:
             call.ioa_("No such user {0}", old_person_id)
             
+@system_privileged
+def refresh_sat():
+    declare (sys_admin_table = parm,
+             branch          = parm,
+             segment         = parm,
+             code            = parm)
+             
+    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", sys_admin_table, code)
+    if sys_admin_table.ptr != null():
+        call.hcs_.delentry_seg(sys_admin_table.ptr, code)
+    # end if
+    call.hcs_.make_seg(system.fs.system_control_dir, "system_administrator_table", sys_admin_table(SystemAdministratorTable()), code)
+    
+    tables = {}
+    
+    call.hcs_.get_directory_contents(system.fs.system_control_dir, branch, segment, code)
+    if code.val == 0:
+        segment_list = segment.list
+        with sys_admin_table.ptr:
+            for segment_name in segment_list:
+                if segment_name.endswith(".pdt"):
+                    call.hcs_.initiate(system.fs.system_control_dir, segment_name, segment, code)
+                    sys_admin_table.ptr.add_project(segment.ptr.project_id, segment.ptr.filepath, segment.ptr.alias)
+                    sys_admin_table.ptr.add_admin(segment.ptr.project_id, "JRCooper")
+                # end if
+            # end for
+        # end with
+        print sys_admin_table.ptr.projects
+    # end if
+
+@system_privileged
+def list_projects():
+    declare (sys_admin_table = parm,
+             code            = parm)
+             
+    call.cu_.arg_list(arg_list)
+    if len(arg_list.args) != 0:
+        call.ioa_("list_projects takes no arguments")
+        return
+    # end if
+    
+    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", sys_admin_table, code)
+    if sys_admin_table.ptr == null():
+        call.ioa_("No system_administrator_table found")
+        return
+    # end if
+    
+    print sys_admin_table.ptr.projects
+    for project_id in sys_admin_table.ptr.projects:
+        alias = sys_admin_table.ptr.projects[project_id]['alias']
+        call.ioa_("  {0} {1}", project_id, "(%s)" % alias if alias else "")
+
+@system_privileged
+def list_project_admins():
+    declare (sys_admin_table = parm,
+             code            = parm)
+             
+    call.cu_.arg_list(arg_list)
+    if len(arg_list.args) != 1:
+        call.ioa_("Usage: list_project_admins|lpa [project_id]")
+        return
+    # end if
+    
+    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", sys_admin_table, code)
+    if sys_admin_table.ptr == null():
+        call.ioa_("No system_administrator_table found")
+        return
+    # end if
+    
+    project_id = arg_list.args.pop(0)
+    
+    if project_id not in sys_admin_table.ptr.projects:
+        call.ioa_("{0} not found in the system_administrator_table", project_id)
+        return
+    # end if
+    
+    for admin in sys_admin_table.ptr.get_admins(project_id):
+        call.ioa_("  {0}", admin)
+    
+@system_privileged
+def add_project_admin():
+    declare (sys_admin_table = parm,
+             arg_list        = parm,
+             code            = parm)
+             
+    call.cu_.arg_list(arg_list)
+    if len(arg_list.args) != 2:
+        call.ioa_("Usage: add_project_admin|apa [project_id] [person_id]")
+        return
+    # end if
+    
+    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", sys_admin_table, code)
+    if sys_admin_table.ptr == null():
+        call.ioa_("No system_administrator_table found")
+        return
+    # end if
+    
+    project_id = arg_list.args.pop(0)
+    person_id = arg_list.args.pop(0)
+    
+    if project_id not in sys_admin_table.ptr.projects:
+        call.ioa_("{0} not found in the system_administrator_table", project_id)
+        return
+    # end if
+    
+    with sys_admin_table.ptr:
+        if person_id not in sys_admin_table.ptr.get_admins(project_id):
+            sys_admin_table.ptr.add_admin(project_id, person_id)
+    
+@system_privileged
+def delete_project_admin():
+    declare (sys_admin_table = parm,
+             arg_list        = parm,
+             code            = parm)
+             
+    call.cu_.arg_list(arg_list)
+    if len(arg_list.args) != 2:
+        call.ioa_("Usage: delete_project_admin|dpa [project_id] [person_id]")
+        return
+    # end if
+    
+    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", sys_admin_table, code)
+    if sys_admin_table.ptr == null():
+        call.ioa_("No system_administrator_table found")
+        return
+    # end if
+    
+    project_id = arg_list.args.pop(0)
+    person_id = arg_list.args.pop(0)
+    
+    if project_id not in sys_admin_table.ptr.projects:
+        call.ioa_("{0} not found in the system_administrator_table", project_id)
+        return
+    # end if
+    
+    with sys_admin_table.ptr:
+        if person_id in sys_admin_table.ptr.get_admins(project_id):
+            sys_admin_table.ptr.remove_admin(project_id, person_id)
+        else:
+            call.ioa_("{0} not a {1} project administrator", person_id, project_id)
+                        
