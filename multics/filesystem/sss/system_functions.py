@@ -2,22 +2,18 @@ import string
 
 from multics.globals import *
 
-@system_privileged
 def get_pdir_():
     process = get_calling_process_()
     return process.dir()
 
-@system_privileged
 def get_process_id_():
     process = get_calling_process_()
     return process.id()
 
-@system_privileged
 def get_lock_id_():
     process = get_calling_process_()
     return process.stack.lock_id
     
-@system_privileged
 def get_wdir_():
     process = get_calling_process_()
     return process.directory_stack[-1]
@@ -29,6 +25,14 @@ def clock_():
 @system_privileged
 def shutdown_started_():
     return system.shutdown_started()
+    
+def resolve_path_symbol_(path_symbol):
+    process = get_calling_process_()
+    symbols = {
+        '-home_dir':    process.pit().homedir,
+        '-working_dir': process.directory_stack[-1],
+    }
+    return symbols.get(path_symbol, path_symbol)
     
 __xlate_table = string.maketrans(string.hexdigits[:16], "BWrtxJNmwpHZbLqz")
 

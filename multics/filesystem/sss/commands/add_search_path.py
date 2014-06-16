@@ -2,7 +2,6 @@
 from multics.globals import *
 
 from sl_info import *
-include.sl_list
 
 @system_privileged
 def add_search_path():
@@ -24,15 +23,19 @@ def add_search_path():
     new_path = arg_list.args.pop(0)
     
     call.search_paths_.get(sl_name, null(), sl_info_ptr, sl_info_version_1, code)
-    print [ p.pathname for p in sl_info_ptr.data.paths ]
+    if code.val == error_table_.no_search_list:
+        sl_info_ptr.data = sl_info_structure()
+    # end if
     
     insert_where = len(sl_info_ptr.data.paths) # append to end by default
     
     i = 0
     while i < len(arg_list.args):
         if arg_list.args[i] == "-first":
+            i += 1
             insert_where = 0
         elif arg_list.args[i] == "-last":
+            i += 1
             insert_where = len(sl_info_ptr.data.paths) # append to end
         elif arg_list.args[i] == "-before":
             i += 1
@@ -42,6 +45,7 @@ def add_search_path():
                     call.ioa_("{0} not found in search list {1}", arg_list.args[i], sl_name)
                     return
                 # end if
+                i += 1
             else:
                 call.ioa_("-before requires a path")
                 return
@@ -56,6 +60,7 @@ def add_search_path():
                 else:
                     insert_where += 1
                 # end if
+                i += 1
             else:
                 call.ioa_("-after requires a path")
                 return
@@ -65,12 +70,11 @@ def add_search_path():
     
     info = sl_info_path()
     info.pathname = new_path
-    if not system.fs.file_exists(new_path):
-        info.code = error_table_.no_directory_entry
-    # end if
     sl_info_ptr.data.paths.insert(insert_where, info)
-    call.ioa_("{0}", [ p.pathname for p in sl_info_ptr.data.paths ])
-    print [ p.pathname for p in sl_info_ptr.data.paths ]
+    call.search_paths_.set(sl_name, null(), sl_info_ptr, code)
+    if code.val == error_table_.action_not_performed:
+        call.ioa_("Invalid path {0}", new_path)
+    print code.val, [ p.pathname for p in sl_info_ptr.data.paths ]
     
 def _find_index(sl_info_path_list, path_to_find):
     for i, path in enumerate(sl_info_path_list):
