@@ -72,22 +72,22 @@ class sys_(SystemExecutable):
         if dir_ref.startswith(">"):
             new_dir = dir_ref
         else:
-            new_dir = self.system.hardware.filesystem.merge_path(relative_to, dir_ref)
+            new_dir = self.system.fs.merge_path(relative_to, dir_ref)
         # end if
         out_dir.name = new_dir
         
-        if self.system.hardware.filesystem.file_exists(new_dir):
+        if self.system.fs.file_exists(new_dir):
             code.val = 0
         else:
             code.val = error_table_.no_directory_entry
     
     def get_abs_path(self, name, output):
         if name.startswith(">"):
-            output.path = self.system.hardware.filesystem._resolve_path(name)
+            output.path = self.system.fs._resolve_path(name)
             return
         # end if
         current_dir = get_wdir_()
-        output.path = self.system.hardware.filesystem.merge_path(current_dir, name)
+        output.path = self.system.fs.merge_path(current_dir, name)
     
     def split_path_(self, full_path, dir_name, entryname):
         rev_full_path = full_path[::-1]
@@ -100,9 +100,9 @@ class sys_(SystemExecutable):
             new_dir = dir_ref
         else:
             cur_dir = get_wdir_()
-            new_dir = self.system.hardware.filesystem.merge_path(cur_dir, dir_ref)
+            new_dir = self.system.fs.merge_path(cur_dir, dir_ref)
         # end if
-        if self.system.hardware.filesystem.file_exists(new_dir):
+        if self.system.fs.file_exists(new_dir):
             self.push_directory(new_dir)
             code.val = 0
         else:
@@ -110,14 +110,16 @@ class sys_(SystemExecutable):
     
     def push_directory(self, dir_name):
         process = get_calling_process_()
-        process.directory_stack.append(dir_name)
+        with process.rnt():
+            process.directory_stack.append(dir_name)
         
     def pop_directory(self, directory):
         process = get_calling_process_()
-        if len(process.directory_stack) > 1:
-            directory.name = process.directory_stack.pop()
-        else:
-            directory.name = None
+        with process.rnt():
+            if len(process.directory_stack) > 1:
+                directory.name = process.directory_stack.pop()
+            else:
+                directory.name = None
     
     def add_process_msg(self, user_id, message, code):
         declare (segment = parm)
@@ -208,7 +210,8 @@ class sys_(SystemExecutable):
             pass
             
     def signal_shutdown(self):
-        self.system.shutdown()
+        if not self.system.shutting_down():
+            self.system.shutdown()
         
     def start_shutdown(self, how_long, message):
         self.system.start_shutdown(how_long, message)

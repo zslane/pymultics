@@ -36,6 +36,18 @@ class search_paths_(SystemExecutable):
             return path
         # end if
     
+    def _find_search_list_name(self, sl_name, search_seg_ptr):
+        if sl_name not in search_seg_ptr.names:
+            for i, link in enumerate(search_seg_ptr.aliases.link):
+                if sl_name in link.names:
+                    return search_seg_ptr.names[i]
+                # end if
+            else:
+                return ""
+            # end for
+        # end if
+        return sl_name
+    
     def find_dir(self, sl_name, search_seg_ptr, entryname, dir_name, code):
         declare (get_wdir_ = entry . returns (char(168)),
                  sl_info   = parm,
@@ -86,17 +98,22 @@ class search_paths_(SystemExecutable):
             search_seg_ptr = self._default_search_segment()
         # end if
         
-        if sl_name not in search_seg_ptr.names:
-            for i, link in enumerate(search_seg_ptr.aliases.link):
-                if sl_name in link.names:
-                    sl_name = search_seg_ptr.names[i]
-                    break
-                # end if
-            else:
-                code.val = error_table_.no_search_list
-                return
-            # end for
-        # end for
+        # if sl_name not in search_seg_ptr.names:
+            # for i, link in enumerate(search_seg_ptr.aliases.link):
+                # if sl_name in names:
+                    # sl_name = search_seg_ptr.names[i]
+                    # break
+                # # end if
+            # else:
+                # code.val = error_table_.no_search_list
+                # return
+            # # end for
+        # # end if
+        sl_name = self._find_search_list_name(sl_name, search_seg_ptr)
+        if not sl_name:
+            code.val = error_table_.no_search_list
+            return
+        # end if
         
         sl_info.ptr = search_seg_ptr.paths[sl_name]
         code.val = 0
@@ -108,16 +125,21 @@ class search_paths_(SystemExecutable):
             search_seg_ptr = self._default_search_segment()
         # end if
         
-        if sl_name not in search_seg_ptr.names:
-            for i, link in enumerate(search_seg_ptr.aliases.link):
-                if sl_name in link.names:
-                    sl_name = search_seg_ptr.names[i]
-                    break
-                # end if
-            else:
-                code.val = error_table_.new_search_list
-            # end for
-        # end for
+        # if sl_name not in search_seg_ptr.names:
+            # for i, link in enumerate(search_seg_ptr.aliases.link):
+                # if sl_name in link.names:
+                    # sl_name = search_seg_ptr.names[i]
+                    # break
+                # # end if
+            # else:
+                # code.val = error_table_.new_search_list
+            # # end for
+        # # end if
+        found_name = self._find_search_list_name(sl_name, search_seg_ptr)
+        if not found_name:
+            code.val = error_table_.new_search_list
+        # end if
+        sl_name = found_name or sl_name
         
         if sl_info_ptr:
             for path in sl_info_ptr.paths:
@@ -137,10 +159,43 @@ class search_paths_(SystemExecutable):
         with search_seg_ptr:
             if code.val == error_table_.new_search_list:
                 search_seg_ptr.names.append(sl_name)
-                search_seg_ptr.aliases.link.append([])
+                search_seg_ptr.aliases.link.append([sl_name])
             # end if
             
             search_seg_ptr.paths[sl_name] = sl_info_ptr or self.__default_search_list
+            
+    def list(self, search_seg_ptr, sl_list, code):
+        if search_seg_ptr == null():
+            search_seg_ptr = self._default_search_segment()
+        # end if
+        
+        sl_list.ptr = search_seg_ptr.aliases
+        code.val = 0
+        
+    def delete_list(self, sl_name, search_seg_ptr, code):
+        if search_seg_ptr == null():
+            search_seg_ptr = self._default_search_segment()
+        # end if
+        
+        # if sl_name not in search_seg_ptr.names:
+            # for i, link in enumerate(search_seg_ptr.aliases.link):
+                # if sl_name in names:
+                    # sl_name = search_seg_ptr.names[i]
+                    # break
+                # # end if
+            # else:
+                # code.val = error_table_.no_search_list
+                # return
+            # # end for
+        # # end if
+        sl_name = self._find_search_list_name(sl_name, search_seg_ptr)
+        if not sl_name:
+            code.val = error_table_.no_search_list
+            return
+        # end if
+        
+        del search_seg_ptr.paths[sl_name]
+        code.val = 0
     
 class SearchSegment(object):
     def __init__(self):

@@ -3,11 +3,13 @@ from ..globals import *
 
 include.pit
 include.pds
+include.rnt
 include.whotab
 include.process_env
 
 from pit import pit_structure
 from pds import pds_structure
+from rnt import rnt_structure
 from process_env import process_env_structure
 
 class ProcessOverseer(object):
@@ -34,13 +36,13 @@ class ProcessOverseer(object):
         call.hcs_.get_entry_point(login_info.cp_path, command_processor)
         if command_processor.ptr == null():
             self._print_error_message("Could not find command processor %s." % (login_info.cp_path))
-            return null() #System.LOGOUT
+            return null()
         # end if
             
         #== Make sure the specified home directory exists
         if not self.supervisor.hardware.filesystem.file_exists(login_info.homedir):
             self._print_error_message("No home directory for user %s." % (login_info.user_id))
-            return null() #System.LOGOUT
+            return null()
         # end if
             
         #== Create a process id if one is not specified in the login_info
@@ -50,7 +52,7 @@ class ProcessOverseer(object):
         call.hcs_.create_process_dir(process_id, process_dir, code)
         if code.val != 0 and code.val != error_table_.namedup:
             self._print_error_message("Failed to create process directory.")
-            return null() #System.LOGOUT
+            return null()
         # end if
         
         #== Fill the process initialization table structure
@@ -69,13 +71,13 @@ class ProcessOverseer(object):
             call.hcs_.make_seg(process_dir.val, "pit", segment(pit), code)
             if code.val != 0:
                 self._print_error_message("Failed to create process initialization table.")
-                return null() #ystem.LOGOUT
+                return null()
             # end if
         # end if
         pit = segment.ptr
         
         pds = pds_structure()
-        pds.process_stack = ProcessStack(login_info.homedir)
+        pds.process_stack = ProcessStack()
         pds.lock_id = clock_()
         
         #== Create the process data segment (PDS)
@@ -84,18 +86,31 @@ class ProcessOverseer(object):
             call.hcs_.make_seg(process_dir.val, "pds", segment(pds), code)
             if code.val != 0:
                 self._print_error_message("Failed to create process data segment.")
-                return null() #ystem.LOGOUT
+                return null()
             # end if
         # end if
         pds = segment.ptr
         
+        rnt = rnt_structure()
+        
+        #== Create the reference name table (RNT)
+        call.hcs_.initiate(process_dir.val, "rnt", segment, code)
+        if segment.ptr == null():
+            call.hcs_.make_seg(process_dir.val, "rnt", segment(rnt), code)
+            if code.val != 0:
+                self._print_error_message("Failed to create reference name table.")
+                return null()
+            # end if
+        # end if
+        rnt = segment.ptr
+        
         #== Create the process message segment (process.ms)
         call.hcs_.initiate(process_dir.val, "process.ms", segment, code)
         if segment.ptr == null():
-            call.hcs_.make_seg(process_dir.val, "process.ms", segment(ProcessMsg()), code)
+            call.hcs_.make_seg(process_dir.val, "process.ms", segment(ProcessMsgSegment()), code)
             if code.val != 0:
                 self._print_error_message("Failed to create process message segment.")
-                return null() #ystem.LOGOUT
+                return null()
             # end if
         # end if
         msg = segment.ptr
@@ -109,6 +124,7 @@ class ProcessOverseer(object):
         process_env.process_dir = process_dir.val
         process_env.pit = pit
         process_env.pds = pds
+        process_env.rnt = rnt
         process_env.msg = msg
         process_env.core_function = core_function
         
@@ -129,7 +145,7 @@ class ProcessOverseer(object):
         
         print get_calling_process_().objectName() + " process_overseer waiting for " + process.objectName() + " to terminate"
         process.kill()
-        if not process.wait():
+        if not process.wait(5000):
             print "[[[ %s did not terminate ]]]" % (process.objectName())
         
         if not keep_process_data:
@@ -162,16 +178,9 @@ class ProcessStack(object):
     #== because even though it is data only those methods know or care about, the data
     #== really 'belongs' to the process, not the system service.
     
-    def __init__(self, homedir=""):
-        self.search_paths = [
-            ">sss",
-            ">sss>commands",
-        ]
-        if homedir:
-            self.search_paths.append(homedir)
-        # end if
-        self.directory_stack = []
+    def __init__(self):
         self.process_timers = {}
+        self.file_locks = {}
         #== More attributes added as needed by system services...
         
     def assert_create(self, attrname, attrtype):
@@ -179,7 +188,7 @@ class ProcessStack(object):
             setattr(self, attrname, attrtype())
         return getattr(self, attrname)
 
-class ProcessMsg(object):
+class ProcessMsgSegment(object):
 
     def __init__(self):
         self.messages = []

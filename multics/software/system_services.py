@@ -245,6 +245,9 @@ class SystemServices(QtCore.QObject):
         while not self.__hardware.io.linefeed_received():
             QtCore.QCoreApplication.processEvents()
             
+            if self.__hardware.io.terminal_closed():
+                raise DisconnectCondition
+            # end if
             if self.shutting_down():
                 print "Shutdown signal detected by " + get_calling_process_().objectName()
                 raise ShutdownCondition

@@ -15,7 +15,7 @@ class set_lock_(SystemExecutable):
         declare (process_id_list = parm)
         
         process = get_calling_process_()
-        file_locks = process.stack.assert_create("file_locks", dict)
+        file_locks = process.stack.file_locks #process.stack.assert_create("file_locks", dict)
         lock_id = segment_data_ptr.filepath
         if lock_id in file_locks:
             code.val = error_table_.locked_by_this_process
@@ -44,7 +44,7 @@ class set_lock_(SystemExecutable):
         
     def unlock(self, segment_data_ptr, code):
         process = get_calling_process_()
-        file_locks = process.stack.assert_create("file_locks", dict)
+        file_locks = process.stack.file_locks #process.stack.assert_create("file_locks", dict)
         lock_id = segment_data_ptr.filepath
         file_lock = file_locks.get(lock_id)
         if file_lock:

@@ -9,5 +9,5 @@ class rnt_structure(PL1.Structure):
             rnt_version  = rnt_version_1,
             reference_names = None,
             search_rules = None,
-            working_dir  = "",
+            working_dir  = [],
         )

@@ -11,6 +11,7 @@ class process_env_structure(PL1.Structure):
             process_dir   = "",
             pit           = None,
             pds           = None,
+            rnt           = None,
             mbx           = None,
             msg           = None,
             core_function = None,

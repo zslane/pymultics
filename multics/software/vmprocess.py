@@ -49,7 +49,7 @@ class ProcessWorker(QtCore.QObject):
     
     @property
     def directory_stack(self):
-        return self.__process_env.pds.process_stack.directory_stack
+        return self.__process_env.rnt.working_dir
         
     def id(self):
         return self.__process_env.process_id
@@ -62,6 +62,9 @@ class ProcessWorker(QtCore.QObject):
         
     def pds(self):
         return self.__process_env.pds
+        
+    def rnt(self):
+        return self.__process_env.rnt
         
     def pit(self):
         return self.__process_env.pit
@@ -194,16 +197,8 @@ class ProcessThread(QtCore.QThread):
         return self.worker.stack
         
     @property
-    def search_paths2(self):
-        return self.worker.search_paths2
-        
-    @property
     def search_paths(self):
         return self.worker.search_paths
-        
-    @search_paths.setter
-    def search_paths(self, path_list):
-        self.worker.search_paths = path_list
         
     @property
     def directory_stack(self):
@@ -220,6 +215,9 @@ class ProcessThread(QtCore.QThread):
         
     def pds(self):
         return self.worker.pds()
+        
+    def rnt(self):
+        return self.worker.rnt()
         
     def pit(self):
         return self.worker.pit()
@@ -276,16 +274,8 @@ class VirtualMulticsProcess(QtCore.QObject):
         return self.worker.stack
         
     @property
-    def search_paths2(self):
-        return self.worker.search_paths2
-        
-    @property
     def search_paths(self):
         return self.worker.search_paths
-        
-    @search_paths.setter
-    def search_paths(self, path_list):
-        self.worker.search_paths = path_list
         
     @property
     def directory_stack(self):
@@ -306,6 +296,9 @@ class VirtualMulticsProcess(QtCore.QObject):
         
     def pds(self):
         return self.worker.pds()
+        
+    def rnt(self):
+        return self.worker.rnt()
         
     def pit(self):
         return self.worker.pit()
