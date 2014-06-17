@@ -215,9 +215,13 @@ class AnsweringService(SystemExecutable):
             #== Create project directory (with add_name for alias) if necessary
             project_dir = self.supervisor.fs.path2path(self.supervisor.fs.user_dir_dir, pdt.ptr.project_id)
             if not self.supervisor.fs.file_exists(project_dir):
+                print "Creating project directory " + project_dir
                 self.supervisor.fs.mkdir(project_dir)
             # end if
-            self.supervisor.fs.add_name(project_dir, pdt.ptr.alias)
+            if pdt.ptr.alias:
+                print "Adding name " + pdt.ptr.alias + " to project directory"
+                self.supervisor.fs.add_name(project_dir, pdt.ptr.alias)
+            # end if
             
             call.hcs_.initiate(self.supervisor.fs.system_control_dir, "person_name_table", pnt, code)
             
@@ -231,10 +235,14 @@ class AnsweringService(SystemExecutable):
         declare (segment = parm,
                  code    = parm)
         
+        print "Creating user home directory " + homedir
         code.val = self.supervisor.fs.mkdir(homedir)
         if code.val == 0:
+            print "Creating user mailbox file"
             call.hcs_.make_seg(homedir, person_id + ".mbx", segment(dict), code)
+        # end if
             
         if pnt_ptr.name_entries[person_id].alias:
+            print "Adding name " + pnt_ptr.name_entries[person_id].alias + " to home directory"
             self.supervisor.fs.add_name(homedir, pnt_ptr.name_entries[person_id].alias)
             
