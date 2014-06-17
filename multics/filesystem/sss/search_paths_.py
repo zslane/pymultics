@@ -123,7 +123,6 @@ class search_paths_(SystemExecutable):
             return
         # end if
         
-        # sl_info_ptr.data = search_seg_ptr.paths[sl_name]
         sl_info_ptr.data = sl_info_structure()
         sl_info_ptr.data.paths = search_seg_ptr.paths[sl_name].paths[:]
         code.val = 0
@@ -194,6 +193,6 @@ class search_paths_(SystemExecutable):
 class SearchSegment(object):
     def __init__(self):
         self.names = []
-        self.paths = {}
+        self.paths = {} # sl_name:sl_info_structure
         self.aliases = sl_list_structure()
         

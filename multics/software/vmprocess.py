@@ -33,17 +33,9 @@ class ProcessWorker(QtCore.QObject):
     @property
     def search_paths(self):
         try:
-            declare (get_wdir_ = entry . returns (char(168)))
-            def resolve(p): #return self.pit().homedir if p == "-home_dir" else p
-                if p == "-home_dir":
-                    return self.pit().homedir
-                elif p == "-working_dir":
-                    return get_wdir_()
-                else:
-                    return p
-                # end if
-            #-- end def resolve
-            return [ resolve(p.pathname) for p in self.__process_env.pds.process_stack.sl_info_data.paths ]
+            declare (resolve_path_symbol_ = entry . returns (char(168)))
+            search_paths = self.__process_env.pds.process_stack.search_seg_ptr.paths['objects'].paths
+            return [ resolve_path_symbol_(p.pathname) for p in search_paths ]
         except:
             return [">sss", ">sss>commands"]
     
@@ -154,10 +146,11 @@ class ProcessWorker(QtCore.QObject):
         call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
         
         #== Create default search paths and store them in the process stack
-        declare (sl_info = parm, code = parm)
+        declare (search_seg = parm,
+                 code = parm)
         call.search_paths_.set("objects", null(), null(), code)
-        call.search_paths_.get("objects", null(), sl_info, sl_info_version_1, code)
-        self.__process_env.pds.process_stack.sl_info_data = sl_info.ptr
+        call.hcs_.initiate(self.dir(), "search_paths", search_seg, code)
+        self.__process_env.pds.process_stack.search_seg_ptr = search_seg.ptr
     
     def _process_timers(self):
         for routine_key in self.stack.process_timers.keys():
