@@ -1,51 +1,51 @@
 
 from multics.globals import *
 
-declare (
-
-    argn                 = parm,
-    argp                 = parm,
-    
-    DO_dir               = char (4) . init (">sss"),
-    DO                   = char (2) . init ("do"),
-    
-    input                = char (256) . varying . init (""),
-    shiptype             = char (14) . init (""),
-    dname                = char (14) . init (">udd>m>g>dbd"),
-    ename                = char (10) . init ("sv4.4.ship"),
-    xname                = char (10) . init ("sv4.4.univ"),
-    aname                = char (10) . init ("sv1.2.info"),
-    ring_brackets        = Dim(3) (fixed.bin(3)) . init ([5, 5, 5]),
-    code                 = parm,
-    allowed_chars        = char (87) . init ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 !$%&'()*:=-[]{}<>.,/?_|^"),
-    enter_admin_loop     = bit (1) . init ("0b0"),
-    video_mode           = bit (1) . init ("0b0"),
-    accept_notifications = bit (1) . init ("0b0"),
-    on_the_list          = bit (1) . init ("0b0"),
-    list_players         = bit (1) . init ("0b0"),
-    target               = char (10) . init (""),
-    x                    = fixed.bin . init (0),
-    y                    = fixed.bin . init (0),
-    z                    = fixed.bin . init (0),
-          
-    univptr              = ptr . init (null()),
-    my                   = ptr . init (null()),
-    enemy                = ptr . init (null()),
-    adminptr             = parm, #ptr . init (null()),
-    
-    MAIN                 = char (11) . init ("starrunners"),
-    version              = char (5) . init ("4.4"),
-    
-    admin_info           = PL1.Structure(
-        game_admin       = char(21),
-        user_info_line   = char(30),
-        com_query_line   = char(30),
-        star_comn        = fixed.bin,
-        star_coms        = Dim('*') (char(21))
-    ),
-)
-
 def starrunners():
+
+    declare (
+
+        argn                 = parm,
+        argp                 = parm,
+        
+        DO_dir               = char (4) . init (">sss"),
+        DO                   = char (2) . init ("do"),
+        
+        input                = char (256) . varying . init (""),
+        shiptype             = char (14) . init (""),
+        dname                = char (14) . init (">udd>m>g>dbd"),
+        ename                = char (10) . init ("sv4.4.ship"),
+        xname                = char (10) . init ("sv4.4.univ"),
+        aname                = char (10) . init ("sv1.2.info"),
+        ring_brackets        = Dim(3) (fixed.bin(3)) . init ([5, 5, 5]),
+        code                 = parm,
+        allowed_chars        = char (87) . init ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 !$%&'()*:=-[]{}<>.,/?_|^"),
+        enter_admin_loop     = bit (1) . init ("0b0"),
+        video_mode           = bit (1) . init ("0b0"),
+        accept_notifications = bit (1) . init ("0b0"),
+        on_the_list          = bit (1) . init ("0b0"),
+        list_players         = bit (1) . init ("0b0"),
+        target               = char (10) . init (""),
+        x                    = fixed.bin . init (0),
+        y                    = fixed.bin . init (0),
+        z                    = fixed.bin . init (0),
+              
+        univptr              = ptr . init (null()),
+        my                   = ptr . init (null()),
+        enemy                = ptr . init (null()),
+        adminptr             = parm, #ptr . init (null()),
+        
+        MAIN                 = char (11) . init ("starrunners"),
+        version              = char (5) . init ("4.4"),
+        
+        admin_info           = PL1.Structure(
+            game_admin       = char(21),
+            user_info_line   = char(30),
+            com_query_line   = char(30),
+            star_comn        = fixed.bin,
+            star_coms        = Dim(Dynamic.star_comn) (char(21))
+        ),
+    )
 
 # /***** LET'S GET THE SHOW ON THE ROAD -- PRELIMINARY STUFF *****/
 

@@ -471,6 +471,8 @@ class SegmentDescriptor(QtCore.QObject):
     def __init__(self, system_services, segment_name, path_to_segment, module_containing_segment):
         self.name = segment_name
         self.path = path_to_segment
+        self.fs = system_services.fs
+        self.last_modified = system_services.fs.get_mod_data(path_to_segment)
         self.module = module_containing_segment
         
         entry_point = getattr(module_containing_segment, segment_name)
@@ -507,6 +509,9 @@ class SegmentDescriptor(QtCore.QObject):
     def filepath(self):
         return self.path
         
+    def is_out_of_date(self):
+        return self.last_modified != self.fs.get_mod_data(self.path)
+    
     def __repr__(self):
         return "<%s.SegmentDescriptor %s>" % (__name__, self.path)
         
@@ -663,11 +668,16 @@ class DynamicLinker(QtCore.QObject):
             return entry_point
         except KeyError:
             try:
-                process = get_calling_process_()
+                # process = get_calling_process_()
                 # print "Current process", process.objectName(), segment_name
-                entry_point = self.known_segment_table[segment_name].segment
+                seg_desc = self.known_segment_table[segment_name]
+                if seg_desc.is_out_of_date():
+                    # print "...found in KST but newer version available"
+                    raise SegmentFault(segment_name)
+                # entry_point = self.known_segment_table[segment_name].segment
                 # print "...found in KST"
-                return entry_point
+                # return entry_point
+                return seg_desc.segment
             except KeyError:
                 raise SegmentFault(segment_name)
 

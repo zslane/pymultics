@@ -1,4 +1,3 @@
-import copy_reg
 
 class Python(object):
     from decimal import Decimal
@@ -75,6 +74,9 @@ class PL1(object):
         def BitstringFactory(self, val=""):
             return bitstring(self.size, val)
         
+        def refer(self):
+            return 3
+            
         def __call__(self, size, prec=0):
             return PL1.Type(self.type, self.base, size, prec)
             
@@ -151,7 +153,7 @@ class PL1(object):
     class Structure(object):
         def __init__(self, **attrs):
             def toPythonList(x): return [ toType(elem) for elem in x ]
-            def toArray(x): return PL1.Array([ toType(elem) for elem in x ], x.attrs)
+            def toArray(x): return PL1.Array([ toType(elem) for elem in x ], x.attrs, x.dynamic_size_ref)
             # def toArray(x): return PL1.Array([ toType(elem) for elem in x ])
             def toType(x):
                 if type(x) is PL1.Type:
@@ -166,7 +168,23 @@ class PL1(object):
             for attr in attrs:
                 attrs[attr] = toType(attrs[attr])
                 
+            # print attrs
+            
             self.__dict__.update(attrs)
+            
+            for attr in attrs.values():
+                if type(attr) is PL1.Array:
+                    if attr.dynamic_size_ref in attrs:
+                        # print "Structure resolving dynamic size reference:", attr.dynamic_size_ref
+                        initial_size = self.__dict__[attr.dynamic_size_ref]
+                        self.__dict__[attr.dynamic_size_ref] = DynamicArraySizer(attr)
+                        if initial_size:
+                            self.__dict__[attr.dynamic_size_ref] += initial_size
+                        # end if
+                        del attr.__dict__['size']
+                    # end if
+                # end if
+            # end for
             
             object.__setattr__(self, "_frozen_", True)
         
@@ -207,7 +225,7 @@ class PL1(object):
                 setattr(self, member_name, PL1.EnumValue(enum_name, member_name, value))
     
     class Array(list):
-        def __init__(self, a, dcl_type=None):
+        def __init__(self, a, dcl_type, refname=""):
             self[:] = a
             self.attrs = None
             if type(dcl_type) is PL1.Structure:
@@ -216,12 +234,30 @@ class PL1(object):
                 self.attrs = dcl_type.toPython()
             else:
                 self.attrs = dcl_type
-            self.size = ArrayExpander(self)
+            # end if
+            #== This allows dynamic sizing using Dim('*')
+            if a == []:
+                self.size = DynamicArraySizer(self)
+            # end if
+            #== This allows dynamic sizing using Dim(Dynamic.attrname)
+            self.dynamic_size_ref = refname
             
         def init(self, value):
             self[:] = value
             return self
             
+        def initialize(self, value):
+            return self.init(value)
+            
+        def pop(self, index):
+            self.size.popping()
+            return super(PL1.Array, self).pop(index)
+            
+        def __delitem__(self, index):
+            n = len(self)
+            super(PL1.Array, self).__delitem__(index)
+            self.size.popping(n - len(self))
+        
         def _expand(self, num_elements):
             for i in range(num_elements):
                 #== Dictionaries are used to capture PL1.Structures
@@ -233,50 +269,13 @@ class PL1(object):
         def _shrink(self, num_elements):
             del self[-num_elements:]
             
-    class Array2(object):
-        def __init__(self, array, dcl_type):
-            super(PL1.Array, self).__init__()
-            # self.extend(array)
-            self.array_list = array
-            self.array_type = dcl_type
-            # self.size = PL1.ArrayExpander(self)
-            
-        def __getnewargs__(self):
-            return (self.array_list, self.array_type)
-            
-        def pop(self, index):
-            # self.size.popping()
-            # return super(PL1.Array, self).pop(index)
-            return self.array_list.pop(index)
-            
-        def __delitem__(self, index):
-            n = len(self)
-            # super(PL1.Array, self).__delitem__(index)
-            del self.array_list[index]
-            # self.size.popping(n - len(self))
-        
-        def expand(self, num_elements):
-            # self.size += num_elements
-            pass
-            
-        def _expand(self, num_elements):
-            for i in range(num_elements):
-                if type(self.array_type) is PL1.Structure:
-                    # self.append(self.array_type.copy())
-                    self.array_list.append(self.array_type.copy())
-                elif type(self.array_type) is PL1.Type:
-                    # self.append(self.array_type.toPython())
-                    self.array_list.append(self.array_type.toPython())
-                else:
-                    # self.append(self.array_type())
-                    self.array_list.append(self.array_type())
-                    
-        def _shrink(self, num_elements):
-            del self.array_list[-num_elements:]
-                
+        def __repr__(self):
+            refstring = "(sized by '%s') " % self.dynamic_size_ref if self.dynamic_size_ref else ""
+            return "<PL1.Array %s%s>" % (refstring, repr(self[:]))
+                            
 #-- end class PL1
 
-class ArrayExpander(object):
+class DynamicArraySizer(object):
     def __init__(self, array):
         self.array = array
         self.size = len(array)
@@ -294,7 +293,22 @@ class ArrayExpander(object):
         return self.size
     def popping(self, value=1):
         self.size -= value
-            
+    def __repr__(self):
+        return "<DynamicArraySizer (%d) size for: %s>" % (self.size, repr(self.array))
+        
+class DynamicSizeRef(object):
+    def __init__(self, refname):
+        self.ref = refname
+    def __getattr__(self, refname):
+        self.ref = (self.ref + "." + refname) if self.ref else refname
+        return self
+        
+class DynamicSizeRefFactory(object):
+    def __getattr__(self, refname):
+        return DynamicSizeRef(refname)
+        
+Dynamic = DynamicSizeRefFactory()
+
 class Dim(object):
     def __init__(self, *sizes):
         self.dimensions = list(sizes)
@@ -305,6 +319,15 @@ class Dim(object):
     def _make_nested_arrays(self, dimensions, dcl_type):
         size, dimensions = dimensions[0], dimensions[1:]
         if size == "*": size = 0
+        
+        if type(size) is DynamicSizeRef:
+            # print "DYNSIZEREF: " + size.ref
+            refname = size.ref
+            size = 0
+        else:
+            refname = ""
+        # end if
+        
         a = []
         for i in range(size):
             if dimensions:
@@ -313,8 +336,9 @@ class Dim(object):
                 a.append(dcl_type.copy())
             # end if
         # end for
+        
         # return a
-        return PL1.Array(a, dcl_type)
+        return PL1.Array(a, dcl_type, refname)
 
 class bitstring(object):
 
@@ -457,7 +481,3 @@ variable = PL1.Option.variable
 #== This is defined just so PL1.Structures can be pickled
 Structure = PL1.Structure
 Array = PL1.Array
-
-# def pickle_Array(a):
-    # return Array, (a.array_list, a.array_type)
-# copy_reg.pickle(Array, pickle_Array)

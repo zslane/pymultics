@@ -78,15 +78,18 @@ class user_control(CommandProcessor):
         
     def login_command(self):
         declare (arg_list = parm,
+                 password = parm,
                  code     = parm)
         
         def show_usage():
             call.ioa_("Usage:\n" + login_help_text)
+        # end if
         
         call.cu_.arg_list(arg_list)
         if len(arg_list.args) == 0:
             show_usage()
             return
+        # end if
             
         project = ""
         change_password = False
@@ -128,12 +131,9 @@ class user_control(CommandProcessor):
             # end if
         # end while
         
-        self.supervisor.set_input_mode(QtGui.QLineEdit.Password)
+        call.read_password_("password:", password)
         
-        self.supervisor.llout("password:\n")
-        password = self.supervisor.llin(block=True)
-        
-        user_lookup = self._authenticate(login_name, login_options['project_id'], password, login_options)
+        user_lookup = self._authenticate(login_name, login_options['project_id'], password.val, login_options)
         if user_lookup:
             person_id, pdt = user_lookup
             login_options['person_id'] = person_id
@@ -142,13 +142,14 @@ class user_control(CommandProcessor):
             if change_password:
                 self._change_user_password(login_options['person_id'])
             # end if
+        else:
+            return None
         # end if
-        
-        self.supervisor.set_input_mode(QtGui.QLineEdit.Normal)
         
         return login_options
         
     def _authenticate(self, login_name, project, password, options):
+        if password == "*": password = ""
         person_id = self.__person_name_table.person_id(login_name)
         try:
             encrypted_password, pubkey = self.__person_name_table.get_password(person_id)
@@ -172,12 +173,20 @@ class user_control(CommandProcessor):
         return None
     
     def _change_user_password(self, person_id):
-        self.supervisor.set_input_mode(QtGui.QLineEdit.Password)
-        
-        self.supervisor.llout("new password:\n")
-        new_password = self.supervisor.llin(block=True)
-        self.supervisor.llout("new password again:\n")
-        confirm_password = self.supervisor.llin(block=True)
+        try:
+            self.supervisor.set_input_mode(QtGui.QLineEdit.Password)
+            
+            self.supervisor.llout("new password:\n")
+            new_password = self.supervisor.llin(block=True)
+            self.supervisor.llout("new password again:\n")
+            confirm_password = self.supervisor.llin(block=True)
+            
+            self.supervisor.set_input_mode(QtGui.QLineEdit.Normal)
+            
+        except:
+            self.supervisor.set_input_mode(QtGui.QLineEdit.Normal)
+            raise
+        # end try
         
         if new_password == confirm_password:
             current = self.__person_name_table.name_entries[person_id]
