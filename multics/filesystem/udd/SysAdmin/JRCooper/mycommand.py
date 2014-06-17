@@ -15,7 +15,7 @@ universe = PL1.Structure(
     user           = Dim(10) (char(21)),
     unique_id      = Dim(10) (fixed.bin),
     holes          = fixed.bin,
-    black_hole     = Dim(5) (char(8)),
+    black_hole     = Dim('*') (char(8)),
     password       = char(10),
     robot          = Dim(2) (PL1.Structure(
         name       = char(5),
@@ -49,6 +49,11 @@ def mycommand():
              test1_bits = bit(6) . init ("0b110101"),
              test2_bits = bit(6) . init ("0b011001"))
     
+    universe.black_hole.size += 5
+    print universe
+    print dyn_array
+    dyn_array.size += 3
+    print dyn_array
     call.cu_.arg_list(args)
     call.ioa_("arg_list: {0}", args.list)
     call.test_()
@@ -93,7 +98,7 @@ def mycommand():
         call.ioa_("Error deleting {0}>{1}", dirname, filename)
         return
         
-    call.hcs_.make_seg(dirname, filename, segment(local_var), code)
+    call.hcs_.make_seg(dirname, filename, segment(universe), code)
     data = segment.ptr
     if not data:
         call.ioa_("Error creating {0}>{1}", dirname, filename)

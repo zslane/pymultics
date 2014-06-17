@@ -151,7 +151,8 @@ class PL1(object):
     class Structure(object):
         def __init__(self, **attrs):
             def toPythonList(x): return [ toType(elem) for elem in x ]
-            def toArray(x): return PL1.Array([ toType(elem) for elem in x.array_list ], x.array_type)
+            def toArray(x): return PL1.Array([ toType(elem) for elem in x ], x.attrs)
+            # def toArray(x): return PL1.Array([ toType(elem) for elem in x ])
             def toType(x):
                 if type(x) is PL1.Type:
                     return x.toPython()
@@ -205,7 +206,34 @@ class PL1(object):
             for member_name, value in members.items():
                 setattr(self, member_name, PL1.EnumValue(enum_name, member_name, value))
     
-    class Array(object):
+    class Array(list):
+        def __init__(self, a, dcl_type=None):
+            self[:] = a
+            self.attrs = None
+            if type(dcl_type) is PL1.Structure:
+                self.attrs = dcl_type.__dict__
+            elif type(dcl_type) is PL1.Type:
+                self.attrs = dcl_type.toPython()
+            else:
+                self.attrs = dcl_type
+            self.size = ArrayExpander(self)
+            
+        def init(self, value):
+            self[:] = value
+            return self
+            
+        def _expand(self, num_elements):
+            for i in range(num_elements):
+                #== Dictionaries are used to capture PL1.Structures
+                if type(self.attrs) is dict:
+                    self.append(PL1.Structure(**self.attrs))
+                else:
+                    self.append(self.attrs)
+                    
+        def _shrink(self, num_elements):
+            del self[-num_elements:]
+            
+    class Array2(object):
         def __init__(self, array, dcl_type):
             super(PL1.Array, self).__init__()
             # self.extend(array)
@@ -246,28 +274,27 @@ class PL1(object):
         def _shrink(self, num_elements):
             del self.array_list[-num_elements:]
                 
-    class ArrayExpander(object):
-        def __init__(self, array):
-            self.array = array
-            # self.size = len(array)
-            self.size = len(array.array_list)
-        def __iadd__(self, value):
-            self.size += value
-            self.array._expand(value)
-            return self
-        def __isub__(self, value):
-            self.size -= value
-            self.array._shrink(value)
-            return self
-        def __int__(self):
-            return self.size
-        def __long__(self):
-            return self.size
-        def popping(self, value=1):
-            self.size -= value
-            
 #-- end class PL1
 
+class ArrayExpander(object):
+    def __init__(self, array):
+        self.array = array
+        self.size = len(array)
+    def __iadd__(self, value):
+        self.size += value
+        self.array._expand(value)
+        return self
+    def __isub__(self, value):
+        self.size -= value
+        self.array._shrink(value)
+        return self
+    def __int__(self):
+        return self.size
+    def __long__(self):
+        return self.size
+    def popping(self, value=1):
+        self.size -= value
+            
 class Dim(object):
     def __init__(self, *sizes):
         self.dimensions = list(sizes)
@@ -286,8 +313,8 @@ class Dim(object):
                 a.append(dcl_type.copy())
             # end if
         # end for
-        return a
-        # return PL1.Array(a, dcl_type)
+        # return a
+        return PL1.Array(a, dcl_type)
 
 class bitstring(object):
 

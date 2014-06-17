@@ -42,7 +42,7 @@ class cu_(SystemExecutable):
     def arg_list(self, arg_list):
         arg_list.args = self.__contexts[-1].argument_string.split()
         
-    def arg(self, arg_no, arg, code):
+    def arg_ptr(self, arg_no, arg, code):
         try:
             arg.str = self.__contexts[-1].argument_string.split()[arg_no]
             code.val = 0

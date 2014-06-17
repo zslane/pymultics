@@ -136,3 +136,305 @@ starrunners: star: procedure options (variable);
           dcl       quit                          condition;
           dcl       seg_fault_error               condition;
           dcl       finish                        condition;
+
+/***** LET'S GET THE SHOW ON THE ROAD -- PRELIMINARY STUFF *****/
+
+/* SET GAME MODES: -admin, -video, -list_players CONTROL_ARGS */
+          call cu_$arg_count (argn, code);
+          if code ^= 0 then do;
+                    call com_err_ (code, MAIN);
+                    return;
+               end;
+          do x = 1 to argn;
+               call cu_$arg_ptr (x, argp, argl, code);
+               if arg = "-admin" then enter_admin_loop = "1"b;
+               else if arg = "-video" then video_mode = "1"b;
+               else if arg = "-list_players" | arg = "-lp" then list_players = "1"b;
+               else if arg = "-accept_notifications" | arg = "-ant" then accept_notifications = "1"b;
+               else if arg = "-refuse_notifications" | arg = "-rnt" then accept_notifications = "0"b;
+               else if substr (arg, 1, 1) = "-" then do;
+                         call ioa_ ("^a: Specified control argument is not accepted. ^a", MAIN, arg);
+                         return;
+                    end;
+          end;
+          
+/* ENTER ADMIN LOOP IF -admin CONTROL_ARG WAS SUPPLIED, AND USER HAS ACCESS */
+          call term_$single_refname ((DO), code);
+          call hcs_$initiate (DO_dir, DO, DO, 0, 0, (null ()), code);
+          call hcs_$initiate (dname, aname, "", 0, 0, adminptr, code);
+          if code ^= 0 & adminptr = null () then do;
+                    call ioa_ ("^/Administrative matrix not found.  Game locked.");
+                    return;
+               end;
+          call do (admin_info.user_info_line);
+          call do (admin_info.com_query_line);
+          call hcs_$initiate ((get_pdir_ ()), "pit", "", 0, 0, pit_ptr, code);
+          person = pit.login_name;
+          project = pit.project;
+          if enter_admin_loop then do;
+                    if person = admin_info.game_admin then do;
+                              call star_admin;
+                              return;
+                         end;
+                    else do;
+                              call ioa_ ("This command is for Starrunners Administrators only.");
+                              return;
+                         end;
+               end;
+               
+/* SET UP GAME ENVIRONMENT */
+          call ioa_ ("^/Starrunners ^a", version);
+          do x = 1 to admin_info.star_comn;
+               if person = admin_info.star_coms (x) then access = "yes";
+          end;
+          call hcs_$initiate (dname, xname, "", 0, 0, univptr, code);
+          if code ^= 0 & univptr = null () then do;
+                    call ioa_ ("^/I'm sorry, but the STARRUNNERS universe is closed.^/Please feel free to try later.  Thank you...");
+                    return;
+               end;
+          if universe_number = 10 then do;
+                    call ioa_ ("^/I'm sorry, but the STARRUNNERS universe is filled to maximum capacity.^/Please feel free to try later.  Thank you...");
+                    return;
+               end;
+               
+/* ACCEPT/REFUSE NOTIFICATIONS.  PUT/TAKE ON/FROM LIST */
+          do x = 1 to 50;
+               if universe.notifications (x).person_id = person & universe.notifications (x).project_id = project then do;
+                         if ^accept_notifications then do;
+                                   universe_notifications (x).person_id = "";
+                                   universe_notifications (x).project_id = "";
+                              end;
+                         on_the_list = "1"b;
+                    end;
+          end;
+          if ^on_the_list & accept_notifications then do;
+                    do x = 1 to 50;
+                         if universe.notifications (x).person_id = "" & universe.notifications (x).project_id = "" then do;
+                                   universe.notifications (x).person_id = person;
+                                   universe.notifications (x).project = project_id;
+                                   return;
+                              end;
+                    end;
+               end;
+          if ^on_the_list & accept_notifications then call ioa_ ("^/Sorry, but the notifications list is full to maximum capacity...");
+          if on_the_list then return;
+          
+/* IF -list_players CONTROL_ARG WAS SUPPLIED, LIST PLAYERS, NO GAME */
+          if list_players then do;
+                    call ioa_ ("^/List of players: ^[none^]^[^d^]", (universe.number = 0), (universe.number > 0), universe.number);
+                    do x = 1 to universe.number;
+                         call ioa_ ("^3x^a", universe.user (x));
+                    end;
+                    return;
+               end;
+               
+/* ASK HIM IF HE WANTS INSTRUCTIONS */
+          do while (input = "");
+               call ioa_$nnl ("^/Would you like instructions? ");
+               call getline (input);
+               if input = "yes" | input = "y" then call print (helpfile, "1");
+               else if input ^= "no" & input ^= "n" then do;
+                         call ioa_ ("^/Please answer ""yes"" or ""no"".");
+                         input = "";
+                    end;
+          end;
+          
+/* GET GAME PASSWORD (IF THERE IS ONE) */
+          if universe.password ^= "" then do;
+                    call ioa_$nnl ("^/Password: ");
+                    call getline (input);
+                    if input ^= universe.password then do;
+                              call ioa_ ("Incorrect password supplied.");
+                              call ioa_ ("Please contact Starrunners Administrator for correct password.");
+                              return;
+                         end;
+               end;
+               
+/* SET quit AND seg_fault_error TO DESTROY SHIP/END GAME */
+          on quit call game_over;
+          on seg_fault_error call universe_destroyed;
+          
+/* SET finish TO TURN OFF NOTIFICATIONS */
+          on finish begin;
+                    do x = 1 to 50;
+                         if universe.notifications (x).person_id = person & universe.notifications (x).project_id = project then do;
+                                   universe.notifications (x).person_id = "";
+                                   universe.notifications (x).project_id = "";
+                              end;
+                    end;
+                    call continue_to_signal_ ((0));
+               end;
+               
+/* MAKE HIS SHIP */
+          pdir = get_pdir_ ();
+          call hcs_$initiate(pdir, ename, "", 0, 0, my, code);
+          if my ^= null () then call hcs_$delentry_seg (my, code);
+          call hcs_$make_seg (pdir, ename, "", (10), my, code);
+          entry = pdir || ">" || ename;
+          call set_acl (entry, acl, whom);
+          call hcs_$set_ring_brackets (pdir, ename, ring_brackets, code);
+          if code ^= 0 then do;
+                    call com_err_ (code, MAIN);
+                    return;
+               end;
+               
+/* CLEAN OUT SHIP DATA FOR A FRESH START */
+          call lock (my -> ship.lock);
+          my -> ship.user, my -> ship.name, my -> ship.type, my -> ship.condition, my -> ship.message, my -> ship.fromname, my -> ship.fromtype, my -> ship.deathmes, my -> ship.deadname, my -> ship.deadtype, my -> ship.tracname, my -> ship.monitored_by, my -> ship.monloc, my -> ship.psi_name, my -> ship.psi_type, my -> ship.psi_mes = "";
+          my -> ship.monname, my -> ship.montype = "#";
+          my -> ship.location = "PHASING";
+          my -> ship.black_hole = "start";
+          my -> ship.energy_cur, my -> ship.energy_old, my -> ship.energy_max, my -> ship.shields_cur, my -> ship.shields_old, my -> ship.shields_max, my -> ship.torps_cur, my -> ship.torps_old, my -> ship.torps_max, my -> ship.life_cur, my -> ship.life_old, my -> ship.psi_num = 0;
+          my -> ship.cloak_on, my -> ship.tractor_on, my -> ship.psionics = "0"b;
+          my -> ship.unique_id = clock ();
+          call unlock (my -> ship.lock);
+          
+/* ADD HIM TO LIST OF PLAYERS IN THE STARRUNNERS UNIVERSE */
+          if universe.number = 10 then do;
+                    call ioa_ ("I'm sorry, but the STARRUNNERS universe if filled to maximum capacity.^/Please feel free to try later.  Thank you...");
+                    return;
+               end;
+          call lock (universe.lock);
+          universe.number = universe.number + 1;
+          universe.pdir (universe.number) = pdir;
+          universe.unique_id (universe.number) = my -> ship.unique_id;
+          universe.user (universe.number) = person;
+          if universe.number = 1 then do;
+                    universe.holes = 0;
+                    universe.black_hole = "";
+                    universe.robot (*).energy = 0;
+                    universe.robot (*).location = "";
+                    universe.robot (*).condition = "";
+                    universe.robot (*).controller = "none";
+               end;
+          call unlock (universe.lock);
+          
+/* RECORED THE USER'S PERSON_ID */
+          call lock (my -> ship.lock);
+          my -> ship.user = person;
+          call unlock (my -> ship.lock);
+          
+/* GET SHIP NAME */
+          input = "";
+          do while (input = "");
+               call ioa_$nnl ("^/Ship name: ");
+               call getline (input);
+               if verify (input, allowed_chars) ^= 0 then do;
+                         call ioa_ ("Invalid ship name: ^a", input);
+                         input = "";
+                    end;
+               do x = 1 to universe.number;
+                    edir = universe.pdir (x);
+                    call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+                    if enemy ^= null () & edir ^= pdir & input = enemy -> ship.name then do;
+                              call ioa_ ("^/The name you have chosen is presently in use.^/Please choose a different name.");
+                              input = "";
+                         end;
+               end;
+               if input ^= "" then my -> ship.name = input;
+          end;
+          
+/* GET SHIP TYPE */
+          input = "";
+          do while (input = "");
+               call ioa_$nnl ("Ship type: ");
+               call getline (input);
+               if input = "Destroyer" | input = "D" then shiptype = "Destroyer";
+               else if input = "Cruiser" | input = "C" then shiptype = "Cruiser";
+               else if input = "Starship" | input = "S" then shiptype = "Starship";
+               else if input = "Star Commander" | input = "SC" then do;
+                         if access ^= "yes" then do;
+                                   call ioa_ ("^/You do not have proper clearance for Star Command.^/");
+                                   input = "";
+                              end;
+                         else do;
+                                   call ioa_ ();
+                                   call read_password_ ("Password: ", shiptype);
+                                   if length (ltrim (rtrim (shiptype))) < 3 then do;
+                                             call ioa_ ("^a: Password must be at least 3 characters long.", MAIN);
+                                             return;
+                                        end;
+                                   call read_password_ ("Codeword:", target);
+                                   if target ^= generate_codeword (shiptype) then do;
+                                             call ioa_ ("Star Command clearance check failed.^/");
+                                             input = "";
+                                        end;
+                                   else call ioa_ ("^/You have been cleared for Star Command.");
+                                   shiptype = "Star Commander";
+                              end;
+                    end;
+               else do;
+                         call ioa_ ("That is not a standard ship type ---> use: Destroyer, Cruiser, or Starship.");
+                         input = "";
+                    end;
+          end;
+          
+/* FINAL SET-UP PREPARATIONS */
+          call make_ship (shiptype);
+          call ship_status;
+          call black_hole_check;
+          call check_monitor;
+          call send_notifications;
+
+/***** ENTER COMMAND LOOP ENVIRONMENT *****/
+
+command_loop:
+          on quit call command_seq_terminator;
+          on seg_fault_error call universe_destroyed;
+          do while ("1"b);
+               call update_condition;
+               input = "";
+               call ioa_$nnl ("^/COMMAND :> ");
+               call timed_input (input);
+               call security_check;
+               if input = "status" | input = "st" then call ship_status;
+               else if input = "lscan" | input = "ls" then call long_scan;
+               else if input = "sscan" | input = "ss" then call short_scan;
+               else if input = "thrust" | input = "th" then call move_ship;
+               else if input = "warpout" | input = "wp" then call warpout;
+               else if input = "missile" | input = "ms" then call launch_missile;
+               else if input = "lasers" | input = "lr" then call fire_lasers;
+               else if input = "contact" | input = "ct" then call contact_ship;
+               else if input = "dock" | input = "dk" then call dock;
+               else if input = "sdestruct" | input = "sd" then call self_destruct;
+               else if input = "deathray" | input = "dr" then call death_ray;
+               else if input = "*" then call game_over;
+               
+               else if input = "." then call ioa_ ("^/^a ^a", MAIN, version);
+               else if my -> ship.type = "Star Commander" then do;
+                         if input = "cloaking-device" | input = "cd" then call cloaking_device;
+                         else if input = "nova-blast" | input = "nb" then call nova_blast;
+                         else if input = "star-gate" | input = "sg" then call create_stargate;
+                         else if input = "tractor-beam" | input = "tb" then call tractor_beam;
+                         else if input = "tractor-pull" | input = "tp" then call tractor_pull;
+                         else if input = "trojan-horse" | input = "rj" then call trojan_horse;
+                         else if input = "computer" | input = "cm" then call computer;
+                         else if substr (input, 1, 1) = ":" then call escape_to_multics;
+                         else if input = "?" then do;
+                                   call command_list;
+                                   call classified_com_list;
+                              end;
+                         else if input ^= "" then do;
+                                   call ioa_ ("^/*** COMPUTER:");
+                                   call ioa_ ("   That is not a standard ship command:");
+                                   call ioa_ ("   Type a ""?"" for a list of proper commands");
+                              end;
+                    end;
+               else if input = "?" then call command_list;
+               else if input ^= "" then do;
+                         call ioa_ ("^/*** COMPUTER:");
+                         call ioa_ ("   That is not a standard ship command:");
+                         call ioa_ ("   Type a ""?"" for a list of proper commands");
+                         input = "";
+                    end;
+               
+/* ENVIRONMENT CHECKING ROUTINES -- DAMAGE, MESSAGES, DEATHS, BLACK_HOLES, MONITOR, PSIONICS */
+               call damage_check;
+               call message_check;
+               call death_check;
+               call black_hole_check;
+               call check_monitor;
+               call psionics_check;
+               call robot_functions;
+               
+          end;
