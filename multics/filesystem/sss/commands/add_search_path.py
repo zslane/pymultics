@@ -7,11 +7,12 @@ from sl_info import *
 def add_search_path():
     declare (sl_info_ptr = parm,
              arg_list    = parm,
+             full_path   = parm,
              code        = parm)
              
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) < 2:
-        call.ioa_("""Usage: add_search_path [search_list_name] [path] {{-control_args}}
+        call.ioa_("""Usage: add_search_path|asp [search_list_name] [path] {{-control_args}}
     -first
     -last
     -before [path]
@@ -21,6 +22,8 @@ def add_search_path():
     
     sl_name = arg_list.args.pop(0)
     new_path = arg_list.args.pop(0)
+    call.sys_.get_abs_path(new_path, full_path)
+    new_path = full_path.val
     
     call.search_paths_.get(sl_name, null(), sl_info_ptr, sl_info_version_1, code)
     if code.val == error_table_.no_search_list:
@@ -76,6 +79,8 @@ def add_search_path():
         call.ioa_("Invalid path {0}", new_path)
     print code.val, [ p.pathname for p in sl_info_ptr.data.paths ]
     
+asp = add_search_path
+
 def _find_index(sl_info_path_list, path_to_find):
     for i, path in enumerate(sl_info_path_list):
         if path.pathname == path_to_find:

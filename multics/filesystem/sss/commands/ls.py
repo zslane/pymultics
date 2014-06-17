@@ -1,3 +1,4 @@
+from collections import defaultdict
 
 from multics.globals import *
 
@@ -9,6 +10,8 @@ def ls():
              segment     = parm,
              code        = parm)
              
+    excluded_extensions = (".pyc", ".pyo")
+    
     current_dir = get_wdir_()
     dir_to_list.name = current_dir
     call.cu_.arg_list(arg_list)
@@ -25,9 +28,35 @@ def ls():
         if len(branch.list) + len(segment.list) == 0:
             call.ioa_("Directory empty")
         else:
+            #== Sift out add_names
+            branch_add_names = _sift_add_names(branch.list, segment.list)
+            segment_add_names = _sift_add_names(segment.list, segment.list)
             call.ioa_("{0} segments in directory: {1}", len(branch.list) + len(segment.list), dir_to_list.name)
             for branch_name in branch.list:
                 call.ioa_("d {0}", branch_name)
+                for add_name in branch_add_names.get(branch_name, []):
+                    call.ioa_("    {0}", add_name)
+                # end for
+            # end for
             for segment_name in segment.list:
-                call.ioa_("  {0}", segment_name)
+                if not segment_name.endswith(excluded_extensions):
+                    call.ioa_("  {0}", segment_name)
+                # end if
+                for add_name in segment_add_names.get(segment_name, []):
+                    call.ioa_("    {0}", add_name)
+    
+def _sift_add_names(name_list, file_list):
+    add_names = defaultdict(list)
+    for fname in file_list[:]:
+        match = re.match(r"\.(.*)\+(.*)", fname)
+        if match:
+            add_name = match.group(1)
+            long_name = match.group(2)
+            if long_name in name_list:
+                add_names[long_name].append(add_name)
+                file_list.remove(fname)
+            # end if
+        # end if
+    # end for
+    return dict(add_names)
     

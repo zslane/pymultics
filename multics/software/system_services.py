@@ -607,8 +607,6 @@ class DynamicLinker(QtCore.QObject):
             return None # self.snap(segment_name, dir_name)
         
     def snap(self, segment_name, known_location=None):
-        declare (get_wdir_ = entry . returns (char(168)))
-        
         #== Special case segment names: 'print',
         if segment_name == "print":
             segment_name = "print_"
@@ -635,9 +633,8 @@ class DynamicLinker(QtCore.QObject):
             #== Try to find the segment and add it to the KST
             for multics_path in search_paths:
                 # print "...searching", multics_path
-                native_path = self.__filesystem.path2path(multics_path)
-                # print native_path
-                module_path = os.path.join(native_path, segment_name + ".py")
+                module_path = self.__filesystem.path2path(multics_path, segment_name + ".py")
+                # module_path = os.path.join(native_path, segment_name + ".py")
                 # print module_path
                 if self.__filesystem.file_exists(module_path):
                     try:

@@ -188,7 +188,8 @@ class AnsweringService(SystemExecutable):
         pass
         
     def _upload_pmf_request_handler(self, message):
-        declare (pdt  = parm,
+        declare (pnt  = parm,
+                 pdt  = parm,
                  sat  = parm,
                  code = parm)
                  
@@ -211,17 +212,29 @@ class AnsweringService(SystemExecutable):
                 # end if
             # end if
             
-            #== Create user home directories if necessary
+            #== Create project directory (with add_name for alias) if necessary
+            project_dir = self.supervisor.fs.path2path(self.supervisor.fs.user_dir_dir, pdt.ptr.project_id)
+            if not self.supervisor.fs.file_exists(project_dir):
+                self.supervisor.fs.mkdir(project_dir)
+            # end if
+            self.supervisor.fs.add_name(project_dir, pdt.ptr.alias)
+            
+            call.hcs_.initiate(self.supervisor.fs.system_control_dir, "person_name_table", pnt, code)
+            
+            #== Create user home directories (with add_names for aliases) if necessary
             for user_config in pdt.ptr.users.values():
                 homedir = user_config.home_dir or self._default_home_dir(user_config.person_id, pdt.ptr.project_id)
                 if not self.supervisor.fs.file_exists(homedir):
-                    self._create_new_home_dir(user_config.person_id, pdt.ptr.project_id, homedir)
+                    self._create_new_home_dir(user_config.person_id, pnt.ptr, homedir)
                     
-    def _create_new_home_dir(self, person_id, project_id, homedir):
+    def _create_new_home_dir(self, person_id, pnt_ptr, homedir):
         declare (segment = parm,
                  code    = parm)
         
         code.val = self.supervisor.fs.mkdir(homedir)
         if code.val == 0:
             call.hcs_.make_seg(homedir, person_id + ".mbx", segment(dict), code)
+            
+        if pnt_ptr.name_entries[person_id].alias:
+            self.supervisor.fs.add_name(homedir, pnt_ptr.name_entries[person_id].alias)
             

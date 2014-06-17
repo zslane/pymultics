@@ -21,7 +21,7 @@ def print_search_paths():
         elif not arg.startswith("-"):
             sl_name = arg
         else:
-            call.ioa_("Usage: print_search_paths {{sl_name}} {{-expanded|-exp}}")
+            call.ioa_("Usage: print_search_paths|psp {{sl_name}} {{-expanded|-exp}}")
             return
         # end if
     # end while
@@ -54,3 +54,5 @@ def print_search_paths():
         # end if
         paths_string = "\n    ".join(path_list)
         call.ioa_("{0}{1}:\n    {2}", sl_name, aliases_string, paths_string)
+
+psp = print_search_paths

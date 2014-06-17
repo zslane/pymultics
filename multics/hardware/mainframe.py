@@ -240,11 +240,14 @@ class VirtualMulticsFileSystem(QtCore.QObject):
     
     def path2path(self, p, f=""):
         if ">" in p:
+            if f:
+                p += ">" + f
+            p = self._resolve_path(p)
             p = p.replace(">", "\\").lstrip("\\")
             p = os.path.join(self.FILESYSTEMROOT, p)
-            if f:
-                p = os.path.join(p, f)
-            # end if
+            # if f:
+                # p = os.path.join(p, f)
+            # # end if
         elif "\\" in p:
             if f:
                 p = os.path.join(p, f)
@@ -272,7 +275,8 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             return os.path.split(p)
         
     def _resolve_path(self, path):
-        print "_resolve_path:", path
+        original_path = path
+        
         path = path.lstrip("<").rstrip(">").replace(">>", ">").replace("<>", "<").replace("><", "<")
         l = re.split("([<>])", path)
         root = {'>':'>'}.get(path[0], "")
@@ -284,7 +288,9 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             else:
                 result.append(x)
         path = root + ">".join(result)
-        print "resolves to:", path
+        
+        path = self._expand_short_names(path)
+        # print original_path + " resolves to: " + path
         return path
     
     def list_segments(self, filepath):
@@ -344,15 +350,67 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         except:
             return error_table_.fileioerr
             
+    def add_name(self, filepath, new_name):
+        filepath = self.native_path(filepath)
+        dirname, fname = os.path.split(filepath)
+        add_name_file = ".%s+%s" % (new_name, fname)
+        # print "Adding", new_name, "to", full_path.val, "with", os.path.join(dirname, add_name_file)
+        fd = os.open(os.path.join(dirname, add_name_file), os.O_CREAT|os.O_BINARY|os.O_TRUNC|os.O_RDWR)
+        os.close(fd)
+    
     def get_directory_contents(self, dirpath):
         try:
             dirpath = self.native_path(dirpath)
-            contents = glob.glob(os.path.join(dirpath, "*"))
+            contents = glob.glob(os.path.join(dirpath, "*")) + glob.glob(os.path.join(dirpath, ".*"))
             file_list = map(os.path.basename, filter(os.path.isfile, contents))
             dir_list = map(os.path.basename, filter(os.path.isdir, contents))
             return (dir_list, file_list, 0)
         except:
             return (None, None, -1)
+    
+    def _walk_and_match(self, top, part, parts, new_parts):
+        for (dirpath, dirnames, filenames) in os.walk(top):
+            # print "...resolving", part, "against", (dirpath, dirnames, filenames)
+            if part in dirnames or part in filenames:
+                new_parts.append(part)
+                if not parts:
+                    return
+                next_part = parts.pop(0)
+                top = os.path.join(dirpath, part)
+                self._walk_and_match(top, next_part, parts, new_parts)
+                return
+            if dirnames:
+                add_names = [ dirname.partition("+")[-1] for dirname in dirnames if dirname.startswith("." + part + "+") ]
+                if add_names:
+                    new_parts.append(add_names[0])
+                    if not parts:
+                        return
+                    next_part = parts.pop(0)
+                    top = os.path.join(dirpath, add_names[0])
+                    self._walk_and_match(top, next_part, parts, new_parts)
+                    return
+                # end if
+            if filenames:
+                add_names = [ filename.partition("+")[-1] for filename in filenames if filename.startswith("." + part + "+") ]
+                if add_names:
+                    new_parts.append(add_names[0])
+                    if not parts:
+                        return
+                    next_part = parts.pop(0)
+                    top = os.path.join(dirpath, add_names[0])
+                    self._walk_and_match(top, next_part, parts, new_parts)
+                    return
+                # end if
+            new_parts.append(part)
+            return
+    
+    def _expand_short_names(self, path):
+        parts = path.split(">")
+        new_parts = [parts.pop(0)]
+        part = parts.pop(0)
+        self._walk_and_match(self.FILESYSTEMROOT, part, parts, new_parts)
+        new_path = ">".join(new_parts)
+        return new_path
     
     def segment_data_ptr(self, filepath, data_instance=None):
         filepath = self.native_path(filepath)

@@ -27,3 +27,5 @@ def starrunners():
         # print cmd
     # end while
     call.ioa_("Exiting game. Good bye.")
+
+star = starrunners
