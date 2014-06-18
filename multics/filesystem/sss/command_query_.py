@@ -32,6 +32,8 @@ class command_query_(SystemExecutable):
                 explanation = info_ptr.explanation_ptr
                 if explanation:
                     call.ioa_(explanation)
+                else:
+                    break
                 # end if
             elif info_ptr.yes_or_no_sw:
                 if answer.val.strip().lower() in ["yes", "y", "no", "n"]:

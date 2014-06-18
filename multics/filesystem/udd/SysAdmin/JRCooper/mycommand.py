@@ -45,6 +45,7 @@ def mycommand():
              local_var  = fixed.decimal(12, 6) . init ([0, 2, 3.1415]), # <-- pythonic but not PL1-ish...use Dim() instead
              my_table   = Dim(3, 4) (fixed.decimal(6, 4) . init (3.1415)),
              dyn_array  = Dim('*') (fixed.decimal(4, 2)),
+             flag       = bit(1) . init ("0b0"),
              test0_bits = bit('*') . init ("0b100110101"),
              test1_bits = bit(6) . init ("0b110101"),
              test2_bits = bit(6) . init ("0b011001"))
@@ -132,3 +133,6 @@ def mycommand():
     call.hcs_.initiate(">sss", "do", null(), code)
     call.do("whoami")
     call.print_("Multics.pmf")
+    
+    call.ioa_("flag = {0}", flag)
+    

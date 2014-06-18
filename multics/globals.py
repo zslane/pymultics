@@ -262,9 +262,14 @@ class Injector(object):
                 # end if
                 member_object = getattr(module, member_name)
                 if member_name == name + "_structure":
-                    member_object = member_object()
-                    # print "Injecting", member_object, "into", pframe.f_globals['__name__'], "as", name
-                    pframe.f_globals.update({name:member_object})
+                    # if name in pframe.f_globals and type(pframe.f_globals[name]) is BasedStructure:
+                        # print name, "already injected as a based structure pointer in", pframe.f_globals['__name__']
+                        # pass
+                    # else:
+                    if True:
+                        member_object = member_object()
+                        # print "Injecting", member_object, "into", pframe.f_globals['__name__'], "as", name
+                        pframe.f_globals.update({name:member_object})
                 else:
                     # print "Injecting", member_name, "into", pframe.f_globals['__name__'], "with value", member_object
                     pframe.f_globals.update({member_name:member_object})
@@ -272,7 +277,7 @@ class Injector(object):
     @staticmethod
     def inject_local(pframe, name, initial_value):
         if pframe:
-            print "Injecting", name, "into", pframe.f_globals['__name__'], "with initial value", repr(initial_value)
+            # print "Injecting", name, "into", pframe.f_globals['__name__'], "with initial value", repr(initial_value)
             pframe.f_globals.update({name:initial_value})
         
     @staticmethod
@@ -300,6 +305,7 @@ class declare(object):
     #==              code      = parm)
     #==
     def __init__(self, **kwargs):
+        self.global_decls = ""
         pframe = Injector.find_pframe()
         for fn_name, dcl_type in kwargs.items():
             if dcl_type is parameter:
@@ -314,7 +320,7 @@ class declare(object):
                 #== objects to be called with regular function call syntax.
                 Injector.inject_func(pframe, fn_name, call)
             else:
-                print "declaring", fn_name, dcl_type
+                # print "declaring", fn_name, dcl_type
                 #== Creates and injects a local variable
                 Injector.inject_local(pframe, fn_name, self.get_initial_value(dcl_type))
                 

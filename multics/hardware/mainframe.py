@@ -310,17 +310,29 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         
     def write_file(self, filepath, data):
         filepath = self.native_path(filepath)
-        with open(filepath, "wb") as f:
-            pickle.dump(data, f)
+        # with open(filepath, "wb") as f:
+            # pickle.dump(data, f)
+        f = open(filepath, "wb")
+        pickle.dump(data, f)
+        f.close()
     
     def read_file(self, filepath):
         filepath = self.native_path(filepath)
-        with open(filepath, "rb") as f:
-            try:
-                return pickle.load(f)
-            except:
-                f.seek(0)
-                return f.read()
+        # with open(filepath, "rb") as f:
+            # try:
+                # return pickle.load(f)
+            # except:
+                # f.seek(0)
+                # return f.read()
+        f = open(filepath, "rb")
+        try:
+            data = pickle.load(f)
+        except:
+            f.seek(0)
+            data = f.read()
+        # end try
+        f.close()
+        return data
             
     def get_mod_time(self, filepath):
         filepath = self.native_path(filepath)

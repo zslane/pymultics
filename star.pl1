@@ -192,7 +192,7 @@ starrunners: star: procedure options (variable);
                     call ioa_ ("^/I'm sorry, but the STARRUNNERS universe is closed.^/Please feel free to try later.  Thank you...");
                     return;
                end;
-          if universe_number = 10 then do;
+          if universe.number = 10 then do;
                     call ioa_ ("^/I'm sorry, but the STARRUNNERS universe is filled to maximum capacity.^/Please feel free to try later.  Thank you...");
                     return;
                end;
@@ -438,3 +438,62 @@ command_loop:
                call robot_functions;
                
           end;
+
+/***** STAR ADMIN SYSTEM *****/
+
+star_admin: procedure;
+
+          dcl       password                 char (10) init ("");
+          dcl       MAIN                     char (10) init ("star_admin");
+          dcl       version                  char (5) init ("1.2");
+          dcl       date                     builtin;
+          
+          input = "";
+          call ioa_ ("^/Star Admin ^a^/", version);
+          call read_password_ ("Password:", password);
+          if password ^= ltrim (char (date)) then do;
+                    call ioa_ ("^a: Incorrect password supplied.", MAIN);
+                    return;
+               end;
+          password = "";
+          do while ("1"b);
+               call ioa_$nnl ("^/Star admin: ");
+               call getline (input);
+               if input = "big-bang" | input = "bb" then call big_bang;
+               else if input = "set-pswd" | input = "sp" then call set_password;
+               else if input = "remove-pswd" | input = "rp" then call remove_password;
+               else if input = "add-starcom" | input = "as" then call add_star_commander;
+               else if input = "remove-starcom" | input = "rs" then call remove_star_commander;
+               else if input = "generate-code" | input = "gc" then call generate_password;
+               else if input = "quit" | input = "q" then return;
+               else if input = "." then call ioa_ ("^/^a ^a", MAIN, version);
+               else if input = "?" then do;
+                         call ioa_ ("^/Star Admin commands:");
+                         call ioa_ ("   (bb) big-bang ---------- Destroy the universe");
+                         call ioa_ ("   (sp) set-pswd ---------- Set a game password");
+                         call ioa_ ("   (rp) remove-pswd ------- Remove the game password");
+                         call ioa_ ("   (as) add-starcom ------- Add a Person_ID as a Star Commander");
+                         call ioa_ ("   (rs) remove-starcom ---- Remove a Person_ID as a Star Commander");
+                         call ioa_ ("   (gc) generate-code ----- Generate a codeword");
+                         call ioa_ ("    (q) quit -------------- Quit the star admin system");
+                    end;
+               else if input ^= "" then call ioa_ ("^a: That is not a standard request:^/^12xType a ""?"" for a list of proper requests.", MAIN);
+          end;
+          
+getline: procedure (input_var);
+
+          dcl     input_var              char (*) varying parm;
+          dcl     MAIN                   char (11) init ("starrunners");
+          dcl     command_query_         entry options (variable);
+          
+          query_info.version = query_info_version_5;
+          query_info.suppress_spacing = "1"b;
+          query_info.suppress_name_sw = "1"b;
+          query_info.cp_escape_control = "10"b;
+          
+          call command_query_ (addr (query_info), input_var, MAIN);
+          
+%include query_info;
+
+     end getline;
+     

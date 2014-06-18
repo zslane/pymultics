@@ -59,7 +59,8 @@ class PL1(object):
                     return self.DecimalFactory
             elif self.type == PL1.Realnum:
                 if self.base == PL1.Binary:
-                    return float
+                    import __builtin__
+                    return __builtin__.float
                 elif self.base == PL1.Decimal:
                     return self.DecimalFactory
             elif self.type == PL1.Cstring:
@@ -77,7 +78,9 @@ class PL1(object):
         def refer(self):
             return 3
             
-        def __call__(self, size, prec=0):
+        def __call__(self, size=-1, prec=0):
+            if size == -1:
+                return self.toPython()
             return PL1.Type(self.type, self.base, size, prec)
             
         def __getattr__(self, attrname):
@@ -196,6 +199,28 @@ class PL1(object):
                 
         def copy(self):
             return PL1.Structure(**self.__dict__)
+
+        # @staticmethod
+        # def based(base_pointer):
+            # import inspect, re
+            # pframe = inspect.currentframe()
+            # # x = inspect.getargvalues(pframe)
+            # # print x
+            # outer = pframe.f_back
+            # info = inspect.getframeinfo(outer)
+            # expr = info.code_context[info.index]
+            # m = re.search(r"based\s*\(\s*(\w+)\s*\)", expr)
+            # # if m:
+               # # print m.group(1)
+            # outer = inspect.getouterframes(outer)
+            # arg_name = m.group(1)
+            # for pframe in outer:
+                # if arg_name in pframe[0].f_globals:
+                    # arg_dict = pframe[0].f_globals
+                    # break
+            # else:
+                # raise Exception(arg_name + " not found")
+            # return BasedStructureFactory(arg_dict, arg_name)
             
         def __repr__(self):
             attributes = ",\n  ".join([ "{0}: {1}".format(k, repr(v)) for k, v in self.__dict__.items() if k != "_frozen_" ])
@@ -274,6 +299,35 @@ class PL1(object):
             return "<PL1.Array %s%s>" % (refstring, repr(self[:]))
                             
 #-- end class PL1
+
+# class BasedStructureFactory(object):
+    # def __init__(self, gdict, pointer_name):
+        # import re
+        # self.globals_dict = gdict
+        # self.pointer_name = pointer_name
+        # self.based_struct_name = re.sub(r"(.*)_\w+$", r"\1", self.pointer_name)
+        
+    # def __call__(self, **kwargs):
+        # structure = PL1.Structure(**kwargs)
+        # from multics.globals import parameter
+        # param = parameter(structure)
+        # self.globals_dict[self.pointer_name] = param
+        # self.globals_dict[self.based_struct_name] = BasedStructure(param)
+        # return structure
+
+# class BasedStructure(object):
+    # def __init__(self, tracked_object):
+        # self.__dict__['tracked_object'] = tracked_object
+    # def __getattr__(self, attrname):
+        # return getattr(self.tracked_object.value, attrname)
+    # def __setattr__(self, attrname, value):
+        # setattr(self.tracked_object.value, attrname, value)
+    # def __repr__(self):
+        # return repr(self.tracked_object.value)
+    # def __enter__(self):
+        # return self.tracked_object.value.__enter__()
+    # def __exit__(self, *args):
+        # return self.tracked_object.value.__exit__(*args)
 
 class DynamicArraySizer(object):
     def __init__(self, array):

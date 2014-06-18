@@ -603,10 +603,15 @@ class DynamicLinker(QtCore.QObject):
         
         # print "...opening", native_path
         try:
-            segment_data_ptr = self.__filesystem.segment_data_ptr(native_path)
-            # print "Adding to KST:", segment_name, "->", segment_data_ptr
-            self.known_segment_table[segment_name] = segment_data_ptr
-            return segment_data_ptr
+            # print "File exists =", self.__filesystem.file_exists(native_path)
+            if self.__filesystem.file_exists(native_path):
+                segment_data_ptr = self.__filesystem.segment_data_ptr(native_path)
+                # print "Adding to KST:", segment_name, "->", segment_data_ptr, native_path
+                self.known_segment_table[segment_name] = segment_data_ptr
+                return segment_data_ptr
+            else:
+                return None
+            # end if
         except:
             # print "...failed to find/load file...trying to snap it instead"
             return None # self.snap(segment_name, dir_name)

@@ -1,4 +1,5 @@
 
+from multics.globals import parameter
 from multics.pl1types import PL1
 
 pit_version_1 = 1
@@ -28,3 +29,4 @@ class pit_structure(PL1.Structure):
     def instance_tag(self):
         return ["", "a", "m", "z"][self.process_type]
         
+pit_ptr = parameter()
