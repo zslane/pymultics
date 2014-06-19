@@ -277,9 +277,17 @@ class Injector(object):
     @staticmethod
     def inject_local(pframe, name, initial_value):
         if pframe:
-            # if name in pframe.f_globals and type(pframe.f_globals[name]) is BasedStructure:
-                # print name, "already injected as a based structure pointer in", pframe.f_globals['__name__']
-            # else:
+            if name in pframe.f_globals and type(pframe.f_globals[name]) is BasedStructure:
+                print name, "already injected as a based structure pointer in", pframe.f_globals['__name__']
+                # pframe.f_locals.update({name:initial_value})
+                based_struct = pframe.f_globals[name]
+                based_ptr_item = based_struct.based_ptr_item()
+                pframe.f_locals.update(based_ptr_item)
+                #== This is an amazingly dirty python hack, but necessary in order to update the local variable
+                #== dictionary in the calling frame.
+                import ctypes
+                ctypes.pythonapi.PyFrame_LocalsToFast(ctypes.py_object(pframe), ctypes.c_int(0))
+            else:
                 # print "Injecting", name, "into", pframe.f_globals['__name__'], "with initial value", repr(initial_value)
                 pframe.f_globals.update({name:initial_value})
         

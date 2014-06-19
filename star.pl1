@@ -407,7 +407,7 @@ command_loop:
                          else if input = "star-gate" | input = "sg" then call create_stargate;
                          else if input = "tractor-beam" | input = "tb" then call tractor_beam;
                          else if input = "tractor-pull" | input = "tp" then call tractor_pull;
-                         else if input = "trojan-horse" | input = "rj" then call trojan_horse;
+                         else if input = "trojan-horse" | input = "tj" then call trojan_horse;
                          else if input = "computer" | input = "cm" then call computer;
                          else if substr (input, 1, 1) = ":" then call escape_to_multics;
                          else if input = "?" then do;
@@ -439,14 +439,62 @@ command_loop:
                
           end;
 
+generate_codeword: procedure (key_word) returns (char (10));
+
+          dcl     key_word               char (*) parm;
+          dcl     password               char (10) init ("");
+          dcl     new_pass               char (10) varying init ("");
+          dcl     (idx, shift, position, new_pos) fixed bin init (0);
+          dcl     ALPHA_1                char (26) init ("abcdefghijklmnopqrstuvwxyz");
+          dcl     ALPHA_2                char (26) init ("zafkpubglqvchmrwdinsxejoty");
+          
+          password = key_word;
+          do x = 1 to 3;
+               do y = 1 to length (rtrim (password));
+                    if y = length (rtrim (password)) then idx = 0;
+                    else idx = y;
+                    shift = index (ALPHA_1, substr (password, idx + 1, 1));
+                    position = index (ALPHA_2, substr (password, y, 1));
+                    new_pos = shift + position;
+                    if new_pos > 26 then new_pos = new_pos - 26;
+                    new_pass = new_pass || substr (ALPHA_2, new_pos, 1);
+               end;
+               password = new_pass;
+               new_pass = "";
+          end;
+          return (password);
+          
+     end generate_codeword;
+     
+lock: procedure (lock_bit);
+
+          dcl     set_lock_$lock         entry (bit (36) aligned, fixed bin, fixed bin (35));
+          dcl     lock_bit               bit (36) aligned parm;
+          dcl     code                   fixed bin (35) init (0);
+          
+          call set_lock_$lock (lock_bit, 5, code);
+          
+     end lock;
+     
+unlock: procedure (lock_bit);
+
+          dcl     set_lock_$unlock       entry (bit (36) aligned, fixed bin (35));
+          dcl     lock_bit               bit (36) aligned parm;
+          dcl     code                   fixed bin (35) init (0);
+          
+          call set_lock_$unlock (lock_bit, code);
+          
+     end unlock;
+     
+
 /***** STAR ADMIN SYSTEM *****/
 
 star_admin: procedure;
 
-          dcl       password                 char (10) init ("");
-          dcl       MAIN                     char (10) init ("star_admin");
-          dcl       version                  char (5) init ("1.2");
-          dcl       date                     builtin;
+          dcl       password             char (10) init ("");
+          dcl       MAIN                 char (10) init ("star_admin");
+          dcl       version              char (5) init ("1.2");
+          dcl       date                 builtin;
           
           input = "";
           call ioa_ ("^/Star Admin ^a^/", version);

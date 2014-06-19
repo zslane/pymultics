@@ -117,6 +117,9 @@ class hcs_(SystemExecutable):
     def delete_branch_(self, dir_name, code):
         code.val = self.__filesystem.rmdir(dir_name)
         
+    def set_ring_brackets(self, dir_name, entryname, ring_brackets, code):
+        pass
+    
     def get_directory_contents(self, dir_name, branch, segment, code):
         branch.list, segment.list, code.val = self.__filesystem.get_directory_contents(dir_name)
         

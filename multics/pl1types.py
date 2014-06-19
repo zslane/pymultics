@@ -200,6 +200,11 @@ class PL1(object):
         def copy(self):
             return PL1.Structure(**self.__dict__)
 
+        def dumps(self):
+            attributes = ",\n  ".join([ "{0}: {1}".format(k, repr(v)) for k, v in self.__dict__.items() if k != "_frozen_" ])
+            s = "<PL1.Structure\n  %s>" % (attributes)
+            return s
+            
         @staticmethod
         def based(base_pointer):
             import inspect, re
@@ -220,16 +225,16 @@ class PL1(object):
             pointer_name = m.group(2)
             for pframe in outer:
                 if pointer_name in pframe[0].f_globals or pointer_name in pframe[0].f_locals:
-                    arg_dict = pframe[0].f_globals
+                    globals_dict = pframe[0].f_globals
                     break
             else:
                 raise Exception(pointer_name + " not found")
-            return BasedStructureFactory(arg_dict, struct_name, pointer_name)
+            return BasedStructureFactory(globals_dict, struct_name, pointer_name)
             
-        def __repr__(self):
-            attributes = ",\n  ".join([ "{0}: {1}".format(k, repr(v)) for k, v in self.__dict__.items() if k != "_frozen_" ])
-            s = "<PL1.Structure\n  %s>" % (attributes)
-            return s
+        # def __repr__(self):
+            # attributes = ",\n  ".join([ "{0}: {1}".format(k, repr(v)) for k, v in self.__dict__.items() if k != "_frozen_" ])
+            # s = "<PL1.Structure\n  %s>" % (attributes)
+            # return s
     
     class EnumValue(object):
         def __init__(self, enum_name, member_name, value):
@@ -310,6 +315,9 @@ class PL1(object):
         def _shrink(self, num_elements):
             del self[-num_elements:]
             
+        def _reset(self, to_size):
+            del self[to_size:]
+            
         def __repr__(self):
             refstring = "(sized by '%s') " % self.dynamic_size_ref if self.dynamic_size_ref else ""
             return "<PL1.Array %s%s>" % (refstring, repr(self[:]))
@@ -371,7 +379,7 @@ class BasedStructureFactory(object):
         structure = PL1.Structure(**kwargs)
         based_pointer = BasedPointer(structure)
         self.globals_dict[self.pointer_name] = based_pointer
-        based_struct = BasedStructure(based_pointer)
+        based_struct = BasedStructure(self.pointer_name, based_pointer)
         self.globals_dict[self.based_struct_name] = based_struct
         # print "CREATING BASED STRUCT OBJECTS:"
         # print self.globals_dict['__name__']
@@ -393,20 +401,24 @@ class BasedPointer(parameter):
         return "<BasedPointer of: %s>" % (repr(self.value))
         
 class BasedStructure(object):
-    def __init__(self, tracked_object):
+    def __init__(self, tracked_name, tracked_object):
+        self.__dict__['tracked_name'] = tracked_name
         self.__dict__['tracked_object'] = tracked_object
     def __getattr__(self, attrname):
         return getattr(self.tracked_object.value, attrname)
     def __setattr__(self, attrname, value):
         setattr(self.tracked_object.value, attrname, value)
     def __repr__(self):
-        return repr(self.tracked_object.value)
-    # def __repr__(self):
-        # return object.__repr__(self) + " tracking " + repr(self.__dict__['tracked_object'])
+        # return repr(self.tracked_object.value)
+        return "%s tracking %s %s" % (object.__repr__(self), repr(self.__dict__['tracked_name']), repr(self.__dict__['tracked_object']))
     def __enter__(self):
         return self.tracked_object.value.__enter__()
     def __exit__(self, *args):
         return self.tracked_object.value.__exit__(*args)
+    def dumps(self):
+        return repr(self.tracked_object.value)
+    def based_ptr_item(self):
+        return {self.__dict__['tracked_name']:self.__dict__['tracked_object']}
 
 class DynamicArraySizer(object):
     def __init__(self, array):
@@ -424,6 +436,9 @@ class DynamicArraySizer(object):
         return self.size
     def __long__(self):
         return self.size
+    def reset(self, val=0):
+        self.array._reset(val)
+        self.size = val
     def pushing(self, value=1):
         self.size += value
     def popping(self, value=1):

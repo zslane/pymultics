@@ -451,6 +451,7 @@ class MemoryMappedIOPtr(object):
         self._set("__filepath", filepath)
         self._set("__last_modified", None)
         self._set("__data", None)
+        self._set("__deferred_writes", False)
         self._update_data(self.CACHE_IN)
         
     @property
@@ -478,8 +479,9 @@ class MemoryMappedIOPtr(object):
                 raise SegmentFault(self.__filepath)
             # end if
         elif direction == self.CACHE_OUT:
-            self.__filesystem.write_file(self.__filepath, self.__data)
-            self._set("__last_modified", self.__filesystem.get_mod_data(self.__filepath))
+            if not self.__deferred_writes:
+                self.__filesystem.write_file(self.__filepath, self.__data)
+                self._set("__last_modified", self.__filesystem.get_mod_data(self.__filepath))
     
     def __getattr__(self, attrname):
         self._update_data(self.CACHE_IN)
@@ -506,9 +508,11 @@ class MemoryMappedIOPtr(object):
             self._update_data(self.CACHE_OUT)
             
     def __enter__(self):
+        self._set("__deferred_writes", True)
         pass
         
     def __exit__(self, etype, value, traceback):
+        self._set("__deferred_writes", False)
         if etype:
             pass
         else:
