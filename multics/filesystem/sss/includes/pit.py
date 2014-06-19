@@ -1,6 +1,5 @@
 
-from multics.globals import parameter
-from multics.pl1types import PL1
+from multics.pl1types import PL1, parameter
 
 pit_version_1 = 1
 

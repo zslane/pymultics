@@ -6,6 +6,7 @@ include.pit
 MAIN                     = "starrunners"
 
 dcl (get_pdir_           = entry . returns(char(168)))
+dcl (clock_              = entry . returns(fixed.bin(36)))
 dcl (acl                 = char(2) . init("rw"))
 dcl (ring_brackets       = Dim(3) (fixed.bin(3)) . init([5, 5, 5]))
 dcl (whom                = char(5) . init("*.*.*"))
@@ -160,7 +161,6 @@ def starrunners():
         #== of what the user_info_line or com_query_line contained, or what their
         #== purpose was in the code later on.
         
-        # call.hcs_.make_seg(dname, aname, adminptr(admin_info_s), code)
         call.hcs_.make_seg(dname, aname, adminptr, code)
         if code.val == 0:
             with admin_info:
@@ -175,7 +175,6 @@ def starrunners():
         return
         
     # end if
-    # admin_info = adminptr.ptr
     print admin_info
     
     call.do(admin_info.user_info_line)
@@ -249,12 +248,130 @@ def starrunners():
         call.ioa_.nnl("\nWould you like instructions? ")
         getline(input)
         if input.val == "yes" or input.val == "y": call.print_(helpfile, "1")
-        elif input != "no" and input != "n":
+        elif input.val != "no" and input.val != "n":
             call.ioa_("\nPlease answer \"yes\" or \"no\".")
             input.val = ""
         # end if
     # end while
+          
+# /* GET GAME PASSWORD (IF THERE IS ONE) */
+    if universe.password != "":
+        call.ioa_.nnl("\nPassword: ")
+        getline(input)
+        if input.val != universe.password:
+            call.ioa_("Incorrect password supplied.")
+            call.ioa_("Please contact Starrunners Administrator for correct password.")
+            return
+        # end if
+    # end if
+               
+# /* SET quit AND seg_fault_error TO DESTROY SHIP/END GAME */
+          # on quit call game_over;
+          # on seg_fault_error call universe_destroyed;
 
+# /* SET finish TO TURN OFF NOTIFICATIONS */
+          # on finish begin;
+                    # do x = 1 to 50;
+                         # if universe.notifications (x).person_id = person & universe.notifications (x).project_id = project then do;
+                                   # universe.notifications (x).person_id = "";
+                                   # universe.notifications (x).project_id = "";
+                              # end;
+                    # end;
+                    # call continue_to_signal_ ((0));
+               # end;
+               
+# /* MAKE HIS SHIP */
+    pdir = get_pdir_()
+    call.hcs_.initiate(pdir, ename, my, code)
+    if my.ship != null(): call.hcs_.delentry_seg(my.ship, code)
+    call.hcs_.make_seg(pdir, ename, my(ship), code)
+    acl_entry = pdir + ">" + ename
+    # call set_acl (entry, acl, whom);
+    # call hcs_$set_ring_brackets (pdir, ename, ring_brackets, code);
+    if code.val != 0:
+        call.com_err_(code.val, MAIN)
+        return
+    # end if
+               
+# /* CLEAN OUT SHIP DATA FOR A FRESH START */
+    lock(my.ship)
+    with my.ship:
+        my.ship.user = my.ship.name = my.ship.type = my.ship.condition = my.ship.message = my.ship.fromname = my.ship.fromtype = my.ship.deathmes = my.ship.deadname = my.ship.deadtype = my.ship.tracname = my.ship.monitored_by = my.ship.monloc = ""
+        my.ship.psi_name = [""] * 10
+        my.ship.psi_type = [""] * 10
+        my.ship.psi_mes = [""] * 10
+        my.ship.monname = my.ship.montype = "#"
+        my.ship.location = "PHASING"
+        my.ship.black_hole = "start"
+        my.ship.energy_cur = my.ship.energy_old = my.ship.energy_max = my.ship.shields_cur = my.ship.shields_old = my.ship.shields_max = my.ship.torps_cur = my.ship.torps_old = my.ship.torps_max = my.ship.life_cur = my.ship.life_old = my.ship.psi_num = 0;
+        my.ship.cloak_on = my.ship.tractor_on = my.ship.psionics = False
+        my.ship.unique_id = clock_()
+    # end with
+    unlock(my.ship)
+
+# /* ADD HIM TO LIST OF PLAYERS IN THE STARRUNNERS UNIVERSE */
+    if universe.number == 9:
+        call.ioa_("I'm sorry, but the STARRUNNERS universe if filled to maximum capacity.\nPlease feel free to try later.  Thank you...")
+        return
+    # end if
+    lock(universe)
+    with universe:
+        universe.number = universe.number + 1
+        universe.pdir[universe.number - 1] = pdir
+        universe.unique_id[universe.number - 1] = my.ship.unique_id
+        universe.user[universe.number - 1] = person
+        if universe.number == 1:
+                universe.holes = 0
+                universe.black_hole = ""
+                for i in range(20):
+                    universe.robot[i].energy = 0
+                    universe.robot[i].location = ""
+                    universe.robot[i].condition = ""
+                    universe.robot[i].controller = "none"
+                # end for
+        # end if
+    # end with
+    unlock(universe)
+
+# /* RECORED THE USER'S PERSON_ID */
+    lock(my.ship)
+    with my.ship:
+        my.ship.user = person
+    unlock(my.ship)
+
+# /* GET SHIP NAME */
+    input.val = ""
+    while input.val == "":
+        call.ioa_.nnl("\nShip name: ")
+        getline(input)
+        if verify(input.val, allowed_chars) != 0:
+            call.ioa_("Invalid ship name: {0}", input.val)
+            input.val = ""
+        # end if
+        for x in range(universe.number):
+            edir = universe.pdir[x]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null() and edir != pdir and input.val == enemy.ship.name:
+                call.ioa_("\nThe name you have chosen is presently in use.\nPlease choose a different name.")
+                input.val = ""
+            # end if
+        # end for
+        if input.val != "":
+            with my.ship:
+                my.ship.name = input.val
+            # end with
+        # end if
+    # end while
+          
+def lock(lock_bit):
+    call.set_lock_.lock(lock_bit, 5, code)
+    
+def unlock(lock_bit):
+    call.set_lock_.unlock(lock_bit, code)
+
+def verify(x, y):
+    return len(set(x) - set(y))
+    
 # /***** STAR ADMIN SYSTEM *****/
 
 def star_admin():
@@ -339,7 +456,6 @@ def create_database():
     acl = "r"
     whom = "*.*.*"
     
-    # call.hcs_.make_seg(dname, aname, adminptr(admin_info_s), code)
     call.hcs_.make_seg(dname, aname, adminptr, code)
     #call.set_acl(dname.rstrip() + ">" + aname, acl, whom)
     # admin_info = adminptr.ptr

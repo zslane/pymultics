@@ -278,6 +278,18 @@ class PL1(object):
         def initialize(self, value):
             return self.init(value)
             
+        def append(self, element):
+            super(PL1.Array, self).append(element)
+            self.size.pushing()
+            
+        def insert(self, where, element):
+            super(PL1.Array, self).insert(where, element)
+            self.size.pushing()
+            
+        def extend(self, elements):
+            super(PL1.Array, self).extend(elements)
+            self.size.pushing(len(elements))
+            
         def pop(self, index):
             self.size.popping()
             return super(PL1.Array, self).pop(index)
@@ -291,9 +303,9 @@ class PL1(object):
             for i in range(num_elements):
                 #== Dictionaries are used to capture PL1.Structures
                 if type(self.attrs) is dict:
-                    self.append(PL1.Structure(**self.attrs))
+                    super(PL1.Array, self).append(PL1.Structure(**self.attrs))
                 else:
-                    self.append(self.attrs)
+                    super(PL1.Array, self).append(self.attrs)
                     
         def _shrink(self, num_elements):
             del self[-num_elements:]
@@ -412,6 +424,8 @@ class DynamicArraySizer(object):
         return self.size
     def __long__(self):
         return self.size
+    def pushing(self, value=1):
+        self.size += value
     def popping(self, value=1):
         self.size -= value
     def __repr__(self):

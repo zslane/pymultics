@@ -4,9 +4,6 @@ from ..globals import *
 
 from PySide import QtCore, QtGui
 
-include.pit
-include.sl_info
-
 class ProcessWorker(QtCore.QObject):
 
     PROCESS_TIMER_DURATION = 1.0
