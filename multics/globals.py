@@ -321,7 +321,7 @@ class declare(object):
             if dcl_type is parameter:
                 #== Creates and injects a parm object
                 Injector.inject_parm(pframe, fn_name)
-            elif type(dcl_type) is parameter_with_init:
+            elif isinstance(dcl_type, parameter):
                 #== Creates and injects a parm object with an initial value
                 Injector.inject_parm(pframe, fn_name, dcl_type.initial_value)
             elif type(dcl_type) in [PL1.FuncSignature, PL1.ProcSignature]:

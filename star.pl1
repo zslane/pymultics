@@ -439,6 +439,58 @@ command_loop:
                
           end;
 
+/***** COMMAND ROUTINES *****/
+
+ship_status: procedure;
+
+          call ioa_ ("^/Ship name: ^a", my -> ship.name);
+          call ioa_ ("Ship type: ^a", my -> ship.type);
+          call ioa_ ("---------------------");
+          call ioa_ ("Shield strength: ^d%", my -> ship.shields_cur);
+          call ioa_ ("Missiles left: ^d", my -> ship.torps_cur);
+          call ioa_ ("Energy left: ^du", my -> ship.energy_cur);
+          call ioa_ ("Life support level: ^d", my -> ship.life_cur);
+          call ioa_ ("---------------------");
+          call ioa_ ("Condition: ^a", my -> ship.condition);
+          call ioa_ ("Current location: ^a", my -> ship.location);
+          
+     end ship_status;
+     
+/***** GAME INTERNALS *****/
+
+make_ship: procedure (shiptype);
+
+          dcl     shiptype               char (14) parm;
+          
+          call lock (my -> ship.lock);
+          my -> ship.type = shiptype;
+          my -> ship.life_cur, my -> ship.life_old = 10;
+          my -> ship.condition = "GREEN";
+          if shiptype = "Destroyer" then do;
+                    my -> ship.energy_cur, my -> ship.energy_old, my -> ship.energy_max = 700;
+                    my -> ship.shields_cur, my -> ship.shields_old, my -> ship.shields_max = 50;
+                    my -> ship.torps_cur, my -> ship.torps_old, my -> ship.torps_max = 10;
+               end;
+          else if shiptype = "Cruiser" then do;
+                    my -> ship.energy_cur, my -> ship.energy_old, my -> ship.energy_max = 800;
+                    my -> ship.shields_cur, my -> ship.shields_old, my -> ship.shields_max = 70;
+                    my -> ship.torps_cur, my -> ship.torps_old, my -> ship.torps_max = 5;
+               end;
+          else if shiptype = "Starship" then do;
+                    my -> ship.energy_cur, my -> ship.energy_old, my -> ship.energy_max = 1000;
+                    my -> ship.shields_cur, my -> ship.shields_old, my -> ship.shields_max = 60;
+                    my -> ship.torps_cur, my -> ship.torps_old, my -> ship.torps_max = 5;
+               end;
+          else if shiptype = "Star Commander" then do;
+                    my -> ship.energy_cur, my -> ship.energy_old, my -> ship.energy_max = 100000;
+                    my -> ship.shields_cur, my -> ship.shields_old, my -> ship.shields_max = 1000;
+                    my -> ship.torps_cur, my -> ship.torps_old, my -> ship.torps_max = 100;
+               end;
+          my -> ship.location = rand_location ();
+          call unlock (my -> ship.lock);
+          
+     end make_ship;
+     
 generate_codeword: procedure (key_word) returns (char (10));
 
           dcl     key_word               char (*) parm;

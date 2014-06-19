@@ -2,6 +2,51 @@
 class Python(object):
     from decimal import Decimal
 
+class parameter(object):
+
+    def __init__(self, value=None):
+        self.value = value
+        
+    @property
+    def initial_value(self):
+        return self.value
+        
+    #== __getattr__ and __setattr__ allow the stored value to be referred to
+    #== by any name that is convenient for the programmer. One possible
+    #== convention is to use 'ptr' for pointer values and 'val' for scalars.
+    def __getattr__(self, attrname):
+        return self.value
+        
+    def __setattr__(self, attrname, x):
+        object.__setattr__(self, "value", x)
+        
+    def __call__(self, value=None):
+        #== Call with no arguments returns the parm's currently stored value
+        if value is None:
+            return self.value
+        #== Calling with an argument stores it as the current value. Note that
+        #== we return self so the parm can be initialized to some value as it
+        #== is being passed to a function.
+        else:
+            self.value = value
+            return self
+        
+    @staticmethod
+    def init(initial_value):
+        return parameter(initial_value)
+        
+    @staticmethod
+    def initialize(initial_value):
+        return parameter(initial_value)
+        
+    # def __repr__(self):
+        # s = str(self.value)
+        # if len(s) > 50:
+            # s = s[:48] + "..."
+        # return "<%s.%s object: %s>" % (__name__, self.__class__.__name__, s[:51])
+
+parm = parameter
+
 class PL1(object):
 
     Integer = 0
@@ -25,6 +70,9 @@ class PL1(object):
             self.size = size
             self.prec = prec
             self.data = None
+            
+            self.parm = parameter()
+            self.parameter = self.parm
             
         def init(self, data):
             self.data = data
@@ -323,51 +371,6 @@ class PL1(object):
             return "<PL1.Array %s%s>" % (refstring, repr(self[:]))
                             
 #-- end class PL1
-
-class parameter_with_init(object):
-    def __init__(self, initial_value):
-        self.initial_value = initial_value
-        
-class parameter(object):
-
-    def __init__(self, initial_value=None):
-        self.value = initial_value
-        
-    #== __getattr__ and __setattr__ allow the stored value to be referred to
-    #== by any name that is convenient for the programmer. One possible
-    #== convention is to use 'ptr' for pointer values and 'val' for scalars.
-    def __getattr__(self, attrname):
-        return self.value
-        
-    def __setattr__(self, attrname, x):
-        object.__setattr__(self, "value", x)
-        
-    def __call__(self, value=None):
-        #== Call with no arguments returns the parm's currently stored value
-        if value is None:
-            return self.value
-        #== Calling with an argument stores it as the current value. Note that
-        #== we return self so the parm can be initialized to some value as it
-        #== is being passed to a function.
-        else:
-            self.value = value
-            return self
-        
-    @staticmethod
-    def init(initial_value):
-        return parameter_with_init(initial_value)
-        
-    @staticmethod
-    def initialize(initial_value):
-        return parameter_with_init(initial_value)
-        
-    # def __repr__(self):
-        # s = str(self.value)
-        # if len(s) > 50:
-            # s = s[:48] + "..."
-        # return "<%s.%s object: %s>" % (__name__, self.__class__.__name__, s[:51])
-
-parm = parameter
 
 class BasedStructureFactory(object):
     def __init__(self, gdict, struct_name, pointer_name):

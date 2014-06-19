@@ -4,6 +4,8 @@ from multics.globals import *
 
 include.pit
 
+class GameOver(Exception): pass
+
 def starrunners():
 
     MAIN                     = "starrunners"
@@ -21,18 +23,18 @@ def starrunners():
     dcl (aname               = char(10) . init("sv1.2.info"))
     dcl (helpfile            = char(25) . init(">udd>m>game>s>star.help"))
     dcl (allowed_chars       = char(87) . init("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 !$%&'()*:=-[]{}<>.,/?_|^"))
-
-    adminptr                 = pointer
-    univptr                  = pointer
-
+    
+    adminptr                 = ptr . init(null())
+    univptr                  = ptr . init(null())
+    my                       = ptr . parm . init(null())
+    enemy                    = ptr . parm . init(null())
+    
     dcl (
-
-        argn                 = parm,
-        argp                 = parm,
-        input                = parm . init(""),
-        code                 = parm,
-        my                   = parm,
-        enemy                = parm,
+        
+        argn                 = fixed.bin . parm . init(0),
+        argp                 = ptr . parm . init(null()),
+        input                = char(256) . varying . parm . init(""),
+        code                 = fixed.bin(35) . parm . init(0),
         
         admin_info           = PL1.Structure . based(adminptr) (
             game_admin       = char(21),
@@ -126,8 +128,6 @@ def starrunners():
         y                    = 0
         z                    = 0
         
-        pprint({ k:v for k,v in globals().items() if k.startswith(('admin', 'univ')) })
-        pprint({ k:v for k,v in locals().items() if k.startswith(('admin', 'univ')) })
     # /***** LET'S GET THE SHOW ON THE ROAD -- PRELIMINARY STUFF *****/
         
     # /* SET GAME MODES: -admin, -video, -list_players CONTROL_ARGS */
@@ -360,7 +360,7 @@ def starrunners():
             # end for
             if input.val != "": my.ship.name = input.val
         # end while
-          
+        
     # /* GET SHIP TYPE */
         input.val = ""
         while input.val == "":
@@ -396,16 +396,15 @@ def starrunners():
         # end while
           
     # /* FINAL SET-UP PREPARATIONS */
-        # make_ship(shiptype)
-        # ship_status()
+        make_ship(shiptype)
+        ship_status()
         # black_hole_check()
         # check_monitor()
         # send_notifications()
         
     # /***** ENTER COMMAND LOOP ENVIRONMENT *****/
         
-        if False:
-        # try: # command_loop:
+        try: # command_loop:
             # on quit call command_seq_terminator;
             # on seg_fault_error call universe_destroyed;
             while True:
@@ -426,9 +425,9 @@ def starrunners():
                 elif input.val == "sdestruct" or input.val == "sd": self_destruct()
                 elif input.val == "deathray" or input.val == "dr": death_ray()
                 elif input.val == "*": game_over()
-
+                
                 elif input.val == ".": call.ioa_("\n{0} {1}", MAIN, version)
-                elif my.ship.type = "Star Commander":
+                elif my.ship.type == "Star Commander":
                     if input.val == "cloaking-device" or input.val == "cd": cloaking_device()
                     elif input.val == "nova-blast" or input.val == "nb": nova_blast()
                     elif input.val == "star-gate" or input.val == "sg": create_stargate()
@@ -464,8 +463,11 @@ def starrunners():
                 
             # end while
             
-        # except:
-            # raise
+        except GameOver:
+            break
+            
+        except:
+            raise
         # end try
         
         # universe.number = universe.number - 1
@@ -473,6 +475,85 @@ def starrunners():
         
     #-- end procedure (starrunners)
 
+    # /***** COMMAND ROUTINES *****/
+
+    def ship_status():
+        call.ioa_("\nShip name: {0}", my.ship.name)
+        call.ioa_("Ship type: {0}", my.ship.type)
+        call.ioa_("---------------------")
+        call.ioa_("Shield strength: {0}%", my.ship.shields_cur)
+        call.ioa_("Missiles left: {0}", my.ship.torps_cur)
+        call.ioa_("Energy left: {0}u", my.ship.energy_cur)
+        call.ioa_("Life support level: {0}", my.ship.life_cur)
+        call.ioa_("---------------------")
+        call.ioa_("Condition: {0}", my.ship.condition)
+        call.ioa_("Current location: {0}", my.ship.location)
+    #-- end def ship_status
+    
+    def game_over():
+        call.ioa_("GAME OVER")
+        raise GameOver
+    
+    # /***** GAME INTERNALS *****/
+    
+    def make_ship(shiptype):
+        lock(my.ship)
+        with my.ship:
+            my.ship.type = shiptype
+            my.ship.life_cur = my.ship.life_old = 10
+            my.ship.condition = "GREEN"
+            if shiptype == "Destroyer":
+                my.ship.energy_cur = my.ship.energy_old = my.ship.energy_max = 700
+                my.ship.shields_cur = my.ship.shields_old = my.ship.shields_max = 50
+                my.ship.torps_cur = my.ship.torps_old = my.ship.torps_max = 10
+            elif shiptype == "Cruiser":
+                my.ship.energy_cur = my.ship.energy_old = my.ship.energy_max = 800
+                my.ship.shields_cur = my.ship.shields_old = my.ship.shields_max = 70
+                my.ship.torps_cur = my.ship.torps_old = my.ship.torps_max = 5
+            elif shiptype == "Starship":
+                my.ship.energy_cur = my.ship.energy_old = my.ship.energy_max = 1000
+                my.ship.shields_cur = my.ship.shields_old = my.ship.shields_max = 60
+                my.ship.torps_cur = my.ship.torps_old = my.ship.torps_max = 5
+            elif shiptype == "Star Commander":
+                my.ship.energy_cur = my.ship.energy_old = my.ship.energy_max = 100000
+                my.ship.shields_cur = my.ship.shields_old = my.ship.shields_max = 1000
+                my.ship.torps_cur = my.ship.torps_old = my.ship.torps_max = 100
+            # end if
+            my.ship.location = rand_location()
+        unlock(my.ship)
+    #-- end def make_ship
+    
+    def update_condition():
+        print my.ship.dumps()
+    #-- end update_condition
+        
+    def security_check():
+        pass
+    #-- end def security_check
+        
+    def timed_input(input):
+        ten_seconds = 10
+    
+        def inform_routines():
+            # on seg_fault_error call universe_destroyed;
+            # damage_check()
+            # message_check()
+            # death_check()
+            # black_hole_check()
+            # check_monitor()
+            # psionics_check()
+            # robot_functions()
+            call.timer_manager_.alarm_call(ten_seconds, inform_routines)
+        
+        call.timer_manager_.alarm_call(ten_seconds, inform_routines)
+        security_check()
+        getline(input)
+        call.timer_manager_.reset_alarm_call(inform_routines)
+    #-- end def timed_input
+    
+    def rand_location():
+        return "Romula"
+        
     def generate_codeword(key_word):
         password = ""
         new_pass = ""
@@ -495,7 +576,6 @@ def starrunners():
             new_pass = ""
         # end for
         return password
-          
     #-- end def generate_codeword
     
     def lock(lock_bit):
