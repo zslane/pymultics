@@ -1,0 +1,10 @@
+
+                           STARRUNNERS
+                               4.4
+                                           
+Starrunners will begin by asking you for your ship name and ship type.  Ship
+name may be of up to 10 alphanumeric characters in length.  Choose ship type
+with the words Destroyer (or D), Cruiser (or C), or Starship (or S).
+
+After you select name and type, your ship's statistics will be displayed, like
+this:

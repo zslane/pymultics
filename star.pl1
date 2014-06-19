@@ -201,8 +201,8 @@ starrunners: star: procedure options (variable);
           do x = 1 to 50;
                if universe.notifications (x).person_id = person & universe.notifications (x).project_id = project then do;
                          if ^accept_notifications then do;
-                                   universe_notifications (x).person_id = "";
-                                   universe_notifications (x).project_id = "";
+                                   universe.notifications (x).person_id = "";
+                                   universe.notifications (x).project_id = "";
                               end;
                          on_the_list = "1"b;
                     end;
@@ -211,7 +211,7 @@ starrunners: star: procedure options (variable);
                     do x = 1 to 50;
                          if universe.notifications (x).person_id = "" & universe.notifications (x).project_id = "" then do;
                                    universe.notifications (x).person_id = person;
-                                   universe.notifications (x).project = project_id;
+                                   universe.notifications (x).project = project;
                                    return;
                               end;
                     end;
@@ -480,6 +480,60 @@ star_admin: procedure;
                else if input ^= "" then call ioa_ ("^a: That is not a standard request:^/^12xType a ""?"" for a list of proper requests.", MAIN);
           end;
           
+/* STAR ADMIN REQUEST ROUTINES */
+
+big_bang: procedure;
+
+          call hcs_$initiate (dname, xname, "", 0, 0, univptr, code);
+          if code ^= 0 & univptr = null () then do;
+                    call ioa_ ("^a (big_bang): No database was found.", MAIN);
+                    call ioa_ ("Creating ^a>^a", dname, xname);
+                    call hcs_$make_seg (dname, xname, "", (10), univptr, code);
+                    universe.number, universe.holes, universe.unique_id = 0;
+                    universe.pdir, universe.black_hole, universe.password, universe.user = "";
+               end;
+          else do;
+                    call ioa_ ("^a (big_bang): Database destroyed and re-created.", MAIN);
+                    call hcs_$delentry_seg (dname, xname, "", (10), univptr, code);
+                    call hcs_$make_seg (dname, xname, "", (10), univptr, code);
+                    universe.number, universe.holes, universe.unique_id = 0;
+                    universe.pdir, universe.black_hole, universe.password, universe.user = "";
+               end;
+          call hcs_$initiate (dname, aname, "", 0, 0, adminptr, code);
+          if code ^= 0 & adminptr = null () then do;
+                    call create_database;
+                    call ioa_ ("^/Created: ^a>^a", dname, aname);
+               end;
+          else do;
+                    call hcs_$delentry_seg (adminptr, code);
+                    call create_database;
+               end;
+               
+create_database: procedure;
+
+          dcl     acl                   char (1) init ("r");
+          dcl     whom                  char (5) init ("*.*.*");
+          
+          call hcs_$make_seg (dname, aname, "", (10), adminptr, code);
+          call set_acl (rtrim (dname) || ">" || aname, acl, whom);
+          call ioa_$nnl ("^a (admin_info): Game Admin: ", MAIN);
+          call getline (input);
+          admin_info.game_admin = input;
+          call ioa_$nnl ("^a (admin_info): User_info_line: ", MAIN);
+          call getline (input);
+          admin_info.user_info_line = input;
+          call ioa_$nnl ("^a (admin_info): Command_query_line: ", MAIN);
+          call getline (input);
+          admin_info.com_query_line = input;
+          admin_info.star_comn = 1;
+          call ioa_$nnl ("^a (admin_info): Star Commander: ", MAIN);
+          call getline (input);
+          admin_info.star_coms (1) = input;
+          
+     end create_database;
+     
+     end big_bang;
+
 getline: procedure (input_var);
 
           dcl     input_var              char (*) varying parm;

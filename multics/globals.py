@@ -1,6 +1,7 @@
 import os
 import re
 import types
+import inspect
 import datetime
 import contextlib
 # from contextlib import contextmanager
@@ -261,15 +262,14 @@ class Injector(object):
                     continue
                 # end if
                 member_object = getattr(module, member_name)
-                if member_name == name + "_structure":
-                    # if name in pframe.f_globals and type(pframe.f_globals[name]) is BasedStructure:
-                        # print name, "already injected as a based structure pointer in", pframe.f_globals['__name__']
-                        # pass
-                    # else:
-                    if True:
-                        member_object = member_object()
-                        # print "Injecting", member_object, "into", pframe.f_globals['__name__'], "as", name
-                        pframe.f_globals.update({name:member_object})
+                
+                if (type(member_object) is type and 
+                    hasattr(member_object, "__bases__") and # <-- can be fooled by instances of classes implementing __getattr__
+                    PL1.Structure in inspect.getmro(member_object)):
+                    
+                    member_object = member_object()
+                    # print "Injecting", member_object, "into", pframe.f_globals['__name__'], "as", name
+                    pframe.f_globals.update({name:member_object})
                 else:
                     # print "Injecting", member_name, "into", pframe.f_globals['__name__'], "with value", member_object
                     pframe.f_globals.update({member_name:member_object})
@@ -277,12 +277,14 @@ class Injector(object):
     @staticmethod
     def inject_local(pframe, name, initial_value):
         if pframe:
-            # print "Injecting", name, "into", pframe.f_globals['__name__'], "with initial value", repr(initial_value)
-            pframe.f_globals.update({name:initial_value})
+            # if name in pframe.f_globals and type(pframe.f_globals[name]) is BasedStructure:
+                # print name, "already injected as a based structure pointer in", pframe.f_globals['__name__']
+            # else:
+                # print "Injecting", name, "into", pframe.f_globals['__name__'], "with initial value", repr(initial_value)
+                pframe.f_globals.update({name:initial_value})
         
     @staticmethod
     def find_pframe():
-        import inspect
         cframe = inspect.currentframe()
         # print "...stepping back from", cframe.f_globals['__name__']+"."+cframe.f_code.co_name
         pframe = cframe.f_back
@@ -335,51 +337,6 @@ class declare(object):
             return initial_value
         
 dcl = declare
-
-class parameter_with_init(object):
-    def __init__(self, initial_value):
-        self.initial_value = initial_value
-        
-class parameter(object):
-
-    def __init__(self, initial_value=None):
-        self.value = initial_value
-        
-    #== __getattr__ and __setattr__ allow the stored value to be referred to
-    #== by any name that is convenient for the programmer. One possible
-    #== convention is to use 'ptr' for pointer values and 'val' for scalars.
-    def __getattr__(self, attrname):
-        return self.value
-        
-    def __setattr__(self, attrname, x):
-        object.__setattr__(self, "value", x)
-        
-    def __call__(self, value=None):
-        #== Call with no arguments returns the parm's currently stored value
-        if value is None:
-            return self.value
-        #== Calling with an argument stores it as the current value. Note that
-        #== we return self so the parm can be initialized to some value as it
-        #== is being passed to a function.
-        else:
-            self.value = value
-            return self
-        
-    @staticmethod
-    def init(initial_value):
-        return parameter_with_init(initial_value)
-        
-    @staticmethod
-    def initialize(initial_value):
-        return parameter_with_init(initial_value)
-        
-    # def __repr__(self):
-        # s = str(self.value)
-        # if len(s) > 50:
-            # s = s[:48] + "..."
-        # return "<%s.%s object: %s>" % (__name__, self.__class__.__name__, s[:51])
-
-parm = parameter
 
 class Includer(object):
     def __init__(self):

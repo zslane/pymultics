@@ -131,3 +131,8 @@ class TerminalWindow(QtGui.QMainWindow):
         self.killTimer(self.timerid)
         self.closed.emit()
         event.accept()
+
+    @QtCore.Slot()
+    def disconnect(self):
+        QtCore.QTimer.singleShot(0, self.close)
+        

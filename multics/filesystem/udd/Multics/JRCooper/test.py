@@ -3,20 +3,31 @@ from pprint import pprint
 
 from multics.globals import *
 
-include.pit
+# include.my_info
+# my_info_ptr = pointer
+
+# declare (
+    # my_info_structure = PL1.Structure . based (my_info_ptr) (
+        # x = fixed.bin,
+        # y = float.bin,
+        # z = char(30),
+    # )
+# )
+# adminptr = pointer
 
 def test():
 
-    # include.my_info
+    include.my_info
+    adminptr = pointer
     
     declare (
 
         get_pdir_            = entry . returns (char (168)),
         argn                 = parm,
         argp                 = parm,
-        adminptr             = parm, #ptr . init (null()),
+        adminptr             = parm,
         
-        admin_info           = PL1.Structure(
+        admin_info           = PL1.Structure . based(adminptr) (
             game_admin       = char(21),
             user_info_line   = char(30),
             com_query_line   = char(30),
@@ -27,44 +38,48 @@ def test():
         
         segment              = parm,
         segment2             = parm,
-        # code                 = parm,
+        code                 = parm,
         
         get_wdir_            = entry . returns (char(168)),
     )
+    
+    # call.ioa_("{0}", admin_info)
+    # admin_info.names.size += 5
+    # admin_info.star_comn += 2
+    # admin_info.star_coms[0] = "JRCooper"
+    # admin_info.star_coms[1] = "Foo"
+    # call.ioa_("{0}", admin_info)
+    
+    call.ioa_("Initial:\n{0}", my_info)
+    my_info_ptr.data = None
+    call.ioa_("After setting my_info_ptr to None:\n{0}", my_info)
+    my_info_ptr.reset()
+    call.ioa_("After resetting my_info_ptr:\n{0}", my_info)
+    
+    working_dir = get_wdir_()
+    
+    # call.hcs_.initiate(working_dir, "test.data", adminptr, code)
+    # call.ioa_("code = {0}, adminptr = {0}", code.val, adminptr.ptr)
+    # print type(admin_info)
+    # return
 
-    print "-"*80
-    call.cu_.arg_count(argn, code)
-    if code.val != 0:
-        call.com_err_(code.val, MAIN)
-        return
-    # end if
-    print "argn.val =", argn.val
-    # exec( globals()['_global_decls'] , globals(), locals() )
-    exec "global enter_admin_loop" in globals()
-    print enter_admin_loop
-    print video_mode
-    print list_players
-    for x in range(argn.val):
-        call.cu_.arg_ptr(x, argp, code)
-        arg = argp.val
-        if arg == "-admin": enter_admin_loop = True
-        # elif arg == "-video": video_mode = True
-        # elif arg == "-list_players" or arg == "-lp": list_players = True
-        # elif arg == "-accept_notifications" or arg == "-ant": accept_notifications = True
-        # elif arg == "-refuse_notifications" or arg == "-rnt": accept_notifications = False
-        # elif arg[0] == "-":
-            # call.ioa_("{0}: Specified control argument is not accepted. {1}", MAIN, arg)
-            # return
-        # end if
-    # end for
-    
-    # print type(enter_admin_loop)
-    print admin_info
-    admin_info.names.size += 5
-    admin_info.star_comn += 2
-    admin_info.star_coms[0] = "JRCooper"
-    admin_info.star_coms[1] = "Foo"
-    print admin_info
-    print enter_admin_loop
-    call.ioa_("enter_adming_loop = {0}", enter_admin_loop)
-    
+    call.ioa_("working_dir = {0}", working_dir)
+    call.hcs_.initiate(working_dir, "test.data", my_info_ptr, code)
+    if code.val != 0 and my_info_ptr.seg == null():
+        call.ioa_("File test.data not found ({0}).\nCreating it.", code.val)
+        call.hcs_.make_seg(working_dir, "test.data", my_info_ptr, code)
+        print type(my_info)
+        call.ioa_("code = {0}", code.val)
+        call.ioa_("{0}", my_info)
+        call.ioa_("Setting values...")
+        my_info.x = 10
+        my_info.y = 20.0
+        my_info.z = '30'
+        call.ioa_("{0}", my_info)
+    else:
+        call.ioa_("File test.data found.")
+        call.ioa_("{0}", my_info)
+        call.ioa_("Deleting it.")
+        call.hcs_.delentry_seg(my_info_ptr.seg, code)
+        call.ioa_("code = {0}", code.val)
+        

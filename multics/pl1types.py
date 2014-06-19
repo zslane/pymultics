@@ -200,27 +200,31 @@ class PL1(object):
         def copy(self):
             return PL1.Structure(**self.__dict__)
 
-        # @staticmethod
-        # def based(base_pointer):
-            # import inspect, re
-            # pframe = inspect.currentframe()
-            # # x = inspect.getargvalues(pframe)
-            # # print x
-            # outer = pframe.f_back
-            # info = inspect.getframeinfo(outer)
-            # expr = info.code_context[info.index]
-            # m = re.search(r"based\s*\(\s*(\w+)\s*\)", expr)
-            # # if m:
-               # # print m.group(1)
-            # outer = inspect.getouterframes(outer)
-            # arg_name = m.group(1)
-            # for pframe in outer:
-                # if arg_name in pframe[0].f_globals:
-                    # arg_dict = pframe[0].f_globals
-                    # break
-            # else:
-                # raise Exception(arg_name + " not found")
-            # return BasedStructureFactory(arg_dict, arg_name)
+        @staticmethod
+        def based(base_pointer):
+            import inspect, re
+            pframe = inspect.currentframe()
+            # x = inspect.getargvalues(pframe)
+            # print x
+            outer = pframe.f_back
+            info = inspect.getframeinfo(outer)
+            expr = info.code_context[info.index]
+            expr = re.sub(r"\s+", "", expr)
+            m = re.search(r"(.*)=.*based\((\w+)\)", expr)
+            # print expr
+            # print m
+            # if m:
+               # print m.groups()
+            outer = inspect.getouterframes(outer)
+            struct_name = m.group(1)
+            pointer_name = m.group(2)
+            for pframe in outer:
+                if pointer_name in pframe[0].f_globals or pointer_name in pframe[0].f_locals:
+                    arg_dict = pframe[0].f_globals
+                    break
+            else:
+                raise Exception(pointer_name + " not found")
+            return BasedStructureFactory(arg_dict, struct_name, pointer_name)
             
         def __repr__(self):
             attributes = ",\n  ".join([ "{0}: {1}".format(k, repr(v)) for k, v in self.__dict__.items() if k != "_frozen_" ])
@@ -300,34 +304,97 @@ class PL1(object):
                             
 #-- end class PL1
 
-# class BasedStructureFactory(object):
-    # def __init__(self, gdict, pointer_name):
-        # import re
-        # self.globals_dict = gdict
-        # self.pointer_name = pointer_name
-        # self.based_struct_name = re.sub(r"(.*)_\w+$", r"\1", self.pointer_name)
+class parameter_with_init(object):
+    def __init__(self, initial_value):
+        self.initial_value = initial_value
         
-    # def __call__(self, **kwargs):
-        # structure = PL1.Structure(**kwargs)
-        # from multics.globals import parameter
-        # param = parameter(structure)
-        # self.globals_dict[self.pointer_name] = param
-        # self.globals_dict[self.based_struct_name] = BasedStructure(param)
-        # return structure
+class parameter(object):
 
-# class BasedStructure(object):
-    # def __init__(self, tracked_object):
-        # self.__dict__['tracked_object'] = tracked_object
-    # def __getattr__(self, attrname):
-        # return getattr(self.tracked_object.value, attrname)
-    # def __setattr__(self, attrname, value):
-        # setattr(self.tracked_object.value, attrname, value)
+    def __init__(self, initial_value=None):
+        self.value = initial_value
+        
+    #== __getattr__ and __setattr__ allow the stored value to be referred to
+    #== by any name that is convenient for the programmer. One possible
+    #== convention is to use 'ptr' for pointer values and 'val' for scalars.
+    def __getattr__(self, attrname):
+        return self.value
+        
+    def __setattr__(self, attrname, x):
+        object.__setattr__(self, "value", x)
+        
+    def __call__(self, value=None):
+        #== Call with no arguments returns the parm's currently stored value
+        if value is None:
+            return self.value
+        #== Calling with an argument stores it as the current value. Note that
+        #== we return self so the parm can be initialized to some value as it
+        #== is being passed to a function.
+        else:
+            self.value = value
+            return self
+        
+    @staticmethod
+    def init(initial_value):
+        return parameter_with_init(initial_value)
+        
+    @staticmethod
+    def initialize(initial_value):
+        return parameter_with_init(initial_value)
+        
     # def __repr__(self):
-        # return repr(self.tracked_object.value)
-    # def __enter__(self):
-        # return self.tracked_object.value.__enter__()
-    # def __exit__(self, *args):
-        # return self.tracked_object.value.__exit__(*args)
+        # s = str(self.value)
+        # if len(s) > 50:
+            # s = s[:48] + "..."
+        # return "<%s.%s object: %s>" % (__name__, self.__class__.__name__, s[:51])
+
+parm = parameter
+
+class BasedStructureFactory(object):
+    def __init__(self, gdict, struct_name, pointer_name):
+        self.globals_dict = gdict
+        self.pointer_name = pointer_name
+        self.based_struct_name = struct_name
+        
+    def __call__(self, **kwargs):
+        structure = PL1.Structure(**kwargs)
+        based_pointer = BasedPointer(structure)
+        self.globals_dict[self.pointer_name] = based_pointer
+        based_struct = BasedStructure(based_pointer)
+        self.globals_dict[self.based_struct_name] = based_struct
+        # print "CREATING BASED STRUCT OBJECTS:"
+        # print self.globals_dict['__name__']
+        # print structure
+        # print self.pointer_name, based_pointer
+        # print self.based_struct_name, self.globals_dict[self.based_struct_name]
+        # return structure
+        return based_struct
+
+class BasedPointer(parameter):
+    def __init__(self, data):
+        super(BasedPointer, self).__init__(data)
+        #== Remember the based structure in case we are set to None and
+        #== need to be 'reset'
+        self.__dict__['__based_type'] = data
+    def reset(self):
+        self(self.__dict__['__based_type'])
+    def __repr__(self):
+        return "<BasedPointer of: %s>" % (repr(self.value))
+        
+class BasedStructure(object):
+    def __init__(self, tracked_object):
+        self.__dict__['tracked_object'] = tracked_object
+    def __getattr__(self, attrname):
+        return getattr(self.tracked_object.value, attrname)
+    def __setattr__(self, attrname, value):
+        setattr(self.tracked_object.value, attrname, value)
+    def __repr__(self):
+        return repr(self.tracked_object.value)
+    # def __repr__(self):
+        # return object.__repr__(self) + " tracking " + repr(self.__dict__['tracked_object'])
+    def __enter__(self):
+        return self.tracked_object.value.__enter__()
+    def __exit__(self, *args):
+        return self.tracked_object.value.__exit__(*args)
 
 class DynamicArraySizer(object):
     def __init__(self, array):

@@ -85,8 +85,14 @@ class hcs_(SystemExecutable):
         # end if
         
         try:
+            #== A BasedPointer that is null (None) needs to be reset to "point to" its
+            #== original structure. This is how we simulate pointing to an "empty"
+            #== segment of the based type.
+            if type(segment) is BasedPointer and segment.data_ptr is None:
+                segment.reset()
+                
             #== Create the file on disk
-            self.__filesystem.segment_data_ptr(native_path, segment.data_ptr)
+            self.__filesystem.segment_data_ptr(native_path, segment.data_ptr, force=True)
             #== Make sure the segment gets into the KST
             segment.data_ptr = self.system.dynamic_linker.load(dirname, segment_name)
             code.val = 0

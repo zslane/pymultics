@@ -31,6 +31,7 @@ def resolve_path_symbol_(path_symbol):
     symbols = {
         '-home_dir':    process.pit().homedir,
         '-working_dir': process.directory_stack[-1],
+        '-process_dir': process.dir(),
     }
     return symbols.get(path_symbol, path_symbol)
     

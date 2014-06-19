@@ -103,6 +103,7 @@ class IOSubsystem(QtCore.QObject):
     heartbeat = QtCore.Signal()
     terminalClosed = QtCore.Signal()
     breakSignal = QtCore.Signal()
+    disconnect = QtCore.Signal()
 
     def __init__(self):
         super(IOSubsystem, self).__init__()
@@ -137,7 +138,12 @@ class IOSubsystem(QtCore.QObject):
             self.__terminal.io.lineFeed.connect(self._receive_linefeed)
             self.__terminal.io.breakSignal.connect(self._receive_break)
             self.__terminal.closed.connect(self._close_terminal)
-
+            self.disconnect.connect(self.__terminal.disconnect)
+            
+    def disconnect_terminal(self):
+        if self.__terminal:
+            self.disconnect.emit()
+    
     def attach_tty_process(self, process_id):
         self.__terminal_process_id = process_id
         
@@ -242,12 +248,10 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         if ">" in p:
             if f:
                 p += ">" + f
+            # # end if
             p = self._resolve_path(p)
             p = p.replace(">", "\\").lstrip("\\")
             p = os.path.join(self.FILESYSTEMROOT, p)
-            # if f:
-                # p = os.path.join(p, f)
-            # # end if
         elif "\\" in p:
             if f:
                 p = os.path.join(p, f)
@@ -313,7 +317,12 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         # with open(filepath, "wb") as f:
             # pickle.dump(data, f)
         f = open(filepath, "wb")
-        pickle.dump(data, f)
+        #== Null data (None) is written as an empty file
+        if type(data) in [str, unicode]:
+            f.write(data)
+        elif data:
+            pickle.dump(data, f)
+        # end if
         f.close()
     
     def read_file(self, filepath):
@@ -424,9 +433,11 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         new_path = ">".join(new_parts)
         return new_path
     
-    def segment_data_ptr(self, filepath, data_instance=None):
+    def segment_data_ptr(self, filepath, data_instance=None, force=False):
         filepath = self.native_path(filepath)
-        if data_instance is not None:
+        if (data_instance is not None) or force:
+            if type(data_instance) is MemoryMappedIOPtr:
+                data_instance = data_instance.mapped_data
             self.write_file(filepath, data_instance)
         return MemoryMappedIOPtr(self, filepath)
         
@@ -445,6 +456,9 @@ class MemoryMappedIOPtr(object):
     @property
     def filepath(self):
         return self.__filepath
+    @property
+    def mapped_data(self):
+        return self.__data
         
     def update(self):
         self._update_data(self.CACHE_OUT)

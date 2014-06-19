@@ -17,11 +17,26 @@ def print_(*func_args):
         call.cu_.arg_list(arg_list)
     # end if
     if len(arg_list.args) == 0:
-        call.ioa_("Usage: print [file]")
+        call.ioa_("Usage: print [file] {{begin}} {{end}}")
         return
     # end if
         
     filename = arg_list.args.pop(0)
+    begin = 0
+    end = -1
+    print_header = True
+    page_size = 24
+    
+    if arg_list.args:
+        begin = int(arg_list.args.pop(0)) - 1
+        print_header = False
+    if arg_list.args:
+        end = int(arg_list.args.pop(0)) + 1
+    if arg_list.args:
+        call.ioa_("Usage: print [file] {{begin}} {{end}}")
+        return
+    # end if
+    
     call.sys_.get_abs_path(filename, full)
     call.sys_.split_path_(full.path, directory, entry)
     call.hcs_.initiate(directory.name, entry.name, segment, code)
@@ -40,7 +55,26 @@ def print_(*func_args):
             import cPickle as pickle
             file_text = pickle.dumps(file_text)
         # end if
-        system.llout(file_text + "\n")
+        
+        lines = file_text.split("\n")
+        
+        if print_header:
+            system.llout("%s:\n\n\n" % (entry.name))
+            page_size = 20
+        # end if
+        
+        if end == -1 or end > len(lines):
+            end = len(lines)
+        # end if
+        count = 0
+        for i in range(begin, end):
+            system.llout(lines[i] + "\n")
+            count += 1
+            if count % page_size == 0:
+                page_size = 24
+                system.llout("(press Enter to continue)")
+                system.llin(block=True)
+                system.llout("\n")
 
 def _isprintable(s):
     if type(s) is str:
