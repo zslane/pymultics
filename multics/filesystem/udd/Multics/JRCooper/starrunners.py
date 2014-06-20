@@ -127,10 +127,10 @@ def starrunners():
         accept_notifications = False
         on_the_list          = False
         list_players         = False
-        target               = ""
-        x                    = 0
-        y                    = 0
-        z                    = 0
+        # target               = ""
+        # x                    = 0
+        # y                    = 0
+        # z                    = 0
         
     # /***** LET'S GET THE SHOW ON THE ROAD -- PRELIMINARY STUFF *****/
         
@@ -315,6 +315,7 @@ def starrunners():
             my.ship.energy_cur = my.ship.energy_old = my.ship.energy_max = my.ship.shields_cur = my.ship.shields_old = my.ship.shields_max = my.ship.torps_cur = my.ship.torps_old = my.ship.torps_max = my.ship.life_cur = my.ship.life_old = my.ship.psi_num = 0
             my.ship.cloak_on = my.ship.tractor_on = my.ship.psionics = False
             my.ship.unique_id = clock_()
+        # end with
         unlock(my.ship)
         
     # /* ADD HIM TO LIST OF PLAYERS IN THE STARRUNNERS UNIVERSE */
@@ -329,14 +330,14 @@ def starrunners():
             universe.unique_id[universe.number - 1] = my.ship.unique_id
             universe.user[universe.number - 1] = person
             if universe.number == 1:
-                    universe.holes = 0
-                    universe.black_hole = ""
-                    for i in range(len(universe.robot)): #range(20):
-                        universe.robot[i].energy = 0
-                        universe.robot[i].location = ""
-                        universe.robot[i].condition = ""
-                        universe.robot[i].controller = "none"
-                    # end for
+                universe.holes = 0
+                universe.black_hole = [""] * 5
+                for i in range(len(universe.robot)): #range(20):
+                    universe.robot[i].energy = 0
+                    universe.robot[i].location = ""
+                    universe.robot[i].condition = ""
+                    universe.robot[i].controller = "none"
+                # end for
             # end if
         # end with
         unlock(universe)
@@ -546,12 +547,54 @@ def starrunners():
         call.ioa_("|          |          |          |          |          |")
         call.ioa_("--------------------------------------------------------")
     #-- end def long_scan
+
+    def short_scan():
+        shipname   = [""] * 30
+        shiptype   = [""] * 30
+        docked     = [""] * 30
+        present    = parm . init(0)
+        black_hole = False
+        
+        print univptr.ptr.dumps()
+        call.ioa_("\nSECTOR: {0}", my.ship.location)
+        for x in range(5):
+            if universe.black_hole[x] == my.ship.location: black_hole = True
+        # end for
+        for x in range(universe.number):
+            edir = universe.pdir[x]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null() and edir != pdir:
+                if not enemy.ship.cloak_on and enemy.ship.location == my.ship.location:
+                    present.val = present.val + 1
+                    shipname[present.val] = enemy.ship.name
+                    shiptype[present.val] = enemy.ship.type
+                    if enemy.ship.condition == "DOCKING": docked[present.val] = "(Docking)"
+                    elif enemy.ship.condition == "SHIELDS DOWN": docked[present.val] = "(Shields Down)"
+                # end if
+            # end if
+        # end for
+        robot_sscan(present, shipname, shiptype, docked)
+        if present.val == 0 and not black_hole:
+            call.ioa_("*** SENSOR SCAN: Sector Void")
+            return
+        # end if
+        call.ioa_("*** SENSOR SCAN:")
+        if black_hole: call.ioa_("(((BLACK HOLE)))")
+        for x in range(present.val):
+            call.ioa_("   {0} {1} {2}", shiptype[x], shipname[x], docked[x])
+        # end for
+    #-- end def short_scan
     
     def game_over():
         call.ioa_("GAME OVER")
         universe.number = 0
         # print univptr.ptr.dumps()
         raise goto_end_of_game
+    
+    # /***** ROBOT INTERNALS *****/
+    
+    def robot_sscan(present, shipname, shiptype, docked):
+        pass
     
     # /***** GAME INTERNALS *****/
     
@@ -682,21 +725,21 @@ def starrunners():
             elif input.val == ".": call.ioa_("\n{0} {1}", MAIN, version)
             elif input.val == "?":
                 call.ioa_("\nStar Admin commands:")
-                call.ioa_("  (bb) big-bang ---------- Destroy the universe")
-                call.ioa_("  (sp) set-pswd ---------- Set a game password")
-                call.ioa_("  (rp) remove-pswd ------- Remove the game password")
-                call.ioa_("  (as) add-starcom ------- Add a Person_ID as a Star Commander")
-                call.ioa_("  (rs) remove-starcom ---- Remove a Person_ID as a Star Commander")
-                call.ioa_("  (gc) generate-code ----- Generate a codeword")
-                call.ioa_("   (q) quit -------------- Quit the star admin system")
+                call.ioa_("   (bb) big-bang ---------- Destroy the universe")
+                call.ioa_("   (sp) set-pswd ---------- Set a game password")
+                call.ioa_("   (rp) remove-pswd ------- Remove the game password")
+                call.ioa_("   (as) add-starcom ------- Add a Person_ID as a Star Commander")
+                call.ioa_("   (rs) remove-starcom ---- Remove a Person_ID as a Star Commander")
+                call.ioa_("   (gc) generate-code ----- Generate a codeword")
+                call.ioa_("    (q) quit -------------- Quit the star admin system")
             elif input.val != "": call.ioa_("{0}: That is not a standard request:\n{1:12}Type a \"?\" for a list of proper requests.", MAIN, "")
 
     # /* STAR ADMIN REQUEST ROUTINES */
-
+    
     def big_bang():
         call.hcs_.initiate(dname, xname, univptr, code)
         if code.val != 0 and univptr.ptr == null():
-            call.ioa_("{0}(big_bang): No database was found.", MAIN)
+            call.ioa_("{0} (big_bang): No database was found.", MAIN)
             call.ioa_("Creating {0}>{1}", dname, xname)
             call.hcs_.make_seg(dname, xname, univptr, code)
             universe.number     = 0
@@ -707,7 +750,7 @@ def starrunners():
             universe.black_hole = [""] * 5
             universe.password   = ""
         else:
-            call.ioa_("{0}(big_bang): Database destroyed and re-created.", MAIN)
+            call.ioa_("{0} (big_bang): Database destroyed and re-created.", MAIN)
             call.hcs_.delentry_seg(univptr.ptr, code)
             call.hcs_.make_seg(dname, xname, univptr, code)
             universe.number     = 0
@@ -736,17 +779,17 @@ def starrunners():
         call.hcs_.make_seg(dname, aname, adminptr, code)
         call.set_acl(dname.rstrip() + ">" + aname, acl, whom)
         with admin_info:
-            call.ioa_.nnl("{0}(admin_info): Game Admin: ", MAIN)
+            call.ioa_.nnl("{0} (admin_info): Game Admin: ", MAIN)
             getline(input)
             admin_info.game_admin = input.val
-            call.ioa_.nnl("{0}(admin_info): User_info_line: ", MAIN)
+            call.ioa_.nnl("{0} (admin_info): User_info_line: ", MAIN)
             getline(input)
             admin_info.user_info_line = input.val
             call.ioa_.nnl("{0}(admin_info): Command_query_line: ", MAIN)
             getline(input)
             admin_info.com_query_line = input.val
             admin_info.star_comn.reset(1)
-            call.ioa_.nnl("{0}(admin_info): Star Commander: ", MAIN)
+            call.ioa_.nnl("{0} (admin_info): Star Commander: ", MAIN)
             getline(input)
             admin_info.star_coms[0] = input.val
         # end with

@@ -1,5 +1,8 @@
 from PySide import QtCore, QtGui
 
+N_HORZ_CHARS = 80
+N_VERT_LINES = 24
+
 class KeyboardIO(QtGui.QLineEdit):
 
     lineFeed = QtCore.Signal()
@@ -32,15 +35,24 @@ class TerminalIO(QtGui.QWidget):
 
         self.output = QtGui.QTextEdit()
         self.output.setReadOnly(True)
-        self.output.setStyleSheet("QTextEdit { font-family: '%s'; font-size: %dpt; color: lightgreen; background: black; }" % (FONT_NAME, FONT_SIZE))
+        self.output.setStyleSheet("QTextEdit { font-family: '%s'; font-size: %dpt; color: lightgreen; background: black; border: 0px; }" % (FONT_NAME, FONT_SIZE))
         self.output.setFontFamily(FONT_NAME)
         self.output.setFontPointSize(FONT_SIZE)
         self.output.setFocusPolicy(QtCore.Qt.NoFocus)
         self.output.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
         self.output.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.output.setViewportMargins(3, -5, 0, 0)
-        self.output.setFixedSize(self._width(80), self._height(25))
+        # self.output.setViewportMargins(3, 0, 0, 0)
+        self.output.setFixedSize(self._width(N_HORZ_CHARS), self._height(N_VERT_LINES))
         self.output.setEnabled(False)
+        
+        output_layout = QtGui.QVBoxLayout()
+        output_layout.addWidget(self.output)
+        output_layout.setContentsMargins(3, 3, 0, 3)
+        
+        output_frame = QtGui.QFrame()
+        output_frame.setFrameStyle(QtGui.QFrame.NoFrame)
+        output_frame.setStyleSheet("QFrame { background: black; }")
+        output_frame.setLayout(output_layout)
         
         self.input = KeyboardIO()
         self.input.setStyleSheet("QLineEdit { font-family: '%s'; font-size: %dpt; color: lightgreen; background: black; }" % (FONT_NAME, FONT_SIZE))
@@ -49,19 +61,19 @@ class TerminalIO(QtGui.QWidget):
         self.input.breakSignal.connect(self._process_break_signal)
         
         layout = QtGui.QVBoxLayout()
-        layout.addWidget(self.output)
+        layout.addWidget(output_frame)
         layout.addWidget(self.input)
         
         self.setLayout(layout)
         
     def _width(self, nchars):
         fm = QtGui.QFontMetrics(self.output.currentFont())
-        return 8 + fm.width("M" * nchars) + 8
+        return fm.width("M" * nchars)
         
     def _height(self, nlines):
         fm = QtGui.QFontMetrics(self.output.currentFont())
         self.output.verticalScrollBar().setSingleStep(fm.lineSpacing())
-        return fm.lineSpacing() * nlines + 4
+        return fm.lineSpacing() * nlines
         
     def _process_input(self):
         txt = self.input.text()
@@ -85,7 +97,7 @@ class TerminalIO(QtGui.QWidget):
         self.output.insertPlainText(txt)
         #== Remove characters that will never be seen again. This keeps the text edit
         #== widget from filling up with useless characters.
-        max_chars = 80 * 25 + 1
+        max_chars = N_HORZ_CHARS * N_VERT_LINES + 1
         num_chars = len(self.output.toPlainText())
         if num_chars > max_chars:
             cursor = self.output.textCursor()

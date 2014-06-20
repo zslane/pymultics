@@ -498,6 +498,46 @@ long_scan: procedure;
           
      end long_scan;
 
+short_scan: procedure;
+
+          dcl     x                      fixed bin init (0);
+          dcl     shipname               (30) char (10);
+          dcl     shiptype               (30) char (14);
+          dcl     docked                 (30) char (15);
+          dcl     present                fixed bin init (0);
+          dcl     black_hole             bit (1) init ("0"b);
+          
+          shipname, shiptype, docked = "";
+          call ioa_ ("^/SECTOR: ^a", my -> ship.location);
+          do x = 1 to 5;
+               if universe.black_hole (x) = my -> ship.location then black_hole = "1"b;
+          end;
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & edir ^= pdir then do;
+                         if enemy -> ship.cloak_on = "0"b & enemy -> ship.location = my -> ship.location then do;
+                                   present = present + 1;
+                                   shipname (present) = enemy -> ship.name;
+                                   shiptype (present) = enemy -> ship.type;
+                                   if enemy -> ship.condition = "DOCKING" then docked (present) = "(Docking)";
+                                   else if enemy -> ship.condition = "SHIELDS DOWN" then docked (present) = "(Shields Down)";
+                              end;
+                    end;
+          end;
+          call robot_sscan (present, shipname, shiptype, docked);
+          if present = 0 & black_hole = "0"b then do;
+                    call ioa_ ("*** SENSOR SCAN: Sector Void");
+                    return;
+               end;
+          call ioa_ ("*** SENSOR SCAN:");
+          if black_hole = "1"b then call ioa_ ("(((BLACK HOLE)))");
+          do x = 1 to present;
+               call ioa_ ("   ^a ^a ^a", shiptype (x), shipname (x), docked (x));
+          end;
+          
+     end short_scan;
+     
 /***** GAME INTERNALS *****/
 
 make_ship: procedure (shiptype);

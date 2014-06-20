@@ -75,6 +75,10 @@ def print_(*func_args):
                 system.llout("(press Enter to continue)")
                 system.llin(block=True)
                 system.llout("\n")
+            # end if
+        # end for
+    # end if
+#-- end def print_
 
 def _isprintable(s):
     if type(s) is str:
@@ -84,4 +88,7 @@ def _isprintable(s):
         return textset.issubset(printset)
     else:
         return False
-        
+    # end if
+#-- end def _isprintable
+
+pr = print_
