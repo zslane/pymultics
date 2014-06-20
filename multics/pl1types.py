@@ -317,6 +317,7 @@ class PL1(object):
             else:
                 self.attrs = dcl_type
             # end if
+            self.size = None
             #== This allows dynamic sizing using Dim('*')
             if a == []:
                 self.size = DynamicArraySizer(self)
@@ -326,6 +327,9 @@ class PL1(object):
             
         def init(self, value):
             self[:] = value
+            if self.size:
+                #== Replace with a new dynamic sizer
+                self.size = DynamicArraySizer(self)
             return self
             
         def initialize(self, value):
@@ -333,24 +337,29 @@ class PL1(object):
             
         def append(self, element):
             super(PL1.Array, self).append(element)
-            self.size.pushing()
+            if self.size:
+                self.size.pushing()
             
         def insert(self, where, element):
             super(PL1.Array, self).insert(where, element)
-            self.size.pushing()
+            if self.size:
+                self.size.pushing()
             
         def extend(self, elements):
             super(PL1.Array, self).extend(elements)
-            self.size.pushing(len(elements))
+            if self.size:
+                self.size.pushing(len(elements))
             
         def pop(self, index):
-            self.size.popping()
+            if self.size:
+                self.size.popping()
             return super(PL1.Array, self).pop(index)
             
         def __delitem__(self, index):
             n = len(self)
             super(PL1.Array, self).__delitem__(index)
-            self.size.popping(n - len(self))
+            if self.size:
+                self.size.popping(n - len(self))
         
         def _expand(self, num_elements):
             for i in range(num_elements):
@@ -364,12 +373,17 @@ class PL1(object):
             del self[-num_elements:]
             
         def _reset(self, to_size):
-            del self[to_size:]
+            #== If we're too big, delete extraneous elements off the end
+            if len(self) > to_size:
+                del self[to_size:]
+            #== If we're too small, expand (by appending)
+            elif len(self) < to_size:
+                self._expand(to_size - len(self))
             
         def __repr__(self):
-            refstring = "(sized by '%s') " % self.dynamic_size_ref if self.dynamic_size_ref else ""
-            return "<PL1.Array %s%s>" % (refstring, repr(self[:]))
-                            
+            refstring = "(sized by '%s')" % self.dynamic_size_ref if self.dynamic_size_ref else "(%d)" % (len(self))
+            return "<PL1.Array %s %s>" % (refstring, repr(self[:]))
+        
 #-- end class PL1
 
 class BasedStructureFactory(object):
