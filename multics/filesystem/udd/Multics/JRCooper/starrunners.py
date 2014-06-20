@@ -7,7 +7,13 @@ include.query_info
 
 class goto_end_of_game(Exception): pass
 
-pdir = ""
+#== True global variables (that aren't parm types)
+pdir      = ""
+acl_entry = ""
+shiptype  = ""
+person    = ""
+project   = ""
+access    = "no"
 
 def starrunners():
 
@@ -27,18 +33,17 @@ def starrunners():
     dcl (helpfile            = char(25) . init(">udd>m>game>s>star.help"))
     dcl (allowed_chars       = char(87) . init("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 !$%&'()*:=-[]{}<>.,/?_|^"))
     
-    # pdir                     = ""
-    
     adminptr                 = ptr . init(null())
     univptr                  = ptr . init(null())
-    my                       = ptr . parm . init(null())
-    enemy                    = ptr . parm . init(null())
+    my                       = ptr . init(null())
+    enemy                    = ptr . init(null())
     
     dcl (
         
         argn                 = fixed.bin . parm . init(0),
-        argp                 = ptr . parm . init(null()),
+        argp                 = ptr . init(null()),
         input                = char(256) . varying . parm . init(""),
+        target               = char(10) . parm . init(""),
         code                 = fixed.bin(35) . parm . init(0),
         
         admin_info           = PL1.Structure . based(adminptr) (
@@ -116,21 +121,20 @@ def starrunners():
     
         MAIN                 = "starrunners"
         version              = "4.4"
+        
         edir                 = ""
-        acl_entry            = ""
-        shiptype             = ""
-        person               = ""
-        project              = ""
-        access               = "no"
         enter_admin_loop     = False
         video_mode           = False
         accept_notifications = False
         on_the_list          = False
         list_players         = False
-        # target               = ""
-        # x                    = 0
-        # y                    = 0
-        # z                    = 0
+        
+        global pdir
+        global acl_entry
+        global shiptype
+        global person
+        global project
+        global access
         
     # /***** LET'S GET THE SHOW ON THE ROAD -- PRELIMINARY STUFF *****/
         
@@ -289,7 +293,6 @@ def starrunners():
                    # end;
         
     # /* MAKE HIS SHIP */
-        global pdir
         pdir = get_pdir_()
         call.hcs_.initiate(pdir, ename, my, code)
         if my.ship != null(): call.hcs_.delentry_seg(my.ship, code)
@@ -514,6 +517,7 @@ def starrunners():
     
     def long_scan():
         stars = [""] * 5
+        
         if my.ship.location == "Romula": stars[0] = "o"
         elif my.ship.location == "Vindicar": stars[1] = "o"
         elif my.ship.location == "Telgar": stars[2] = "o"
@@ -655,6 +659,245 @@ def starrunners():
             else: input.val = ""
         # end while
     #-- end def move_ship
+
+    def warpout():
+        x       = 0
+        old_loc = ""
+        
+        if my.ship.energy_cur < 100:
+            call.ioa_("\nWE haven't got the energy to warpout, sir")
+            return
+        # end if
+        if my.ship.tractor_on:
+            call.ioa_("\nTRACTOR BEAM holding our ship, sir")
+            return
+        # end if
+        old_loc = my.ship.location
+        x = (clock_() % 1000) + 1
+        if x > my.ship.energy_cur:
+            call.ioa_("\n<<< BOOOOOOOOOOM >>>")
+            call.ioa_("You have warped into a star")
+            game_over()
+        # end if
+        lock(my.ship)
+        with my.ship:
+            my.ship.location = rand_location()
+            my.ship.energy_cur = my.ship.energy_cur - 100
+            my.ship.energy_old = my.ship.energy_old - 100
+        # end with
+        unlock(my.ship)
+        call.ioa_("\nWARPOUT *****----------")
+        call.ioa_("New location: {0}", my.ship.location)
+        if old_loc != my.ship.location:
+            inform_monitor(my.ship.location)
+            inform_psionics(old_loc, my.ship.location)
+        # end if
+    #-- end def warpout
+    
+    def launch_missile():
+        is_he_there = parm(False)
+        hit         = parm(False)
+        
+        if my.ship.torps_cur == 0:
+            call.ioa_("\nWE are out of missiles, sir")
+            return
+        # end if
+        call.ioa_("\nMISSILE ready to launch, sir")
+        call.ioa_.nnl("Target name: ")
+        timed_input(input)
+        if input.val == "": return;
+        target.val = input.val
+        verify_target(target, is_he_there)
+        if not is_he_there.val:
+            call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target)
+            return
+        # end if
+        input.val = ""
+        while input.val == "":
+            call.ioa_.nnl("MISSILE locked on target, sir: ")
+            timed_input(input)
+            if input.val == "abort" or input.val == "ab":
+                call.ioa_("LAUNCH aborted, sir")
+                return
+            elif input.val == "launch" or input.val == "l":
+                lock(my.ship)
+                with my.ship:
+                    my.ship.torps_cur = my.ship.torps_cur - 1
+                    my.ship.torps_old = my.ship.torps_old - 1
+                # end with
+                unlock(my.ship)
+                call.ioa_("\nMISSILE launched, sir")
+                hit_that_sucker(hit, "missile")
+                if target.val == "critical": return
+                if not hit.val:
+                    call.ioa_("MISSILE missed, sir")
+                    return
+                else: call.ioa_("<< BOOM >> MISSILE hit, sir")
+                inflict_damage()
+                if target_is_a_robot(target.val): return
+                if enemy.ship.psionics:
+                    lock(enemy.ship)
+                    with enemy.ship:
+                        enemy.ship.psi_mes[0] = "hit"
+                        enemy.ship.psi_name[0] = my.ship.name
+                        enemy.ship.psi_type[0] = my.ship.type
+                    # end with
+                    unlock(enemy.ship)
+                # end if
+            else: input.val = ""
+        # end while
+    #-- end def launch_missile
+    
+    def fire_lasers():
+        is_he_there = parm(False)
+        hit         = parm(False)
+        
+        if my.ship.energy_cur < 10:
+            call.ioa_("\nWE haven't got the energy to fire lasers, sir")
+            return
+        # end if
+        call.ioa_("\LASER banks ready to fire, sir")
+        call.ioa_.nnl("Target name: ")
+        timed_input(input)
+        if input.val == "": return;
+        target.val = input.val
+        verify_target(target, is_he_there)
+        if not is_he_there.val:
+            call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target)
+            return
+        # end if
+        input.val = ""
+        while input.val == "":
+            call.ioa_.nnl("LASER banks locked on target, sir: ")
+            timed_input(input)
+            if input.val == "deenergize" or input.val == "de":
+                call.ioa_("LASER banks deenergizing, sir")
+                return
+            elif input.val == "fire" or input.val == "f":
+                lock(my.ship)
+                with my.ship:
+                    my.ship.energy_cur = my.ship.energy_cur - 10
+                    my.ship.energy_old = my.ship.energy_old - 10
+                # end with
+                unlock(my.ship)
+                call.ioa_("\LASERS fired, sir")
+                hit_that_sucker(hit, "lasers")
+                if target.val == "critical": return
+                if not hit.val:
+                    call.ioa_("LASERS missed, sir")
+                    return
+                else: call.ioa_("<< ZAP >> LASERS hit, sir")
+                inflict_damage()
+                if target_is_a_robot(target.val): return
+                if enemy.ship.psionics:
+                    lock(enemy.ship)
+                    with enemy.ship:
+                        enemy.ship.psi_mes[0] = "hit"
+                        enemy.ship.psi_name[0] = my.ship.name
+                        enemy.ship.psi_type[0] = my.ship.type
+                    # end with
+                    unlock(enemy.ship)
+                # end if
+            else: input.val = ""
+        # end while
+    #-- end def fire_lasers
+
+# /* TARGETTING -- HIT DETERMINATION AND CRITICAL HITS */
+
+    def verify_target(target, is_he_there):
+        for x in range(universe.number):
+            edir = universe.pdir[x]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null () and edir != pdir:
+                if enemy.ship.location == my.ship.location and enemy.ship.name == target.val:
+                    is_he_there.val = True
+                    return
+                # end if
+            # end if
+        # end for
+        robot_verify_target(target, is_he_there)
+    #-- end def verify_target
+
+    def hit_that_sucker(hit, weapon):
+        robot_was_the_target = parm(False)
+        x                    = 0
+
+        def critical_hit():
+            if weapon != "plasma":
+                call.ioa_("^\n<<< BOOOOOOOOOOM >>>")
+                call.ioa_("<<< BOOOOOOOOOOM >>>")
+                call.ioa_("\nCRITICAL centers have been hit on the {0} {1}!", enemy.ship.type, enemy.ship.name)
+            # end if
+            lock (enemy.ship)
+            enemy.ship.deathmes = "bang"
+            unlock(enemy.ship)
+        # /* SET THE TARGET TO "CRITICAL" SO THAT UPON RETURNING, CONTROL GOES CENTRAL */
+            target.val = "critical"
+        #-- end def critical_hit
+        
+        robot_hit_him(target, robot_was_the_target, weapon, hit)
+        if robot_was_the_target.val: return
+        if enemy.ship.type == "Star Commander":
+                hit.val = False
+                return
+        # end if
+        if weapon == "missile":
+            x = (clock_() % 101) + 30
+            if x > 125: critical_hit()
+        else:
+            x = (clock_() % 100) + 1
+            if x == 100: critical_hit()
+        # end if
+        if x > enemy.ship.shields_cur: hit.val = True
+        else: hit.val = False
+    #-- end def hit_that_sucker
+
+    def inflict_damage():
+        d = parm(0)
+        x = 0
+        
+        robot_damage(target, d)
+        if d.val == 666: return
+        lock(enemy.ship)
+        if enemy.ship.condition == "DOCKING" or enemy.ship.condition == "D-RAY" or enemy.ship.condition == "SHIELDS DOWN" or enemy.ship.condition == "DROBOT":
+            enemy.ship.deathmes = "down"
+            unlock(enemy.ship)
+            if my.ship.condition.find("ROBOT") == -1: call.ioa_("\nDEFLECTOR shields were down on the {0} {1}, sir", enemy.ship.type, enemy.ship.name)
+            return
+        # end if
+        while x == 0:
+            x = (clock_() % 4) + 1
+            if x == 1:
+                if enemy.ship.shields_cur == 0: x = 0
+                else:
+                    x = (clock_() % 10) + 1
+                    enemy.ship.shields_cur = max(0, enemy.ship.shields_cur - x)
+                    if my.ship.condition.find("ROBOT") == -1: call.ioa_("\nSHIELDS damaged on the {0} {1}, sir", enemy.ship.type, enemy.ship.name)
+                # end if
+            elif x == 2:
+                if enemy.ship.energy_cur == 0: x = 0
+                else:
+                    x = (clock_() % 100) + 1
+                    enemy.ship.energy_cur = max(0, enemy.ship.energy_cur - x)
+                    if my.ship.condition.find("ROBOT") == -1: call.ioa_("\nENGINES damaged on the {0} {1}, sir", enemy.ship.type, enemy.ship.name)
+                # end if
+            elif x == 3:
+                if enemy.ship.torps_cur == 0: x = 0
+                else:
+                    x = (clock_() % 3) + 1
+                    enemy.ship.torps_cur = max(0, enemy.ship.torps_cur - x)
+                    if my.ship.condition.find("ROBOT") == -1: call.ioa_("\nMISSILES damaged on the {0} {1}, sir", enemy.ship.type, enemy.ship.name)
+                # end if
+            elif x == 4:
+                if enemy.ship.life_cur == 0: x = 0
+                else:
+                    enemy.ship.life_cur = enemy.ship.life_cur - 1
+                    if my.ship.condition.find("ROBOT") == -1: call.ioa_("\nLIFE SUPPORT systems damaged on the {0} {1}, sir", enemy.ship.type, enemy.ship.name)
+                # end if
+            # end if
+        # end while
+        unlock(enemy.ship)
+    #-- end def inflict_damage
     
     def game_over():
         call.ioa_("GAME OVER")
@@ -673,6 +916,21 @@ def starrunners():
     def robot_sscan(present, shipname, shiptype, docked):
         pass
     
+    def target_is_a_robot(target):
+        return False
+        
+    def robot_hit_him(target, robot_was_the_target, weapon, hit):
+        robot_was_the_target.val = False
+        
+    def robot_verify_target(target, is_he_there):
+        pass
+        
+    def robot_hit_him(target, robot_was_the_target, weapon, hit):
+        robot_was_the_target.val = False
+        
+    def robot_damage(target, d):
+        pass
+
     # /***** GAME INTERNALS *****/
     
     def make_ship(shiptype):
@@ -703,11 +961,51 @@ def starrunners():
     #-- end def make_ship
     
     def update_condition():
-        print my.ship.dumps()
-    #-- end update_condition
+        #on quit call command_seq_terminator;
+        call.term_.single_refname(DO, code)
+        call.hcs_.initiate(DO_dir, DO, null(), code)
+        call.set_acl(acl_entry, acl, whom)
+        call.set_acl(acl_entry, acl, person.rstrip() + "." + project)
+        lock(my.ship)
+        if my.ship.life_cur == 0: game_over()
+        elif my.ship.deathmes == "down": game_over()
+        elif my.ship.shields_cur == 0: my.ship.condition = "SHIELDS_DOWN"
+        elif my.ship.condition == "DROBOT": my.ship.condition = "D-RAY"
+        elif my.ship.life_cur > 6: my.ship.condition = "GREEN"
+        elif my.ship.life_cur > 2: my.ship.condition = "YELLOW"
+        else: my.ship.condition = "RED"
+        unlock(my.ship)
         
+    # /* ELIMINATE GHOST SHIPS */
+        for x in range(universe.number):
+            edir = universe.pdir[x]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null():
+                for y in range(universe.number):
+                    if universe.user[x] == enemy.ship.user and universe.unique_id[x] != enemy.ship.unique_id:
+                        lock(universe)
+                        with (universe):
+                            for z in range(y, universe.number - 1):
+                                universe.pdir[z] = universe.pdir[z + 1]
+                                universe.user[z] = universe.user[z + 1]
+                                universe.unique_id[z] = universe.unique_id[z + 1]
+                            # end for
+                            universe.pdir[universe.number - 1] = ""
+                            universe.user[universe.number - 1] = ""
+                            universe.number = universe.number - 1
+                        # end with
+                        unlock(universe)
+                   # end if
+                # end for
+            # end if
+        # end for
+    #-- end def update_condition
+     
     def security_check():
-        pass
+        if my.ship.type == "Star Commander" and (access == "no" or shiptype != my.ship.type):
+            call.ioa_("\nFROM STARFLEET COMMAND: You have unathorized control of a Star Commander.\nYou will be destroyed...")
+            game_over()
+        # end if
     #-- end def security_check
         
     def timed_input(input):

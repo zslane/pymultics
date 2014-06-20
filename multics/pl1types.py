@@ -637,7 +637,7 @@ float.bin = float.binary = PL1.Type(PL1.Realnum, PL1.Binary, 31)
 float.dec = float.decimal = PL1.Type(PL1.Realnum, PL1.Decimal, 32)
 
 bit = PL1.Type(PL1.Bstring, PL1.Ascii, 1)
-pointer = ptr = PL1.Type(PL1.Pointer, PL1.Binary, 36)
+pointer = ptr = PL1.Type(PL1.Pointer, PL1.Binary, 36).parm
 
 char = character = PL1.Type(PL1.Cstring, PL1.Ascii, 1)
 varying = PL1.Type(PL1.Varying, PL1.Varying, PL1.Varying)

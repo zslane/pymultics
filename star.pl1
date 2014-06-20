@@ -622,7 +622,266 @@ hazard_damage: procedure;
      end hazard_check;
      
      end move_ship;
+
+warpout: procedure;
+
+          dcl     x                      fixed bin init (0);
+          dcl     old_loc                char (8) init ("");
           
+          if my -> ship.energy_cur < 100 then do;
+                    call ioa_ ("^/WE haven't got the energy to warpout, sir");
+                    return;
+               end;
+          if my -> ship.tractor_on = "1"b then do;
+                    call ioa_ ("^/TRACTOR BEAM holding our ship, sir");
+                    return;
+               end;
+          old_loc = my -> ship.location;
+          x = mod (clock (), 1000) + 1;
+          if x > my -> ship.energy_cur then do;
+                    call ioa_ ("^/<<< BOOOOOOOOOOM >>>");
+                    call ioa_ ("You have warped into a star");
+                    call game_over;
+               end;
+          call lock (my -> ship.lock);
+          my -> ship.location = rand_location ();
+          my -> ship.energy_cur = my -> ship.energy_cur - 100;
+          my -> ship.energy_old = my -> ship.energy_old - 100;
+          call unlock (my -> ship.lock);
+          call ioa_ ("^/WARPOUT *****----------");
+          call ioa_ ("New location: ^a", my -> ship.location);
+          if old_loc ^= my -> ship.location then do;
+                    call inform_monitor (my -> ship.location);
+                    call inform_psionics (old_loc, my -> ship.location);
+               end;
+               
+     end warpout;
+
+launch_missile: procedure;
+
+          dcl     is_he_there            bit (1) init ("0"b);
+          dcl     hit                    bit (1) init ("0"b);
+          
+          if my -> ship.torps_cur = 0 then do;
+                    call ioa_ ("^/WE are out of missiles, sir");
+                    return;
+               end;
+          call ioa_ ("^/MISSILE ready to launch, sir");
+          call ioa_$nnl ("Target name: ");
+          call timed_input (input);
+          if input = "" then return;
+          target = input;
+          call verify_target (target, is_he_there);
+          if ^is_he_there then do;
+                    call ioa_ ("*** SENSORS: Target ship ^a is not in this sector, sir", target);
+                    return;
+               end;
+          input = "";
+          do while (input = "");
+               call ioa_$nnl ("MISSILE locked on target, sir: ");
+               call timed_input (input);
+               if input = "abort" | input = "ab" then do;
+                         call ioa_ ("LAUNCH aborted, sir");
+                         return;
+                    end;
+               else if input = "launch" | input = "l" then do;
+                         call lock (my -> ship.lock);
+                         my -> ship.torps_cur = my -> ship.torps_cur - 1;
+                         my -> ship.torps_old = my -> ship.torps_old - 1;
+                         call unlock (my -> ship.lock);
+                         call ioa_ ("^/MISSILE launched, sir");
+                         call hit_that_sucker (hit, "missile");
+                         if target = "critical" then return;
+                         if ^hit then do;
+                                   call ioa_ ("MISSILE missed, sir");
+                                   return;
+                              end;
+                         else call ioa_ ("<< BOOM >> MISSILE hit, sir");
+                         call inflict_damage;
+                         if target_is_a_robot (target) then return;
+                         if enemy -> ship.psionics then do;
+                                   call lock (enemy -> ship.lock);
+                                   enemy -> ship.psi_mes (0) = "hit";
+                                   enemy -> ship.psi_name (0) = my -> ship.name;
+                                   enemy -> ship.psi_type (0) = my -> ship.type;
+                                   call unlock (enemy -> ship.lock);
+                              end;
+                    end;
+               else input = "";
+          end;
+     
+     end launch_missile;
+
+fire_lasers: procedure;
+
+          dcl     is_he_there            bit (1) init ("0"b);
+          dcl     hit                    bit (1) init ("0"b);
+          
+          if my -> ship.energy_cur < 10 then do;
+                    call ioa_ ("^/WE haven't got the energy to fire lasers, sir");
+                    return;
+               end;
+          call ioa_ ("^/LASER banks ready to fire, sir");
+          call ioa_$nnl ("Target name: ");
+          call timed_input (input);
+          if input = "" then return;
+          target = input;
+          call verify_target (target, is_he_there);
+          if ^is_he_there then do;
+                    call ioa_ ("*** SENSORS: Target ship ^a is not in this sector, sir", target);
+                    return;
+               end;
+          input = "";
+          do while (input = "");
+               call ioa_$nnl ("LASER banks locked on target, sir: ");
+               call timed_input (input);
+               if input = "deenergize" | input = "de" then do;
+                         call ioa_ ("LASER banks deenergizing, sir");
+                         return;
+                    end;
+               else if input = "fire" | input = "f" then do;
+                         call lock (my -> ship.lock);
+                         my -> ship.energy_cur = my -> ship.energy_cur - 10;
+                         my -> ship.energy_old = my -> ship.energy_old - 10;
+                         call unlock (my -> ship.lock);
+                         call ioa_ ("^/LASERS fired, sir");
+                         call hit_that_sucker (hit, "lasers");
+                         if target = "critical" then return;
+                         if ^hit then do;
+                                   call ioa_ ("LASERS missed, sir");
+                                   return;
+                              end;
+                         else call ioa_ ("<< ZAP >> LASERS hit, sir");
+                         call inflict_damage;
+                         if target_is_a_robot (target) then return;
+                         if enemy -> ship.psionics then do;
+                                   call lock (enemy -> ship.lock);
+                                   enemy -> ship.psi_mes (0) = "hit";
+                                   enemy -> ship.psi_name (0) = my -> ship.name;
+                                   enemy -> ship.psi_type (0) = my -> ship.type;
+                                   call unlock (enemy -> ship.lock);
+                              end;
+                    end;
+               else input = "";
+          end;
+     
+     end fire_lasers;
+
+/* TARGETTING -- HIT DETERMINATION AND CRITICAL HITS */
+
+verify_target: procedure (target, is_he_there);
+
+          dcl     target                 char (10) parm;
+          dcl     is_he_there            bit (1) parm;
+          dcl     x                      fixed bin init (0);
+          
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & edir ^= pdir then do;
+                         if enemy -> ship.location = my -> ship.location & enemy -> ship.name = target then do;
+                                   is_he_there = "1"b;
+                                   return;
+                              end;
+                    end;
+          end;
+          call robot_verify_target (target, is_he_there);
+          
+     end verify_target;
+     
+hit_that_sucker: procedure (hit, weapon);
+
+          dcl     hit                    bit (1) parm;
+          dcl     weapon                 char (*) parm;
+          dcl     robot_was_the_target   bit (1) init ("0"b);
+          dcl     x                      fixed bin init (0);
+          
+          call robot_hit_him (target, robot_was_the_target, weapon, hit);
+          if robot_was_the_target then return;
+          if enemy -> ship.type = "Star Commander" then do;
+                    hit = "0"b;
+                    return;
+               end;
+          if weapon = "missile" then do;
+                    x = mod (clock (), 101) + 30;
+                    if x > 125 then call critical_hit;
+               end;
+          else do;
+                    x = mod (clock (), 100) + 1;
+                    if x = 100 then call critical_hit;
+               end;
+          if x > enemy -> ship.shields_cur then hit = "1"b;
+          else hit = "0"b;
+          
+critical_hit: procedure;
+
+          if weapon ^= "plasma" then do;
+                    call ioa_ ("^/<<< BOOOOOOOOOOM >>>");
+                    call ioa_ ("<<< BOOOOOOOOOOM >>>");
+                    call ioa_ ("^/CRITICAL centers have been hit on the ^a ^a!", enemy -> ship.type, enemy -> ship.name);
+               end;
+          call lock (enemy -> ship.lock);
+          enemy -> ship.deathmes = "bang";
+          call unlock (enemy -> ship.lock);
+          
+/* SET THE TARGET TO "CRITICAL" SO THAT UPON RETURNING, CONTROL GOES CENTRAL */
+          target = "critical";
+          
+     end critical_hit;
+     
+     end hit_that_sucker;
+     
+inflict_damage: procedure;
+
+          dcl     x                      fixed bin init (0);
+          
+          call robot_damage (target, x);
+          if x = 666 then return;
+          call lock (enemy -> ship.lock);
+          if enemy -> ship.condition = "DOCKING" | enemy -> ship.condition = "D-RAY" | enemy -> ship.condition = "SHIELDS DOWN" | enemy -> ship.condition = "DROBOT" then do;
+                    enemy -> ship.deathmes = "down";
+                    call unlock (enemy -> ship.lock);
+                    if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/DEFLECTOR shields were down on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
+                    return;
+               end;
+          do while (x = 0);
+               x = mod (clock (), 4) + 1;
+               if x = 1 then do;
+                         if enemy -> ship.shields_cur = 0 then x = 0;
+                         else do;
+                                   x = mod (clock (), 10) + 1;
+                                   enemy -> ship.shields_cur = max (0, enemy -> ship.shields_cur - x);
+                                   if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/SHIELDS damaged on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
+                              end;
+                    end;
+               else if x = 2 then do;
+                         if enemy -> ship.energy_cur = 0 then x = 0;
+                         else do;
+                                   x = mod (clock (), 100) + 1;
+                                   enemy -> ship.energy_cur = max (0, enemy -> ship.energy_cur - x);
+                                   if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/ENGINES damaged on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
+                              end;
+                    end;
+               else if x = 3 then do;
+                         if enemy -> ship.torps_cur = 0 then x = 0;
+                         else do;
+                                   x = mod (clock (), 3) + 1;
+                                   enemy -> ship.torps_cur = max (0, enemy -> ship.torps_cur - x);
+                                   if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/MISSILES damaged on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
+                              end;
+                    end;
+               else if x = 4 then do;
+                         if enemy -> ship.life_cur = 0 then x = 0;
+                         else do;
+                                   enemy -> ship.life_cur = enemy -> ship.life_cur - 1;
+                                   if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/LIFE SUPPORT systems damaged on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
+                              end;
+                    end;
+          end;
+          call unlock (enemy -> ship.lock);
+          
+     end inflict_damage;
+
 /***** GAME INTERNALS *****/
 
 make_ship: procedure (shiptype);
@@ -657,6 +916,90 @@ make_ship: procedure (shiptype);
           call unlock (my -> ship.lock);
           
      end make_ship;
+     
+update_condition: procedure;
+
+          on quit call command_seq_terminator;
+          call term_$single_refname ((DO), code);
+          call hcs_$initiate (DO_dir, DO, DO, 0, 0, (null ()), code);
+          call set_acl (entry, acl, whom);
+          call set_acl (entry, acl, rtrim (person) || "." || project);
+          call lock (my -> ship.lock);
+          if my -> ship.life_cur = 0 then call game_over;
+          else if my -> ship.deathmes = "down" then call game_over;
+          else if my -> ship.shields_cur = 0 then my -> ship.condition = "SHIELDS_DOWN";
+          else if my -> ship.condition = "DROBOT" then my -> ship.condition = "D-RAY";
+          else if my -> ship.life_cur > 6 then my -> ship.condition = "GREEN";
+          else if my -> ship.life_cur > 2 then my -> ship.condition = "YELLOW";
+          else my -> ship.condition = "RED";
+          call unlock (my -> ship.lock);
+          
+/* ELIMINATE GHOST SHIPS */
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () then do;
+                         do y = 1 to universe.number;
+                              if universe.user (x) = enemy -> ship.user & universe.unique_id (x) ^= enemy -> ship.unique_id then do;
+                                        call lock (universe.lock);
+                                        do z = y to universe.number;
+                                             universe.pdir (z) = universe.pdir (z + 1);
+                                             universe.user (z) = universe.user (z + 1);
+                                             universe.unique_id (z) = universe.unique_id (z + 1);
+                                        end;
+                                        universe.pdir (universe.number) = "";
+                                        universe.user (universe.number) = "";
+                                        universe.number = universe.number - 1;
+                                        call unlock (universe.lock);
+                                   end;
+                         end;
+                    end;
+          end;
+          
+     end update_condition;
+     
+security_check: procedure;
+
+          if my -> ship.type = "Star Commander" & (access = "no" | shiptype ^= my -> ship.type) then do;
+                    call ioa_ ("^/FROM STARFLEET COMMAND: You have unathorized control of a Star Commander.^/You will be destroyed...");
+                    call game_over;
+               end;
+               
+     end security_check;
+     
+timed_input: procedure (input);
+
+          dcl     input                  char (*) varying parm;
+          dcl     ten                    fixed bin (71) int static init (10);
+          dcl     seconds                bit (2) int static init ("11"b);
+          
+          call timer_manager_$alarm_call (ten, seconds, inform_routines);
+          call security_check;
+          call getline (input);
+          call timer_manager_$reset_alarm_call (inform_routines);
+          return;
+          
+inform_routines: entry;
+
+          on seg_fault_error call universe_destroyed;
+          call damage_check;
+          call message_check;
+          call death_check;
+          call black_hole_check;
+          call check_monitor;
+          call psionics_check;
+          call robot_functions;
+          call timer_manager_$alarm_call (ten, seconds, inform_routines);
+          return;
+          
+     end timed_input;
+
+command_seq_terminator: procedure;
+
+          call ioa_ ("^/:: COMMAND SEQUENCE TERMINATED ::");
+          goto command_loop;
+          
+     end command_seq_terminator;
      
 rand_location: procedure returns (char (8));
 
