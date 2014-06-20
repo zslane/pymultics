@@ -566,10 +566,10 @@ def starrunners():
             if enemy.ptr != null() and edir != pdir:
                 if not enemy.ship.cloak_on and enemy.ship.location == my.ship.location:
                     present.val = present.val + 1
-                    shipname[present.val] = enemy.ship.name
-                    shiptype[present.val] = enemy.ship.type
-                    if enemy.ship.condition == "DOCKING": docked[present.val] = "(Docking)"
-                    elif enemy.ship.condition == "SHIELDS DOWN": docked[present.val] = "(Shields Down)"
+                    shipname[present.val - 1] = enemy.ship.name
+                    shiptype[present.val - 1] = enemy.ship.type
+                    if enemy.ship.condition == "DOCKING": docked[present.val - 1] = "(Docking)"
+                    elif enemy.ship.condition == "SHIELDS DOWN": docked[present.val - 1] = "(Shields Down)"
                 # end if
             # end if
         # end for
@@ -593,17 +593,17 @@ def starrunners():
         def hazard_check():
             x = (clock_() % 200) + 1
             course = "{0:06d}".format((clock_() % 99999) + 1)
-            if x == 1: call.ioa_("\nION STORM encountered on course {0} to {1}", course, input)
-            elif x == 2: call.ioa_("\nASTEROID BELT encountered on course {0} to {1}", course, input)
+            if x == 1: call.ioa_("\nION STORM encountered on course {0} to {1}", course, input.val)
+            elif x == 2: call.ioa_("\nASTEROID BELT encountered on course {0} to {1}", course, input.val)
             if x < 3: hazard_damage()
         
         def hazard_damage():
             lock(my.ship)
             with my.ship:
-                x = (clock () % 10) + 1
+                x = (clock_() % 10) + 1
                 my.ship.shields_cur = max(0, my.ship.shields_cur - x)
                 my.ship.shields_old = max(0, my.ship.shields_old - x)
-                x = (clock () % 100) + 1
+                x = (clock_() % 100) + 1
                 my.ship.energy_cur = max(0, my.ship.energy_cur - x)
                 my.ship.energy_old = max(0, my.ship.energy_old - x)
             # end with
