@@ -456,6 +456,48 @@ ship_status: procedure;
           
      end ship_status;
      
+long_scan: procedure;
+
+          dcl     x                      fixed bin init (0);
+          dcl     stars                  (5) char (10) varying;
+          
+          stars = "";
+          if my -> ship.location = "Romula" then stars (1) = "o";
+          else if my -> ship.location = "Vindicar" then stars (2) = "o";
+          else if my -> ship.location = "Telgar" then stars (3) = "o";
+          else if my -> ship.location = "Shadow" then stars (4) = "o";
+          else stars (5) = "o";
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & edir ^= pdir then do;
+                         if enemy -> ship.cloak_on = "0"b then do;
+                                   if enemy -> ship.type = "Star Commander" then do;
+                                             if enemy -> ship.location = "Romula" then stars (1) = stars (1) || "@";
+                                             else if enemy -> ship.location = "Vindicar" then stars (2) = stars (2) || "@";
+                                             else if enemy -> ship.location = "Telgar" then stars (3) = stars (3) || "@";
+                                             else if enemy -> ship.location = "Shadow" then stars (4) = stars (4) || "@";
+                                             else stars (5) = stars (5) || "@";
+                                        end;
+                                   else do;
+                                             if enemy -> ship.location = "Romula" then stars (1) = stars (1) || "*";
+                                             else if enemy -> ship.location = "Vindicar" then stars (2) = stars (2) || "*";
+                                             else if enemy -> ship.location = "Telgar" then stars (3) = stars (3) || "*";
+                                             else if enemy -> ship.location = "Shadow" then stars (4) = stars (4) || "*";
+                                             else stars (5) = stars (5) || "*";
+                                        end;
+                              end;
+                    end;
+          end;
+          call ioa_ ("\n   ROMULA    VINDICAR     TELGAR    SHADOW      ZORK");
+          call ioa_ ("--------------------------------------------------------");
+          call ioa_ ("|          |          |          |          |          |");
+          call ioa_ ("|^a^12t|^a^23t|^a^34t|^a^45t|^a^56t|", stars (1), stars (2), stars (3), stars (4), stars (5));
+          call ioa_ ("|          |          |          |          |          |");
+          call ioa_ ("--------------------------------------------------------");
+          
+     end long_scan;
+
 /***** GAME INTERNALS *****/
 
 make_ship: procedure (shiptype);

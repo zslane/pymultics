@@ -3,8 +3,11 @@ from pprint import pprint
 from multics.globals import *
 
 include.pit
+include.query_info
 
-class GameOver(Exception): pass
+class goto_end_of_game(Exception): pass
+
+pdir = ""
 
 def starrunners():
 
@@ -23,6 +26,8 @@ def starrunners():
     dcl (aname               = char(10) . init("sv1.2.info"))
     dcl (helpfile            = char(25) . init(">udd>m>game>s>star.help"))
     dcl (allowed_chars       = char(87) . init("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 !$%&'()*:=-[]{}<>.,/?_|^"))
+    
+    # pdir                     = ""
     
     adminptr                 = ptr . init(null())
     univptr                  = ptr . init(null())
@@ -52,14 +57,14 @@ def starrunners():
             holes            = fixed.bin,
             black_hole       = Dim(5) (char(8)),
             password         = char(10),
-            robot            = Dim(20) (PL1.Structure(
+            robot            = Dim(2) (PL1.Structure(
                 name         = char(5),
                 energy       = fixed.bin,
                 condition    = char(7),
                 location     = char(8),
                 controller   = char(21)
             )),
-            notifications    = Dim(50) (PL1.Structure(
+            notifications    = Dim(5) (PL1.Structure(
                 person_id    = char(21),
                 project_id   = char(9)
             )),
@@ -111,7 +116,6 @@ def starrunners():
     
         MAIN                 = "starrunners"
         version              = "4.4"
-        pdir                 = ""
         edir                 = ""
         acl_entry            = ""
         shiptype             = ""
@@ -213,7 +217,7 @@ def starrunners():
         # end if
         
     # /* ACCEPT/REFUSE NOTIFICATIONS.  PUT/TAKE ON/FROM LIST */
-        for x in range(50):
+        for x in range(len(universe.notifications)): #range(50):
             if universe.notifications[x].person_id == person and universe.notifications[x].project_id == project:
                 if not accept_notifications:
                     with universe:
@@ -225,7 +229,7 @@ def starrunners():
             # end if
         # end for
         if not on_the_list and accept_notifications:
-            for x in range(50):
+            for x in range(len(universe.notifications)): #range(50):
                 if universe.notifications[x].person_id == "" and universe.notifications[x].project_id == "":
                     with universe:
                         universe.notifications[x].person_id = person
@@ -285,6 +289,7 @@ def starrunners():
                    # end;
         
     # /* MAKE HIS SHIP */
+        global pdir
         pdir = get_pdir_()
         call.hcs_.initiate(pdir, ename, my, code)
         if my.ship != null(): call.hcs_.delentry_seg(my.ship, code)
@@ -326,7 +331,7 @@ def starrunners():
             if universe.number == 1:
                     universe.holes = 0
                     universe.black_hole = ""
-                    for i in range(20):
+                    for i in range(len(universe.robot)): #range(20):
                         universe.robot[i].energy = 0
                         universe.robot[i].location = ""
                         universe.robot[i].condition = ""
@@ -335,6 +340,8 @@ def starrunners():
             # end if
         # end with
         unlock(universe)
+        
+        # print univptr.ptr.dumps()
         
     # /* RECORED THE USER'S PERSON_ID */
         lock(my.ship)
@@ -404,10 +411,8 @@ def starrunners():
         
     # /***** ENTER COMMAND LOOP ENVIRONMENT *****/
         
-        try: # command_loop:
-            # on quit call command_seq_terminator;
-            # on seg_fault_error call universe_destroyed;
-            while True:
+        while True:
+            try:
                 update_condition()
                 input.val = ""
                 call.ioa_.nnl("\nCOMMAND :> ")
@@ -460,20 +465,36 @@ def starrunners():
                 # check_monitor()
                 # psionics_check()
                 # robot_functions()
+            
+            except goto_end_of_game: # goto end_of_game
+                return
                 
-            # end while
-            
-        except GameOver:
-            break
-            
-        except:
-            raise
-        # end try
+            except BreakCondition: # on quit call command_seq_terminator;
+                command_seq_terminator()
+                
+            except DisconnectCondition: # on finish call universe_destroyed;
+                try:
+                    # universe_destroyed()
+                    game_over()
+                except goto_end_of_game:
+                    pass
+                finally:
+                    raise DisconnectCondition()
+                
+            except SegmentFault: # on seg_fault_error call universe_destroyed;
+                try:
+                    universe_destroyed()
+                    
+                except goto_end_of_game:
+                    return
+                
+            except:
+                raise
+            # end try
+                
+        # end while
         
-        # universe.number = universe.number - 1
-        universe.number = 0
-        
-    #-- end procedure (starrunners)
+    #-- end procedure
 
     # /***** COMMAND ROUTINES *****/
 
@@ -490,9 +511,47 @@ def starrunners():
         call.ioa_("Current location: {0}", my.ship.location)
     #-- end def ship_status
     
+    def long_scan():
+        stars = [""] * 5
+        if my.ship.location == "Romula": stars[0] = "o"
+        elif my.ship.location == "Vindicar": stars[1] = "o"
+        elif my.ship.location == "Telgar": stars[2] = "o"
+        elif my.ship.location == "Shadow": stars[3] = "o"
+        else: stars[4] = "o"
+        for x in range(universe.number):
+            edir = universe.pdir[x]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null() and edir != pdir:
+                if not enemy.ship.cloak_on:
+                    if enemy.ship.type == "Star Commander":
+                        if enemy.ship.location == "Romula": stars[0] += "@"
+                        elif enemy.ship.location == "Vindicar": stars[1] += "@"
+                        elif enemy.ship.location == "Telgar": stars[2] += "@"
+                        elif enemy.ship.location == "Shadow": stars[3] += "@"
+                        else: stars[4] += "@"
+                    else:
+                        if enemy.ship.location == "Romula": stars[0] += "*"
+                        elif enemy.ship.location == "Vindicar": stars[1] += "*"
+                        elif enemy.ship.location == "Telgar": stars[2] += "*"
+                        elif enemy.ship.location == "Shadow": stars[3] += "*"
+                        else: stars[4] += "*"
+                    # end if
+                # end if
+            # end if
+        # end if
+        call.ioa_("\n   ROMULA    VINDICAR     TELGAR    SHADOW      ZORK")
+        call.ioa_("--------------------------------------------------------")
+        call.ioa_("|          |          |          |          |          |")
+        call.ioa_("|{0:<10}|{1:<10}|{2:<10}|{3:<10}|{4:<10}|", stars[0], stars[1], stars[2], stars[3], stars[4])
+        call.ioa_("|          |          |          |          |          |")
+        call.ioa_("--------------------------------------------------------")
+    #-- end def long_scan
+    
     def game_over():
         call.ioa_("GAME OVER")
-        raise GameOver
+        universe.number = 0
+        # print univptr.ptr.dumps()
+        raise goto_end_of_game
     
     # /***** GAME INTERNALS *****/
     
@@ -550,6 +609,10 @@ def starrunners():
         getline(input)
         call.timer_manager_.reset_alarm_call(inform_routines)
     #-- end def timed_input
+    
+    def command_seq_terminator():
+        call.ioa_("\n:: COMMAND SEQUENCE TERMINATED ::")
+    #-- end def command_seq_terminator
     
     def rand_location():
         return "Romula"
@@ -698,9 +761,10 @@ def starrunners():
         # query_info.cp_escape_control = "10"b;
         
         call.command_query_(query_info, input_var, MAIN)
+    #-- end def getline
     
     procedure()
-
-include.query_info
+    
+#-- end def starrunners
 
 star = starrunners
