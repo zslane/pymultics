@@ -659,7 +659,7 @@ def starrunners():
             else: input.val = ""
         # end while
     #-- end def move_ship
-
+    
     def warpout():
         x       = 0
         old_loc = ""
@@ -802,6 +802,77 @@ def starrunners():
         # end while
     #-- end def fire_lasers
 
+    def contact_ship():
+        x      = 0
+        sendto = ""
+          
+        call.ioa_.nnl("\nWHO do you wish to contact, sir? ")
+        timed_input(input)
+        if input.val == "": return
+        sendto = input.val
+        if target_is_a_robot(sendto):
+            call.ioa_("\nTRANSMISSIONS can not be sent to a RobotShip, sir")
+            return
+        # end if
+        call.ioa_("WHAT is the message, sir?")
+        call.ioa_.nnl("---: ")
+        getline(input)
+        if input.val == "":
+            call.ioa_("MESSAGE not sent, sir")
+            return
+        # end if
+        for x in range(universe.number):
+            edir = universe.pdir[x]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null () and edir != pdir:
+                if enemy.ship.name == sendto:
+                    lock(enemy.ship)
+                    with enemy.ship:
+                        enemy.ship.fromname = my.ship.name
+                        enemy.ship.fromtype = my.ship.type
+                        enemy.ship.message = input.val
+                    # end with
+                    unlock(enemy.ship)
+                    call.ioa_("MESSAGE sent, sir")
+                    return
+                # end if
+            # end if
+        # end for
+        call.ioa_("TRANSMISSIONS are not being accepted by a ship named {0}, sir", sendto)
+    #-- end def contact_ship
+     
+    def dock():
+        x = 0
+        
+        if my.ship.tracname != "": call.ioa_("\n** STARBASE {0}: Please deactivate your Tractor Beam", my.ship.location)
+        if my.ship.cloak_on: call.ioa_("\n** STARBASE {0}: Please deactivate your Cloaking Device", my.ship.location)
+        if my.ship.tracname != "" or my.ship.cloak_on: return
+        call.ioa_("\n** Welcome to STARBASE {0} **", my.ship.location)
+        if my.ship.shields_cur > 0: call.ioa_("SHIELDS will be lowered for docking")
+        # on quit call ignore_signal;
+        inform_monitor("docking")
+        inform_psionics("docking", my.ship.location)
+        lock(my.ship)
+        with my.ship:
+            my.ship.condition = "DOCKING"
+            my.ship.shields_cur = my.ship.shields_old = min(my.ship.shields_max, my.ship.shields_cur + 10)
+            x = (clock_() % 3) + 1
+            my.ship.torps_cur = my.ship.torps_old = min(my.ship.torps_max, my.ship.torps_cur + x)
+            x = (clock_() % 41) + 10
+            my.ship.energy_cur = my.ship.energy_old = min(my.ship.energy_max, my.ship.energy_cur + x)
+            my.ship.life_cur = my.ship.life_old = min(10, my.ship.life_cur + 1)
+        # end with
+        unlock(my.ship)
+        for x in range(16): # Make docking take 8 seconds
+            robot_functions()
+            if my.ship.deathmes == "down": game_over()
+            elif my.ship.deathmes == "bang": damage_check()
+            call.timer_manager_.sleep(0.5, 0)
+        # end for
+        update_condition()
+        call.ioa_("** DOCKING procedure completed.  Shields UP **")
+    #-- end def dock
+
 # /* TARGETTING -- HIT DETERMINATION AND CRITICAL HITS */
 
     def verify_target(target, is_he_there):
@@ -817,7 +888,7 @@ def starrunners():
         # end for
         robot_verify_target(target, is_he_there)
     #-- end def verify_target
-
+    
     def hit_that_sucker(hit, weapon):
         robot_was_the_target = parm(False)
         x                    = 0
@@ -929,6 +1000,9 @@ def starrunners():
         robot_was_the_target.val = False
         
     def robot_damage(target, d):
+        pass
+        
+    def robot_functions():
         pass
 
     # /***** GAME INTERNALS *****/

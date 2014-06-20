@@ -767,6 +767,81 @@ fire_lasers: procedure;
      
      end fire_lasers;
 
+contact_ship: procedure;
+
+          dcl     x                      fixed bin init (0);
+          dcl     sendto                 char (10) init ("");
+          
+          call ioa_$nnl ("^/WHO do you wish to contact, sir? ");
+          call timed_input (input);
+          if input = "" then return;
+          sendto = input;
+          if target_is_a_robot (sendto) then do;
+                    call ioa_ ("^/TRANSMISSIONS can not be sent to a RobotShip, sir");
+                    return;
+               end;
+          call ioa_ ("WHAT is the message, sir?");
+          call ioa_$nnl ("---: ");
+          call getline (input);
+          if input = "" then do;
+                    call ioa_ ("MESSAGE not sent, sir");
+                    return;
+               end;
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & edir ^= pdir then do;
+                         if enemy -> ship.name = sendto then do;
+                                   call lock (enemy -> ship.lock);
+                                   enemy -> ship.fromname = my -> ship.name;
+                                   enemy -> ship.fromtype = my -> ship.type;
+                                   enemy -> ship.message = input;
+                                   call ioa_ ("MESSAGE sent, sir");
+                                   return;
+                              end;
+                    end;
+          end;
+          call ioa_ ("TRANSMISSIONS are not being accepted by a ship named ^a, sir", sendto);
+          
+     end contact_ship;
+     
+dock: procedure;
+
+          dcl     x                      fixed bin init (0);
+          
+          if my -> ship.tracname ^= "" then call ioa_ ("^/** STARBASE ^a: Please deactivate your Tractor Beam", my -> ship.location);
+          if my -> ship.cloak_on = "1"b then call ioa_ ("^/** STARBASE ^a: Please deactivate your Cloaking Device", my -> ship.location);
+          if my -> ship.tracname ^= "" | my -> ship.cloak_on = "1"b then return;
+          call ioa_ ("^/** Welcome to STARBASE ^a **", my -> ship.location);
+          if my -> ship.shields_cur > 0 then call ioa_ ("SHIELDS will be lowered for docking");
+          on quit call ignore_signal;
+          call inform_monitor ("docking");
+          call inform_psionics ("docking", my -> ship.location);
+          call lock (my -> ship.lock);
+          my -> ship.condition = "DOCKING";
+          my -> ship.shields_cur, my -> ship.shields_old = min (my -> ship.shields_max, my -> ship.shields_cur + 10);
+          x = mod (clock (), 3) + 1;
+          my -> ship.torps_cur, my -> ship.torps_old = min (my -> ship.torps_max, my -> ship.torps_cur + x);
+          x = mod (clock (), 41) + 10;
+          my -> ship.energy_cur, my -> ship.energy_old = min (my -> ship.energy_max, my -> ship.energy_cur + x);
+          my -> ship.life_cur, my -> ship.life_old = min (10, my -> ship.life_cur + 1);
+          call unlock (my -> ship.lock);
+          do x = 1 to 200000;
+               call robot_functions;
+               if my -> ship.deathmes = "down" then call game_over;
+               else if my -> ship.deathmes = "bang" then call damage_check;
+          end;
+          call update_condition;
+          call ioa_ ("** DOCKING procedure completed.  Shields UP **");
+          
+ignore_signal: procedure;
+
+/* PROCEDURE FOR NEUTRALIZING THE BREAK KEY UNTIL DOCKING IS FINISHED */
+
+     end ignore_signal;
+     
+     end dock;
+
 /* TARGETTING -- HIT DETERMINATION AND CRITICAL HITS */
 
 verify_target: procedure (target, is_he_there);
