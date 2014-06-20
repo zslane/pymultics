@@ -585,12 +585,89 @@ def starrunners():
         # end for
     #-- end def short_scan
     
+    def move_ship():
+        open_sectors = [""] * 2
+        how_many     = 1
+        input        = parm("")
+        
+        def hazard_check():
+            x = (clock_() % 200) + 1
+            course = "{0:06d}".format((clock_() % 99999) + 1)
+            if x == 1: call.ioa_("\nION STORM encountered on course {0} to {1}", course, input)
+            elif x == 2: call.ioa_("\nASTEROID BELT encountered on course {0} to {1}", course, input)
+            if x < 3: hazard_damage()
+        
+        def hazard_damage():
+            lock(my.ship)
+            with my.ship:
+                x = (clock () % 10) + 1
+                my.ship.shields_cur = max(0, my.ship.shields_cur - x)
+                my.ship.shields_old = max(0, my.ship.shields_old - x)
+                x = (clock () % 100) + 1
+                my.ship.energy_cur = max(0, my.ship.energy_cur - x)
+                my.ship.energy_old = max(0, my.ship.energy_old - x)
+            # end with
+            unlock(my.ship)
+        
+        old_loc = my.ship.location;
+        if my.ship.energy_cur < 10:
+            call.ioa_("\nWE haven't got the energy to move, sir")
+            return
+        elif my.ship.tractor_on:
+            call.ioa_("\nTRACTOR BEAM holding our ship, sir")
+            return
+        # end if
+        if my.ship.location == "Romula": open_sectors[0] = "Vindicar"
+        elif my.ship.location == "Vindicar":
+            how_many = 2
+            open_sectors[0] = "Romula"
+            open_sectors[1] = "Telgar"
+        elif my.ship.location == "Telgar":
+            how_many = 2
+            open_sectors[0] = "Vindicar"
+            open_sectors[1] = "Shadow"
+        elif my.ship.location == "Shadow":
+            how_many = 2
+            open_sectors[0] = "Telgar"
+            open_sectors[1] = "Zork"
+        else: open_sectors[0] = "Shadow"
+        while input.val == "":
+            if how_many == 1: call.ioa_("\nOPEN SECTOR is {0}, sir", open_sectors[0])
+            else: call.ioa_("\nOPEN SECTORS are {0} and {1}, sir", open_sectors[0], open_sectors[1])
+            call.ioa_.nnl("NAVIGATION :> ")
+            timed_input(input)
+            if input.val == "": return
+            elif input.val == open_sectors[0] or input.val == open_sectors[1]:
+                if input.val != "":
+                    lock(my.ship)
+                    with my.ship:
+                        my.ship.location = input.val
+                        my.ship.energy_cur = my.ship.energy_cur - 10
+                        my.ship.energy_old = my.ship.energy_old - 10
+                    # end with
+                    unlock(my.ship)
+                    call.ioa_("COURSE set for {0}, sir", input.val)
+                    hazard_check()
+                    inform_monitor(my.ship.location)
+                    inform_psionics(old_loc, my.ship.location)
+                # end if
+            # end if
+            else: input.val = ""
+        # end while
+    #-- end def move_ship
+    
     def game_over():
         call.ioa_("GAME OVER")
         universe.number = 0
         # print univptr.ptr.dumps()
         raise goto_end_of_game
     
+    def inform_monitor(location):
+        pass
+        
+    def inform_psionics(old_loc, location):
+        pass
+
     # /***** ROBOT INTERNALS *****/
     
     def robot_sscan(present, shipname, shiptype, docked):
@@ -658,8 +735,15 @@ def starrunners():
     #-- end def command_seq_terminator
     
     def rand_location():
-        return "Romula"
-        
+        x = (clock_() % 5) + 1
+        if x == 1: location = "Romula"
+        elif x == 2: location = "Vindicar"
+        elif x == 3: location = "Telgar"
+        elif x == 4: location = "Shadow"
+        else: location = "Zork"
+        return location
+    #-- end def rand_location
+    
     def generate_codeword(key_word):
         password = ""
         new_pass = ""
@@ -785,7 +869,7 @@ def starrunners():
             call.ioa_.nnl("{0} (admin_info): User_info_line: ", MAIN)
             getline(input)
             admin_info.user_info_line = input.val
-            call.ioa_.nnl("{0}(admin_info): Command_query_line: ", MAIN)
+            call.ioa_.nnl("{0} (admin_info): Command_query_line: ", MAIN)
             getline(input)
             admin_info.com_query_line = input.val
             admin_info.star_comn.reset(1)

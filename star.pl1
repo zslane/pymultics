@@ -538,6 +538,91 @@ short_scan: procedure;
           
      end short_scan;
      
+move_ship: procedure;
+
+          dcl     open_sectors           (2) char (8);
+          dcl     how_many               fixed bin init (1);
+          dcl     old_loc                char (8) init ("");
+          
+          open_sectors, input = "";
+          old_loc = my -> ship.location;
+          if my -> ship.energy_cur < 10 then do;
+                    call ioa_ ("^/WE haven't got the energy to move, sir");
+                    return;
+               end;
+          else if my -> ship.tractor_on = "1"b then do;
+                    call ioa_ ("^/TRACTOR BEAM holding our ship, sir");
+                    return;
+               end;
+          if my -> ship.location = "Romula" then open_sectors (1) = "Vindicar";
+          else if my -> ship.location = "Vindicar" then do;
+                    how_many = 2;
+                    open_sectors (1) = "Romula";
+                    open_sectors (2) = "Telgar";
+               end;
+          else if my -> ship.location = "Telgar" then do;
+                    how_many = 2;
+                    open_sectors (1) = "Vindicar";
+                    open_sectors (2) = "Shadow";
+               end;
+          else if my -> ship.location = "Shadow" then do;
+                    how_many = 2;
+                    open_sectors (1) = "Telgar";
+                    open_sectors (2) = "Zork";
+               end;
+          else open_sectors (1) = "Shadow";
+          do while (input = "");
+               if how_many = 1 then call ioa_ ("^/OPEN SECTOR is ^a, sir", open_sectors (1));
+               else call ioa_ ("^/OPEN SECTORS are ^a and ^a, sir", open_sectors (1), open_sectors (2));
+               call ioa_$nnl ("NAVIGATION :> ");
+               call timed_input (input);
+               if input = "" then return;
+               else if input = open_sectors (1) | input = open_sectors (2) then do;
+                         if input ^= "" then do;
+                                   call lock (my -> ship.lock);
+                                   my -> ship.location = input;
+                                   my -> ship.energy_cur = my -> ship.energy_cur - 10;
+                                   my -> ship.energy_old = my -> ship.energy_old - 10;
+                                   call unlock (my -> ship.lock);
+                                   call ioa_ ("COURSE set for ^a, sir", input);
+                                   call hazard_check;
+                                   call inform_monitor (my -> ship.location);
+                                   call inform_psionics (old_loc, my -> ship.location);
+                              end;
+                    end;
+               else input = "";
+          end;
+          
+hazard_check: procedure;
+
+          dcl     x                      fixed bin init (0);
+          dcl     course                 pic "999999";
+          
+          x = mod (clock (), 200) + 1
+          course = mod (clock (), 99999) + 1;
+          if x = 1 then call ioa_ ("^/ION STORM encountered on course ^a to ^a", course, input);
+          else if x = 2 then call ioa_ ("^/ASTEROID BELT encountered on course ^a to ^a", course, input);
+          if x < 3 then call hazard_damage;
+          
+hazard_damage: procedure;
+
+          dcl     x                      fixed bin init (0);
+
+          call lock (my -> ship.lock);
+          x = mod (clock (), 10) + 1
+          my -> ship.shields_cur = max (0, my -> ship.shields_cur - x);
+          my -> ship.shields_old = max (0, my -> ship.shields_old - x);
+          x = mod (clock (), 100) + 1
+          my -> ship.energy_cur = max (0, my -> ship.energy_cur - x);
+          my -> ship.energy_old = max (0, my -> ship.energy_old - x);
+          call unlock (my -> ship.lock);
+          
+     end hazard_damage;
+     
+     end hazard_check;
+     
+     end move_ship;
+          
 /***** GAME INTERNALS *****/
 
 make_ship: procedure (shiptype);
@@ -573,6 +658,21 @@ make_ship: procedure (shiptype);
           
      end make_ship;
      
+rand_location: procedure returns (char (8));
+
+          dcl     location               char (8) init ("");
+          dcl     x                      fixed bin init (0);
+          
+          x = mod (clock (), 5) + 1;
+          if x = 1 then location = "Romula";
+          else if x = 2 then location = "Vindicar";
+          else if x = 3 then location = "Telgar";
+          else if x = 4 then location = "Shadow";
+          else location = "Zork";
+          return (location);
+          
+     end rand_location;
+
 generate_codeword: procedure (key_word) returns (char (10));
 
           dcl     key_word               char (*) parm;
