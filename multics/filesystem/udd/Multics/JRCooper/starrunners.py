@@ -468,7 +468,7 @@ def starrunners():
                 # black_hole_check()
                 # check_monitor()
                 # psionics_check()
-                # robot_functions()
+                robot_functions()
             
             except goto_end_of_game: # goto end_of_game
                 return
@@ -478,8 +478,7 @@ def starrunners():
                 
             except DisconnectCondition: # on finish call universe_destroyed;
                 try:
-                    # universe_destroyed()
-                    game_over()
+                    universe_destroyed()
                 except goto_end_of_game:
                     pass
                 finally:
@@ -873,6 +872,58 @@ def starrunners():
         call.ioa_("** DOCKING procedure completed.  Shields UP **")
     #-- end def dock
 
+    def self_destruct():
+    
+        def share_the_misery():
+            x      = 0
+            damage = 0
+        
+            for x in range(universe.number):
+                edir = universe.pdir[0]
+                call.hcs_.initiate(edir, ename, enemy, code)
+                if enemy.ptr != null() and edir != pdir:
+                    if enemy.ship.location == my.ship.location:
+                        damage = (clock_() % 10) + 1
+                        lock(enemy.ship)
+                        enemy.ship.shields_cur = max(0, enemy.ship.shields_cur - damage)
+                        unlock(enemy.ship)
+                    # end if
+                # end if
+            # end for
+            game_over()
+        #-- end def share_the_misery
+     
+        call.ioa_.nnl("\nINITIATE self destruct sequence: ")
+        timed_input(input)
+        if input.val != "1a":
+            call.ioa_("INCORRECT sequence password given :: sequence terminated")
+            return
+        # end if
+        call.ioa_("SELF destruct sequence initiated ***")
+        call.ioa_.nnl ("\nINITIATE sequence 2: ")
+        timed_input(input)
+        if input.val != "2b":
+            call.ioa_("INCORRECT sequence password given :: sequence terminated")
+            return
+        # end if
+        call.ioa_("SEQUENCE 2 initiated ***")
+        call.ioa_.nnl("\nSELF destruct command: ")
+        timed_input(input)
+        if input.val == "self-destruct" or input.val == "sd": share_the_misery()
+        elif input.val == "abort" or input.val == "ab":
+            call.ioa_("SELF destruct abort override command given :: sequence terminated")
+            return
+        else:
+            call.ioa_("INCORRECT sequence password given :: sequence terminated")
+            return
+        # end if
+    #-- end def self_destruct
+
+    def escape_to_multics():
+        command = input.val[1:]
+        call.do(command)
+    #-- end def escape_to_multics
+    
 # /* TARGETTING -- HIT DETERMINATION AND CRITICAL HITS */
 
     def verify_target(target, is_he_there):
@@ -970,18 +1021,161 @@ def starrunners():
         unlock(enemy.ship)
     #-- end def inflict_damage
     
-    def game_over():
-        call.ioa_("GAME OVER")
-        universe.number = 0
-        # print univptr.ptr.dumps()
-        raise goto_end_of_game
+    def inform_routines():
+        ten_seconds = 10
+        # on seg_fault_error call universe_destroyed;
+        # damage_check()
+        # message_check()
+        # death_check()
+        # black_hole_check()
+        # check_monitor()
+        # psionics_check()
+        robot_functions()
+        call.timer_manager_.alarm_call(ten_seconds, inform_routines)
+    #-- end def inform_routines
     
-    def inform_monitor(location):
-        pass
-        
-    def inform_psionics(old_loc, location):
-        pass
+    # /***** ARMEGEDDON ROUTINES -- TRASH HIS SHIP, GOODBYE CRUEL UNIVERSE *****/
+    
+    def game_over():
+    
+        def update_universe():
+            robot_release(my.ship.user)
+            lock(universe)
+            with universe:
+                for x in range(universe.number):
+                    if universe.pdir[x] == pdir:
+                        for y in range(x, universe.number - 1):
+                            universe.pdir[y] = universe.pdir[y + 1]
+                            universe.user[y] = universe.user [y + 1]
+                            universe.unique_id[y] = universe.unique_id[y + 1]
+                        # end for
+                        universe.pdir[universe.number - 1] = ""
+                        universe.user[universe.number - 1] = ""
+                        universe.unique_id[universe.number - 1] = 0
+                        universe.number = universe.number - 1
+                    # end if
+                # end for
+            # end with
+            unlock(universe)
+            call.hcs_.delentry_seg(my.ship, code)
+            call.ioa_("\n<<< YOU HAVE BEEN VAPORIZED >>>")
+            call.ioa_("\nThank you for playing STARRUNNERS.")
+            raise goto_end_of_game
+        #-- end def update_universe
 
+        call.timer_manager_.reset_alarm_call(inform_routines)
+        if input.val != "*": update_universe()
+        
+        for x in range(universe.number):
+            edir = universe.pdir[0]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null() and edir != pdir and enemy.ship.name != "" and enemy.ship.type != "" and (my.ship.type == "Starship" or my.ship.type == "Cruiser" or my.ship.type == "Destroyer" or (my.ship.type == "Star Commander" and my.ship.life_cur == 0)):
+                lock(enemy.ship)
+                with enemy.ship:
+                    enemy.ship.deathmes = "dead"
+                    enemy.ship.deadname = my.ship.name
+                    enemy.ship.deadtype = my.ship.type
+                    if my.ship.tracname == enemy.ship.name: enemy.ship.tractor_on = False
+                    if enemy.ship.tracname == my.ship.name: enemy.ship.tracname = ""
+                    if my.ship.monname == enemy.ship.name: enemy.ship.monitored_by = ""
+                # end with
+                unlock(enemy.ship)
+            # end if
+        # end for
+    #-- end def game_over
+     
+    def universe_destroyed():
+        univptr = null()
+        call.hcs_.initiate(dname, xname, univptr, code)
+        if code.val != 0 and univptr == null():
+            call.ioa_("\n*** GALACTIC IMPLOSION IMMINENT ***^/Alas, the universe has been destroyed...")
+            raise goto_end_of_game
+        # end if
+        call.ioa_("\n*** SENSORS: Enemy ship is gone, sir")
+        enemy = null()
+        # goto command_loop;
+    #-- end def universe_destroyed
+    
+    # /***** INFORMING ROUTINES *****/
+    
+    def inform_monitor(info):
+        if my.ship.monitored_by == "": return
+        for x in range(universe.number):
+            edir = universe.pdir[0]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null() and edir != pdir:
+                if enemy.ship.name == my.ship.monitored_by:
+                    lock(enemy.ship)
+                    enemy.ship.monloc = info
+                    unlock(enemy.ship)
+                # end if
+            # end if
+        # end for
+        if info == "vanished":
+            lock(my.ship)
+            my.ship.monitored_by = ""
+            unlock(my.ship)
+        # end if
+    #-- end def inform_monitor
+     
+    def inform_psionics(old_loc, new_loc):
+        for x in range(universe.number):
+            edir = universe.pdir[0]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null() and edir != pdir and enemy.ship.psionics_on:
+                if old_loc == enemy.ship.location or new_loc == enemy.ship.location or old_loc == "docking":
+                    lock(enemy.ship)
+                    with enemy.ship:
+                        enemy.ship.psi_num = y = enemy.ship.psi_num + 1
+                        enemy.ship.psi_name[y - 1] = my.ship.name
+                        enemy.ship.psi_type[y - 1] = my.ship.type
+                        if old_loc == enemy.ship.location: enemy.ship.psi_mes[y - 1] = "left"
+                        elif old_loc == "docking": enemy.ship.psi_mes[y - 1] = new_loc
+                        elif new_loc == enemy.ship.location: enemy.ship.psi_mes[y - 1] = "entered"
+                    # end with
+                    unlock(enemy.ship)
+                # end if
+            # end if
+        # end for
+    #-- end def inform_psionics
+
+    def command_list():
+        call.ioa_("\nCommands:")
+        call.ioa_("   (ss) sscan ------------ Short range scan")
+        call.ioa_("   (ls) lscan ------------ Long range scan")
+        call.ioa_("   (st) status ----------- Ship status")
+        call.ioa_("   (th) thrust ----------- Move ship to an adjacent sector")
+        call.ioa_("   (wp) warpout ---------- Hyperspace jump to a random sector")
+        call.ioa_("   (ms) missile ---------- Missile attck")
+        call.ioa_("   (lr) lasers ----------- Laser attack")
+        call.ioa_("   (ct) contact ---------- Communication with another ship")
+        call.ioa_("   (sd) sdestruct -------- Self destruct")
+        call.ioa_("   (dr) deathray --------- Fire Death Ray")
+        call.ioa_("   (dk) dock ------------- Dock at sector-starbase")
+        call.ioa_("        * ---------------- Quit from game (Ship explodes)")
+    #-- end def command_list
+     
+    def classified_com_list():
+        call.ioa_("\nClassified commands:")
+        call.ioa_("   (nb) nova-blast ------- Instantly destroys any ship")
+        call.ioa_("   (cm) computer --------- Accesses classified computer files")
+        call.ioa_("   (tb) tractor-beam ----- Tractor beam")
+        call.ioa_("   (tp) tractor-pull ----- Pull ship into sector")
+        call.ioa_("   (sg) star-gate -------- Star gate creation")
+        call.ioa_("   (cd) cloaking-device -- Cloaking device")
+        call.ioa_("   (mn) monitor ---------- Monitor ship")
+        call.ioa_("   (tj) trojan-horse ----- Send trojan horse command")
+    #-- end def classified_com_list
+     
+    def computer_com_list():
+        call.ioa_("\nComputer commands:")
+        call.ioa_("   (srs) srunners -------- Player listing")
+        call.ioa_("   (est) estatus --------- Enemy ship status")
+        call.ioa_("   (prb) probe ----------- Probe for ship")
+        call.ioa_("   (bhr) bhreport -------- Black hole report")
+        call.ioa_("   (rsr) rsreport -------- RobotShip report")
+    #-- end def computer_com_list
+    
     # /***** ROBOT INTERNALS *****/
     
     def robot_sscan(present, shipname, shiptype, docked):
@@ -1000,6 +1194,9 @@ def starrunners():
         robot_was_the_target.val = False
         
     def robot_damage(target, d):
+        pass
+        
+    def robot_release(user):
         pass
         
     def robot_functions():
@@ -1085,17 +1282,6 @@ def starrunners():
     def timed_input(input):
         ten_seconds = 10
     
-        def inform_routines():
-            # on seg_fault_error call universe_destroyed;
-            # damage_check()
-            # message_check()
-            # death_check()
-            # black_hole_check()
-            # check_monitor()
-            # psionics_check()
-            # robot_functions()
-            call.timer_manager_.alarm_call(ten_seconds, inform_routines)
-        
         call.timer_manager_.alarm_call(ten_seconds, inform_routines)
         security_check()
         getline(input)
@@ -1230,7 +1416,6 @@ def starrunners():
         
     def create_database():
         acl = "r"
-        whom = "*.*.*"
         
         call.hcs_.make_seg(dname, aname, adminptr, code)
         call.set_acl(dname.rstrip() + ">" + aname, acl, whom)

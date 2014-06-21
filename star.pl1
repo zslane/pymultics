@@ -842,6 +842,222 @@ ignore_signal: procedure;
      
      end dock;
 
+self_destruct: procedure;
+
+          call ioa_$nnl ("^/INITIATE self destruct sequence: ");
+          call timed_input (input);
+          if input ^= "1a" then do;
+                    call ioa_ ("INCORRECT sequence password given :: sequence terminated");
+                    return;
+               end;
+          call ioa_ ("SELF destruct sequence initiated ***");
+          call ioa_$nnl ("^/INITIATE sequence 2: ");
+          call timed_input (input);
+          if input ^= "2b" then do;
+                    call ioa_ ("INCORRECT sequence password given :: sequence terminated");
+                    return;
+               end;
+          call ioa_ ("SEQUENCE 2 initiated ***");
+          call ioa_$nnl ("^/SELF destruct command: ");
+          call timed_input (input);
+          if input = "self-destruct" | input = "sd" then call share_the_misery;
+          else if input = "abort" | input = "ab" then do;
+                    call ioa_ ("SELF destruct abort override command given :: sequence terminated");
+                    return;
+               end;
+          else do;
+                    call ioa_ ("INCORRECT sequence password given :: sequence terminated");
+                    return;
+               end;
+               
+share_the_misery: procedure;
+
+          dcl     x                      fixed bin init (0);
+          dcl     damage                 fixed bin init (0);
+          
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & edir ^= pdir then do;
+                         if enemy -> ship.location = my -> ship.location then do;
+                                   damage = mod (clock (), 10) + 1;
+                                   call lock (enemy -> ship.lock);
+                                   enemy -> ship.shields_cur = max (0, enemy -> ship.shields_cur - damage);
+                                   call unlock (enemy -> ship.lock);
+                              end;
+                    end;
+          end;
+          call game_over;
+          
+     end share_the_misery;
+     
+     end self_destruct;
+     
+escape_to_multics: procedure;
+
+          dcl     command                char (256) init ("");
+          
+          command = after (input, ":");
+          call do (command);
+          
+     end escape_to_multics;
+     
+/***** ARMEGEDDON ROUTINES -- TRASH HIS SHIP, GOODBYE CRUEL UNIVERSE *****/
+
+game_over: procedure;
+
+          dcl     (x, y)                 fixed bin init (0);
+          
+          call timer_manager_$reset_alarm_call (inform_routines);
+          if input ^= "*" then goto update_universe;
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & edir ^= pdir & enemy -> ship.name ^= "" & enemy -> ship.type ^= "" & (my -> ship.type = "Starship" | my -> ship.type = "Cruiser" | my -> ship.type = "Destroyer" | (my -> ship.type = "Star Commander" & my -> ship.life_cur = 0)) then do;
+                         call lock (enemy -> ship.lock);
+                         enemy -> ship.deathmes = "dead";
+                         enemy -> ship.deadname = my -> ship.name;
+                         enemy -> ship.deadtype = my -> ship.type;
+                         if my -> ship.tracname = enemy -> ship.name then enemy -> ship.tractor_on = "0"b;
+                         if enemy -> ship.tracname = my -> ship.name then enemy -> ship.tracname = "";
+                         if my -> ship.monname = enemy -> ship.name then enemy -> ship.monitored_by = "";
+                         call unlock (enemy -> ship.lock);
+                    end;
+          end;
+          
+update_universe:
+          call robot_release ((my -> ship.user));
+          call lock (universe.lock);
+          do x = 1 to universe.number;
+               if universe.pdir (x) = pdir then do;
+                         do y = x to universe.number;
+                              universe.pdir (y) = universe.pdir (y + 1);
+                              universe.user (y) = universe.user (y + 1);
+                              universe.unique_id (y) = universe.unique_id (y + 1);
+                         end;
+                         universe.pdir (universe.number) = "";
+                         universe.user (universe.number) = "";
+                         universe.unique_id (universe.number) = 0;
+                         universe.number = universe.number - 1;
+                    end;
+          end;
+          call unlock (universe.lock);
+          call hcs_$delentry_seg (my, code);
+          call ioa_ ("^/<<< YOU HAVE BEEN VAPORIZED >>>");
+          call ioa_ ("^/Thank you for playing STARRUNNERS.");
+          goto end_of_game;
+          
+     end game_over;
+     
+universe_destroyed: procedure;
+
+          univptr = null ();
+          call hcs_$initiate (dname, xname, "", 0, 0, univptr, code);
+          if code ^= 0 & univptr = null () then do;
+                    call ioa_ ("^/*** GALACTIC IMPLOSION IMMINENT ***^/Alas, the universe has been destroyed...");
+                    goto end_of_game;
+               end;
+          call ioa_ ("^/*** SENSORS: Enemy ship is gone, sir");
+          enemy = null ();
+          goto command_loop;
+          
+     end universe_destroyed;
+
+/***** INFORMING ROUTINES *****/
+
+inform_monitor: procedure (info);
+
+          dcl     info                   char (8) aligned parm;
+          dcl     x                      fixed bin init (0);
+          
+          if my -> ship.monitored_by = "" then return;
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & edir ^= pdir then do;
+                         if enemy -> ship.name = my -> ship.monitored_by then do;
+                                   call lock (enemy -> ship.lock);
+                                   enemy -> ship.monloc = info;
+                                   call unlock (enemy -> ship.lock);
+                              end;
+                    end;
+          end;
+          if info = "vanished" then do;
+                    call lock (my -> ship.lock);
+                    my -> ship.monitored_by = "";
+                    call unlock (my -> ship.lock);
+               end;
+               
+     end inform_monitor;
+     
+inform_psionics: procedure (old_loc, new_loc);
+
+          dcl     old_loc                char (*) parm;
+          dcl     new_loc                char (*) aligned parm;
+          dcl     x                      fixed bin init (0);
+          
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & edir ^= pdir & enemy -> ship.psionics_on then do;
+                         if old_loc = enemy -> ship.location | new_loc = enemy -> ship.location | old_loc = "docking" then do;
+                                   call lock (enemy -> ship.lock);
+                                   enemy -> ship.psi_num, y = enemy -> ship.psi_num + 1;
+                                   enemy -> ship.psi_name (y) = my -> ship.name;
+                                   enemy -> ship.psi_type (y) = my -> ship.type;
+                                   if old_loc = enemy -> ship.location then enemy -> ship.psi_mes (y) = "left";
+                                   else if old_loc = "docking" then enemy -> ship.psi_mes (y) = new_loc;
+                                   else if new_loc = enemy -> ship.location then enemy -> ship.psi_mes (y) = "entered";
+                                   call unlock (enemy -> ship.lock);
+                              end;
+                    end;
+          end;
+          
+     end inform_psionics;
+
+command_list: procedure;
+
+          call ioa_ ("^/Commands:");
+          call ioa_ ("   (ss) sscan ------------ Short range scan");
+          call ioa_ ("   (ls) lscan ------------ Long range scan");
+          call ioa_ ("   (st) status ----------- Ship status");
+          call ioa_ ("   (th) thrust ----------- Move ship to an adjacent sector");
+          call ioa_ ("   (wp) warpout ---------- Hyperspace jump to a random sector");
+          call ioa_ ("   (ms) missile ---------- Missile attck");
+          call ioa_ ("   (lr) lasers ----------- Laser attack");
+          call ioa_ ("   (ct) contact ---------- Communication with another ship");
+          call ioa_ ("   (sd) sdestruct -------- Self destruct");
+          call ioa_ ("   (dr) deathray --------- Fire Death Ray");
+          call ioa_ ("   (dk) dock ------------- Dock at sector-starbase");
+          call ioa_ ("        * ---------------- Quit from game (Ship explodes)");
+          
+     end command_list;
+     
+classified_com_list: procedure;
+
+          call ioa_ ("^/Classified commands:");
+          call ioa_ ("   (nb) nova-blast ------- Instantly destroys any ship");
+          call ioa_ ("   (cm) computer --------- Accesses classified computer files");
+          call ioa_ ("   (tb) tractor-beam ----- Tractor beam");
+          call ioa_ ("   (tp) tractor-pull ----- Pull ship into sector");
+          call ioa_ ("   (sg) star-gate -------- Star gate creation");
+          call ioa_ ("   (cd) cloaking-device -- Cloaking device");
+          call ioa_ ("   (mn) monitor ---------- Monitor ship");
+          call ioa_ ("   (tj) trojan-horse ----- Send trojan horse command");
+          
+     end classified_com_list;
+     
+computer_com_list: procedure;
+
+          call ioa_ ("^/Computer commands:");
+          call ioa_ ("   (srs) srunners -------- Player listing");
+          call ioa_ ("   (est) estatus --------- Enemy ship status");
+          call ioa_ ("   (prb) probe ----------- Probe for ship");
+          call ioa_ ("   (bhr) bhreport -------- Black hole report");
+          call ioa_ ("   (rsr) rsreport -------- RobotShip report");
+          
+     end computer_com_list;
+
 /* TARGETTING -- HIT DETERMINATION AND CRITICAL HITS */
 
 verify_target: procedure (target, is_he_there);
