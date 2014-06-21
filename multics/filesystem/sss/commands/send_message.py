@@ -2,7 +2,7 @@ import datetime
 
 from multics.globals import *
 
-def sm():
+def send_message():
     declare (before    = parm,
              result    = parm,
              arg_count = parm,
@@ -23,6 +23,10 @@ def sm():
         
         call.sys_.get_users(users, long_name.val)
         print "Users matching recipient:", users.list
+        if users.list == []:
+            code.val = error_table_.no_such_user
+            return
+        # end if
         
         call.user_info_.whoami(person, project, acct)
         sender = person.id + "." + project.id
@@ -35,7 +39,7 @@ def sm():
     
     call.cu_.arg_count(arg_count)
     if arg_count.val < 2:
-        call.ioa_("Usage: sm [recipient] [message]")
+        call.ioa_("Usage: send_message|sm [recipient] [message]")
     else:
         call.cu_.arg_string(before, result, 1)
         recipient = before.list[0]
@@ -49,3 +53,6 @@ def sm():
             call.ioa_("Could not send message to {0}", recipient)
             call.ioa_("{0}", code.val)
             
+#-- end def send_message
+
+sm = send_message

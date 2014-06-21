@@ -411,7 +411,7 @@ def starrunners():
         ship_status()
         black_hole_check()
         check_monitor()
-        # send_notifications()
+        send_notifications()
         
     # /***** ENTER COMMAND LOOP ENVIRONMENT *****/
         
