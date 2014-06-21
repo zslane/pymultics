@@ -893,6 +893,79 @@ share_the_misery: procedure;
      
      end self_destruct;
      
+/***** STAR COMMANDER COMMAND ROUTINES *****/
+
+cloaking_device: procedure;
+
+          if my -> ship.energy_cur < 500 then do;
+                    call ioa_ ("^/WE haven't got the energy to activate the Cloaking Device, sir");
+                    return;
+               end;
+          if my -> ship.cloak_on = "0"b then do;
+                    call ioa_ ("^/CLOAKING DEVICE activated, sir");
+                    call lock (my -> ship.lock);
+                    my -> ship.cloak_on = "1"b;
+                    my -> ship.energy_cur = my -> ship.energy_cur - 500;
+                    my -> ship.energy_old = my -> ship.energy_old - 500;
+                    call unlock (my -> ship.lock);
+                    call inform_monitor ("vanished");
+               end;
+          else do;
+                    input = "";
+                    call ioa_ ("^/CLOAKING DEVICE is already activated, sir");
+                    do while (input = "");
+                         call ioa_$nnl ("Deactivate? ");
+                         call timed_input (input);
+                         if input = "yes" | input = "y" then do;
+                                   call ioa_ ("CLOAKING DEVICE deactivated, sir");
+                                   call lock (my -> ship.lock);
+                                   my -> ship.cloak_on = "0"b;
+                                   call unlock (my -> ship.lock);
+                                   return;
+                              end;
+                         if input ^= "no" & input ^= "n" then do;
+                                   call ioa_ ("^/Please type ""yes"" or ""no"".");
+                                   input = "";
+                              end;
+                    end;
+               end;
+               
+     end cloaking_device;
+     
+nova_blast: procedure;
+
+          dcl     is_he_there            bit (1) init ("0"b);
+          dcl     x                      fixed bin init (0);
+          
+          if my -> ship.energy_cur < 100 then do;
+                    call ioa_ ("^/WE haven't got the energy to launch a Nova Blast, sir");
+                    return;
+               end;
+          call ioa_ ("^/NOVA BLAST ready, sir");
+          call ioa_$nnl ("Target name: ");
+          call timed_input (input);
+          if input = "" then return;
+          target = input;
+          call verify_target (target, is_he_there);
+          if ^is_he_there then do;
+                    call ioa_ ("*** SENSORS: Target ship ^a is not in this sector, sir", target);
+                    return;
+               end;
+          call ioa_ ("NOVA BLAST launched, sir");
+          if target_is_a_robot (target) then call robot_death (target);
+          else do;
+                    call lock (enemy -> ship.lock);
+                    enemy -> ship.life_cur = 0;
+                    if enemy -> ship.condition = "DOCKING" | enemy -> ship.condition = "D-RAY" then enemy -> ship.deathmes = "down";
+                    call unlock (enemy -> ship.lock);
+               end;
+          call lock (my -> ship.lock);
+          my -> ship.energy_cur = my -> ship.energy_cur - 100;
+          my -> ship.energy_old = my -> ship.energy_old - 100;
+          call unlock (my -> ship.lock);
+          
+     end nova_blast;
+
 escape_to_multics: procedure;
 
           dcl     command                char (256) init ("");
@@ -1200,6 +1273,124 @@ psionics_check: procedure;
           call unlock (my -> ship.lock);
           
      end psionics_check;
+
+/***** BLACK HOLE ROUTINES *****/
+
+black_hole_check: procedure;
+
+          call black_hole_init;
+          call new_black_hole;
+          call rand_new_hole;
+          call suck_him_in;
+          
+black_hole_init: procedure;
+
+          dcl     hole_here              bit (1) init ("0"b);
+          dcl     x                      fixed bin init (0);
+          
+          if my -> ship.black_hole ^= "start" then return;
+          call lock (my -> ship.lock);
+          my -> ship.black_hole = "";
+          call unlock (my -> ship.lock);
+          do x = 1 to universe.holes;
+               if universe.black_hole (x) = my -> ship.location then hole_here = "1"b;
+          end;
+          if hole_here = "1"b then do;
+                    call ioa_ ("^/*** RED ALERT ***");
+                    call ioa_ ("^/SENSORS indicate that we have just phased into a black hole sector, sir!");
+                    if my -> ship.type ^= "Star Commander" then call pulling_damage;
+               end;
+          if universe.holes = 1 & hole_here = "1"b then return;
+          else if universe.holes > 0 then do;
+                    call ioa_ ("^/*** YELLOW ALERT ***");
+                    call ioa_ ("^/SENSORS indicate black holes are present in the following sectors:");
+               end;
+          do x = 1 to universe.holes;
+               call ioa_ ("   ^a", universe.black_hole (x));
+          end;
+          
+     end black_hole_init;
+     
+new_black_hole: procedure;
+
+          if my -> ship.black_hole = "" then return;
+          if my -> ship.black_hole = my -> ship.location then do;
+                    call ioa_ ("^/*** RED ALERT ***");
+                    call ioa_ ("^/SENSORS indicate that a black hole has just developed in our sector, sir!");
+                    if my -> ship.type ^= "Star Commander" then call pulling_damage;
+                    call lock (my -> ship.lock);
+                    my -> ship.black_hole = "";
+                    call unlock (my -> ship.lock);
+               end;
+               
+     end new_black_hole;
+     
+rand_new_hole: procedure;
+
+          dcl     new_hole               char (8) init ("");
+          dcl     x                      fixed bin init (0);
+          
+          x = mod (clock (), 1000) + 1
+          if x > 1 then return;
+          new_hole = rand_location ();
+          do x = 1 to universe.holes;
+               if universe.black_hole (x) = new_hole then return;
+          end;
+          call lock (universe.lock);
+          universe.holes = universe.holes + 1;
+          universe.black_hole (universe.holes) = new_hole;
+          call unlock (universe.lock);
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () then do;
+                         call lock (enemy -> ship.lock);
+                         enemy -> ship.black_hole = new_hole;
+                         call unlock (enemy -> ship.lock);
+                    end;
+          end;
+          
+     end rand_new_hole;
+     
+pulling_damage: procedure;
+
+          call lock (my -> ship.lock);
+          my -> ship.energy_cur = max (0, my -> ship.energy_cur - 100);
+          my -> ship.energy_old = max (0, my -> ship.energy_old - 100);
+          my -> ship.life_cur = max (0, my -> ship.life_cur - 3);
+          my -> ship.life_old = max (0, my -> ship.life_old - 3);
+          my -> ship.shields_cur = max (0, my -> ship.shields_cur - 10);
+          my -> ship.shields_old = max (0, my -> ship.shields_old - 10);
+          call unlock (my -> ship.lock);
+          call ioa_ ("^/*** ENGINEERING: Sir, our engines have taken heavy damages!");
+          call ioa_ ("*** MEDICAL: Sir, heavy casualties reported in all stations!");
+          call ioa_ ("*** CONTROL: Sir, our shields have taken heavy damages!");
+          
+     end pulling_damage;
+     
+suck_him_in: procedure;
+
+          dcl     hole_here              bit (1) init ("0"b);
+          dcl     x                      fixed bin int (0);
+          
+          do x = 1 to universe.holes;
+               if universe.black_hole (x) = my -> ship.location then hole_here = "1"b;
+          end;
+          if hole_here = "0"b then return;
+          x = mod (clock (), 500) + 1;
+          if x > my -> ship.energy_cur then do;
+                    call ioa_ ("^/BLACK HOLE is pulling our ship in, sir!");
+                    call ioa_ ("^/IMPULSE engines activated, sir");
+                    do x = 1 to 1000000;
+                    end;
+                    x = mod (clock (), 4) + 1;
+                    if x > 1 then call game_over;
+                    call ioa_ ("ESCAPE successful, sir");
+               end;
+               
+     end suck_him_in;
+     
+     end black_hole_check;
 
 /* TARGETTING -- HIT DETERMINATION AND CRITICAL HITS */
 
@@ -1593,6 +1784,56 @@ create_database: procedure;
      
      end big_bang;
 
+set_password: procedure;
+
+          call hcs_$initiate (dname, xname, "", 0, 0, univptr, code);
+          if code ^= 0 & univptr = null () then do;
+                    call ioa_ ("^a (set_pswd): Database not found. ^a>^a", MAIN, dname, xname);
+                    return;
+               end;
+          input = "#";
+          do while (input = "#");
+               call ioa_$nnl ("^/New password: ");
+               call getline (input);
+               if input = "" then do;
+                         call ioa_ ("^a (set_pswd): Current password ""^a"" not changed.", MAIN, universe.password);
+                         return;
+                    end;
+               if verify (input, allowed_chars) = 0 then password = input;
+               else do;
+                         call ioa_ ("^a (set_pswd): Invalid character(s) found in pssword.  Please retype.", MAIN);
+                         input = "#";
+                    end;
+               universe.password = password;
+          end;
+          
+     end set_password;
+     
+remove_password: procedure;
+
+          call hcs_$initiate (dname, xname, "", 0, 0, univptr, code);
+          if code ^= 0 & univptr = null () then do;
+                    call ioa_ ("^a (remove_pswd): Database not found. ^a>^a", MAIN, dname, xname);
+                    return;
+               end;
+          universe.password = "";
+          call ioa_ ("^a (remove_pswd): Password removed.", MAIN);
+          
+     end remove_password;
+     
+generate_password: procedure;
+
+          dcl     codeword               char (10) init ("");
+          dcl     input                  char (10) varying init ("");
+          
+          call ioa_$nnl ("^/Keyword: ");
+          call getline (input);
+          if input = "" then return;
+          codeword = input;
+          call ioa_ ("^/Codeword is ""^a"".", generate_codeword (codeword));
+          
+     end generate_password;
+          
 getline: procedure (input_var);
 
           dcl     input_var              char (*) varying parm;

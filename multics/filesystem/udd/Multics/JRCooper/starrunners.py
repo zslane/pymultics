@@ -5,7 +5,7 @@ from multics.globals import *
 include.pit
 include.query_info
 
-class goto_end_of_game(Exception): pass
+class goto_end_of_game(ProgramCondition): pass
 
 #== True global variables (that aren't parm types)
 pdir      = ""
@@ -409,8 +409,8 @@ def starrunners():
     # /* FINAL SET-UP PREPARATIONS */
         make_ship(shiptype)
         ship_status()
-        # black_hole_check()
-        # check_monitor()
+        black_hole_check()
+        check_monitor()
         # send_notifications()
         
     # /***** ENTER COMMAND LOOP ENVIRONMENT *****/
@@ -444,7 +444,7 @@ def starrunners():
                     elif input.val == "tractor-pull" or input.val == "tp": tractor_pull()
                     elif input.val == "trojan-horse" or input.val == "tj": trojan_horse()
                     elif input.val == "computer" or input.val == "cm": computer()
-                    elif input.val[0] == ":": escape_to_multics()
+                    elif input.val.startswith(":"): escape_to_multics()
                     elif input.val == "?":
                         command_list()
                         classified_com_list()
@@ -465,7 +465,7 @@ def starrunners():
                 damage_check()
                 message_check()
                 death_check()
-                # black_hole_check()
+                black_hole_check()
                 check_monitor()
                 psionics_check()
                 robot_functions()
@@ -800,7 +800,7 @@ def starrunners():
             else: input.val = ""
         # end while
     #-- end def fire_lasers
-
+    
     def contact_ship():
         x      = 0
         sendto = ""
@@ -839,10 +839,8 @@ def starrunners():
         # end for
         call.ioa_("TRANSMISSIONS are not being accepted by a ship named {0}, sir", sendto)
     #-- end def contact_ship
-     
+    
     def dock():
-        x = 0
-        
         if my.ship.tracname != "": call.ioa_("\n** STARBASE {0}: Please deactivate your Tractor Beam", my.ship.location)
         if my.ship.cloak_on: call.ioa_("\n** STARBASE {0}: Please deactivate your Cloaking Device", my.ship.location)
         if my.ship.tracname != "" or my.ship.cloak_on: return
@@ -862,7 +860,7 @@ def starrunners():
             my.ship.life_cur = my.ship.life_old = min(10, my.ship.life_cur + 1)
         # end with
         unlock(my.ship)
-        for x in range(16): # Make docking take 8 seconds
+        for x in range(12): # Make docking take 6 seconds
             robot_functions()
             if my.ship.deathmes == "down": game_over()
             elif my.ship.deathmes == "bang": damage_check()
@@ -871,7 +869,7 @@ def starrunners():
         update_condition()
         call.ioa_("** DOCKING procedure completed.  Shields UP **")
     #-- end def dock
-
+    
     def self_destruct():
     
         def share_the_misery():
@@ -918,14 +916,87 @@ def starrunners():
             return
         # end if
     #-- end def self_destruct
+    
+    # /***** STAR COMMANDER COMMAND ROUTINES *****/
 
+    def cloaking_device():
+        if my.ship.energy_cur < 500:
+            call.ioa_("\nWE haven't got the energy to activate the Cloaking Device, sir")
+            return
+        # end if
+        if not my.ship.cloak_on:
+            call.ioa_("\nCLOAKING DEVICE activated, sir")
+            lock(my.ship)
+            with my.ship:
+                my.ship.cloak_on = True
+                my.ship.energy_cur = my.ship.energy_cur - 500
+                my.ship.energy_old = my.ship.energy_old - 500
+            # end with
+            unlock(my.ship)
+            inform_monitor("vanished")
+        else:
+            input.val = ""
+            call.ioa_("\nCLOAKING DEVICE is already activated, sir")
+            while input.val == "":
+                call.ioa_.nnl("Deactivate? ")
+                timed_input(input)
+                if input.val == "yes" or input.val == "y":
+                    call.ioa_("CLOAKING DEVICE deactivated, sir")
+                    lock(my.ship)
+                    my.ship.cloak_on = False
+                    unlock(my.ship)
+                    return
+                # end if
+                if input.val != "no" and input.val != "n":
+                    call.ioa_("\nPlease type \"yes\" or \"no\".")
+                    input.val = ""
+                # end if
+            # end while
+        # end if
+    #-- end def cloaking_device
+     
+    def nova_blast():
+        is_he_there = parm(False)
+
+        if my.ship.energy_cur < 100:
+            call.ioa_("\nWE haven't got the energy to launch a Nova Blast, sir")
+            return
+        # end if
+        call.ioa_("\nNOVA BLAST ready, sir")
+        call.ioa_.nnl("Target name: ")
+        timed_input(input)
+        if input.val == "": return
+        target.val = input.val
+        verify_target(target, is_he_there)
+        if not is_he_there:
+            call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target.val)
+            return
+        # end if
+        call.ioa_("NOVA BLAST launched, sir")
+        if target_is_a_robot(target.val): robot_death(target.val)
+        else:
+            lock(enemy.ship)
+            with enemy.ship:
+                enemy.ship.life_cur = 0
+                if enemy.ship.condition == "DOCKING" or enemy.ship.condition == "D-RAY": enemy.ship.deathmes = "down"
+            # end with
+            unlock(enemy.ship)
+        # end if
+        lock(my.ship)
+        with my.ship:
+            my.ship.energy_cur = my.ship.energy_cur - 100
+            my.ship.energy_old = my.ship.energy_old - 100
+        # end with
+        unlock(my.ship)
+    #-- end def nova_blast
+    
     def escape_to_multics():
         command = input.val[1:]
         call.do(command)
     #-- end def escape_to_multics
     
     # /* TARGETTING -- HIT DETERMINATION AND CRITICAL HITS */
-
+    
     def verify_target(target, is_he_there):
         for x in range(universe.number):
             edir = universe.pdir[x]
@@ -970,7 +1041,6 @@ def starrunners():
             x = (clock_() % 100) + 1
             if x == 100: critical_hit()
         # end if
-        call.ioa_("x = {0}", x)
         if x > enemy.ship.shields_cur: hit.val = True
         else: hit.val = False
     #-- end def hit_that_sucker
@@ -1028,7 +1098,7 @@ def starrunners():
         damage_check()
         message_check()
         death_check()
-        # black_hole_check()
+        black_hole_check()
         check_monitor()
         psionics_check()
         robot_functions()
@@ -1323,17 +1393,115 @@ def starrunners():
         my.ship.psionics = True
         unlock(my.ship)
     #-- end def psionics_check
+
+    # /***** BLACK HOLE ROUTINES *****/
+
+    def black_hole_check():
+        black_hole_init()
+        new_black_hole()
+        rand_new_hole()
+        suck_him_in()
+    #-- end def black_hole_check
+      
+    def black_hole_init():
+        hole_here = False
+
+        if my.ship.black_hole != "start": return
+        lock(my.ship)
+        my.ship.black_hole = ""
+        unlock(my.ship)
+        for x in range(universe.holes):
+            if universe.black_hole[x] == my.ship.location: hole_here = True
+        # end for
+        if hole_here:
+            call.ioa_("\n*** RED ALERT ***")
+            call.ioa_("\nSENSORS indicate that we have just phased into a black hole sector, sir!")
+            if my.ship.type != "Star Commander": pulling_damage()
+        # end if
+        if universe.holes == 1 and hole_here: return
+        elif universe.holes > 0:
+            call.ioa_("\n*** YELLOW ALERT ***")
+            call.ioa_("\nSENSORS indicate black holes are present in the following sectors:")
+        # end if
+        for x in range(universe.holes):
+            call.ioa_("   {0}", universe.black_hole[x])
+        # end for
+    #-- end def black_hole_init
+    
+    def new_black_hole():
+        if my.ship.black_hole == "": return
+        if my.ship.black_hole == my.ship.location:
+            call.ioa_("\n*** RED ALERT ***")
+            call.ioa_("\nSENSORS indicate that a black hole has just developed in our sector, sir!")
+            if my.ship.type != "Star Commander": pulling_damage()
+            lock(my.ship)
+            my.ship.black_hole = ""
+            unlock(my.ship)
+        # end if
+    #-- end def new_black_hole
+
+    def rand_new_hole():
+        new_hole = ""
+
+        x = (clock_() % 1000) + 1
+        if x > 1: return
+        new_hole = rand_location()
+        for x in range(universe.holes):
+            if universe.black_hole[x] == new_hole: return
+        # end for
+        lock(universe)
+        universe.holes = universe.holes + 1
+        universe.black_hole[universe.holes - 1] = new_hole
+        unlock(universe)
+        for x in range(universe.holes):
+            edir = universe.pdir[x]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null ():
+                lock(enemy.ship)
+                enemy.ship.black_hole = new_hole
+                unlock(enemy.ship)
+            # end if
+        # end for
+    #-- end def rand_new_hole
+
+    def pulling_damage():
+        lock(my.ship)
+        with my.ship:
+            my.ship.energy_cur = max(0, my.ship.energy_cur - 100)
+            my.ship.energy_old = max(0, my.ship.energy_old - 100)
+            my.ship.life_cur = max(0, my.ship.life_cur - 3)
+            my.ship.life_old = max(0, my.ship.life_old - 3)
+            my.ship.shields_cur = max(0, my.ship.shields_cur - 10)
+            my.ship.shields_old = max(0, my.ship.shields_old - 10)
+        # end with
+        unlock(my.ship)
+        call.ioa_("\n*** ENGINEERING: Sir, our engines have taken heavy damages!")
+        call.ioa_("*** MEDICAL: Sir, heavy casualties reported in all stations!")
+        call.ioa_("*** CONTROL: Sir, our shields have taken heavy damages!")
+    #-- end def pulling_damage
+
+    def suck_him_in():
+        hole_here = False
+        
+        for x in range(universe.holes):
+            if universe.black_hole[x] == my.ship.location: hole_here = True
+        # end if
+        if not hole_here: return
+        x = (clock_() % 500) + 1
+        if x > my.ship.energy_cur:
+            call.ioa_("\nBLACK HOLE is pulling our ship in, sir!")
+            call.ioa_("\nIMPULSE engines activated, sir")
+            call.timer_manager_.sleep(2.5)
+            x = (clock () % 4) + 1
+            if x > 1: game_over()
+            call.ioa_("ESCAPE successful, sir")
+        # endif
+    #-- end def suck_him_in
     
     # /***** ROBOT INTERNALS *****/
     
     def robot_sscan(present, shipname, shiptype, docked):
         pass
-    
-    def target_is_a_robot(target):
-        return False
-        
-    def robot_hit_him(target, robot_was_the_target, weapon, hit):
-        robot_was_the_target.val = False
         
     def robot_verify_target(target, is_he_there):
         pass
@@ -1344,9 +1512,17 @@ def starrunners():
     def robot_damage(target, d):
         pass
         
-    def robot_release(user):
+    def robot_death(target):
         pass
         
+    def robot_release(user):
+        pass
+    
+    def target_is_a_robot(target):
+        return False
+        
+    # /***** ROBOT CONTROL FUNCTIONS *****/
+    
     def robot_functions():
         pass
 
@@ -1429,7 +1605,7 @@ def starrunners():
         
     def timed_input(input):
         ten_seconds = 10
-    
+        
         call.timer_manager_.alarm_call(ten_seconds, inform_routines)
         security_check()
         getline(input)
@@ -1583,6 +1759,50 @@ def starrunners():
             admin_info.star_coms[0] = input.val
         # end with
     #-- end def create_database
+
+    def set_password():
+        call.hcs_.initiate(dname, xname, univptr, code)
+        if code.val != 0 and univptr == null():
+            call.ioa_("{0} (set_pswd): Database not found. {1}>{2}", MAIN, dname, xname)
+            return
+        # end if
+        input.val = "#"
+        while input .val == "#":
+            call.ioa_.nnl("\nNew password: ")
+            getline(input)
+            if input.val == "":
+                call.ioa_("{0} (set_pswd): Current password \"{1}\" not changed.", MAIN, universe.password)
+                return
+            # end if
+            if verify(input, allowed_chars) == 0: password = input.val
+            else:
+                call.ioa_("{0} (set_pswd): Invalid character(s) found in pssword.  Please retype.", MAIN)
+                input = "#"
+            # end if
+            universe.password = password
+        # end while
+    #-- end def set_password
+    
+    def remove_password():
+        call.hcs_.initiate(dname, xname, univptr, code)
+        if code.val != 0 and univptr == null():
+            call.ioa_("{0} (set_pswd): Database not found. {1}>{2}", MAIN, dname, xname)
+            return
+        # end if
+        universe.password = ""
+        call.ioa_("{0} (remove_pswd): Password removed.", MAIN)
+    #-- end def remove_password
+    
+    def generate_password():
+        codeword = ""
+        input    = parm("")
+        
+        call.ioa_.nnl("\nKeyword: ")
+        getline(input)
+        if input.val == "": return
+        codeword = input.val
+        call.ioa_("\nCodeword is \"{0}\".", generate_codeword(codeword))
+    #-- end def generate_password
     
     def getline(input_var):
         MAIN = "starrunners"

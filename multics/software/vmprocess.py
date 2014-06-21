@@ -155,7 +155,10 @@ class ProcessWorker(QtCore.QObject):
             if timer.dead():
                 del self.stack.process_timers[routine_key]
             else:
-                timer.check()
+                try:
+                    timer.check()
+                except ProgramCondition, condition:
+                    call.sys_.signal_condition(get_calling_process_(), condition)
         
     def _cleanup(self):
         #== Kill the MBX process timer

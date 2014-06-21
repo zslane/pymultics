@@ -40,6 +40,10 @@ class InvalidSegmentFault(MulticsCondition):
     def __init__(self, entry_point_name):
         super(InvalidSegmentFault, self).__init__("invalid segment %s" % (entry_point_name))
         self.segment_name = entry_point_name
+
+class ProgramCondition(Exception):
+    def __init__(self, arg=""):
+        super(ProgramCondition, self).__init__(arg)
         
 class System:
     
@@ -146,6 +150,10 @@ def check_conditions_(ignore_break_signal=False):
     if GlobalEnvironment.supervisor.shutting_down():
         raise ShutdownCondition
     # end if
+    if GlobalEnvironment.supervisor.condition_signalled():
+        condition_instance = GlobalEnvironment.supervisor.pop_condition()
+        raise condition_instance
+    # end if
 
     QtCore.QCoreApplication.processEvents()
     
@@ -165,13 +173,18 @@ def do_loop(container, ignore_break_signal=False):
             container.exit_code = System.SHUTDOWN
             print "Shutdown signal detected by", container
         # end if
-            
+        if GlobalEnvironment.supervisor.condition_signalled():
+            condition_instance = GlobalEnvironment.supervisor.pop_condition()
+            print type(condition_instance), "signal detected by " + container
+            raise condition_instance
+        # end if
+        
         QtCore.QCoreApplication.processEvents()
-
+        
         yield
         
-    # except ShutdownCondition:
-        # container.exit_code = System.SHUTDOWN
+    except ProgramCondition:
+        raise
     except (SegmentFault, LinkageError, InvalidSegmentFault):
         call.dump_traceback_()
         container.exit_code = -1

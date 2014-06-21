@@ -209,6 +209,9 @@ class sys_(SystemExecutable):
             # STORE IN MAILBOX SOME DAY
             pass
             
+    def signal_condition(self, signalling_process, condition_instance):
+        self.system.signal_condition(signalling_process, condition_instance)
+        
     def signal_shutdown(self):
         if not self.system.shutting_down():
             self.system.shutdown()

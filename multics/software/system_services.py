@@ -31,6 +31,7 @@ class SystemServices(QtCore.QObject):
         self.__startup_datetime = None
         self.__shutdown_datetime = None
         self.__system_timers = {}
+        self.__signalled_conditions = []
         self.__person_name_table = None
         self.__project_definition_tables = {}
         self.__whotab = None
@@ -220,6 +221,11 @@ class SystemServices(QtCore.QObject):
                 print "Shutdown signal detected by " + get_calling_process_().objectName()
                 raise ShutdownCondition
             # end if
+            if self.condition_signalled():
+                condition_instance = self.pop_condition()
+                print type(condition_instance), "signal detected by " + get_calling_process_().objectName()
+                raise condition_instance
+            # end if
             
             QtCore.QCoreApplication.processEvents()
             
@@ -236,6 +242,11 @@ class SystemServices(QtCore.QObject):
         if self.shutting_down():
             print "Shutdown signal detected by " + get_calling_process_().objectName()
             raise ShutdownCondition
+        # end if
+        if self.condition_signalled():
+            condition_instance = self.pop_condition()
+            print type(condition_instance), "signal detected by " + get_calling_process_().objectName()
+            raise condition_instance
         # end if
         
         input = self.__hardware.io.get_input()
@@ -285,6 +296,24 @@ class SystemServices(QtCore.QObject):
     def signal_break(self):
         self.__hardware.io.put_output("BREAK\n")
         self._on_condition__break()
+        
+    def signal_condition(self, signalling_process, condition_instance):
+        self.__signalled_conditions.append( (signalling_process, condition_instance) )
+        
+    def condition_signalled(self):
+        process = get_calling_process_()
+        conditions = [ c for p, c in self.__signalled_conditions if p == process ]
+        return conditions != []
+        
+    def pop_condition(self):
+        process = get_calling_process_()
+        for signalling_process, condition_instance in self.__signalled_conditions:
+            if signalling_process == process:
+                self.__signalled_conditions.remove( (signalling_process, condition_instance) )
+                return condition_instance
+            # end if
+        # end for
+        return None
         
     #== THREAD CONTROL ==#
     
