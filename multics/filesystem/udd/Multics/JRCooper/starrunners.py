@@ -1990,15 +1990,15 @@ def starrunners():
     def lock(lock_bit):
         call.set_lock_.lock(lock_bit, 5, code)
     #-- end def lock
-        
+    
     def unlock(lock_bit):
         call.set_lock_.unlock(lock_bit, code)
     #-- end def unlock
-        
+    
     def verify(x, y):
         return len(set(x) - set(y))
     #-- end def verify
-        
+    
     # /***** STAR ADMIN SYSTEM *****/
 
     def star_admin():
@@ -2006,6 +2006,151 @@ def starrunners():
         MAIN          = "star_admin"
         version       = "1.2"
         from datetime import datetime as date
+        
+        def big_bang():
+            call.hcs_.initiate(dname, xname, univptr, code)
+            if code.val != 0 and univptr.ptr == null():
+                call.ioa_("{0} (big_bang): No database was found.", MAIN)
+                call.ioa_("Creating {0}>{1}", dname, xname)
+                call.hcs_.make_seg(dname, xname, univptr, code)
+                universe.number     = 0
+                universe.holes      = 0
+                universe.unique_id  = [0] * 10
+                universe.pdir       = [""] * 10
+                universe.user       = [""] * 10
+                universe.black_hole = [""] * 5
+                universe.password   = ""
+            else:
+                call.ioa_("{0} (big_bang): Database destroyed and re-created.", MAIN)
+                call.hcs_.delentry_seg(univptr.ptr, code)
+                call.hcs_.make_seg(dname, xname, univptr, code)
+                universe.number     = 0
+                universe.holes      = 0
+                universe.unique_id  = [0] * 10
+                universe.pdir       = [""] * 10
+                universe.user       = [""] * 10
+                universe.black_hole = [""] * 5
+                universe.password   = ""
+            # end if
+            
+            call.hcs_.initiate(dname, aname, adminptr, code)
+            if code.val != 0 and adminptr.ptr == null():
+                create_database()
+                call.ioa_("\nCreated: {0}>{1}", dname, aname)
+            else:
+                call.hcs_.delentry_seg(adminptr.ptr, code)
+                create_database()
+            # end if
+        #-- end def big_bang
+            
+        def create_database():
+            acl = "r"
+            
+            call.hcs_.make_seg(dname, aname, adminptr, code)
+            call.set_acl(dname.rstrip() + ">" + aname, acl, whom)
+            with admin_info:
+                call.ioa_.nnl("{0} (admin_info): Game Admin: ", MAIN)
+                getline(input)
+                admin_info.game_admin = input.val
+                call.ioa_.nnl("{0} (admin_info): User_info_line: ", MAIN)
+                getline(input)
+                admin_info.user_info_line = input.val
+                call.ioa_.nnl("{0} (admin_info): Command_query_line: ", MAIN)
+                getline(input)
+                admin_info.com_query_line = input.val
+                admin_info.star_comn.reset(1)
+                call.ioa_.nnl("{0} (admin_info): Star Commander: ", MAIN)
+                getline(input)
+                admin_info.star_coms[0] = input.val
+            # end with
+        #-- end def create_database
+
+        def set_password():
+            call.hcs_.initiate(dname, xname, univptr, code)
+            if code.val != 0 and univptr.ptr == null():
+                call.ioa_("{0} (set_pswd): Database not found. {1}>{2}", MAIN, dname, xname)
+                return
+            # end if
+            input.val = "#"
+            while input .val == "#":
+                call.ioa_.nnl("\nNew password: ")
+                getline(input)
+                if input.val == "":
+                    call.ioa_("{0} (set_pswd): Current password \"{1}\" not changed.", MAIN, universe.password)
+                    return
+                # end if
+                if verify(input.val, allowed_chars) == 0: password = input.val
+                else:
+                    call.ioa_("{0} (set_pswd): Invalid character(s) found in pssword.  Please retype.", MAIN)
+                    input = "#"
+                # end if
+                universe.password = password
+            # end while
+        #-- end def set_password
+        
+        def remove_password():
+            call.hcs_.initiate(dname, xname, univptr, code)
+            if code.val != 0 and univptr.ptr == null():
+                call.ioa_("{0} (set_pswd): Database not found. {1}>{2}", MAIN, dname, xname)
+                return
+            # end if
+            universe.password = ""
+            call.ioa_("{0} (remove_pswd): Password removed.", MAIN)
+        #-- end def remove_password
+        
+        def generate_password():
+            codeword = ""
+            input    = parm("")
+            
+            call.ioa_.nnl("\nKeyword: ")
+            getline(input)
+            if input.val == "": return
+            codeword = input.val
+            call.ioa_("\nCodeword is \"{0}\".", generate_codeword(codeword))
+        #-- end def generate_password
+        
+        def add_star_commander():
+            call.hcs_.initiate(dname, aname, adminptr, code)
+            if code.val != 0 and adminptr.ptr == null():
+                call.ioa_("{0} (add_starcom): Database not found. {1}>{2}", MAIN, dname, aname)
+                return
+            # end if
+            call.ioa_.nnl("{0} (add_starcom): Person ID: ", MAIN)
+            getline(input)
+            if input.val == "": return
+            for x in range(admin_info.star_comn):
+                if admin_info.star_coms[x] == "":
+                    with admin_info:
+                        admin_info.star_coms[x] = input.val
+                    # end with
+                    return
+                # end if
+            # end for
+            with admin_info:
+                admin_info.star_comn += 1
+                admin_info.star_coms[admin_info.star_comn - 1] = input.val
+            # end with
+        #-- end def add_star_commander
+        
+        def remove_star_commander():
+            call.hcs_.initiate(dname, aname, adminptr, code)
+            if code.val != 0 and adminptr.ptr == null():
+                call.ioa_("{0} (remove_starcom): Database not found. {1}>{2}", MAIN, dname, aname)
+                return
+            # end if
+            call.ioa_("\nCurrent Star Commanders:")
+            for x in range(admin_info.star_comn):
+                if admin_info.star_coms[x] != "": call.ioa_("   {0}", admin_info.star_coms[x])
+            # end for
+            call.ioa_.nnl("{0} (remove_starcom): Person ID: ", MAIN)
+            getline(input)
+            if input.val == "": return
+            with admin_info:
+                for x in range(admin_info.star_comn):
+                    if admin_info.star_coms[x] == input.val: admin_info.star_coms[x] = ""
+                # end for
+            # end with
+        #-- end def remove_star_commander
         
         input.val = ""
         call.ioa_("\nStar Admin {0}\n", version)
@@ -2036,110 +2181,10 @@ def starrunners():
                 call.ioa_("   (gc) generate-code ----- Generate a codeword")
                 call.ioa_("    (q) quit -------------- Quit the star admin system")
             elif input.val != "": call.ioa_("{0}: That is not a standard request:\n{1:12}Type a \"?\" for a list of proper requests.", MAIN, "")
+        # end while
+    #-- end def star_admin
 
     # /* STAR ADMIN REQUEST ROUTINES */
-    
-    def big_bang():
-        call.hcs_.initiate(dname, xname, univptr, code)
-        if code.val != 0 and univptr.ptr == null():
-            call.ioa_("{0} (big_bang): No database was found.", MAIN)
-            call.ioa_("Creating {0}>{1}", dname, xname)
-            call.hcs_.make_seg(dname, xname, univptr, code)
-            universe.number     = 0
-            universe.holes      = 0
-            universe.unique_id  = [0] * 10
-            universe.pdir       = [""] * 10
-            universe.user       = [""] * 10
-            universe.black_hole = [""] * 5
-            universe.password   = ""
-        else:
-            call.ioa_("{0} (big_bang): Database destroyed and re-created.", MAIN)
-            call.hcs_.delentry_seg(univptr.ptr, code)
-            call.hcs_.make_seg(dname, xname, univptr, code)
-            universe.number     = 0
-            universe.holes      = 0
-            universe.unique_id  = [0] * 10
-            universe.pdir       = [""] * 10
-            universe.user       = [""] * 10
-            universe.black_hole = [""] * 5
-            universe.password   = ""
-        # end if
-        
-        call.hcs_.initiate(dname, aname, adminptr, code)
-        if code.val != 0 and adminptr.ptr == null():
-            create_database()
-            call.ioa_("\nCreated: {0}>{1}", dname, aname)
-        else:
-            call.hcs_.delentry_seg(adminptr.ptr, code)
-            create_database()
-        # end if
-    #-- end def big_bang
-        
-    def create_database():
-        acl = "r"
-        
-        call.hcs_.make_seg(dname, aname, adminptr, code)
-        call.set_acl(dname.rstrip() + ">" + aname, acl, whom)
-        with admin_info:
-            call.ioa_.nnl("{0} (admin_info): Game Admin: ", MAIN)
-            getline(input)
-            admin_info.game_admin = input.val
-            call.ioa_.nnl("{0} (admin_info): User_info_line: ", MAIN)
-            getline(input)
-            admin_info.user_info_line = input.val
-            call.ioa_.nnl("{0} (admin_info): Command_query_line: ", MAIN)
-            getline(input)
-            admin_info.com_query_line = input.val
-            admin_info.star_comn.reset(1)
-            call.ioa_.nnl("{0} (admin_info): Star Commander: ", MAIN)
-            getline(input)
-            admin_info.star_coms[0] = input.val
-        # end with
-    #-- end def create_database
-
-    def set_password():
-        call.hcs_.initiate(dname, xname, univptr, code)
-        if code.val != 0 and univptr == null():
-            call.ioa_("{0} (set_pswd): Database not found. {1}>{2}", MAIN, dname, xname)
-            return
-        # end if
-        input.val = "#"
-        while input .val == "#":
-            call.ioa_.nnl("\nNew password: ")
-            getline(input)
-            if input.val == "":
-                call.ioa_("{0} (set_pswd): Current password \"{1}\" not changed.", MAIN, universe.password)
-                return
-            # end if
-            if verify(input, allowed_chars) == 0: password = input.val
-            else:
-                call.ioa_("{0} (set_pswd): Invalid character(s) found in pssword.  Please retype.", MAIN)
-                input = "#"
-            # end if
-            universe.password = password
-        # end while
-    #-- end def set_password
-    
-    def remove_password():
-        call.hcs_.initiate(dname, xname, univptr, code)
-        if code.val != 0 and univptr == null():
-            call.ioa_("{0} (set_pswd): Database not found. {1}>{2}", MAIN, dname, xname)
-            return
-        # end if
-        universe.password = ""
-        call.ioa_("{0} (remove_pswd): Password removed.", MAIN)
-    #-- end def remove_password
-    
-    def generate_password():
-        codeword = ""
-        input    = parm("")
-        
-        call.ioa_.nnl("\nKeyword: ")
-        getline(input)
-        if input.val == "": return
-        codeword = input.val
-        call.ioa_("\nCodeword is \"{0}\".", generate_codeword(codeword))
-    #-- end def generate_password
     
     def getline(input_var):
         MAIN = "starrunners"

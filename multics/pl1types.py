@@ -449,9 +449,15 @@ class DynamicArraySizer(object):
         self.size -= value
         self.array._shrink(value)
         return self
+    def __add__(self, value):
+        return self.size + value
+    def __sub__(self, value):
+        return self.size - value
     def __int__(self):
         return self.size
     def __long__(self):
+        return self.size
+    def __index__(self):
         return self.size
     def reset(self, val=0):
         self.array._reset(val)

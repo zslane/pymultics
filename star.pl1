@@ -2201,7 +2201,48 @@ generate_password: procedure;
           call ioa_ ("^/Codeword is ""^a"".", generate_codeword (codeword));
           
      end generate_password;
+
+add_star_commander: procedure;
+
+          call hcs_$initiate (dname, aname, "", 0, 0, adminptr, code);
+          if code ^= 0 & adminptr = null () then do;
+                    call ioa_ ("^a (add_starcom): Database not found. ^a>^a", MAIN, dname, aname);
+                    return;
+               end;
+          call ioa_$nnl ("^a (add_starcom): Person ID: ", MAIN);
+          call getline (input);
+          if input = "" then return;
+          do x = 1 to admin_info.star_comn;
+               if admin_info.star_coms (x) = "" then do;
+                         admin_info.star_coms (x) = input;
+                         return;
+                    end;
+          end;
+          admin_info.star_comn = admin_info.star_comn + 1;
+          admin_info.star_coms (admin_info.star_comn) = input;
           
+     end add_star_commander;
+     
+remove_star_commander: procedure;
+
+          call hcs_$initiate (dname, aname, "", 0, 0, adminptr, code);
+          if code ^= 0 & adminptr = null () then do;
+                    call ioa_ ("^a (remove_starcom): Database not found. ^a>^a", MAIN, dname, aname);
+                    return;
+               end;
+          call ioa_ ("^/Current Star Commanders:");
+          do x = 1 to admin_info.star_comn;
+               if admin_info.star_coms (x) ^= "" then call ioa_ ("   ^a", admin_info.star_coms (x));
+          end;
+          call ioa_$nnl ("^a (remove_starcom): Person ID: ", MAIN);
+          call getline (input);
+          if input = "" then return;
+          do x = 1 to admin_info.star_comn;
+               if admin_info.star_coms (x) = input then admin_info.star_coms (x) = "";
+          end;
+          
+     end remove_star_commander;
+
 getline: procedure (input_var);
 
           dcl     input_var              char (*) varying parm;
