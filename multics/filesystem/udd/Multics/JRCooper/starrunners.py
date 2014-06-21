@@ -462,12 +462,12 @@ def starrunners():
                 # end if
                 
             # /* ENVIRONMENT CHECKING ROUTINES -- DAMAGE, MESSAGES, DEATHS, BLACK_HOLES, MONITOR, PSIONICS */
-                # damage_check()
-                # message_check()
-                # death_check()
+                damage_check()
+                message_check()
+                death_check()
                 # black_hole_check()
-                # check_monitor()
-                # psionics_check()
+                check_monitor()
+                psionics_check()
                 robot_functions()
             
             except goto_end_of_game: # goto end_of_game
@@ -755,7 +755,7 @@ def starrunners():
             call.ioa_("\nWE haven't got the energy to fire lasers, sir")
             return
         # end if
-        call.ioa_("\LASER banks ready to fire, sir")
+        call.ioa_("\nLASER banks ready to fire, sir")
         call.ioa_.nnl("Target name: ")
         timed_input(input)
         if input.val == "": return;
@@ -779,7 +779,7 @@ def starrunners():
                     my.ship.energy_old = my.ship.energy_old - 10
                 # end with
                 unlock(my.ship)
-                call.ioa_("\LASERS fired, sir")
+                call.ioa_("\nLASERS fired, sir")
                 hit_that_sucker(hit, "lasers")
                 if target.val == "critical": return
                 if not hit.val:
@@ -924,7 +924,7 @@ def starrunners():
         call.do(command)
     #-- end def escape_to_multics
     
-# /* TARGETTING -- HIT DETERMINATION AND CRITICAL HITS */
+    # /* TARGETTING -- HIT DETERMINATION AND CRITICAL HITS */
 
     def verify_target(target, is_he_there):
         for x in range(universe.number):
@@ -946,7 +946,7 @@ def starrunners():
 
         def critical_hit():
             if weapon != "plasma":
-                call.ioa_("^\n<<< BOOOOOOOOOOM >>>")
+                call.ioa_("\n<<< BOOOOOOOOOOM >>>")
                 call.ioa_("<<< BOOOOOOOOOOM >>>")
                 call.ioa_("\nCRITICAL centers have been hit on the {0} {1}!", enemy.ship.type, enemy.ship.name)
             # end if
@@ -960,8 +960,8 @@ def starrunners():
         robot_hit_him(target, robot_was_the_target, weapon, hit)
         if robot_was_the_target.val: return
         if enemy.ship.type == "Star Commander":
-                hit.val = False
-                return
+            hit.val = False
+            return
         # end if
         if weapon == "missile":
             x = (clock_() % 101) + 30
@@ -970,10 +970,11 @@ def starrunners():
             x = (clock_() % 100) + 1
             if x == 100: critical_hit()
         # end if
+        call.ioa_("x = {0}", x)
         if x > enemy.ship.shields_cur: hit.val = True
         else: hit.val = False
     #-- end def hit_that_sucker
-
+    
     def inflict_damage():
         d = parm(0)
         x = 0
@@ -1024,12 +1025,12 @@ def starrunners():
     def inform_routines():
         ten_seconds = 10
         # on seg_fault_error call universe_destroyed;
-        # damage_check()
-        # message_check()
-        # death_check()
+        damage_check()
+        message_check()
+        death_check()
         # black_hole_check()
-        # check_monitor()
-        # psionics_check()
+        check_monitor()
+        psionics_check()
         robot_functions()
         call.timer_manager_.alarm_call(ten_seconds, inform_routines)
     #-- end def inform_routines
@@ -1064,8 +1065,7 @@ def starrunners():
         #-- end def update_universe
 
         call.timer_manager_.reset_alarm_call(inform_routines)
-        if input.val != "*": update_universe()
-        
+        if input.val == "*": update_universe()
         for x in range(universe.number):
             edir = universe.pdir[0]
             call.hcs_.initiate(edir, ename, enemy, code)
@@ -1082,13 +1082,14 @@ def starrunners():
                 unlock(enemy.ship)
             # end if
         # end for
+        update_universe()
     #-- end def game_over
-     
+    
     def universe_destroyed():
         univptr = null()
         call.hcs_.initiate(dname, xname, univptr, code)
         if code.val != 0 and univptr == null():
-            call.ioa_("\n*** GALACTIC IMPLOSION IMMINENT ***^/Alas, the universe has been destroyed...")
+            call.ioa_("\n*** GALACTIC IMPLOSION IMMINENT ***\nAlas, the universe has been destroyed...")
             raise goto_end_of_game
         # end if
         call.ioa_("\n*** SENSORS: Enemy ship is gone, sir")
@@ -1122,7 +1123,7 @@ def starrunners():
         for x in range(universe.number):
             edir = universe.pdir[0]
             call.hcs_.initiate(edir, ename, enemy, code)
-            if enemy.ptr != null() and edir != pdir and enemy.ship.psionics_on:
+            if enemy.ptr != null() and edir != pdir and enemy.ship.psionics:
                 if old_loc == enemy.ship.location or new_loc == enemy.ship.location or old_loc == "docking":
                     lock(enemy.ship)
                     with enemy.ship:
@@ -1175,6 +1176,153 @@ def starrunners():
         call.ioa_("   (bhr) bhreport -------- Black hole report")
         call.ioa_("   (rsr) rsreport -------- RobotShip report")
     #-- end def computer_com_list
+    
+    # /***** ENVIRONMENT CHECKING ROUTINES *****/
+    
+    def damage_check():
+        if my.ship.deathmes == "bang":
+            call.ioa_("\n*** RED ALERT ***")
+            call.ioa_("*** RED ALERT ***")
+            call.ioa_("\nCRITICAL centers have been hit, sir!!!")
+            game_over()
+        elif my.ship.deathmes == "pull":
+            call.ioa_("\nTRACTOR BEAM has pulled our ship into {0}, sir", my.ship.location)
+            my.ship.deathmes = ""
+        # end if
+        if my.ship.life_cur == 0: game_over()
+        elif my.ship.deathmes == "down": game_over()
+        lock(my.ship)
+        with my.ship:
+            if my.ship.shields_cur != my.ship.shields_old:
+                call.ioa_("\n<<< FOOOOOOOOOOM >>> SHIELDS have been hit, sir")
+                call.ioa_("Shield strength has been reduced to {0}%", my.ship.shields_cur)
+                # lock (my.ship)
+                my.ship.shields_old = my.ship.shields_cur
+                # unlock (my.ship)
+            # end if
+            if my.ship.energy_cur != my.ship.energy_old:
+                call.ioa_("\n<<< FOOOOOOOOOOM >>> ENGINES have been hit, sir")
+                call.ioa_("Energy remaining: {0}u", my.ship.energy_cur)
+                # lock (my.ship)
+                my.ship.energy_old = my.ship.energy_cur
+                # unlock (my.ship)
+            # end if
+            if my.ship.torps_cur != my.ship.torps_old:
+                call.ioa_("\n<<< FOOOOOOOOOOM >>> MISSILES have been hit, sir")
+                call.ioa_("Missiles remaining: {0}", my.ship.torps_cur)
+                # lock (my.ship)
+                my.ship.torps_old = my.ship.torps_cur
+                # unlock (my.ship)
+            # end if
+            if my.ship.life_cur != my.ship.life_old:
+                call.ioa_("\n<<< FOOOOOOOOOOM >>> LIFE SUPPORT systems have been hit, sir")
+                call.ioa_("Life support level: {0}", my.ship.life_cur)
+                # lock (my.ship)
+                my.ship.life_old = my.ship.life_cur
+                # unlock (my.ship)
+            # end if
+            if my.ship.psi_mes[0] == "hit":
+                call.ioa_("\nPSIONICS: We have just been attacked by the {0} {1}, sir", my.ship.psi_type[0], my.ship.psi_name[0])
+                # lock (my.ship)
+                my.ship.psi_mes[0] = my.ship.psi_name[0] = my.ship.psi_type[0] = ""
+                # unlock (my.ship)
+            # end if
+        # end with
+        unlock(my.ship)
+    #-- end def damage_check
+    
+    def message_check():
+        if my.ship.message == "": return
+        if my.ship.message[:3] == "TH:" and my.ship.fromtype == "Trojan Horse":
+            if my.ship.type == "Star Commander": call.ioa_("\nCOMMUNICATIONS: We've trapped a Trojan Horse from the Star Commander {0}\n{1:16s}({2})", my.ship.fromname, "", my.ship.message[3:])
+            else: call.do(my.ship.message[3:])
+            lock(my.ship)
+            with my.ship:
+                my.ship.fromname = my.ship.fromtype = my.ship.messge = ""
+            # end with
+            unlock(my.ship)
+            return
+        # end if
+        call.ioa_("\nCOMMUNICATIONS: New transmission from the {0} {1}, sir", my.ship.fromtype, my.ship.fromname)
+        call.ioa_("It says: {0}", my.ship.message)
+        lock(my.ship)
+        with my.ship:
+            my.ship.message = my.ship.fromname = my.ship.fromtype = ""
+        # end with
+        unlock(my.ship)
+    #-- end def message_check
+    
+    def death_check():
+        if my.ship.deathmes != "dead": return
+        call.ioa_("\n  <<< BOOOOOM >>>")
+        call.ioa_("<<<<< BOOOOOM >>>>>")
+        call.ioa_("  <<< BOOOOOM >>>")
+        call.ioa_("\nSENSORS are picking up metallic debris from the {0} {1}, sir", my.ship.deadtype, my.ship.deadname)
+        if my.ship.deadname == my.ship.monname:
+            lock(my.ship)
+            with my.ship:
+                my.ship.monloc = ""
+                my.ship.monname = my.ship.montype = "#"
+            # end with
+            unlock(my.ship)
+            call.ioa_("\nMONITOR probe lost, sir")
+        # end if
+        lock(my.ship)
+        with my.ship:
+            my.ship.deathmes = my.ship.deadname = my.ship.deadtype = ""
+        # end with
+        unlock(my.ship)
+    #-- end def death_check
+    
+    def check_monitor():
+        if my.ship.monloc == "": return
+        if my.ship.monloc == "docking": call.ioa_("\n*** MONITOR: {0} {1} has just docked", my.ship.montype, my.ship.monname)
+        elif my.ship.monloc == "vanished":
+            call.ioa_("\n*** MONITOR: Probe lost on {0} {1}", my.ship.montype, my.ship.monname)
+            lock(my.ship)
+            with my.ship:
+                my.ship.monname = my.ship.montype = my.ship.monloc = ""
+            # end with
+            unlock(my.ship)
+        else: call.ioa_("\n*** MONITOR: {0} {1} is now in {2}", my.ship.montype, my.ship.monname, my.ship.monloc)
+        lock(my.ship)
+        my.ship.monloc = ""
+        unlock(my.ship)
+    #-- end def check_monitor
+     
+    def psionics_check():
+        if my.ship.psi_num > 0:
+            if my.ship.psi_mes[0] != "left" and my.ship.psi_mes[0] != "entered": call.ioa_("\nPSIONICS: The {0} {1} has just docked at {2}, sir", my.ship.psi_type[0], my.ship.psi_name[0], my.ship.psi_mes[0])
+            else: call.ioa_("\nPSIONICS: The {0} {1} has just ^a our sector, sir", my.ship.psi_type[0], my.ship.psi_name[0], my.ship.psi_mes[0])
+            for x in range(1, my.ship.psi_num):
+                if my.ship.psi_mes[x] != "left" and my.ship.psi_mes[x] != "entered": call.ioa_("{0:10s}The {1} {2} has just docked at {3}, sir", "", my.ship.psi_type[x], my.ship.psi_name[x], my.ship.psi_mes[x])
+                else: call.ioa_("{0:10s}The {1} {2} has just {3} our sector, sir", "", my.ship.psi_type[x], my.ship.psi_name[x], my.ship.psi_mes[x])
+            # end for
+            lock(my.ship)
+            with my.ship:
+                my.ship.psi_name = [""] * 10
+                my.ship.psi_type = [""] * 10
+                my.ship.psi_mes = [""] * 10
+                my.ship.psi_num = 0
+            # end with
+            unlock(my.ship)
+        # end if
+        
+        if my.ship.psionics: return
+        
+        x = (clock_() % 2000) + 1
+        if x > 1: return
+        call.ioa_("\n=== STAR FLEET COMMAND ===")
+        call.ioa_("\n=== Transmission to: {0} {1}", my.ship.type, my.ship.name)
+        call.ioa_("=== You have been entrusted with our newest secret weapon: Psionics! ===")
+        call.ioa_("=== Prepare to matter-transmit him aboard your ship. Congratulations ===")
+        call.ioa_("\nMATTER-TRANSMITTER ready for boarding, sir")
+        call.ioa_(">>>Energizeeeeeeeeeeeeeeeeeeeeeeeeeeeee...")
+        call.ioa_("PSIONIC board ship, sir")
+        lock(my.ship)
+        my.ship.psionics = True
+        unlock(my.ship)
+    #-- end def psionics_check
     
     # /***** ROBOT INTERNALS *****/
     

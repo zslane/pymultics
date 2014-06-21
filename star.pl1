@@ -909,7 +909,7 @@ game_over: procedure;
           dcl     (x, y)                 fixed bin init (0);
           
           call timer_manager_$reset_alarm_call (inform_routines);
-          if input ^= "*" then goto update_universe;
+          if input = "*" then goto update_universe;
           do x = 1 to universe.number;
                edir = universe.pdir (x);
                call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
@@ -999,7 +999,7 @@ inform_psionics: procedure (old_loc, new_loc);
           do x = 1 to universe.number;
                edir = universe.pdir (x);
                call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
-               if enemy ^= null () & edir ^= pdir & enemy -> ship.psionics_on then do;
+               if enemy ^= null () & edir ^= pdir & enemy -> ship.psionics then do;
                          if old_loc = enemy -> ship.location | new_loc = enemy -> ship.location | old_loc = "docking" then do;
                                    call lock (enemy -> ship.lock);
                                    enemy -> ship.psi_num, y = enemy -> ship.psi_num + 1;
@@ -1057,6 +1057,149 @@ computer_com_list: procedure;
           call ioa_ ("   (rsr) rsreport -------- RobotShip report");
           
      end computer_com_list;
+
+/***** ENVIRONMENT CHECKING ROUTINES *****/
+
+damage_check: procedure;
+
+          if my -> ship.deathmes = "bang" then do;
+                    call ioa_ ("^/*** RED ALERT ***");
+                    call ioa_ ("*** RED ALERT ***");
+                    call ioa_ ("^/CRITICAL centers have been hit, sir!!!");
+                    call game_over;
+               end;
+          else if my -> ship.deathmes = "pull" then do;
+                    call ioa_ ("^/TRACTOR BEAM has pulled our ship into ^a, sir", my -> ship.location);
+                    my -> ship.deathmes = "";
+               end;
+          if my -> ship.life_cur = 0 then call game_over;
+          else if my -> ship.deathmes = "down" then call game_over;
+          if my -> ship.shields_cur ^= my -> ship.shields_old then do;
+                    call ioa_ ("^/<<< FOOOOOOOOOOM >>> SHIELDS have been hit, sir");
+                    call ioa_ ("Shield strength has been reduced to ^d%", my -> ship.shields_cur);
+                    call lock (my -> ship.lock);
+                    my -> ship.shields_old = my -> ship.shields_cur;
+                    call unlock (my -> ship.lock);
+               end;
+          if my -> ship.energy_cur ^= my -> ship.energy_old then do;
+                    call ioa_ ("^/<<< FOOOOOOOOOOM >>> ENGINES have been hit, sir");
+                    call ioa_ ("Energy remaining: ^du", my -> ship.energy_cur);
+                    call lock (my -> ship.lock);
+                    my -> ship.energy_old = my -> ship.energy_cur;
+                    call unlock (my -> ship.lock);
+               end;
+          if my -> ship.torps_cur ^= my -> ship.torps_old then do;
+                    call ioa_ ("^/<<< FOOOOOOOOOOM >>> MISSILES have been hit, sir");
+                    call ioa_ ("Missiles remaining: ^d", my -> ship.torps_cur);
+                    call lock (my -> ship.lock);
+                    my -> ship.torps_old = my -> ship.torps_cur;
+                    call unlock (my -> ship.lock);
+               end;
+          if my -> ship.life_cur ^= my -> ship.life_old then do;
+                    call ioa_ ("^/<<< FOOOOOOOOOOM >>> LIFE SUPPORT systems have been hit, sir");
+                    call ioa_ ("Life support level: ^d", my -> ship.life_cur);
+                    call lock (my -> ship.lock);
+                    my -> ship.life_old = my -> ship.life_cur;
+                    call unlock (my -> ship.lock);
+               end;
+          if my -> ship.psi_mes (0) = "hit" then do;
+                    call ioa_ ("^/PSIONICS: We have just been attacked by the ^a ^a, sir", my -> ship.psi_type (0), my -> ship.psi_name (0));
+                    call lock (my -> ship.lock);
+                    my -> ship.psi_mes (0), my -> ship.psi_name (0), my -> ship.psi_type (0) = "";
+                    call unlock (my -> ship.lock);
+               end;
+               
+     end damage_check;
+     
+message_check: procedure;
+
+          if my -> ship.message = "" then return;
+          if substr (my -> ship.message, 1, 3) = "TH:" & my -> ship.fromtype = "Trojan Horse" then do;
+                    if my -> ship.type = "Star Commander" then call ioa_ ("^/COMMUNICATIONS: We've trapped a Trojan Horse from the Star Commander ^a^/^16x(^a)", my -> ship.fromname, substr (my -> ship.message, 4));
+                    else call do (substr (my -> ship.message, 4));
+                    call lock (my -> ship.lock);
+                    my -> ship.fromname, my -> ship.fromtype, my -> ship.messge = "";
+                    call unlock (my -> ship.lock);
+                    return;
+               end;
+          call ioa_ ("^/COMMUNICATIONS: New transmission from the ^a ^a, sir", my -> ship.fromtype, my -> ship.fromname);
+          call ioa_ ("It says: ^a", my -> ship.message);
+          call lock (my -> ship.lock);
+          my -> ship.message, my -> ship.fromname, my -> ship.fromtype = "";
+          call unlock (my -> ship.lock);
+          
+     end message_check;
+     
+death_check: procedure;
+
+          if my -> ship.deathmes ^= "dead" then return;
+          call ioa_ ("^/  <<< BOOOOOM >>>");
+          call ioa_ ("<<<<< BOOOOOM >>>>>");
+          call ioa_ ("  <<< BOOOOOM >>>");
+          call ioa_ ("^/SENSORS are picking up metallic debris from the ^a ^a, sir", my -> ship.deadtype, my -> ship.deadname);
+          if my -> ship.deadname = my -> ship.monname then do;
+                    call lock (my -> ship.lock);
+                    my -> ship.monloc = "";
+                    my -> ship.monname, my -> ship.montype = "#";
+                    call unlock (my -> ship.lock);
+                    call ioa_ ("^/MONITOR probe lost, sir");
+               end;
+          call lock (my -> ship.lock);
+          my -> ship.deathmes, my -> ship.deadname, my -> ship.deadtype = "";
+          call unlock (my -> ship.lock);
+          
+     end death_check;
+     
+check_monitor: procedure;
+
+          if my -> ship.monloc = "" then return;
+          if my -> ship.monloc = "docking" then call ioa_ ("^/*** MONITOR: ^a ^a has just docked", my -> ship.montype, my -> ship.monname);
+          else if my -> ship.monloc = "vanished" then do;
+                    call ioa_ ("^/*** MONITOR: Probe lost on ^a ^a", my -> ship.montype, my -> ship.monname);
+                    call lock (my -> ship.lock);
+                    my -> ship.monname, my -> ship.montype, my -> ship.monloc = "";
+                    call unlock (my -> ship.lock);
+               end;
+          else call ioa_ ("^/*** MONITOR: ^a ^a is now in ^a", my -> ship.montype, my -> ship.monname, my -> ship.monloc);
+          call lock (my -> ship.lock);
+          my -> ship.monloc = "";
+          call unlock (my -> ship.lock);
+          
+     end check_monitor;
+     
+psionics_check: procedure;
+
+          dcl     x                      fixed bin init (0);
+          
+          if my -> ship.psi_num > 0 then do;
+                    if my -> ship.psi_mes (1) ^= "left" & my -> ship.psi_mes (1) ^= "entered" then call ioa_ ("^/PSIONICS: The ^a ^a has just docked at ^a, sir", my -> ship.psi_type (1), my -> ship.psi_name (1), my -> ship.psi_mes (1));
+                    else call ioa_ ("^/PSIONICS: The ^a ^a has just ^a our sector, sir", my -> ship.psi_type (1), my -> ship.psi_name (1), my -> ship.psi_mes (1));
+                    do x = 2 to my -> ship.psi_num;
+                         if my -> ship.psi_mes (x) ^= "left" & my -> ship.psi_mes (x) ^= "entered" then call ioa_ ("^10xThe ^a ^a has just docked at ^a, sir", my -> ship.psi_type (x), my -> ship.psi_name (x), my -> ship.psi_mes (x));
+                         else call ioa_ ("^10xThe ^a ^a has just ^a our sector, sir", my -> ship.psi_type (x), my -> ship.psi_name (x), my -> ship.psi_mes (x));
+                    end;
+                    call lock (my -> ship.lock);
+                    my -> ship.psi_name, my -> ship.psi_type, my -> ship.psi_mes = "";
+                    my -> ship.psi_num = 0;
+                    call unlock (my -> ship.lock);
+               end;
+               
+          if my -> ship.psionics then return;
+          
+          x = mod (clock (), 2000) + 1;
+          if x > 1 then return;
+          call ioa_ ("^/=== STAR FLEET COMMAND ===");
+          call ioa_ ("^/=== Transmission to: ^a ^a", my -> ship.type, my -> ship.name);
+          call ioa_ ("=== You have been entrusted with our newest secret weapon: Psionics! ===");
+          call ioa_ ("=== Prepare to matter-transmit him aboard your ship. Congratulations ===");
+          call ioa_ ("^/MATTER-TRANSMITTER ready for boarding, sir");
+          call ioa_ (">>>Energizeeeeeeeeeeeeeeeeeeeeeeeeeeeee...");
+          call ioa_ ("PSIONIC board ship, sir");
+          call lock (my -> ship.lock);
+          my -> ship.psionics = "1"b;
+          call unlock (my -> ship.lock);
+          
+     end psionics_check;
 
 /* TARGETTING -- HIT DETERMINATION AND CRITICAL HITS */
 
