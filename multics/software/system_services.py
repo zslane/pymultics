@@ -678,6 +678,8 @@ class DynamicLinker(QtCore.QObject):
                 if self.__filesystem.file_exists(module_path):
                     try:
                         module = self._load_python_code(segment_name, module_path)
+                    except SyntaxError:
+                        raise
                     except:
                         #== Invalid python module...probably a syntax error...
                         self.dump_traceback_()

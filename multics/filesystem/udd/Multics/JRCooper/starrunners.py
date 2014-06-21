@@ -444,6 +444,7 @@ def starrunners():
                     elif input.val == "tractor-pull" or input.val == "tp": tractor_pull()
                     elif input.val == "trojan-horse" or input.val == "tj": trojan_horse()
                     elif input.val == "computer" or input.val == "cm": computer()
+                    elif input.val == "monitor" or input.val == "mn": monitor_ship()
                     elif input.val.startswith(":"): escape_to_multics()
                     elif input.val == "?":
                         command_list()
@@ -517,6 +518,8 @@ def starrunners():
     def long_scan():
         stars = [""] * 5
         
+        print univptr.ptr.dumps()
+        
         if my.ship.location == "Romula": stars[0] = "o"
         elif my.ship.location == "Vindicar": stars[1] = "o"
         elif my.ship.location == "Telgar": stars[2] = "o"
@@ -558,7 +561,6 @@ def starrunners():
         present    = parm . init(0)
         black_hole = False
         
-        print univptr.ptr.dumps()
         call.ioa_("\nSECTOR: {0}", my.ship.location)
         for x in range(5):
             if universe.black_hole[x] == my.ship.location: black_hole = True
@@ -705,7 +707,7 @@ def starrunners():
         call.ioa_.nnl("Target name: ")
         timed_input(input)
         if input.val == "": return;
-        target.val = input.val
+        target = input.val
         verify_target(target, is_he_there)
         if not is_he_there.val:
             call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target)
@@ -727,13 +729,13 @@ def starrunners():
                 unlock(my.ship)
                 call.ioa_("\nMISSILE launched, sir")
                 hit_that_sucker(hit, "missile")
-                if target.val == "critical": return
+                if target == "critical": return
                 if not hit.val:
                     call.ioa_("MISSILE missed, sir")
                     return
                 else: call.ioa_("<< BOOM >> MISSILE hit, sir")
                 inflict_damage()
-                if target_is_a_robot(target.val): return
+                if target_is_a_robot(target): return
                 if enemy.ship.psionics:
                     lock(enemy.ship)
                     with enemy.ship:
@@ -759,7 +761,7 @@ def starrunners():
         call.ioa_.nnl("Target name: ")
         timed_input(input)
         if input.val == "": return;
-        target.val = input.val
+        target = input.val
         verify_target(target, is_he_there)
         if not is_he_there.val:
             call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target)
@@ -781,13 +783,13 @@ def starrunners():
                 unlock(my.ship)
                 call.ioa_("\nLASERS fired, sir")
                 hit_that_sucker(hit, "lasers")
-                if target.val == "critical": return
+                if target == "critical": return
                 if not hit.val:
                     call.ioa_("LASERS missed, sir")
                     return
                 else: call.ioa_("<< ZAP >> LASERS hit, sir")
                 inflict_damage()
-                if target_is_a_robot(target.val): return
+                if target_is_a_robot(target): return
                 if enemy.ship.psionics:
                     lock(enemy.ship)
                     with enemy.ship:
@@ -966,14 +968,14 @@ def starrunners():
         call.ioa_.nnl("Target name: ")
         timed_input(input)
         if input.val == "": return
-        target.val = input.val
+        target = input.val
         verify_target(target, is_he_there)
-        if not is_he_there:
+        if not is_he_there.val:
             call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target.val)
             return
         # end if
         call.ioa_("NOVA BLAST launched, sir")
-        if target_is_a_robot(target.val): robot_death(target.val)
+        if target_is_a_robot(target): robot_death(target)
         else:
             lock(enemy.ship)
             with enemy.ship:
@@ -990,6 +992,325 @@ def starrunners():
         unlock(my.ship)
     #-- end def nova_blast
     
+    def create_stargate():
+        old_loc = ""
+
+        if my.ship.energy_cur < 1000:
+            call.ioa_("\nWE haven't got the energy to create a Star Gate, sir ")
+            return
+        # end if
+        old_loc = my.ship.location
+        call.ioa_("\nSTAR GATE opened, sir")
+        input.val = ""
+        while input.val == "":
+            call.ioa_.nnl("Target sector: ")
+            timed_input(input)
+            if input.val == "": return
+            elif input.val != "Romula" and input.val != "Vindicar" and input.val != "Telgar" and input.val != "Shadow" and input.val != "Zork": input.val = ""
+        # end while
+        lock(my.ship)
+        with my.ship:
+            my.ship.location = input.val
+            my.ship.energy_cur = my.ship.energy_cur - 1000
+            my.ship.energy_old = my.ship.energy_old - 1000
+        # end with
+        unlock(my.ship)
+        call.ioa_("\n<< VOOM >>>>>>>>>>>>>>>>>>>>")
+        call.ioa_("New location: {0}", my.ship.location)
+        call.ioa_("\nSTAR GATE closed, sir")
+        if old_loc != my.ship.location:
+            inform_monitor(my.ship.location)
+            inform_psionics(old_loc, my.ship.location)
+        # end if
+    #-- end def create_stargate
+     
+    def tractor_beam():
+        is_he_there = parm(False)
+        
+        if my.ship.energy_cur < 50:
+            call.ioa_("\nWE haven't go the energy to activate the Tractor Beam, sir")
+            return
+        # end if
+        if my.ship.tracname == "":
+            call.ioa_("\nTRACTOR BEAM ready, sir")
+            call.ioa_.nnl("Target name: ")
+            timed_input(input)
+            if input.val == "": return
+            target = input.val
+            verify_target(target, is_he_there)
+            if not is_he_there.val:
+                call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target)
+                return
+            # end if
+            call.ioa_("TRACTOR BEAM activated, sir")
+            lock(enemy.ship)
+            enemy.ship.tractor_on = True
+            unlock(enemy.ship)
+            lock(my.ship)
+            with my.ship:
+                my.ship.tracname = enemy.ship.name
+                my.ship.energy_cur = my.ship.energy_cur - 50
+                my.ship.energy_old = my.ship.energy_old - 50
+            # end with
+            unlock(my.ship)
+        # end if
+        else:
+            call.ioa_("\nTRACTOR BEAM is already activated, sir")
+            input.val = ""
+            while input.val == "":
+                call.ioa_.nnl("Deactivate? ")
+                timed_input(input)
+                if input.val == "yes" or input.val == "y":
+                    for x in range(universe.number):
+                        edir = universe.pdir[x]
+                        call.hcs_.initiate(edir, ename, enemy, code)
+                        if enemy.ptr != null() and edir != pdir and enemy.ship.name == my.ship.tracname:
+                            lock(enemy.ship)
+                            enemy.ship.tractor_on = False
+                            unlock(enemy.ship)
+                        # end if
+                    # end for
+                    lock(my.ship)
+                    my.ship.tracname = ""
+                    unlock(my.ship)
+                    call.ioa_("TRACTOR BEAM deactivated, sir")
+                elif input.val != "no" and input.val != "n":
+                    call.ioa_("\nPlease type ""yes"" or ""no"".")
+                    input.val = ""
+                # end if
+            # end while
+        # end if
+    #-- end def tractor_beam
+    
+    def monitor_ship():
+        monitor_who = ""
+        is_he_there = parm(False)
+
+        if my.ship.monname == "#":
+            call.ioa_("\nMONITOR probe ready, sir")
+            call.ioa_.nnl("Target name: ")
+            timed_input(input)
+            if input.val == "": return
+            monitor_who = input.val
+            verify_target(monitor_who, is_he_there)
+            if not is_he_there.val:
+                call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", monitor_who)
+                return
+            # end if
+            lock(enemy.ship)
+            enemy.ship.monitored_by = my.ship.name
+            unlock(enemy.ship)
+            lock(my.ship)
+            with my.ship:
+                my.ship.monname = enemy.ship.name
+                my.ship.montype = enemy.ship.type
+            # end with
+            unlock(my.ship)
+            call.ioa_("MONITOR probe activated, sir")
+            return
+        # end if
+        call.ioa_("\nMONITOR probe is already activated, sir")
+        input.val = ""
+        while input.val == "":
+            call.ioa_.nnl("Deactivate? ")
+            timed_input(input)
+            if input.val == "yes" or input.val == "y":
+                for x in range(universe.number):
+                    edir = universe.pdir[x]
+                    call.hcs_.initiate(edir, ename, enemy, code)
+                    if enemy.ptr != null() and edir != pdir:
+                        if enemy.ship.name == my.ship.monname:
+                            lock(enemy.ship)
+                            enemy.ship.monitored_by = ""
+                            unlock(enemy.ship)
+                            lock(my.ship)
+                            with my.ship:
+                                my.ship.monname = "#"
+                                my.ship.montype = "#"
+                                my.ship.monloc = ""
+                            # end with
+                            unlock(my.ship)
+                            call.ioa_("MONITOR probe deactivated, sir")
+                        # end if
+                    # end if
+                # end for
+            elif input.val != "no" and input.val != "n":
+                call.ioa_("\nPlease type \"yes\" or \"no\".")
+                input.val = ""
+            # end if
+        # end while
+    #-- end def monitor_ship
+    
+    def tractor_pull():
+        if my.ship.tracname == "":
+            call.ioa_("\nTRACTOR BEAM is not in operation, sir")
+            return
+        elif my.ship.energy_cur < 100:
+            call.ioa_("\nWE haven't got the energy to pull the ship, sir")
+            return
+        # end if
+        for x in range(universe.number):
+            edir = universe.pdir[x]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null() and edir != pdir:
+                if my.ship.tracname == enemy.ship.name:
+                    if my.ship.location == enemy.ship.location:
+                        call.ioa_("\nThe \"{0}\" is already in {1}, sir", my.ship.tracname, enemy.ship.location)
+                        return
+                    # end if
+                    lock(enemy.ship)
+                    enemy.ship.location = my.ship.location
+                    if enemy.ship.deathmes == "": enemy.ship.deathmes = "pull"
+                    unlock(enemy.ship)
+                    call.ioa_("\nTRACTOR BEAM pulling the \"{0}\" into {1}, sir", my.ship.tracname, enemy.ship.location)
+                    lock(my.ship)
+                    with my.ship:
+                        my.ship.energy_cur = my.ship.energy_cur - 100
+                        my.ship.energy_old = my.ship.energy_old - 100
+                    # end with
+                    unlock(my.ship)
+                    return
+                # end if
+            # end if
+        # end of
+    #-- end def tractor_pull
+
+    def trojan_horse():
+        victim = ""
+        
+        call.ioa_.nnl("\nWHO is to receive the Trojan Horse, sir? ")
+        timed_input(input);
+        if input.val == "": return
+        victim = input.val
+        call.ioa_("WHAT is the command, sir?")
+        call.ioa_.nnl("---: ")
+        timed_input(input)
+        if input.val == "":
+            call.ioa_("TROJAN HORSE not sent, sir")
+            return
+        # end if
+        for x in range(universe.number):
+            edir = universe.pdir[x]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null() and edir != pdir:
+                if enemy.ship.name == victim:
+                    lock(enemy.ship)
+                    with enemy.ship:
+                        enemy.ship.fromname = my.ship.name
+                        enemy.ship.fromtype = "Trojan Horse"
+                        enemy.ship.message = "TH:" + input.val
+                    # end with
+                    unlock(enemy.ship)
+                    call.ioa_("TROJAN HORSE sent, sir")
+                    return
+                # end if
+            # end if
+        # end for
+        call.ioa_("TRANSMISSIONS are not being accepted by a ship named {0}, sir", victim)
+    #-- end def trojan_horse
+     
+    # /* COMPUTER COMMAND ROUTINES */
+
+    def computer():
+        call.ioa_.nnl("\n*** COMPUTER ON ::: ")
+        timed_input(input)
+        if input.val == "": return
+        elif input.val == "srunners" or input.val == "srs": list_all_players()
+        elif input.val == "estatus" or input.val == "est": enemy_status()
+        elif input.val == "probe" or input.val == "prb": probe()
+        elif input.val == "bhreport" or input.val == "bhr": black_hole_report()
+        elif input.val == "rsreport" or input.val == "rsr": robotship_report()
+        elif input.val == "?": computer_com_list()
+        else:
+            call.ioa_("\n*** COMPUTER:")
+            call.ioa_("   That is not a standard computer command:")
+            call.ioa_("   Type \"?\" for a list of proper computer commands")
+        # end if
+    #-- end def computer
+    
+    def list_all_players():
+        call.ioa_("\nStarrunners: {0}\n", universe.number)
+        for x in range(universe.number):
+            edir = universe.pdir[x]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null():
+                if enemy.ptr == my.ptr: call.ioa_(" * {0}: {1} {2} ({3})", my.ship.user, my.ship.type, my.ship.name, my.ship.location)
+                elif enemy.ship.name == "" or enemy.ship.type == "": call.ioa_("   {0}: CREATING SHIP", enemy.ship.user)
+                else: call.ioa_("   {0}: {1} {2} ({3})", enemy.ship.user, enemy.ship.type, enemy.ship.name, enemy.ship.location)
+            # end if
+        # end for
+    #-- end def list_all_players
+    
+    def enemy_status():
+        call.ioa_.nnl("\nSTARFILE name: ")
+        timed_input(input)
+        if input.val == "": return
+        shipfile = input.val
+        for x in range(universe.number):
+            edir = universe.pdir[x]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null() and edir != pdir:
+                if enemy.ship.name == shipfile and enemy.ship.location != "PHASING":
+                    call.ioa_("\n::: STARFILE {0} :::", x + 1)
+                    call.ioa_("{0} {1} status:", enemy.ship.type, enemy.ship.name)
+                    call.ioa_("\nShield strength: {0}%{1}", enemy.ship.shields_cur, "   DOWN" if enemy.ship.shields.cur == 0 else "")
+                    call.ioa_("Missiles left: {0}", enemy.ship.torps_cur)
+                    call.ioa_("Energy left: {0}u", enemy.ship.energy_cur)
+                    call.ioa_("Life support level: {0}", enemy.ship.life_cur)
+                    call.ioa_("Current location: {0}", enemy.ship.location)
+                    return
+                # end if
+            # end if
+        # end for
+        call.ioa_("\n*** COMPUTER:")
+        call.ioa_("   Unable to identify specified ship: {0}", shipfile)
+    #-- end def enemy_status
+    
+    def probe():
+        call.ioa_.nnl("\n*** PROBE ship: ")
+        timed_input(input)
+        if input.val == "": return
+        probe_who = input.val
+        for x in range(universe.number):
+            edir = universe.pdir[x]
+            call.hcs_.initiate(edir, ename, enemy, code)
+            if enemy.ptr != null() and edir != pdir:
+                if enemy.ship.name == probe_who and enemy.ship.location != "PHASING":
+                    call.ioa_("*** PROBE sector: {0}", enemy.ship.location)
+                    if enemy.ship.condition == "DOCKING": call.ioa_("{0:19}DOCKING", "")
+                    elif enemy.ship.condition == "SHIELDS DOWN": call.ioa_("{0:19}SHIELDS DOWN", "")
+                    if enemy.ship.tractor_on: call.ioa_("{0:19}TRACTOR BEAM HELD", "")
+                    if enemy.ship.cloak_on: call.ioa_("{0:19}CLOAKING DEVICE ON", "")
+                    return
+                # end if
+            # end if
+        # end for
+        call.ioa_("*** PROBE: Starfile on {0} could not be located", probe_who)
+    #-- end def probe
+    
+    def black_hole_report():
+        chart_mark = ["  "] * 5
+        
+        for x in range(universe.holes):
+            if universe.black_hole[x] == "Romula": chart_mark[0] = "()"
+            elif universe.black_hole[x] == "Vindicar": chart_mark[1] = "()"
+            elif universe.black_hole[x] == "Telgar": chart_mark[2] = "()"
+            elif universe.black_hole[x] == "Shadow": chart_mark[3] = "()"
+            elif universe.black_hole[x] == "Zork": chart_mark[4] = "()"
+        # end for
+        call.ioa_("\nROMULA  VINDICAR  TELGAR  SHADOW  ZORK")
+        call.ioa_("------  --------  ------  ------  ----")
+        call.ioa_("  {0}       {1}       {2}      {3}     {4}", chart_mark[0], chart_mark[1], chart_mark[2], chart_mark[3], chart_mark[4])
+        # call.ioa_("  ^2a^7x^2a^7x^2a^6x^2a^5x^2a", chart_mark (1), chart_mark (2), chart_mark (3), chart_mark (4), chart_mark (5))
+    #-- end def black_hole_report
+
+    def robotship_report():
+        call.ioa_("\nRobotShip Report:")
+        for x in range(len(universe.robot)): #range(20):
+            if universe.robot[x].location != "": call.ioa_("   RobotShip {0} ({1}) {2}", universe.robot[x].name, universe.robot[x].location, universe.robot[x].condition)
+        # end for
+    #-- end def robotship_report
+    
     def escape_to_multics():
         command = input.val[1:]
         call.do(command)
@@ -1002,7 +1323,7 @@ def starrunners():
             edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, enemy, code)
             if enemy.ptr != null () and edir != pdir:
-                if enemy.ship.location == my.ship.location and enemy.ship.name == target.val:
+                if enemy.ship.location == my.ship.location and enemy.ship.name == target:
                     is_he_there.val = True
                     return
                 # end if
@@ -1615,7 +1936,23 @@ def starrunners():
     def command_seq_terminator():
         call.ioa_("\n:: COMMAND SEQUENCE TERMINATED ::")
     #-- end def command_seq_terminator
-    
+     
+    def send_notifications():
+        # send_mail_info.sent_from = "STARRUNNERS"
+        # send_mail_info.version = send_mail_info_version_2
+        # send_mail_info.wakeup = True
+        # send_mail_info.acknowledge = False
+        # send_mail_info.notify = False
+        # send_mail_info.always_add = False
+        # send_mail_info.never_add = False
+        for x in range(len(universe.notifications)): #range(50):
+            if universe.notifications[x].person_id != "" and universe.notifications[x].project_id != "":
+                # call.send_mail_(universe.notifications[x].person_id.rstrip() + "." + universe.notifications[x].project_id.rstrip(), "I have just entered the Starrunners universe...", send_mail_info, 0)
+                call.do("send_message {0} {1}".format(universe.notifications[x].person_id.rstrip() + "." + universe.notifications[x].project_id.rstrip(), "I have just entered the Starrunners universe..."))
+            # end if
+        # end for
+    #-- end def send_notifications
+              
     def rand_location():
         x = (clock_() % 5) + 1
         if x == 1: location = "Romula"

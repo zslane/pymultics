@@ -409,6 +409,7 @@ command_loop:
                          else if input = "tractor-pull" | input = "tp" then call tractor_pull;
                          else if input = "trojan-horse" | input = "tj" then call trojan_horse;
                          else if input = "computer" | input = "cm" then call computer;
+                         else if input = "monitor" | input = "mn" then call monitor_ship;
                          else if substr (input, 1, 1) = ":" then call escape_to_multics;
                          else if input = "?" then do;
                                    call command_list;
@@ -965,6 +966,354 @@ nova_blast: procedure;
           call unlock (my -> ship.lock);
           
      end nova_blast;
+     
+create_stargate: procedure;
+
+          dcl     old_loc                char (8) init ("");
+          
+          if my -> ship.energy_cur < 1000 then do;
+                    call ioa_ ("^/WE haven't got the energy to create a Star Gate, sir ");
+                    return;
+               end;
+          old_loc = my -> ship.location;
+          call ioa_ ("^/STAR GATE opened, sir");
+          input = "";
+          do while (input = "");
+               call ioa_$nnl ("Target sector: ");
+               call timed_input (input);
+               if input = "" then return;
+               else if input ^= "Romula" & input ^= "Vindicar" & input ^= "Telgar" & input ^= "Shadow" & input ^= "Zork" then input = "";
+          end;
+          call lock (my -> ship.lock);
+          my -> ship.location = input;
+          my -> ship.energy_cur = my -> ship.energy_cur - 1000;
+          my -> ship.energy_old = my -> ship.energy_old - 1000;
+          call unlock (my -> ship.lock);
+          call ioa_ ("^/<< VOOM >>>>>>>>>>>>>>>>>>>>");
+          call ioa_ ("New location: ^a", my -> ship.location);
+          call ioa_ ("^/STAR GATE closed, sir");
+          if old_loc ^= my -> ship.location then do;
+                    call inform_monitor (my -> ship.location);
+                    call inform_psionics (old_loc, my -> ship.location);
+               end;
+               
+     end create_stargate;
+     
+tractor_beam: procedure;
+
+          dcl     is_he_there            bit (1) init ("0"b);
+          dcl     x                      fixed bin init (0);
+          
+          if my -> ship.energy_cur < 50 then do;
+                    call ioa_ ("^/WE haven't go the energy to activate the Tractor Beam, sir");
+                    return;
+               end;
+          if my -> ship.tracname = "" then do;
+                    call ioa_ ("^/TRACTOR BEAM ready, sir");
+                    call ioa_$nnl ("Target name: ");
+                    call timed_input (input);
+                    if input = "" then return;
+                    target = input;
+                    call verify_target (target, is_he_there);
+                    if ^is_he_there then do;
+                              call ioa_ ("*** SENSORS: Target ship ^a is not in this sector, sir", target);
+                              return;
+                         end;
+                    call ioa_ ("TRACTOR BEAM activated, sir");
+                    call lock (enemy -> ship.lock);
+                    enemy -> ship.tractor_on = "1"b;
+                    call unlock (enemy -> ship.lock);
+                    call lock (my -> ship.lock);
+                    my -> ship.tracname = enemy -> ship.name;
+                    my -> ship.energy_cur = my -> ship.energy_cur - 50;
+                    my -> ship.energy_old = my -> ship.energy_old - 50;
+                    call unlock (my -> ship.lock);
+               end;
+          else do;
+                    call ioa_ ("^/TRACTOR BEAM is already activated, sir");
+                    input = "";
+                    do while (input = "");
+                         call ioa_$nnl ("Deactivate? ");
+                         call timed_input (input);
+                         if input = "yes" | input = "y" then do;
+                                   do x = 1 to universe.number;
+                                        edir = universe.pdir (x);
+                                        call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+                                        if enemy ^= null () & edir ^= pdir & enemy -> ship.name = my -> ship.tracname then do;
+                                                  call lock (enemy -> ship.lock);
+                                                  enemy -> ship.tractor_on = "0"b;
+                                                  call unlock (enemy -> ship.lock);
+                                             end;
+                                   end;
+                                   call lock (my -> ship.lock);
+                                   my -> ship.tracname = "";
+                                   call unlock (my -> ship.lock);
+                                   call ioa_ ("TRACTOR BEAM deactivated, sir");
+                              end;
+                         else if input ^= "no" & input ^= "n" then do;
+                                   call ioa_ ("^/Please type ""yes"" or ""no"".");
+                                   input = "";
+                              end;
+                    end;
+               end;
+               
+     end tractor_beam;
+
+monitor_ship: procedure;
+
+          dcl     monitor_who            char (10) init ("");
+          dcl     is_he_there            bit (1) init ("0"b);
+          dcl     x                      fixed bin init (0);
+          
+          if my -> ship.monname = "#" then do;
+                    call ioa_ ("^/MONITOR probe ready, sir");
+                    call ioa_$nnl ("Target name: ");
+                    call timed_input (input);
+                    if input = "" then return;
+                    monitor_who = input;
+                    call verify_target (monitor_who, is_he_there);
+                    if ^is_he_there then do;
+                              call ioa_ ("*** SENSORS: Target ship ^a is not in this sector, sir", monitor_who);
+                              return;
+                         end;
+                    call lock (enemy -> ship.lock);
+                    enemy -> ship.monitored_by = my -> ship.name;
+                    call unlock (enemy -> ship.lock);
+                    call lock (my -> ship.lock);
+                    my -> ship.monname = enemy -> ship.name;
+                    my -> ship.montype = enemy -> ship.type;
+                    call unlock (my -> ship.lock);
+                    call ioa_ ("MONITOR probe activated, sir");
+                    return;
+               end;
+          call ioa_ ("^/MONITOR probe is already activated, sir");
+          input = "";
+          do while (input = "");
+               call ioa_$nnl ("Deactivate? ");
+               call timed_input (input);
+               if input = "yes" | input = "y" then do;
+                         do x = 1 to universe.number;
+                              edir = universe.pdir (x);
+                              call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+                              if enemy ^= null () & edir ^= pdir then do;
+                                        if enemy -> ship.name = my -> ship.monname then do;
+                                                  call lock (enemy -> ship.lock);
+                                                  enemy -> ship.monitored_by = "";
+                                                  call unlock (enemy -> ship.lock);
+                                                  call lock (my -> ship.lock);
+                                                  my -> ship.monname = "#";
+                                                  my -> ship.montype = "#";
+                                                  my -> ship.monloc = "";
+                                                  call unlock (my -> ship.lock);
+                                                  call ioa_ ("MONITOR probe deactivated, sir");
+                                             end;
+                                   end;
+                         end;
+                    end;
+               else if input ^= "no" & input ^= "n" then do;
+                         call ioa_ ("^/Please type ""yes"" or ""no"".");
+                         input = "";
+                    end;
+          end;
+          
+     end monitor_ship;
+     
+tractor_pull: procedure;
+
+          dcl     x                      fixed bin init (0);
+          
+          if my -> ship.tracname = "" then do;
+                    call ioa_ ("^/TRACTOR BEAM is not in operation, sir");
+                    return;
+               end;
+          else if my -> ship.energy_cur < 100 then do;
+                    call ioa_ ("^/WE haven't got the energy to pull the ship, sir");
+                    return;
+               end;
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & edir ^= pdir then do;
+                         if my -> ship.tracname = enemy -> ship.name then do;
+                                   if my -> ship.location = enemy -> ship.location then do;
+                                             call ioa_ ("^/The ""^a"" is already in ^a, sir", my -> ship.tracname, enemy -> ship.location);
+                                             return;
+                                        end;
+                                   call lock (enemy -> ship.lock);
+                                   enemy -> ship.location = my -> ship.location;
+                                   if enemy -> ship.deathmes = "" then enemy -> ship.deathmes = "pull";
+                                   call unlock (enemy -> ship.lock);
+                                   call ioa_ ("^/TRACTOR BEAM pulling the ""^a"" into ^a, sir", my -> ship.tracname, enemy -> ship.location);
+                                   call lock (my -> ship.lock);
+                                   my -> ship.energy_cur = my -> ship.energy_cur - 10;
+                                   my -> ship.energy_old = my -> ship.energy_old - 10;
+                                   call unlock (my -> ship.lock);
+                                   return;
+                              end;
+                    end;
+          end;
+          
+     end tractor_pull;
+
+trojan_horse: procedure;
+
+          dcl     x                      fixed bin init (0);
+          dcl     victim                 char (10) init ("");
+          
+          call ioa_$nnl ("^/WHO is to receive the Trojan Horse, sir? ");
+          call timed_input (input);
+          if input = "" then return;
+          victim = input;
+          call ioa_ ("WHAT is the command, sir?");
+          call ioa_$nnl ("---: ");
+          call timed_input (input);
+          if input = "" then do;
+                    call ioa_ ("TROJAN HORSE not sent, sir");
+                    return;
+               end;
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & edir ^= pdir then do;
+                         if enemy -> ship.name = victim then do;
+                                   call lock (enemy -> ship.lock);
+                                   enemy -> ship.fromname = my -> ship.name;
+                                   enemy -> ship.fromtype = "Trojan Horse";
+                                   enemy -> ship.message = "TH:" || input;
+                                   call unlock (enemy -> ship.lock);
+                                   call ioa_ ("TROJAN HORSE sent, sir");
+                                   return;
+                              end;
+                    end;
+          end;
+          call ioa_ ("TRANSMISSIONS are not being accepted by a ship named ^a, sir", victim);
+          
+     end trojan_horse;
+     
+/* COMPUTER COMMAND ROUTINES */
+
+computer: procedure;
+
+          call ioa_$nnl ("^/*** COMPUTER ON ::: ");
+          call timed_input (input);
+          if input = "" then return;
+          else if input = "srunners" | input = "srs" then call list_all_players;
+          else if input = "estatus" | input = "est" then call enemy_status;
+          else if input = "probe" | input = "prb" then call probe;
+          else if input = "bhreport" | input = "bhr" then call black_hole_report;
+          else if input = "rsreport" | input = "rsr" then call robotship_report;
+          else if input = "?" then call computer_com_list;
+          else do;
+                    call ioa_ ("^/*** COMPUTER:");
+                    call ioa_ ("   That is not a standard computer command:");
+                    call ioa_ ("   Type ""?"" for a list of proper computer commands");
+               end;
+
+list_all_players: procedure;
+
+          dcl     x                      fixed bin init (0);
+          
+          call ioa_ ("^/Starrunners: ^d^/", universe.number);
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () then do;
+                         if enemy = my then call ioa_ (" * ^a: ^a ^a (^a)", my -> ship.user, my -> ship.type, my -> ship.name, my -> ship.location);
+                         else if enemy -> ship.name = "" | enemy -> ship.type = "" then call ioa_ ("   ^a: CREATING SHIP", enemy -> ship.user);
+                         else call ioa_ ("   ^a: ^a ^a (^a)", enemy -> ship.user, enemy -> ship.type, enemy -> ship.name, enemy -> ship.location);
+                    end;
+          end;
+          
+     end list_all_players;
+     
+enemy_status: procedure;
+
+          dcl     shipfile               char (10) init ("");
+          dcl     x                      fixed bin init (0);
+          
+          call ioa_$nnl ("^/STARFILE name: ");
+          call timed_input (input);
+          if input = "" then return;
+          shipfile = input;
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & edir ^= pdir then do;
+                         if enemy -> ship.name = shipfile & enemy -> ship.location ^= "PHASING" then do;
+                                   call ioa_ ("^/::: STARFILE ^d :::", x);
+                                   call ioa_ ("^a ^a status:", enemy -> ship.type, enemy -> ship.name);
+                                   call ioa_ ("^/Shield strength: ^d%^[   DOWN]", enemy -> ship.shields_cur, (enemy -> ship.shields.cur = 0));
+                                   call ioa_ ("Missiles left: ^d", enemy -> ship.torps_cur);
+                                   call ioa_ ("Energy left: ^du", enemy -> ship.energy_cur);
+                                   call ioa_ ("Life support level: ^d", enemy -> ship.life_cur);
+                                   call ioa_ ("Current location: ^a", enemy -> ship.location);
+                                   return;
+                              end;
+                    end;
+          end;
+          call ioa_ ("^/*** COMPUTER:");
+          call ioa_ ("   Unable to identify specified ship: ^a", shipfile);
+          
+     end enemy_status;
+
+probe: procedure;
+
+          dcl     probe_who              char (10) init ("");
+          dcl     x                      fixed bin init (0);
+          
+          call ioa_$nnl ("^/*** PROBE ship: ");
+          call timed_input (input);
+          if input = "" then return;
+          probe_who = input;
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & edir ^= pdir then do;
+                         if enemy -> ship.name = probe_who & enemy -> ship.location ^= "PHASING" then do;
+                                   call ioa_ ("*** PROBE sector: ^a", enemy -> ship.location);
+                                   if enemy -> ship.condition = "DOCKING" then call ioa_ ("^19tDOCKING");
+                                   else if enemy -> ship.condition = "SHIELDS DOWN" then call ioa_ ("^19tSHIELDS DOWN");
+                                   if enemy -> ship.tractor_on = "1"b then call ioa_ ("^19tTRACTOR BEAM HELD");
+                                   if enemy -> ship.cloak_on = "1"b then call ioa_ ("^19tCLOAKING DEVICE ON");
+                                   return;
+                              end;
+                    end;
+          end;
+          call ioa_ ("*** PROBE: Starfile on ^a could not be located", probe_who);
+          
+     end probe;
+     
+black_hole_report: procedure;
+
+          dcl     chart_mark             (5) char (2);
+          dcl     x                      fixed bin init (0);
+          
+          chart_mark = "";
+          do x = 1 to universe.holes;
+               if universe.black_hole (x) = "Romula" then chart_mark (1) = "()";
+               else if universe.black_hole (x) = "Vindicar" then chart_mark (2) = "()";
+               else if universe.black_hole (x) = "Telgar" then chart_mark (3) = "()";
+               else if universe.black_hole (x) = "Shadow" then chart_mark (4) = "()";
+               else if universe.black_hole (x) = "Zork" then chart_mark (5) = "()";
+          end;
+          call ioa_ ("^/ROMULA  VINDICAR  TELGAR  SHADOW  ZORK");
+          call ioa_ ("------  --------  ------  ------  ----");
+          call ioa_ ("  ^2a^7x^2a^7x^2a^6x^2a^5x^2a", chart_mark (1), chart_mark (2), chart_mark (3), chart_mark (4), chart_mark (5));
+          
+     end black_hole_report;
+
+robotship_report: procedure;
+
+          dcl     x                      fixed bin init (0);
+          
+          call ioa_ ("^/RobotShip Report:");
+          do x = 1 to 20;
+               if universe.robot (x).location ^= "" then call ioa_ ("^3xRobotShip ^a (^a) ^a", universe.robot (x).name, universe.robot (x).location, universe.robot (x).condition);
+          end;
+          
+     end robotship_report;
+     
+     end computer;
 
 escape_to_multics: procedure;
 
@@ -1626,6 +1975,25 @@ command_seq_terminator: procedure;
           
      end command_seq_terminator;
      
+send_notifications: procedure;
+
+          dcl     send_mail_             entry (char (*), char (*), ptr, fixed bin (35));
+          
+          send_mail_info.sent_from = "STARRUNNERS";
+          send_mail_info.version = send_mail_info_version_2;
+          send_mail_info.wakeup = "1"b;
+          send_mail_info.acknowledge = "0"b;
+          send_mail_info.notify = "0"b;
+          send_mail_info.always_add = "0"b;
+          send_mail_info.never_add = "0"b;
+          do x = 1 to 50;
+               if universe.notifications (x).person_id ^= "" & universe.notifications (x).project_id ^= "" then do;
+                         call send_mail_ ((rtrim (universe.notifications (x).person_id) || "." || rtrim (universe.notifications (x).project_id)), "I have just entered the Starrunners universe...", addr (send_mail_info), (0));
+                    end;
+          end;
+          
+     end send_notifications;
+
 rand_location: procedure returns (char (8));
 
           dcl     location               char (8) init ("");

@@ -1,7 +1,7 @@
 from PySide import QtCore, QtGui
 
 N_HORZ_CHARS = 80
-N_VERT_LINES = 24
+N_VERT_LINES = 25
 
 class KeyboardIO(QtGui.QLineEdit):
 
