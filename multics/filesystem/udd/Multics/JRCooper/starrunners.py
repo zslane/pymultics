@@ -716,7 +716,7 @@ def starrunners():
         timed_input(input)
         if input.val == "": return;
         target.val = input.val
-        verify_target(target.val, is_he_there)
+        verify_target(target, is_he_there)
         if not is_he_there.val:
             call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target.val)
             return
@@ -865,7 +865,7 @@ def starrunners():
         d = parm(0)
         x = 0
         
-        robot_damage(target, d)
+        robot_damage(target.val, d)
         if d.val == 666: return
         lock(enemy.ship)
         if enemy.ship.condition == "DOCKING" or enemy.ship.condition == "D-RAY" or enemy.ship.condition == "SHIELDS DOWN" or enemy.ship.condition == "DROBOT":
@@ -1688,7 +1688,7 @@ def starrunners():
         my.ship.monloc = ""
         unlock(my.ship)
     #-- end def check_monitor
-     
+    
     def psionics_check():
         if my.ship.psi_num > 0:
             if my.ship.psi_mes[0] != "left" and my.ship.psi_mes[0] != "entered": call.ioa_("\nPSIONICS: The {0} {1} has just docked at {2}, sir", my.ship.psi_type[0], my.ship.psi_name[0], my.ship.psi_mes[0])
@@ -1724,14 +1724,14 @@ def starrunners():
     #-- end def psionics_check
 
     # /***** BLACK HOLE ROUTINES *****/
-
+    
     def black_hole_check():
         black_hole_init()
         new_black_hole()
         rand_new_hole()
         suck_him_in()
     #-- end def black_hole_check
-      
+    
     def black_hole_init():
         hole_here = False
 
@@ -1768,7 +1768,7 @@ def starrunners():
             unlock(my.ship)
         # end if
     #-- end def new_black_hole
-
+    
     def rand_new_hole():
         new_hole = ""
 
@@ -1792,7 +1792,7 @@ def starrunners():
             # end if
         # end for
     #-- end def rand_new_hole
-
+    
     def pulling_damage():
         lock(my.ship)
         with my.ship:
@@ -1821,35 +1821,35 @@ def starrunners():
             call.ioa_("\nBLACK HOLE is pulling our ship in, sir!")
             call.ioa_("\nIMPULSE engines activated, sir")
             call.timer_manager_.sleep(2.5)
-            x = (clock () % 4) + 1
+            x = (clock_() % 4) + 1
             if x > 1: game_over()
             call.ioa_("ESCAPE successful, sir")
         # endif
     #-- end def suck_him_in
     
     # /***** ROBOT INTERNALS *****/
-
+    
     def robot_sscan(present, shipname, shiptype, docked):
         for x in range(20):
             if my.ship.location == universe.robot[x].location:
                 present.val = present.val + 1
-                shipname[present - 1] = universe.robot[x].name
-                shiptype[present - 1] = "RobotShip"
-                if universe.robot[x].condition == "DOCKING": docked[present - 1] = "(Docking)"
+                shipname[present.val - 1] = universe.robot[x].name
+                shiptype[present.val - 1] = "RobotShip"
+                if universe.robot[x].condition == "DOCKING": docked[present.val - 1] = "(Docking)"
             # end if
         # end for
     #-- end def robot_scan
-     
+    
     def robot_verify_target(target, is_he_there):
         for x in range(20):
             if (my.ship.location == universe.robot[x].location) and (target.val == universe.robot[x].name): is_he_there.val = True
         # end for
     #-- end def robot_verify_target
-     
+    
     def robot_hit_him(target, robot_was_the_target, weapon, hit):
         if target_is_a_robot(target.val): robot_was_the_target.val = True
-        if weapon != "missile": x = (clock () % 1601) + 400
-        else: x = (clock () % 1600) + 1
+        if weapon != "missile": x = (clock_() % 1601) + 400
+        else: x = (clock_() % 1600) + 1
         if (x > 1538 and weapon == "lasers") or (x > 1923 and weapon == "missile"):
             call.ioa_("\n<<< BOOOOOOOOOOM >>>")
             call.ioa_("<<< BOOOOOOOOOOM >>>")
@@ -1862,9 +1862,9 @@ def starrunners():
     #-- end def robot_hit_him
     
     def robot_damage(target, x):
-        if not target_is_a_robot(target.val): return
-        if universe.robot[robot_index(target.val)].condition == "DOCKING":
-            robot_death(target.val)
+        if not target_is_a_robot(target): return
+        if universe.robot[robot_index(target)].condition == "DOCKING":
+            robot_death(target)
             call.ioa_("\nFORCE FIELDS were down on the RobotShip {0}, sir", target)
             x.val = 666
             return
@@ -1872,14 +1872,14 @@ def starrunners():
         x.val = (clock_() % 100) + 1
         lock(universe)
         with universe:
-            universe.robot[robot_index(target.val)].energy = max(universe.robot[robot_index(target.val)].energy - x.val, 0)
+            universe.robot[robot_index(target)].energy = max(universe.robot[robot_index(target)].energy - x.val, 0)
         # end with
         unlock(universe)
         call.ioa_("\nENERGY reduced on the RobotShip {0}", target)
-        if universe.robot[robot_index(target.val)].energy == 0: robot_death(target.val)
+        if universe.robot[robot_index(target)].energy == 0: robot_death(target)
         x.val = 666
     #-- end def robot_damage
-     
+    
     def robot_death(target):
         for x in range(universe.number):
             edir = universe.pdir[x]
@@ -1888,7 +1888,7 @@ def starrunners():
                 lock(enemy.ship)
                 with enemy.ship:
                     enemy.ship.deathmes = "dead"
-                    enemy.ship.deadname = universe.robot[robot_index(target.val)].name
+                    enemy.ship.deadname = universe.robot[robot_index(target)].name
                     enemy.ship.deadtype = "RobotShip"
                 # end with
                 unlock(enemy.ship)
@@ -1896,12 +1896,12 @@ def starrunners():
         # end for
         lock(universe)
         with universe:
-            universe.robot[robot_index(target.val)].location = ""
-            universe.robot[robot_index(target.val)].controller = "dead"
+            universe.robot[robot_index(target)].location = ""
+            universe.robot[robot_index(target)].controller = "dead"
         # end with
         unlock(universe)
     #-- end def robot_death
-     
+    
     def robot_release(control):
         for x in range(20):
             if universe.robot[x].controller == control:
@@ -1912,42 +1912,42 @@ def starrunners():
                 unlock(universe)
             # end if
         # end for
-     #-- end def robot_release
-     
+    #-- end def robot_release
+    
     def target_is_a_robot(target):
-        if target.val[:2] == "R\\": return True
+        if target[:2] == "R\\": return True
         return False
-     #-- end def target_is_a_robot
-     
+    #-- end def target_is_a_robot
+    
     def robot_index(target):
         for x in range(20):
             if universe.robot[x].name == target: return x
         # end for
         return -1
-     #-- end def robot_index
-     
+    #-- end def robot_index
+    
     def robot_num():
         count = 0
         for x in range(20):
             if universe.robot[x].controller != "none" and universe.robot[x].controller != "dead": count = count + 1
         # end for
         return count
-     #-- end def robot_num
-     
+    #-- end def robot_num
+    
     # /***** ROBOT CONTROL FUNCTIONS *****/
-
+    
     def robot_functions():
         
         def rand_new_robot():
             dead_count = 0
-
+            
             x = (clock_() % max(robot_num() * 200, 1)) + 1
             if x > 1: return
             for x in range(20):
                 if universe.robot[x].controller == "none":
                     lock(universe)
                     with universe:
-                        universe.robot[x].name = "R\\{0:03d}".format(x)
+                        universe.robot[x].name = "R\\{0:03d}".format(x + 1)
                         universe.robot[x].energy = 1000
                         universe.robot[x].location = rand_location()
                         universe.robot[x].controller = my.ship.user
@@ -2080,6 +2080,7 @@ def starrunners():
          
             def robot_move():
                 open_sectors = [""] * 2
+                x            = 0
                 
                 if universe.robot[robot_index(ROBOT)].location == "Romula":
                     open_sectors[0] = "Vindicar"
@@ -2100,11 +2101,11 @@ def starrunners():
                 if x != 1: x = (clock_() % 2) + 1
                 lock(universe)
                 with universe:
-                    universe.robot[robot_index(ROBOT)].location = open_sectors[x]
+                    universe.robot[robot_index(ROBOT)].location = open_sectors[x - 1]
                 # end with
                 unlock(universe)
             #-- end def robot_move
-         
+            
             def robot_send_msg():
                 dcl (vfile_ = entry . returns(char(168)))
 
