@@ -19,6 +19,6 @@ class term_(SystemExecutable):
             code.val = error_table_.fileioerr
         
     def seg_ptr(self, segment, code):
-        dir_name, segment_name = self.__filesystem.split_path(segment.filepath)
+        dir_name, segment_name = self.__filesystem.split_path(segment._filepath())
         self.single_refname(segment_name, code)
     

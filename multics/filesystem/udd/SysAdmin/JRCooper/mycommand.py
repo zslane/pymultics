@@ -75,7 +75,7 @@ def mycommand():
     dirname = ">udd>SysAdmin>JRCooper"
     filename = "test.data"
     
-    call.hcs_.make_seg(dirname, filename, segment(MyData()), code)
+    call.hcs_.make_seg(dirname, filename, "", 0, segment(MyData()), code)
     data = segment.ptr
     if not data:
         call.ioa_("Error creating {0}>{1}", dirname, filename)
@@ -85,7 +85,7 @@ def mycommand():
     call.ioa_("data.z = {0}", data.z)
     
     declare (data2 = parm)
-    call.hcs_.initiate(dirname, filename, data2, code)
+    call.hcs_.initiate(dirname, filename, "", 0, 0, data2, code)
     if not data2.ptr:
         call.ioa_("Error loading {0}>{1}", dirname, filename)
         return
@@ -99,7 +99,7 @@ def mycommand():
         call.ioa_("Error deleting {0}>{1}", dirname, filename)
         return
         
-    call.hcs_.make_seg(dirname, filename, segment(universe), code)
+    call.hcs_.make_seg(dirname, filename, "", 0, segment(universe), code)
     data = segment.ptr
     if not data:
         call.ioa_("Error creating {0}>{1}", dirname, filename)
@@ -115,7 +115,7 @@ def mycommand():
         return
         
     declare (data3 = parameter . initialize (['a', 'b', 'c']))
-    call.hcs_.make_seg("", "test.data", data3, code)
+    call.hcs_.make_seg("", "test.data", "", 0, data3, code)
     if code.val != 0:
         call.ioa_("Error creating test.data in >pdd")
         if code.val == error_table_.namedup:
@@ -130,7 +130,7 @@ def mycommand():
     
     call.do("who -dmn")
     call.term_.single_refname("do", code)
-    call.hcs_.initiate(">sss", "do", null(), code)
+    call.hcs_.initiate(">sss", "do", "", 0, 0, null(), code)
     call.do("whoami")
     call.print_("Multics.pmf")
     

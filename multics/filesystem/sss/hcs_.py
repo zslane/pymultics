@@ -14,8 +14,8 @@ class hcs_(SystemExecutable):
     def signal_break(self):
         self.system.signal_break()
         
-    def clear_kst(self):
-        self.system.dynamic_linker.clear_kst()
+    # def clear_kst(self):
+        # self.system.dynamic_linker.clear_kst()
         
     def get_entry_point(self, segment_name, segment):
         dir_name, entryname = None, segment_name
@@ -46,7 +46,7 @@ class hcs_(SystemExecutable):
         self.terminate_name(segment_name, code)
         
     def terminate_ptr(self, segment, code):
-        dir_name, segment_name = self.__filesystem.split_path(segment.filepath)
+        dir_name, segment_name = self.__filesystem.split_path(segment._filepath())
         self.terminate_name(segment_name, code)
         
     #== DATA FILE I/O ==#
@@ -60,13 +60,13 @@ class hcs_(SystemExecutable):
         else:
             process_dir.name = None
     
-    def initiate(self, dirname, segment_name, segment, code):
+    def initiate(self, dirname, segment_name, ref_name, seg_sw, copy_ctl_sw, segment, code):
         seg_ptr = self.system.dynamic_linker.load(dirname, segment_name)
         if segment:
             segment.data_ptr = seg_ptr
         code.val = 0 if seg_ptr else error_table_.fileioerr
         
-    def make_seg(self, dirname, segment_name, segment, code):
+    def make_seg(self, dirname, segment_name, ref_name, mode, segment, code):
         if dirname == "":
             dirname = get_pdir_()
         # end if

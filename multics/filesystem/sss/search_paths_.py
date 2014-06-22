@@ -34,9 +34,9 @@ class search_paths_(SystemExecutable):
                  code       = parm)
                  
         process_dir = get_pdir_()
-        call.hcs_.initiate(process_dir, "search_paths", search_seg, code)
+        call.hcs_.initiate(process_dir, "search_paths", "", 0, 0, search_seg, code)
         if search_seg.ptr == null():
-            call.hcs_.make_seg(process_dir, "search_paths", search_seg(SearchSegment()), code)
+            call.hcs_.make_seg(process_dir, "search_paths", "", 0, search_seg(SearchSegment()), code)
         # end if
         
         return search_seg.ptr
@@ -61,9 +61,9 @@ class search_paths_(SystemExecutable):
             #== If the process search segment already exists, then get it
             #== so we can wipe it clean. Otherwise create it from scratch.
             process_dir = get_pdir_()
-            call.hcs_.initiate(process_dir, "search_paths", search_seg, code)
+            call.hcs_.initiate(process_dir, "search_paths", "", 0, 0, search_seg, code)
             if search_seg.ptr == null():
-                call.hcs_.make_seg(process_dir, "search_paths", search_seg(SearchSegment()), code)
+                call.hcs_.make_seg(process_dir, "search_paths", "", 0, search_seg(SearchSegment()), code)
                 return
             else:
                 search_seg_ptr = search_seg.ptr

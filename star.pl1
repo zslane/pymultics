@@ -91,7 +91,7 @@ starrunners: star: procedure options (variable);
                       2 notifications             (50),
                         3 person_id               char (21),
                         3 project_id              char (9),
-                      2 lock                      fixed bin (36);
+                      2 lock                      bit (36);
                       
           dcl       1 ship                        aligned based,
                       2 user                      char (32),
@@ -767,6 +767,121 @@ fire_lasers: procedure;
           end;
      
      end fire_lasers;
+
+/* TARGETTING -- HIT DETERMINATION AND CRITICAL HITS */
+
+verify_target: procedure (target, is_he_there);
+
+          dcl     target                 char (10) parm;
+          dcl     is_he_there            bit (1) parm;
+          dcl     x                      fixed bin init (0);
+          
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & edir ^= pdir then do;
+                         if enemy -> ship.location = my -> ship.location & enemy -> ship.name = target then do;
+                                   is_he_there = "1"b;
+                                   return;
+                              end;
+                    end;
+          end;
+          call robot_verify_target (target, is_he_there);
+          
+     end verify_target;
+     
+hit_that_sucker: procedure (hit, weapon);
+
+          dcl     hit                    bit (1) parm;
+          dcl     weapon                 char (*) parm;
+          dcl     robot_was_the_target   bit (1) init ("0"b);
+          dcl     x                      fixed bin init (0);
+          
+          call robot_hit_him (target, robot_was_the_target, weapon, hit);
+          if robot_was_the_target then return;
+          if enemy -> ship.type = "Star Commander" then do;
+                    hit = "0"b;
+                    return;
+               end;
+          if weapon = "missile" then do;
+                    x = mod (clock (), 101) + 30;
+                    if x > 125 then call critical_hit;
+               end;
+          else do;
+                    x = mod (clock (), 100) + 1;
+                    if x = 100 then call critical_hit;
+               end;
+          if x > enemy -> ship.shields_cur then hit = "1"b;
+          else hit = "0"b;
+          
+critical_hit: procedure;
+
+          if weapon ^= "plasma" then do;
+                    call ioa_ ("^/<<< BOOOOOOOOOOM >>>");
+                    call ioa_ ("<<< BOOOOOOOOOOM >>>");
+                    call ioa_ ("^/CRITICAL centers have been hit on the ^a ^a!", enemy -> ship.type, enemy -> ship.name);
+               end;
+          call lock (enemy -> ship.lock);
+          enemy -> ship.deathmes = "bang";
+          call unlock (enemy -> ship.lock);
+          
+/* SET THE TARGET TO "CRITICAL" SO THAT UPON RETURNING, CONTROL GOES CENTRAL */
+          target = "critical";
+          
+     end critical_hit;
+     
+     end hit_that_sucker;
+     
+inflict_damage: procedure;
+
+          dcl     x                      fixed bin init (0);
+          
+          call robot_damage (target, x);
+          if x = 666 then return;
+          call lock (enemy -> ship.lock);
+          if enemy -> ship.condition = "DOCKING" | enemy -> ship.condition = "D-RAY" | enemy -> ship.condition = "SHIELDS DOWN" | enemy -> ship.condition = "DROBOT" then do;
+                    enemy -> ship.deathmes = "down";
+                    call unlock (enemy -> ship.lock);
+                    if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/DEFLECTOR shields were down on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
+                    return;
+               end;
+          do while (x = 0);
+               x = mod (clock (), 4) + 1;
+               if x = 1 then do;
+                         if enemy -> ship.shields_cur = 0 then x = 0;
+                         else do;
+                                   x = mod (clock (), 10) + 1;
+                                   enemy -> ship.shields_cur = max (0, enemy -> ship.shields_cur - x);
+                                   if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/SHIELDS damaged on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
+                              end;
+                    end;
+               else if x = 2 then do;
+                         if enemy -> ship.energy_cur = 0 then x = 0;
+                         else do;
+                                   x = mod (clock (), 100) + 1;
+                                   enemy -> ship.energy_cur = max (0, enemy -> ship.energy_cur - x);
+                                   if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/ENGINES damaged on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
+                              end;
+                    end;
+               else if x = 3 then do;
+                         if enemy -> ship.torps_cur = 0 then x = 0;
+                         else do;
+                                   x = mod (clock (), 3) + 1;
+                                   enemy -> ship.torps_cur = max (0, enemy -> ship.torps_cur - x);
+                                   if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/MISSILES damaged on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
+                              end;
+                    end;
+               else if x = 4 then do;
+                         if enemy -> ship.life_cur = 0 then x = 0;
+                         else do;
+                                   enemy -> ship.life_cur = enemy -> ship.life_cur - 1;
+                                   if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/LIFE SUPPORT systems damaged on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
+                              end;
+                    end;
+          end;
+          call unlock (enemy -> ship.lock);
+          
+     end inflict_damage;
 
 contact_ship: procedure;
 
@@ -1741,120 +1856,394 @@ suck_him_in: procedure;
      
      end black_hole_check;
 
-/* TARGETTING -- HIT DETERMINATION AND CRITICAL HITS */
+/***** ROBOT INTERNALS *****/
 
-verify_target: procedure (target, is_he_there);
+robot_sscan: procedure (present, shipname, shiptype, docked);
 
-          dcl     target                 char (10) parm;
+          dcl     present                fixed bin parm;
+          dcl     shipname               (*) char (*) parm;
+          dcl     shiptype               (*) char (*) parm;
+          dcl     docked                 (*) char (*) parm;
+          dcl     x                      fixed bin init (0);
+          
+          do x = 1 to 20;
+               if my -> ship.location = universe.robot (x).location then do;
+                         present = present + 1
+                         shipname (present) = universe.robot (x).name;
+                         shiptype (present) = "RobotShip";
+                         if universe.robot (x).condition = "DOCKING" then docked (present) = "(Docking)";
+                    end;
+          end;
+          
+     end robot_sscan;
+     
+robot_verify_target: procedure (target, is_he_there);
+
+          dcl     target                 char (*) parm;
           dcl     is_he_there            bit (1) parm;
+          dcl     x                      fixed bin init (0);
+          
+          do x = 1 to 20;
+               if (my -> ship.location = universe.robot (x).location) & (target = universe.robot (x).name) then is_he_there = "1"b;
+          end;
+          
+     end robot_verify_target;
+     
+robot_hit_him: procedure (target, robot_was_the_target, weapon, hit);
+
+          dcl     target                 char (*) parm;
+          dcl     robot_was_the_target   bit (1) parm;
+          dcl     weapon                 char (*) parm;
+          dcl     hit                    bit (1) parm;
+          
+          if target_is_a_robot (target) then robot_was_the_target = "1"b;
+          if weapon ^= "missile" then x = mod (clock (), 1601) + 400;
+          else x = mod (clock (), 1600) + 1;
+          if (x > 1538 & weapon = "lasers") | (x > 1923 & weapon = "missile") then do;
+                    call ioa_ ("^/<<< BOOOOOOOOOOM >>>");
+                    call ioa_ ("<<< BOOOOOOOOOOM >>>");
+                    call ioa_ ("^/CRITICAL centers have been hit on the RobotShip ^a!", target);
+                    call robot_death (target);
+                    target = "critical";
+                    return;
+               end;
+          else if x > universe.robot (robot_index (target)).energy then hit = "1"b;
+          else hit = "0"b;
+          
+     end robot_hit_him;
+     
+robot_damage: procedure (target, x);
+
+          dcl     target                 char (*) parm;
+          dcl     x                      fixed bin parm;
+          
+          if ^target_is_a_robot (target) then return;
+          if universe.robot (robot_index (target)).condition = "DOCKING" then do;
+                    call robot_death (target);
+                    call ioa_ ("^/FORCE FIELDS were down on the RobotShip ^a, sir", target);
+                    x = 666;
+                    return;
+               end;
+          x = mod (clock (), 100) + 1;
+          call lock (universe.lock);
+          universe.robot (robot_index (target)).energy = max (universe.robot (robot_index (target)).energy - x, 0);
+          call unlock (universe.lock);
+          call ioa_ ("^/ENERGY reduced on the RobotShip ^a", target);
+          if universe.robot (robot_index (target)).energy = 0 then call robot_death (target);
+          x = 666;
+          
+     end robot_damage;
+     
+robot_death: procedure (target);
+
+          dcl     target                 char (*) parm;
           dcl     x                      fixed bin init (0);
           
           do x = 1 to universe.number;
                edir = universe.pdir (x);
                call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
-               if enemy ^= null () & edir ^= pdir then do;
-                         if enemy -> ship.location = my -> ship.location & enemy -> ship.name = target then do;
-                                   is_he_there = "1"b;
-                                   return;
-                              end;
+               if enemy ^= null () & enemy -> ship.name ^= "" & enemy -> ship.type ^= "" then do;
+                         call lock (enemy -> ship.lock);
+                         enemy -> ship.deathmes = "dead";
+                         enemy -> ship.deadname = universe.robot (robot_index (target)).name;
+                         enemy -> ship.deadtype = "RobotShip";
+                         call unlock (enemy -> ship.lock);
                     end;
           end;
-          call robot_verify_target (target, is_he_there);
+          call lock (universe.lock);
+          universe.robot (robot_index (target)).location = "";
+          universe.robot (robot_index (target)).controller = "dead";
+          call unlock (universe.lock);
           
-     end verify_target;
+     end robot_death;
      
-hit_that_sucker: procedure (hit, weapon);
+robot_release: procedure (control);
 
-          dcl     hit                    bit (1) parm;
-          dcl     weapon                 char (*) parm;
-          dcl     robot_was_the_target   bit (1) init ("0"b);
+          dcl     control                char (*) parm;
           dcl     x                      fixed bin init (0);
           
-          call robot_hit_him (target, robot_was_the_target, weapon, hit);
-          if robot_was_the_target then return;
-          if enemy -> ship.type = "Star Commander" then do;
-                    hit = "0"b;
+          do x = 1 to 20;
+               if universe.robot (x).controller = control then do;
+                         call lock (universe.lock);
+                         universe.robot (x).controller = "free";
+                         call unlock (universe.lock);
+                    end;
+          end;
+          
+     end robot_release;
+     
+target_is_a_robot: procedure (target) returns (bit (1));
+
+          dcl     target                 char (*) parm;
+          
+          if substr (target, 1, 2) = "R\" then return ("1"b);
+          return ("0"b);
+          
+     end target_is_a_robot;
+     
+robot_index: procedure (target) returns (fixed bin);
+
+          dcl     target                 char (*) parm;
+          dcl     x                      fixed bin init (0);
+          
+          do x = 1 to 20;
+               if universe.robot (x).name = target then return (x);
+          end;
+          return (0);
+          
+     end robot_index;
+     
+robot_num: procedure returns (fixed bin);
+
+          dcl     x                      fixed bin init (0);
+          dcl     count                  fixed bin init (0);
+          
+          do x = 1 to 20;
+               if universe.robot (x).controller ^= "none" & universe.robot (x).controller ^= "dead" then count = count + 1;
+          end;
+          return (count);
+          
+     end robot_num;
+     
+/***** ROBOT CONTROL FUNCTIONS *****/
+
+robot_functions: procedure;
+
+          if my -> ship.condition ^= "DOCKING" then do;
+                    call rand_new_robot;
+                    call take_free_robot;
+               end;
+          call hack_robot_actions;
+          
+rand_new_robot: procedure;
+
+          dcl     dead_count             fixed bin init (0);
+          dcl     x                      fixed bin init (0);
+          
+          x = mod (clock (), max (robot_num () * 200, 1)) + 1;
+          if x > 1 then return;
+          do x = 1 to 20;
+               if universe.robot (x).controller = "none" then do;
+                         call lock (universe.lock);
+                         universe.robot (x).energy = 1000;
+                         universe.robot (x).location = rand_location ();
+                         universe.robot (x).controller = my -> ship.user;
+                         call unlock (universe.lock);
+                         return;
+                    end;
+               if universe.robot (x).controller = "dead" then dead_count = dead_count + 1;
+          end;
+          if dead_count < 20 then return;
+          call lock (universe.lock);
+          universe.robot (*).controller = "none";
+          call unlock (universe.lock);
+          
+     end rand_new_robot;
+     
+take_free_robot: procedure;
+
+          dcl     x                      fixed bin init (0);
+          
+          do x = 1 to 20;
+               if universe.robot (x).controller = "free" then do;
+                         call lock (universe.lock);
+                         universe.robot (x).controller = my -> ship.user;
+                         call unlock (universe.lock);
+                    end;
+          end;
+          
+     end take_free_robot;
+     
+hack_robot_actions: procedure;
+
+          dcl     ROBOT                  char (5) init ("");
+          dcl     action                 char (4) init ("");
+          dcl     x                      fixed bin init (0);
+          
+          if my -> ship.condition = "DOCKING" then do;
+                    x = mod (clock (), 100000) + 1;
+                    if x > 1 then return;
+               end;
+          do x = 1 to 20;
+               if universe.robot (x).controller = my -> ship.user then do;
+                         ROBOT = universe.robot (x).name;
+                         call look_for_targets (action);
+                         if action = "" then call health_check (action);
+                         if action = "" then call move_or_contact (action);
+                         if action = "fire" then call robot_fire;
+                         if action = "move" then call robot_move;
+                         if action = "cont" then call robot_send_msg;
+                    end;
+          end;
+          
+look_for_targets: procedure (action);
+
+          dcl     action                 char (*) parm;
+          dcl     x                      fixed bin init (0);
+          
+          if universe.robot (robot_index (ROBOT)).condition = "DOCKING" then return;
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & enemy -> ship.location = universe.robot (robot_index (ROBOT)).location then do;
+                         action = "fire";
+                         return;
+                    end;
+          end;
+          
+     end look_for_targets;
+     
+health_check: procedure (action);
+
+          dcl     action                 char (*) parm;
+          
+          if universe.robot (robot_index (ROBOT)).energy < 200 then action = "dock";
+          else if universe.robot (robot_index (ROBOT)).condition = "DOCKING" then action = "dock";
+          
+     end health_check;
+     
+move_or_contact: procedure (action);
+
+          dcl     action                 char (*) parm;
+          dcl     x                      fixed bin init (0);
+          
+          x = mod (clock (), 10) + 1;
+          if x < 3 then return;
+          else if x = 3 then action = "cont";
+          else action = "move";
+          
+     end move_or_contact;
+     
+robot_fire: procedure;
+
+          dcl     count                  fixed bin init (0);
+          dcl     tptr                   (10) ptr init ((10) (null ()));
+          dcl     x                      fixed bin init (0);
+          dcl     who                    fixed bin init (0);
+          dcl     hit                    bit (1) init ("0"b);
+          
+count_enemies:
+          do x = 1 to universe.number;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & enemy -> ship.location = universe.robot (robot_index (ROBOT)).location then do;
+                         count = count + 1;
+                         tptr (count) = enemy;
+                    end;
+          end;
+          if count = 0 then return;
+          who = mod (clock (), count) + 1;
+          enemy = tptr (who);
+          if enemy = null () then goto count_enemies;
+          target = "";
+          call lock (my -> ship.lock);
+          if my -> ship.condition = "D-RAY" | my -> ship.condition = "DOCKING" then my -> ship.condition = "DROBOT";
+          else my -> ship.condition = "ROBOT";
+          call unlock (my -> ship.lock);
+          on seg_fault_error call ignore_signal_2;
+          call hit_that_sucker (hit, "plasma");
+          if hit then call inflict_damage;
+          call lock (universe.lock);
+          universe.robot (robot_index (ROBOT)).energy = max (0, universe.robot (robot_index (ROBOT)).energy - 10);
+          call unlock (universe.lock);
+          on seg_fault_error call universe_destroyed;
+          call update_condition;
+          
+ignore_signal_2: procedure;
+
+/* PROCEDURE FOR IGNORIG SEG_FAULT_ERRORS DURING ROBOT ATTACKS */
+
+          goto command_loop;
+          
+     end ignore_signal_2;
+     
+     end robot_fire;
+     
+robot_dock: procedure;
+
+          dcl     x                      fixed bin init (0);
+          
+          if universe.robot (robot_index (ROBOT)).condition = "DOCKING" then do;
+                    x = mod (clock (), 3) + 1;
+                    if x = 1 then do;
+                              call lock (universe.lock);
+                              universe.robot (robot_index (ROBOT)).condition = "";
+                              call unlock (universe.lock);
+                         end;
                     return;
                end;
-          if weapon = "missile" then do;
-                    x = mod (clock (), 101) + 30;
-                    if x > 125 then call critical_hit;
+          x = mod (clock (), 100) + 1;
+          call lock (universe.lock);
+          universe.robot (robot_index (ROBOT)).energy = min (0, universe.robot (robot_index (ROBOT)).energy + x);
+          universe.robot (robot_index (ROBOT)).condition = "DOCKING";
+          call unlock (universe.lock);
+          
+     end robot_dock;
+     
+robot_move: procedure;
+
+          dcl     open_sectors           (2) char (8) init ((2) (""));
+          dcl     x                      fixed bin init (0);
+          
+          if universe.robot (robot_index (ROBOT)).location = "Romula" then do;
+                    open_sectors (1) = "Vindicar";
+                    x = 1;
                end;
+          else if universe.robot (robot_index (ROBOT)).location = "Vindicar" then do;
+                    open_sectors (1) = "Romula";
+                    open_sectors (2) = "Telgar";
+          else if universe.robot (robot_index (ROBOT)).location = "Telgar" then do;
+                    open_sectors (1) = "Vindicar";
+                    open_sectors (2) = "Shadow";
+          else if universe.robot (robot_index (ROBOT)).location = "Shadow" then do;
+                    open_sectors (1) = "Telgar";
+                    open_sectors (2) = "Zork";
           else do;
-                    x = mod (clock (), 100) + 1;
-                    if x = 100 then call critical_hit;
+                    open_sectors (1) = "Shadow";
+                    z = 1;
                end;
-          if x > enemy -> ship.shields_cur then hit = "1"b;
-          else hit = "0"b;
+          if x ^= 1 then x = mod (clock (), 2) + 1;
+          call lock (universe.lock);
+          universe.robot (robot_index (ROBOT)).location = open_sectors (x);
+          call unlock (universe.lock);
           
-critical_hit: procedure;
-
-          if weapon ^= "plasma" then do;
-                    call ioa_ ("^/<<< BOOOOOOOOOOM >>>");
-                    call ioa_ ("<<< BOOOOOOOOOOM >>>");
-                    call ioa_ ("^/CRITICAL centers have been hit on the ^a ^a!", enemy -> ship.type, enemy -> ship.name);
-               end;
-          call lock (enemy -> ship.lock);
-          enemy -> ship.deathmes = "bang";
-          call unlock (enemy -> ship.lock);
-          
-/* SET THE TARGET TO "CRITICAL" SO THAT UPON RETURNING, CONTROL GOES CENTRAL */
-          target = "critical";
-          
-     end critical_hit;
+     end robot_move;
      
-     end hit_that_sucker;
-     
-inflict_damage: procedure;
+robot_send_msg: procedure;
 
           dcl     x                      fixed bin init (0);
+          dcl     count                  fixed bin init (0);
+          dcl     which                  fixed bin init (0);
+          dcl     msg                    char (256) init ("");
+          dcl     msg_file               file;
+          dcl     sysin                  file;
           
-          call robot_damage (target, x);
-          if x = 666 then return;
-          call lock (enemy -> ship.lock);
-          if enemy -> ship.condition = "DOCKING" | enemy -> ship.condition = "D-RAY" | enemy -> ship.condition = "SHIELDS DOWN" | enemy -> ship.condition = "DROBOT" then do;
-                    enemy -> ship.deathmes = "down";
-                    call unlock (enemy -> ship.lock);
-                    if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/DEFLECTOR shields were down on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
-                    return;
-               end;
-          do while (x = 0);
-               x = mod (clock (), 4) + 1;
-               if x = 1 then do;
-                         if enemy -> ship.shields_cur = 0 then x = 0;
-                         else do;
-                                   x = mod (clock (), 10) + 1;
-                                   enemy -> ship.shields_cur = max (0, enemy -> ship.shields_cur - x);
-                                   if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/SHIELDS damaged on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
-                              end;
-                    end;
-               else if x = 2 then do;
-                         if enemy -> ship.energy_cur = 0 then x = 0;
-                         else do;
-                                   x = mod (clock (), 100) + 1;
-                                   enemy -> ship.energy_cur = max (0, enemy -> ship.energy_cur - x);
-                                   if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/ENGINES damaged on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
-                              end;
-                    end;
-               else if x = 3 then do;
-                         if enemy -> ship.torps_cur = 0 then x = 0;
-                         else do;
-                                   x = mod (clock (), 3) + 1;
-                                   enemy -> ship.torps_cur = max (0, enemy -> ship.torps_cur - x);
-                                   if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/MISSILES damaged on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
-                              end;
-                    end;
-               else if x = 4 then do;
-                         if enemy -> ship.life_cur = 0 then x = 0;
-                         else do;
-                                   enemy -> ship.life_cur = enemy -> ship.life_cur - 1;
-                                   if index (my -> ship.condition, "ROBOT") = 0 then call ioa_ ("^/LIFE SUPPORT systems damaged on the ^a ^a, sir", enemy -> ship.type, enemy -> ship.name);
-                              end;
+          open file (msg_file) title ("vfile_ " || dname || ">" || "sv4.4.text") stream input;
+          read file (msg_file) into (msg);
+          count = decimal (msg);
+          which = mod (clock (), count) + 1;
+          do x = 1 to which;
+               read file (msg_file) into (msg);
+          end;
+          close file (msg_file);
+          which = mod (clock (), universe.number) + 1;
+          do x = 1 to which;
+               edir = universe.pdir (x);
+               call hcs_$initiate (edir, ename, "", 0, 0, enemy, code);
+               if enemy ^= null () & x = which then do;
+                         call lock (enemy -> ship.lock);
+                         enemy -> ship.fromtype = "RobotShip";
+                         enemy -> ship.fromname = ROBOT;
+                         enemy -> ship.message = msg;
+                         call unlock (enemy -> ship.lock);
                     end;
           end;
-          call unlock (enemy -> ship.lock);
           
-     end inflict_damage;
+     end robot_snd_msg;
+     
+     end hack_robot_actions;
+     
+     end robot_functions;
 
 /***** GAME INTERNALS *****/
 

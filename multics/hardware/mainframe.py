@@ -20,6 +20,9 @@ class VirtualMulticsHardware(QtCore.QObject):
         t = QtCore.QThread.currentThread()
         t.setObjectName("Multics.Supervisor")
         
+        if "-clean" in init_args:
+            self._del_locks_directory()
+            
         self._create_hardware_resources()
 
         #== Create hardware subsystems
@@ -33,6 +36,7 @@ class VirtualMulticsHardware(QtCore.QObject):
     def _create_hardware_resources(self):
         self.__startup_time = self._load_hardware_statefile()
         self.__clock = HardwareClock(self.__startup_time)
+        self._create_locks_directory()
         self.announce = "Virtual Multics Hardware %s Initialized" % (self.__version__)
 
     @property
@@ -54,7 +58,11 @@ class VirtualMulticsHardware(QtCore.QObject):
     def shutdown(self):
         self.__io_subsystem.shutdown()
         self._del_hardware_statefile()
+        self._del_locks_directory()
         
+    def locks_dir(self):
+        return os.path.join(os.path.dirname(__file__), "locks")
+    
     def _load_hardware_statefile(self):
         hardware_statefile_path = os.path.join(os.path.dirname(__file__), ".hardware_state")
         
@@ -82,6 +90,19 @@ class VirtualMulticsHardware(QtCore.QObject):
             os.remove(hardware_statefile_path)
         except:
             pass
+            
+    def _create_locks_directory(self):
+        locks_dir = self.locks_dir()
+        try:
+            os.mkdir(locks_dir)
+            with open(os.path.join(locks_dir, ".hardware_directory"), "wb") as f:
+                pass
+        except:
+            pass
+        
+    def _del_locks_directory(self):
+        locks_dir = self.locks_dir()
+        shutil.rmtree(locks_dir, ignore_errors=True)
 
 class HardwareClock(QtCore.QObject):
 
@@ -437,7 +458,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         filepath = self.native_path(filepath)
         if (data_instance is not None) or force:
             if type(data_instance) is MemoryMappedIOPtr:
-                data_instance = data_instance.mapped_data
+                data_instance = data_instance._mapped_data()
             self.write_file(filepath, data_instance)
         return MemoryMappedIOPtr(self, filepath)
         
@@ -454,16 +475,15 @@ class MemoryMappedIOPtr(object):
         self._set("__deferred_writes", False)
         self._update_data(self.CACHE_IN)
         
-    @property
-    def filepath(self):
-        return self.__filepath
-    @property
-    def mapped_data(self):
+    def _mapped_data(self):
         return self.__data
-        
-    def update(self):
-        self._update_data(self.CACHE_OUT)
     
+    def _filepath(self):
+        return self.__filepath
+        
+    def _update(self):
+        self._update_data(self.CACHE_OUT)
+        
     def _set(self, attrname, value):
         super(MemoryMappedIOPtr, self).__setattr__("_%s%s" % (self.__class__.__name__, attrname), value)
         
@@ -546,6 +566,6 @@ class LockedSegment(object):
         if etype:
             pass
         elif self.__ptr:
-            self.__ptr.update()
+            self.__ptr._update()
             call.set_lock_.unlock(self.__ptr, code)
             

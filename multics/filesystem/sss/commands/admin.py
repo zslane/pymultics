@@ -80,7 +80,7 @@ def list_users():
              person_name_table = parm,
              code              = parm)
 
-    call.hcs_.initiate(system.fs.system_control_dir, "person_name_table", person_name_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "person_name_table", "", 0, 0, person_name_table, code)
     if person_name_table.ptr:
         call.ioa_("Person Id              Alias     D Project Password?")
         call.ioa_("---------------------- --------- --------- ---------")
@@ -154,7 +154,7 @@ def add_user():
         # end if
     # end while
     
-    call.hcs_.initiate(system.fs.system_control_dir, "person_name_table", person_name_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "person_name_table", "", 0, 0, person_name_table, code)
     if person_name_table.ptr:
         if person_id in person_name_table.ptr.alias_list():
             person_id = person_name_table.ptr.resolve_alias(person_id)
@@ -185,7 +185,7 @@ def delete_user():
         
     person_id = arg_list.args.pop(0)
     
-    call.hcs_.initiate(system.fs.system_control_dir, "person_name_table", person_name_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "person_name_table", "", 0, 0, person_name_table, code)
     if person_name_table.ptr:
         if person_id in person_name_table.ptr.alias_list():
             person_id = person_name_table.ptr.resolve_alias(person_id)
@@ -217,7 +217,7 @@ def rename_user():
     old_person_id = arg_list.args.pop(0)
     new_person_id = arg_list.args.pop(0)
     
-    call.hcs_.initiate(system.fs.system_control_dir, "person_name_table", person_name_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "person_name_table", "", 0, 0, person_name_table, code)
     if person_name_table.ptr:
         if old_person_id in person_name_table.ptr.person_id_list():
             person_name_entry = person_name_table.ptr.name_entries[old_person_id]
@@ -239,11 +239,11 @@ def refresh_sat():
              segment         = parm,
              code            = parm)
              
-    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", sys_admin_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", "", 0, 0, sys_admin_table, code)
     if sys_admin_table.ptr != null():
         call.hcs_.delentry_seg(sys_admin_table.ptr, code)
     # end if
-    call.hcs_.make_seg(system.fs.system_control_dir, "system_administrator_table", sys_admin_table(SystemAdministratorTable()), code)
+    call.hcs_.make_seg(system.fs.system_control_dir, "system_administrator_table", "", 0, sys_admin_table(SystemAdministratorTable()), code)
     
     tables = {}
     
@@ -253,8 +253,8 @@ def refresh_sat():
         with sys_admin_table.ptr:
             for segment_name in segment_list:
                 if segment_name.endswith(".pdt"):
-                    call.hcs_.initiate(system.fs.system_control_dir, segment_name, segment, code)
-                    sys_admin_table.ptr.add_project(segment.ptr.project_id, segment.ptr.filepath, segment.ptr.alias)
+                    call.hcs_.initiate(system.fs.system_control_dir, segment_name, "", 0, 0, segment, code)
+                    sys_admin_table.ptr.add_project(segment.ptr.project_id, segment.ptr._filepath(), segment.ptr.alias)
                     sys_admin_table.ptr.add_admin(segment.ptr.project_id, "JRCooper")
                 # end if
             # end for
@@ -273,7 +273,7 @@ def list_projects():
         return
     # end if
     
-    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", sys_admin_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", "", 0, 0, sys_admin_table, code)
     if sys_admin_table.ptr == null():
         call.ioa_("No system_administrator_table found")
         return
@@ -295,7 +295,7 @@ def list_project_admins():
         return
     # end if
     
-    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", sys_admin_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", "", 0, 0, sys_admin_table, code)
     if sys_admin_table.ptr == null():
         call.ioa_("No system_administrator_table found")
         return
@@ -323,7 +323,7 @@ def add_project_admin():
         return
     # end if
     
-    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", sys_admin_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", "", 0, 0, sys_admin_table, code)
     if sys_admin_table.ptr == null():
         call.ioa_("No system_administrator_table found")
         return
@@ -353,7 +353,7 @@ def delete_project_admin():
         return
     # end if
     
-    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", sys_admin_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", "", 0, 0, sys_admin_table, code)
     if sys_admin_table.ptr == null():
         call.ioa_("No system_administrator_table found")
         return

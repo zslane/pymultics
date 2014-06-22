@@ -196,7 +196,6 @@ class SystemServices(QtCore.QObject):
             self.__system_timers[self._shutdown_task].start(next_time)
             
         elif self.__shutdown_time_left == 0:
-            declare (flags = bit(2) . init("0b11"))
             self._send_shutdown_message("shutdown") # <-- this is how we force shutdown logout for other logged in users
             self.shutdown()
         
@@ -272,7 +271,7 @@ class SystemServices(QtCore.QObject):
         self.__hardware.io.set_input_mode(mode)
         
     def make_timer(self, interval, callback, data=None):
-        timer = SystemTimer(interval, callback, data)
+        timer = SystemTimer(self, interval, callback, data)
         return timer
     
     def add_system_timer(self, interval, callback, data=None):
@@ -393,10 +392,10 @@ class SystemServices(QtCore.QObject):
         # call = multics.globals.call
         
         #== Get a pointer to the PNT (create it if necessary)
-        call.hcs_.initiate(self.fs.system_control_dir, "person_name_table", segment, code)
+        call.hcs_.initiate(self.fs.system_control_dir, "person_name_table", "", 0, 0, segment, code)
         self.__person_name_table = segment.ptr
         if not self.__person_name_table:
-            call.hcs_.make_seg(self.fs.system_control_dir, "person_name_table", segment(PersonNameTable()), code)
+            call.hcs_.make_seg(self.fs.system_control_dir, "person_name_table", "", 0, segment(PersonNameTable()), code)
             self.__person_name_table = segment.ptr
             #== Add JRCooper/jrc as a valid user to start with
             with self.__person_name_table:
@@ -417,13 +416,13 @@ class SystemServices(QtCore.QObject):
                     segment_name = "%s.pdt" % (project_id)
                     pdt = ProjectDefinitionTable(project_id, alias)
                     pdt.add_user("JRCooper")
-                    call.hcs_.make_seg(self.fs.system_control_dir, segment_name, segment(pdt), code)
+                    call.hcs_.make_seg(self.fs.system_control_dir, segment_name, "", 0, segment(pdt), code)
                     segment_list.append(segment_name)
                 # end for
             # end if
             for segment_name in segment_list:
                 if segment_name.endswith(".pdt"):
-                    call.hcs_.initiate(self.fs.system_control_dir, segment_name, segment, code)
+                    call.hcs_.initiate(self.fs.system_control_dir, segment_name, "", 0, 0, segment, code)
                     self.__project_definition_tables[segment.ptr.project_id] = segment.ptr
                     self.__project_definition_tables[segment.ptr.alias] = segment.ptr
                 # end if
@@ -434,10 +433,10 @@ class SystemServices(QtCore.QObject):
         pprint(self.__project_definition_tables)
         
         #== Get a pointer to the WHOTAB (create it if necessary)
-        call.hcs_.initiate(self.fs.system_control_dir, "whotab", segment, code)
+        call.hcs_.initiate(self.fs.system_control_dir, "whotab", "", 0, 0, segment, code)
         self.__whotab = segment.ptr
         if not self.__whotab:
-            call.hcs_.make_seg(self.fs.system_control_dir, "whotab", segment(WhoTable()), code)
+            call.hcs_.make_seg(self.fs.system_control_dir, "whotab", "", 0, segment(WhoTable()), code)
             self.__whotab = segment.ptr
         # end if
         print "WHOTAB:"
@@ -446,7 +445,8 @@ class SystemServices(QtCore.QObject):
     
 class SystemTimer(object):
 
-    def __init__(self, interval, callback_slot, callback_args=None):
+    def __init__(self, system_services, interval, callback_slot, callback_args=None):
+        self.__system_services = system_services
         self.__interval_time = interval # assumed to be in seconds
         self.__callback_slot = callback_slot
         self.__callback_args = callback_args
@@ -474,10 +474,15 @@ class SystemTimer(object):
         
     def check(self):
         if self.triggered():
-            if self.__callback_args is not None:
-                self.__callback_slot(self.__callback_args)
-            else:
-                self.__callback_slot()
+            try:
+            
+                if self.__callback_args is not None:
+                    self.__callback_slot(self.__callback_args)
+                else:
+                    self.__callback_slot()
+                    
+            except ProgramCondition as condition:
+                self.__system_services.signal_condition(get_calling_process_(), condition)
         
     def triggered(self):
         if self.__started:
@@ -534,8 +539,7 @@ class SegmentDescriptor(QtCore.QObject):
             # print "Creating null segment"
             self.segment = None
             
-    @property
-    def filepath(self):
+    def _filepath(self):
         return self.path
         
     def is_out_of_date(self):
@@ -599,9 +603,9 @@ class DynamicLinker(QtCore.QObject):
     #== Called by hcs_ ==#
     
     #== clear_kst() won't be necessary once KSTs are stored on the new Process objects.
-    def clear_kst(self):
-        process = self.__system_services.get_calling_process()
-        process.clear_kst()
+    # def clear_kst(self):
+        # process = self.__system_services.get_calling_process()
+        # process.clear_kst()
     
     @property
     def segfault_count(self):
@@ -624,7 +628,7 @@ class DynamicLinker(QtCore.QObject):
         
         #== First look in the KST for a matching filepath
         for segment_data_ptr in self.known_segment_table.values():
-            if segment_data_ptr.filepath == native_path:
+            if segment_data_ptr._filepath() == native_path:
                 # print "...found in KST by filepath", segment_data_ptr
                 return segment_data_ptr
             # end if

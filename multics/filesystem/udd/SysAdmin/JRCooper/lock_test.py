@@ -4,6 +4,7 @@ from multics.globals import *
 include.query_info
 
 def lock_test():
+    declare (clock_()      = entry . returns(fixed.bin(36)))
     declare (locktest_file = parm,
              input         = parm,
              segment       = parm,
@@ -13,10 +14,10 @@ def lock_test():
     filename = "locktest"
     
     call.ioa_("Opening {0}>{1}", dirname, filename)
-    call.hcs_.initiate(dirname, filename, segment, code)
+    call.hcs_.initiate(dirname, filename, "", 0, 0, segment, code)
     locktest_file = segment.ptr
     if not locktest_file:
-        call.hcs_.make_seg(dirname, filename, segment("locktest"), code)
+        call.hcs_.make_seg(dirname, filename, "", 0, segment("locktest"), code)
         locktest_file = segment.ptr
         if not locktest_file:
             call.ioa_("Could not create {0}>{1}", dirname, filename)

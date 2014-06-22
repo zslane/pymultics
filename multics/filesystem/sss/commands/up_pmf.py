@@ -23,7 +23,7 @@ def up_pmf():
     project_id = arg_list.args.pop()
     pdt_file = project_id + ".pdt"
     
-    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", sys_admin_table, code)
+    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", "", 0, 0, sys_admin_table, code)
     call.user_info_.whoami(person, project, acct)
     if not ((sys_admin_table.ptr and
              project_id in sys_admin_table.ptr.projects and

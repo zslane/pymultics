@@ -163,7 +163,7 @@ class sys_(SystemExecutable):
         # end try
         
         person_id, _, _ = user_id.partition(".")
-        call.hcs_.initiate(process_dir, "process.ms", process_msg_segment, code)
+        call.hcs_.initiate(process_dir, "process.ms", "", 0, 0, process_msg_segment, code)
         if process_msg_segment.ptr != null():
             call.set_lock_.lock(process_msg_segment.ptr, 5, code)
         else:
@@ -176,7 +176,7 @@ class sys_(SystemExecutable):
         declare (pit = parm)
         try:
             whotab_entry = self.system.whotab.entries[user_id]
-            call.hcs_.initiate(whotab_entry.process_dir, "pit", pit, code)
+            call.hcs_.initiate(whotab_entry.process_dir, "pit", "", 0, 0, pit, code)
             if code.val != 0:
                 return
             # end if
@@ -187,7 +187,7 @@ class sys_(SystemExecutable):
         # end try
         
         person_id, _, _ = user_id.partition(".")
-        call.hcs_.initiate(homedir, person_id + ".mbx", mailbox_segment, code)
+        call.hcs_.initiate(homedir, person_id + ".mbx", "", 0, 0, mailbox_segment, code)
         if mailbox_segment.ptr != null():
             call.set_lock_.lock(mailbox_segment.ptr, 5, code)
         else:

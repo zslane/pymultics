@@ -102,7 +102,7 @@ class ProcessWorker(QtCore.QObject):
                 # print self.objectName()+"._process_messages calling set_lock_.lock"
                 call.set_lock_.lock(self.__process_env.msg, 3, code)
                 if code.val != 0:
-                    print "Could not lock %s" % self.__process_env.msg.filepath
+                    print "Could not lock %s" % self.__process_env.msg._filepath()
                     return
                 # end if
                 
@@ -114,7 +114,7 @@ class ProcessWorker(QtCore.QObject):
                 # print self.objectName()+"._process_messages calling set_lock_.unlock"
                 call.set_lock_.unlock(self.__process_env.msg, code)
                 if code.val != 0:
-                    print "Could not unlock %s" % self.__process_env.msg.filepath
+                    print "Could not unlock %s" % self.__process_env.msg._filepath()
                     return
                 # end if
             # end try
@@ -146,7 +146,7 @@ class ProcessWorker(QtCore.QObject):
         declare (search_seg = parm,
                  code = parm)
         call.search_paths_.set("objects", null(), null(), code)
-        call.hcs_.initiate(self.dir(), "search_paths", search_seg, code)
+        call.hcs_.initiate(self.dir(), "search_paths", "", 0, 0, search_seg, code)
         self.__process_env.pds.process_stack.search_seg_ptr = search_seg.ptr
     
     def _process_timers(self):
@@ -155,10 +155,7 @@ class ProcessWorker(QtCore.QObject):
             if timer.dead():
                 del self.stack.process_timers[routine_key]
             else:
-                try:
-                    timer.check()
-                except ProgramCondition, condition:
-                    call.sys_.signal_condition(get_calling_process_(), condition)
+                timer.check()
         
     def _cleanup(self):
         #== Kill the MBX process timer

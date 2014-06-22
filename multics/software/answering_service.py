@@ -200,14 +200,14 @@ class AnsweringService(SystemExecutable):
         dst_pdt_path = self.supervisor.fs.path2path(dst_dir, pdt_file)
         shutil.move(src_pdt_path, dst_pdt_path)
         
-        call.hcs_.initiate(dst_dir, pdt_file, pdt, code)
+        call.hcs_.initiate(dst_dir, pdt_file, "", 0, 0, pdt, code)
         if pdt.ptr != null():
             #== Add project to the system_administrator_table if necessary
-            call.hcs_.initiate(self.supervisor.fs.system_control_dir, "system_administrator_table", sat, code)
+            call.hcs_.initiate(self.supervisor.fs.system_control_dir, "system_administrator_table", "", 0, 0, sat, code)
             if sat.ptr != null():
                 if pdt.ptr.project_id not in sat.ptr.projects:
                     with sat.ptr:
-                        sat.ptr.add_project(pdt.ptr.project_id, pdt.ptr.filepath, pdt.ptr.alias)
+                        sat.ptr.add_project(pdt.ptr.project_id, pdt.ptr._filepath(), pdt.ptr.alias)
                     # end with
                 # end if
             # end if
@@ -223,7 +223,7 @@ class AnsweringService(SystemExecutable):
                 self.supervisor.fs.add_name(project_dir, pdt.ptr.alias)
             # end if
             
-            call.hcs_.initiate(self.supervisor.fs.system_control_dir, "person_name_table", pnt, code)
+            call.hcs_.initiate(self.supervisor.fs.system_control_dir, "person_name_table", "", 0, 0, pnt, code)
             
             #== Create user home directories (with add_names for aliases) if necessary
             for user_config in pdt.ptr.users.values():
@@ -239,7 +239,7 @@ class AnsweringService(SystemExecutable):
         code.val = self.supervisor.fs.mkdir(homedir)
         if code.val == 0:
             print "Creating user mailbox file"
-            call.hcs_.make_seg(homedir, person_id + ".mbx", segment(dict), code)
+            call.hcs_.make_seg(homedir, person_id + ".mbx", "", 0, segment(dict), code)
         # end if
             
         if pnt_ptr.name_entries[person_id].alias:

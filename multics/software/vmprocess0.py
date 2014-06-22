@@ -84,7 +84,7 @@ class OldVirtualMulticsProcess(QtCore.QObject):
         # end if
         self.__process_dir = process_dir.name
         self.__pit.process_id = self.__process_id
-        call.hcs_.make_seg(self.__process_dir, "pit", data(self.__pit), code)
+        call.hcs_.make_seg(self.__process_dir, "pit", "", 0, data(self.__pit), code)
         if code.val != 0:
             self.__system_services.llout("Failed to create process initialization table. Logging out.\n")
             return System.LOGOUT
@@ -106,7 +106,7 @@ class OldVirtualMulticsProcess(QtCore.QObject):
     
     def _create_mbx(self):
         declare (segment = parm . init (ProcessMbx()))
-        call.hcs_.make_seg(self.__process_dir, self.__pit.login_name + ".mbx", segment, code)
+        call.hcs_.make_seg(self.__process_dir, self.__pit.login_name + ".mbx", "", 0, segment, code)
         self.__mbx = segment.ptr
         
     def _delete_mbx(self):

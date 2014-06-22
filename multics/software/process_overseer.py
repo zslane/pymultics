@@ -66,9 +66,9 @@ class ProcessOverseer(object):
         pit.process_id   = process_id
         
         #== Create the process initialization table (PIT) segment
-        call.hcs_.initiate(process_dir.val, "pit", segment, code)
+        call.hcs_.initiate(process_dir.val, "pit", "", 0, 0, segment, code)
         if segment.ptr == null():
-            call.hcs_.make_seg(process_dir.val, "pit", segment(pit), code)
+            call.hcs_.make_seg(process_dir.val, "pit", "", 0, segment(pit), code)
             if code.val != 0:
                 self._print_error_message("Failed to create process initialization table.")
                 return null()
@@ -81,9 +81,9 @@ class ProcessOverseer(object):
         pds.lock_id = clock_()
         
         #== Create the process data segment (PDS)
-        call.hcs_.initiate(process_dir.val, "pds", segment, code)
+        call.hcs_.initiate(process_dir.val, "pds", "", 0, 0, segment, code)
         if segment.ptr == null():
-            call.hcs_.make_seg(process_dir.val, "pds", segment(pds), code)
+            call.hcs_.make_seg(process_dir.val, "pds", "", 0, segment(pds), code)
             if code.val != 0:
                 self._print_error_message("Failed to create process data segment.")
                 return null()
@@ -94,9 +94,9 @@ class ProcessOverseer(object):
         rnt = rnt_structure()
         
         #== Create the reference name table (RNT)
-        call.hcs_.initiate(process_dir.val, "rnt", segment, code)
+        call.hcs_.initiate(process_dir.val, "rnt", "", 0, 0, segment, code)
         if segment.ptr == null():
-            call.hcs_.make_seg(process_dir.val, "rnt", segment(rnt), code)
+            call.hcs_.make_seg(process_dir.val, "rnt", "", 0, segment(rnt), code)
             if code.val != 0:
                 self._print_error_message("Failed to create reference name table.")
                 return null()
@@ -105,9 +105,9 @@ class ProcessOverseer(object):
         rnt = segment.ptr
         
         #== Create the process message segment (process.ms)
-        call.hcs_.initiate(process_dir.val, "process.ms", segment, code)
+        call.hcs_.initiate(process_dir.val, "process.ms", "", 0, 0, segment, code)
         if segment.ptr == null():
-            call.hcs_.make_seg(process_dir.val, "process.ms", segment(ProcessMsgSegment()), code)
+            call.hcs_.make_seg(process_dir.val, "process.ms", "", 0, segment(ProcessMsgSegment()), code)
             if code.val != 0:
                 self._print_error_message("Failed to create process message segment.")
                 return null()

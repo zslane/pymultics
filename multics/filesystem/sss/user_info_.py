@@ -11,7 +11,7 @@ class user_info_(SystemExecutable):
                  code      = parm)
                  
         if not self.__pit.data:
-            call.hcs_.initiate(get_pdir_(), "pit", self.__pit, code)
+            call.hcs_.initiate(get_pdir_(), "pit", "", 0, 0, self.__pit, code)
             if code.val != 0:
                 raise SegmentFault(get_pdir_() + ">pit")
             

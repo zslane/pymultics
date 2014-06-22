@@ -58,16 +58,16 @@ def test():
     
     working_dir = get_wdir_()
     
-    # call.hcs_.initiate(working_dir, "test.data", adminptr, code)
+    # call.hcs_.initiate(working_dir, "test.data", "", 0, 0, adminptr, code)
     # call.ioa_("code = {0}, adminptr = {0}", code.val, adminptr.ptr)
     # print type(admin_info)
     # return
 
     call.ioa_("working_dir = {0}", working_dir)
-    call.hcs_.initiate(working_dir, "test.data", my_info_ptr, code)
+    call.hcs_.initiate(working_dir, "test.data", "", 0, 0, my_info_ptr, code)
     if code.val != 0 and my_info_ptr.seg == null():
         call.ioa_("File test.data not found ({0}).\nCreating it.", code.val)
-        call.hcs_.make_seg(working_dir, "test.data", my_info_ptr, code)
+        call.hcs_.make_seg(working_dir, "test.data", "", 0, my_info_ptr, code)
         print type(my_info)
         call.ioa_("code = {0}", code.val)
         call.ioa_("{0}", my_info)
