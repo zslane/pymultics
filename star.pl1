@@ -1009,6 +1009,148 @@ share_the_misery: procedure;
      
      end self_destruct;
      
+death_ray: procedure;
+
+          dcl     is_he_there            bit (1) init ("0"b);
+          dcl     sequence_is_not_complete bit (1) init ("1"b);
+          dcl     red_switch             bit (1) init ("0"b);
+          dcl     grey_switch            bit (1) init ("0"b);
+          dcl     (one, two, three)      bit (1) init ("0"b);
+          dcl     activated              bit (1) init ("0"b);
+          dcl     dial                   fixed bin init (0);
+          
+          if my -> ship.energy_cur < 500 then do;
+                    call ioa_ ("^/WE haven't got the energy to fire the Death Ray, sir");
+                    return;
+               end;
+          call ioa_ ("^/DEATH RAY sequence ready, sir");
+          if my -> ship.shields_cur > 0 then call ioa_ ("^/SHIELDS lowered");
+          call lock (my -> ship.lock);
+          my -> ship.condition = "D-RAY";
+          call unlock (my -> ship.lock);
+          do while (sequence_is_not_complete):
+               if my -> ship.deathmes = "down" then call game_over;
+               call ioa_$nnl ("> ");
+               call timed_input (input);
+               if input = "on: red switch" then do;
+                         if red_switch then call ioa_ ("Red switch is already on.");
+                         else red_switch = "1"b;
+                    end;
+               else if input = "off: red switch" then do;
+                         if ^red_switch then call ioa_ ("Red switch is not on.");
+                         else if activated then do;
+                                   if grey_switch | dial > 0 then call ioa_ ("Red switch is locked.");
+                                   else sequence_is_not_complete = "0"b;
+                              end;
+                         else if dial > 0 then do;
+                                   call DR_ERROR;
+                                   return;
+                              end;
+                         else return;
+                    end;
+               else if substr (input, 1, 12) = "set dial to " then do;
+                         if verify (after (input, "to "), "1234567890") ^= 0 then call ioa_ ("(DR) ERROR: No such dial setting -- ^a", after (input, "to "));
+                         else do;
+                                   x = decimal (after (input, "to "));
+                                   if x > 100 then call ioa_ ("(DR) ERROR: No such dial setting -- ^d", x);
+                                   else if x = 55 & ^red_switch then call ioa_ ("Dial is locked.");
+                                   else if x = 0 & grey_switch & activated then do;
+                                             call DR_ERROR;
+                                             return;
+                                        end;
+                                   else dial = x;
+                              end;
+                    end;
+               else if input = "on: grey switch" then do;
+                         if grey_switch then call ioa_ ("Grey switch is already on.");
+                         else if dial ^= 55 then call ioa_ ("Grey switch is locked.");
+                         else grey_switch = "1"b;
+                    end;
+               else if input = "off: grey switch" then do;
+                         if ^grey_switch then call ioa_ ("Grey switch is not on.");
+                         else if ^activated & (one | two) then do;
+                                   call DR_ERROR;
+                                   return;
+                              end;
+                         else grey_switch = "0"b;
+                    end;
+               else if input = "hit 1" then do;
+                         if ^grey_switch then call ioa_ ("Control board is locked.");
+                         else if one then call ioa_ ("[1] has already been hit.");
+                         else one = "1"b;
+                    end;
+               else if input = "hit 2" then do;
+                         if ^grey_switch then call ioa_ ("Control board is locked.");
+                         else if ^one then do;
+                                   call DR_ERROR;
+                                   return;
+                              end;
+                         else if two then call ioa_ ("[2] has already been hit.");
+                         else two = "1"b;
+                    end;
+               else if input = "hit 3" then do;
+                         if ^grey_switch then call ioa_ ("Control board is locked.");
+                         else if one & two then do;
+                                   call ioa_ ("Security Override activated, sir");
+                                   activated = "1"b;
+                              end;
+                         else do;
+                                   call DR_ERROR;
+                                   return;
+                              end;
+                    end;
+               else if input = "abort" then return;
+               else if input ^= "" then call ioa_ ("(DR) ERROR: Unknown-drs-command -- ""^a""", input);
+          end;
+          call ioa_ ("^/DEATH RAY energized, sir");
+          call ioa_$nnl ("Target name: ");
+          call timed_input (input);
+          if input = "" then do;
+                    call update_condition;
+                    return;
+               end;
+          target = input;
+          call verify_target (target, is_he_there);
+          if ^is_he_there then do;
+                    call ioa_ ("*** SENSORS: Target ship ^a is not in this sector, sir", target);
+                    call ioa_ ("^/SHIELDS raised");
+                    call update_condition;
+                    return;
+               end;
+          call ioa_ ("DEATH RAY fired, sir");
+          call ioa_ ("^/SHIELDS raised");
+          call update_condition;
+          if target_is_a_robot (target) then do;
+                    x = mod (clock (), 10) + 1;
+                    if x > 1 then goto deduct_energy;
+                    else call robot_death (target);
+               end;
+          else do;
+                    if enemy -> ship.type = "Star Commander" then return;
+                    x = mod (clock (), 10) + 1;
+                    if x > 1 then goto deduct_energy;
+                    call lock (enemy -> ship.lock);
+                    enemy -> ship.life_cur = 0;
+                    if enemy -> ship.condition = "DOCKING" | enemy -> ship.condition = "D-RAY" | enemy -> ship.condition = "SHIELDS DOWN" | enemy -> ship.condition = "DROBOT" then enemy -> ship.deathmes = "down";
+                    call unlock (enemy -> ship.lock);
+               end;
+               
+deduct_energy:
+          call lock (my -> ship.lock);
+          my -> ship.energy_cur = my -> ship.energy_cur - 500;
+          my -> ship.energy_old = my -> ship.energy_old - 500;
+          call unlock (my -> ship.lock);
+          
+DR_ERROR: procedure;
+          
+          call ioa_ ("(DR) ERROR: Out-of-sequence on command -- sequence aborted");
+          call ioa_ ("^/SHIELDS raised");
+          call update_condition;
+          
+     end DR_ERROR;
+     
+     end death_ray;
+
 /***** STAR COMMANDER COMMAND ROUTINES *****/
 
 cloaking_device: procedure;

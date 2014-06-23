@@ -71,7 +71,7 @@ def starrunners():
                 location     = char(8),
                 controller   = char(21)
             )),
-            notifications    = Dim(5) (PL1.Structure(
+            notifications    = Dim(50) (PL1.Structure(
                 person_id    = char(21),
                 project_id   = char(9)
             )),
@@ -224,7 +224,7 @@ def starrunners():
         # end if
         
     # /* ACCEPT/REFUSE NOTIFICATIONS.  PUT/TAKE ON/FROM LIST */
-        for x in range(len(universe.notifications)): #range(50):
+        for x in range(50):
             if universe.notifications[x].person_id == person and universe.notifications[x].project_id == project:
                 if not accept_notifications:
                     with universe:
@@ -236,7 +236,7 @@ def starrunners():
             # end if
         # end for
         if not on_the_list and accept_notifications:
-            for x in range(len(universe.notifications)): #range(50):
+            for x in range(50):
                 if universe.notifications[x].person_id == "" and universe.notifications[x].project_id == "":
                     with universe:
                         universe.notifications[x].person_id = person
@@ -1024,6 +1024,149 @@ def starrunners():
         # end if
     #-- end def self_destruct
     
+    def death_ray():
+        #== The Death Ray activation sequence is:
+        #== > on: red switch
+        #== > set dial to 55
+        #== > on: grey switch
+        #== > hit 1
+        #== > hit 2
+        #== > hit 3
+        #== > off: grey switch
+        #== > set dial to 0
+        #== > off: red switch
+        
+        is_he_there              = parm(False)
+        sequence_is_not_complete = True
+        red_switch               = False
+        grey_switch              = False
+        one = two = three        = False
+        activated                = False
+        dial                     = 0
+               
+        def deduct_energy():
+            lock(my.ship)
+            with my.ship:
+                my.ship.energy_cur = my.ship.energy_cur - 500
+                my.ship.energy_old = my.ship.energy_old - 500
+            # end with
+            unlock(my.ship)
+        #-- end def deduct_energy
+            
+        def DR_ERROR():
+            call.ioa_("(DR) ERROR: Out-of-sequence on command -- sequence aborted")
+            call.ioa_("\nSHIELDS raised")
+            update_condition()
+        #-- end def DR_ERROR
+        
+        if my.ship.energy_cur < 500:
+            call.ioa_("\nWE haven't got the energy to fire the Death Ray, sir")
+            return
+        # end if
+        call.ioa_("\nDEATH RAY sequence ready, sir")
+        if my.ship.shields_cur > 0: call.ioa_("\nSHIELDS lowered")
+        lock(my.ship)
+        my.ship.condition = "D-RAY"
+        unlock(my.ship)
+        while sequence_is_not_complete:
+            if my.ship.deathmes == "down": game_over()
+            call.ioa_.nnl("> ")
+            timed_input(input)
+            if input.val == "on: red switch":
+                if red_switch: call.ioa_("Red switch is already on.")
+                else: red_switch = True
+            elif input.val == "off: red switch":
+                if not red_switch: call.ioa_("Red switch is not on.")
+                elif activated:
+                    if grey_switch or dial > 0: call.ioa_("Red switch is locked.")
+                    else: sequence_is_not_complete = False
+                elif dial > 0:
+                    DR_ERROR()
+                    return
+                else: return
+            elif input.val[:12] == "set dial to ":
+                if verify(input.val[12:], "1234567890") != 0: call.ioa_("(DR) ERROR: No such dial setting -- {0}", input.val[12:])
+                else:
+                    x = int(input.val[12:])
+                    if x > 100: call.ioa_("(DR) ERROR: No such dial setting -- {0}", x)
+                    elif x == 55 and not red_switch: call.ioa_("Dial is locked.")
+                    elif x == 0 and grey_switch and activated:
+                        DR_ERROR()
+                        return
+                    else: dial = x
+                # end if
+            elif input.val == "on: grey switch":
+                if grey_switch: call.ioa_("Grey switch is already on.")
+                elif dial != 55: call.ioa_("Grey switch is locked.")
+                else: grey_switch = True
+            elif input.val == "off: grey switch":
+                if not grey_switch: call.ioa_("Grey switch is not on.")
+                elif not activated and (one or two):
+                    DR_ERROR()
+                    return
+                else: grey_switch = False
+            elif input.val == "hit 1":
+                if not grey_switch: call.ioa_("Control board is locked.")
+                elif one: call.ioa_("[1] has already been hit.")
+                else: one = True
+            elif input.val == "hit 2":
+                if not grey_switch: call.ioa_("Control board is locked.")
+                elif not one:
+                    DR_ERROR()
+                    return
+                elif two: call.ioa_("[2] has already been hit.")
+                else: two = True
+            elif input.val == "hit 3":
+                if not grey_switch: call.ioa_("Control board is locked.")
+                elif one and two:
+                    call.ioa_("Security Override activated, sir")
+                    activated = True
+                else:
+                    DR_ERROR()
+                    return
+                # end if
+            elif input.val == "abort": return
+            elif input.val != "": call.ioa_("(DR) ERROR: Unknown-drs-command -- \"{0}\"", input.val)
+        # end while
+        call.ioa_("\nDEATH RAY energized, sir")
+        call.ioa_.nnl("Target name: ")
+        timed_input(input)
+        if input.val == "":
+            update_condition()
+            return
+        # end if
+        target.val = input.val
+        verify_target(target, is_he_there)
+        if not is_he_there.val:
+            call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target.val)
+            call.ioa_("\nSHIELDS raised")
+            update_condition()
+            return
+        # end if
+        call.ioa_("DEATH RAY fired, sir")
+        call.ioa_("\nSHIELDS raised")
+        update_condition()
+        if target_is_a_robot(target.val):
+            x = (clock_() % 10) + 1
+            if x > 1:
+                deduct_energy()
+                return
+            else: robot_death(target.val)
+        else:
+            if enemy.ship.type == "Star Commander": return
+            x = (clock_() % 10) + 1
+            if x > 1:
+                deduct_energy()
+                return
+            lock(enemy.ship)
+            with enemy.ship:
+                enemy.ship.life_cur = 0
+                if enemy.ship.condition == "DOCKING" or enemy.ship.condition == "D-RAY" or enemy.ship.condition == "SHIELDS DOWN" or enemy.ship.condition == "DROBOT": enemy.ship.deathmes = "down"
+            # end with
+            unlock(enemy.ship)
+        # end if
+    #-- end def death_ray
+    
     # /***** STAR COMMANDER COMMAND ROUTINES *****/
 
     def cloaking_device():
@@ -1284,7 +1427,7 @@ def starrunners():
         victim = ""
         
         call.ioa_.nnl("\nWHO is to receive the Trojan Horse, sir? ")
-        timed_input(input);
+        timed_input(input)
         if input.val == "": return
         victim = input.val
         call.ioa_("WHAT is the command, sir?")
@@ -1411,7 +1554,7 @@ def starrunners():
 
     def robotship_report():
         call.ioa_("\nRobotShip Report:")
-        for x in range(len(universe.robot)): #range(20):
+        for x in range(20):
             if universe.robot[x].location != "": call.ioa_("   RobotShip {0} ({1}) {2}", universe.robot[x].name, universe.robot[x].location, universe.robot[x].condition)
         # end for
     #-- end def robotship_report
@@ -2164,30 +2307,6 @@ def starrunners():
         
     #-- end def robot_functions
     
-    # def robot_sscan(present, shipname, shiptype, docked):
-        # pass
-        
-    # def robot_verify_target(target, is_he_there):
-        # pass
-        
-    # def robot_hit_him(target, robot_was_the_target, weapon, hit):
-        # robot_was_the_target.val = False
-        
-    # def robot_damage(target, d):
-        # pass
-        
-    # def robot_death(target):
-        # pass
-        
-    # def robot_release(user):
-        # pass
-    
-    # def target_is_a_robot(target):
-        # return False
-    
-    # def robot_functions():
-        # pass
-
     # /***** GAME INTERNALS *****/
     
     def make_ship(shiptype):
@@ -2286,14 +2405,14 @@ def starrunners():
         # send_mail_info.notify = False
         # send_mail_info.always_add = False
         # send_mail_info.never_add = False
-        for x in range(len(universe.notifications)): #range(50):
+        for x in range(50):
             if universe.notifications[x].person_id != "" and universe.notifications[x].project_id != "":
                 # call.send_mail_(universe.notifications[x].person_id.rstrip() + "." + universe.notifications[x].project_id.rstrip(), "I have just entered the Starrunners universe...", send_mail_info, 0)
                 call.do("send_message {0} {1}".format(universe.notifications[x].person_id.rstrip() + "." + universe.notifications[x].project_id.rstrip(), "I have just entered the Starrunners universe..."))
             # end if
         # end for
     #-- end def send_notifications
-              
+    
     def rand_location():
         x = (clock_() % 5) + 1
         if x == 1: location = "Romula"
@@ -2374,7 +2493,7 @@ def starrunners():
                 universe.password   = ""
             # end if
             
-            print univptr.ptr.dumps()
+            # print univptr.ptr.dumps()
             
             call.hcs_.initiate(dname, aname, "", 0, 0, adminptr, code)
             if code.val != 0 and adminptr.ptr == null():
