@@ -335,8 +335,6 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         
     def write_file(self, filepath, data):
         filepath = self.native_path(filepath)
-        # with open(filepath, "wb") as f:
-            # pickle.dump(data, f)
         f = open(filepath, "wb")
         #== Null data (None) is written as an empty file
         if type(data) in [str, unicode]:
@@ -348,22 +346,26 @@ class VirtualMulticsFileSystem(QtCore.QObject):
     
     def read_file(self, filepath):
         filepath = self.native_path(filepath)
-        # with open(filepath, "rb") as f:
-            # try:
-                # return pickle.load(f)
-            # except:
-                # f.seek(0)
-                # return f.read()
         f = open(filepath, "rb")
-        try:
-            data = pickle.load(f)
-        except:
-            f.seek(0)
-            data = f.read()
-        # end try
-        f.close()
-        return data
-            
+        retry_count = 0
+        while True:
+            try:
+                data = pickle.load(f)
+                f.close()
+                return data
+                
+            except:
+                # f.seek(0)
+                # data = f.read()
+                if retry_count == 5:
+                    f.close()
+                    raise InvalidSegmentFault(filepath)
+                else:
+                    f.close()
+                    QtCore.QThread.msleep(200)
+                    f = open(filepath, "rb")
+                    retry_count += 1
+        
     def get_mod_time(self, filepath):
         filepath = self.native_path(filepath)
         return os.path.getmtime(filepath)

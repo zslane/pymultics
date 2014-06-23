@@ -8,6 +8,10 @@ include.query_info
 class goto_command_loop(ProgramCondition): pass
 class goto_end_of_game(ProgramCondition): pass
 
+dcl (get_pdir_           = entry . returns(char(168)))
+dcl (clock_              = entry . returns(fixed.bin(36)))
+dcl (vfile_              = entry . returns(char(168)))
+
 #== True global variables (that aren't parm types)
 pdir      = ""
 acl_entry = ""
@@ -21,8 +25,6 @@ def starrunners():
 
     MAIN                     = "starrunners"
 
-    dcl (get_pdir_           = entry . returns(char(168)))
-    dcl (clock_              = entry . returns(fixed.bin(36)))
     dcl (acl                 = char(2) . init("rw"))
     dcl (ring_brackets       = Dim(3) (fixed.bin(3)) . init([5, 5, 5]))
     dcl (whom                = char(5) . init("*.*.*"))
@@ -716,7 +718,7 @@ def starrunners():
         timed_input(input)
         if input.val == "": return;
         target.val = input.val
-        verify_target(target, is_he_there)
+        verify_target(target.val, is_he_there)
         if not is_he_there.val:
             call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target.val)
             return
@@ -770,7 +772,7 @@ def starrunners():
         timed_input(input)
         if input.val == "": return;
         target.val = input.val
-        verify_target(target, is_he_there)
+        verify_target(target.val, is_he_there)
         if not is_he_there.val:
             call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target.val)
             return
@@ -997,7 +999,7 @@ def starrunners():
             # end for
             game_over()
         #-- end def share_the_misery
-     
+        
         call.ioa_.nnl("\nINITIATE self destruct sequence: ")
         timed_input(input)
         if input.val != "1a":
@@ -1143,7 +1145,7 @@ def starrunners():
             return
         # end if
         target.val = input.val
-        verify_target(target, is_he_there)
+        verify_target(target.val, is_he_there)
         if not is_he_there.val:
             call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target.val)
             call.ioa_("\nSHIELDS raised")
@@ -1224,7 +1226,7 @@ def starrunners():
         timed_input(input)
         if input.val == "": return
         target.val = input.val
-        verify_target(target, is_he_there)
+        verify_target(target.val, is_he_there)
         if not is_he_there.val:
             call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target.val)
             return
@@ -1292,7 +1294,7 @@ def starrunners():
             timed_input(input)
             if input.val == "": return
             target.val = input.val
-            verify_target(target, is_he_there)
+            verify_target(target.val, is_he_there)
             if not is_he_there.val:
                 call.ioa_("*** SENSORS: Target ship {0} is not in this sector, sir", target.val)
                 return
@@ -1338,9 +1340,9 @@ def starrunners():
     #-- end def tractor_beam
     
     def monitor_ship():
-        monitor_who = ""
         is_he_there = parm(False)
-
+        monitor_who = ""
+        
         if my.ship.monname == "#":
             call.ioa_("\nMONITOR probe ready, sir")
             call.ioa_.nnl("Target name: ")
@@ -2257,8 +2259,6 @@ def starrunners():
             #-- end def robot_move
             
             def robot_send_msg():
-                dcl (vfile_ = entry . returns(char(168)))
-
                 # open file (msg_file) title ("vfile_ " || dname || ">" || "sv4.4.text") stream input;
                 # read file (msg_file) into (msg);
                 msg_file = open(vfile_(dname + ">" + "sv4.4.text"))

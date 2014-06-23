@@ -28,7 +28,7 @@ def shutdown_started_():
     
 @system_privileged
 def vfile_(multics_path):
-    return system.fs.path2path(multics_path)
+    return system.hardware.filesystem.path2path(multics_path)
     
 def resolve_path_symbol_(path_symbol):
     process = get_calling_process_()

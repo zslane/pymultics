@@ -60,11 +60,18 @@ class hcs_(SystemExecutable):
         else:
             process_dir.name = None
     
+    def fs_file_exists(self, dirname, filename, code):
+        native_path = self.__filesystem.path2path(dirname, filename)
+        if self.__filesystem.file_exists(native_path):
+            code.val = 0
+        else:
+            code.val = error_table_.no_directory_entry
+        
     def initiate(self, dirname, segment_name, ref_name, seg_sw, copy_ctl_sw, segment, code):
         seg_ptr = self.system.dynamic_linker.load(dirname, segment_name)
         if segment:
             segment.data_ptr = seg_ptr
-        code.val = 0 if seg_ptr else error_table_.fileioerr
+        code.val = 0 if seg_ptr else error_table_.no_directory_entry
         
     def make_seg(self, dirname, segment_name, ref_name, mode, segment, code):
         if dirname == "":
@@ -75,8 +82,7 @@ class hcs_(SystemExecutable):
             segment_name = unique_name_()
         # end if
         
-        multics_path = dirname + ">" + segment_name
-        native_path = self.__filesystem.path2path(multics_path)
+        native_path = self.__filesystem.path2path(dirname, segment_name)
         
         if self.__filesystem.file_exists(native_path):
             segment.data_ptr = self.system.dynamic_linker.load(dirname, segment_name)
