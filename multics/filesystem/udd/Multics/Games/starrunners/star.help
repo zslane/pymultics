@@ -8,3 +8,187 @@ with the words Destroyer (or D), Cruiser (or C), or Starship (or S).
 
 After you select name and type, your ship's statistics will be displayed, like
 this:
+
+          Ship name: Foobar
+          Ship type: Starship
+          ---------------------
+          Shield strength: 60%
+          Missiles left: 5
+          Energy left: 1000u
+          Life support level: 10
+          ---------------------
+          Condition: GREEN
+          Current location: Romula
+          
+          Shield strength     Shield Strength is the approximate percentage
+                              chance of deflecting incoming attacks.
+          Missiles            Starships and Cruisers are supplied with five
+                              missiles, Destroyers with ten.
+          Energy              Energy is expressed in Units; moving and firing
+                              lasers expends energy.
+          Life Support        Life Support is measured in Levels.  When life
+                              Support drops to Zero, your ship is destroyed.
+          Condition           Condition is relative to your life support level:
+                                     6 < Level <= 10  = Condition GREEN
+                                     2 < Level <= 6  = Condition YELLOW
+                                     0 < Level <= 2  = Condition RED
+          Current Location    One of the five Sectors in the Starrunners
+                              Universe; ROMULA, VINDICAR, TELGAR, SHADOW, ZORK.
+                              
+After the statistics are shown, you will be prompted for Commands to guide
+your ship.  Respond to the prompt COMMAND:> with any of the following
+commands:
+
+          sscan (ss)          lscan (ls)          thrust (th)
+          status (st)         warpout (wp)        missile (ms)
+          lasers (lr)         contact (ct)        sdestruct (sd)
+          dock (dk)           deathray (dr)
+          
+sscan, ss                     (short range scan)
+          sscan will give you a list of the enemy ships in your sector.  It
+          will also tell you if any of these ships are docking.  Your ship will
+          not be displayed in the output.  Example:
+          
+                    SECTOR: Vindicar
+                    *** SENSOR SCAN:
+                       Cruiser Galacta
+                       Destroyer Millenium (Docking)
+                       
+          In this case, the Destroyer Millenium is docking.  If the output
+          of sscan is "Sector void," then there are no other ships in your
+          sector.
+          
+lscan, ls                     (long range scan)
+          lscan prints a picture of the Starrunners universe.  Each box
+          represents the labeled sector.  An asterisk (*) in a box indicates
+          an enemy ship.  An oh (o) indicates your ship.  Be on the lookout
+          for an at sign (@), for it represents the all powerful Star
+          Commander ship.
+          
+thrust, th                    (thrust movement)
+          thrust, when supplied with the name of a destination sector, will
+          move your ship to an adjacent sector.  Eligible sectors will be
+          printed for you, and you will be prompted to choose one with the
+          signal NAVIGATION:>.
+          
+status, st                    (print ship status)
+          status will print the list of statistics that were shown above,
+          similar to those at the beginning of your game.
+          
+warpout, wp                   (jump to hyperspace)
+          warpout will randomly move your ship to another sector in the
+          starrunners universe.  You may be thrown to the other side of
+          the galaxy or right back into the sector you were in.  The
+          exact percent chance of a successful warpout is calculated by
+          dividing your remaining energy by ten.  If you do not have
+          enough energy to make the proper preparations for the jump to
+          hyperspace, your ship will run into a star and you will perish.
+          
+missile, ms                   (launch missile at enemy ship)
+          missile allows you to attack enemy ships in your sector.  After
+          typing "missile", the computer will ask for your target, like so:
+          
+                    MISSILE ready to launch, sir
+                    Target name:
+                    
+          Supply the name of the ship you wish to attack.  Then answer the
+          next question with "launch" to launch the missile, or "abort" to
+          stop the launch procedure.  When you see this:
+          
+                    << BOOM >> MISSILE hit, sir
+                    
+          you know you have effected a hit on your prey.
+          
+lasers, lr                    (fire lasers at an enemy ship)
+          Use the lasers command to fire lasers at an any enemy ship in your
+          sector.  Firing lasers requires energy.  After typeing "lasers,"
+          supply Starrunners with the ship you wish to attack:
+          
+                    LASERS banks ready to fire, sir
+                    Target name:
+                    
+          Then respond to the next prompt with either "fire" to fire the
+          lasers, or "deenergize" to cancel the laser instructions.  When
+          you see this:
+          
+                    << ZAP >> LASERS hit, sir
+                    
+          then you have hit and damaged your target.
+          
+contact, ct                   (communicate with another ship)
+          contact will allow you to send a transmission to any ship in the
+          universe.  After supplying ct with the name of the ship, you may
+          send a message of up to 256 characters long.
+          
+sdestruct, sd                 (destroy your own ship)
+          This command lets you destroy your ship and render minor damage due
+          to explosion to the surrounding ships in your sector. After typing
+          sd, you will be asked to "INITIATE self destruct sequence."  Type
+          in "1a."  Respond to subsequent queries with "2b" and "3c."  When
+          asked for the final command, enter "sdestruct" to destroy your
+          ship, or "abort" to terminate the command sequence.
+          
+dock, dc                      (dock at starbase)
+          When you dock at a Sector Starbase, you gain back some of the energy,
+          missiles, shield strength, and life support levels lost in battle.
+          During the docking procedure, shields go down, and any attacks from
+          enemy ships will destroy you instantly.  Only ten percent of your
+          shield strength and one life support level will be regained, but the
+          amount of energy and missiles will increase randomly.
+          
+deathray, dr                  (fire experimental deathray)
+          After typing "deathray", your shields will be lowered just as if you
+          were docking.  It will then go into the Deathray Security Override
+          sequence.  You must supply the proper instructions in the proper
+          order before you may actually fire the deathray.  Here is a list of
+          the items that must be manipulated to work the deathray:
+          
+                    A red switch
+                    A dial numbered 0-100
+                    A grey switch
+                    Three buttons
+                    
+          When these are worked correctly, it will ask you for your target.
+          IMPORTANT: The deathray only has a 10% chance of killing its target.
+          Also, shields are raised again, when the sequence is completed, or
+          "abort" is typed at the prompt ">".
+          
+*                             (quit)
+          The * command instantly vaporizes your ship and ends the game.
+          
+?                             (list commands)
+          The ? command will print a brief list of the commands shown above.
+          
+Special Notes:
+          Hitting BREAK will override the current command sequence and return
+          you to the COMMAND:> prompt.
+          
+          This:
+          
+                      <<< BOOOOM >>>
+                    <<<<< BOOOOM >>>>>
+                      <<< BOOOOM >>>
+                      
+          *** SENSORS are picking up metallic debris from Starship Foo, sir
+          
+          means that a ship somewhere in the galaxy has been destroyed.  This:
+          
+                    <<< YOU HAVE BEEN VAPORIZED >>>
+                    
+          means that your ship has been destroyed and the game is over.  This:
+          
+                    <<< FOOOOOOOOOOM >>> ENGINES have been hit, sir
+                    
+          or something similar, means that a part of your ship has been hit
+          and damaged.  The status of that part will be printed, too.
+          
+N.B.  Any time during the game in which you are being prompted for
+      something, you may return to COMMAND :> level by hitting RETURN
+      all by itself.  Example:
+      
+          OPEN sectors are Romula and Telgar, sir
+          NAVIGATION :> (here all you do is hit the RETURN key)
+          
+          COMMAND :> (and you are back to Command Central)
+          
+                    Happy Starrunning!

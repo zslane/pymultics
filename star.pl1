@@ -974,6 +974,13 @@ self_destruct: procedure;
                     return;
                end;
           call ioa_ ("SEQUENCE 2 initiated ***");
+          call ioa_$nnl ("^/INITIATE sequence 3: ");
+          call timed_input (input);
+          if input ^= "3c" then do;
+                    call ioa_ ("INCORRECT sequence password given :: sequence terminated");
+                    return;
+               end;
+          call ioa_ ("SEQUENCE 3 initiated ***");
           call ioa_$nnl ("^/SELF destruct command: ");
           call timed_input (input);
           if input = "self-destruct" | input = "sd" then call share_the_misery;
@@ -2773,6 +2780,16 @@ remove_star_commander: procedure;
           end;
           
      end remove_star_commander;
+     
+     end star_admin;
+     
+end_of_game:
+
+%include pit;
+%include user_attributes;
+%include send_mail_info;
+
+     end starrunners;
 
 getline: procedure (input_var);
 
@@ -2790,4 +2807,3 @@ getline: procedure (input_var);
 %include query_info;
 
      end getline;
-     

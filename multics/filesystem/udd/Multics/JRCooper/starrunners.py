@@ -1012,6 +1012,13 @@ def starrunners():
             return
         # end if
         call.ioa_("SEQUENCE 2 initiated ***")
+        call.ioa_.nnl ("\nINITIATE sequence 3: ")
+        timed_input(input)
+        if input.val != "3c":
+            call.ioa_("INCORRECT sequence password given :: sequence terminated")
+            return
+        # end if
+        call.ioa_("SEQUENCE 3 initiated ***")
         call.ioa_.nnl("\nSELF destruct command: ")
         timed_input(input)
         if input.val == "self-destruct" or input.val == "sd": share_the_misery()
