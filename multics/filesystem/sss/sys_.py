@@ -125,8 +125,12 @@ class sys_(SystemExecutable):
         declare (segment = parm)
         try:
             call.sys_.lock_process_ms_(user_id, segment, code)
-            if code.val != 0:
-                print "sys_.add_process_msg: Could not lock %s process.ms"
+            if code.val == error_table_.locked_by_this_process:
+                print "sys_.add_process_msg: {0} already has process.ms locked".format(get_calling_process_().objectName())
+                #== Proceed with adding process message...
+                
+            elif code.val != 0:
+                print "sys_.add_process_msg: Could not lock process.ms"
                 print code.val
                 return
             # end if
@@ -142,7 +146,7 @@ class sys_(SystemExecutable):
         finally:
             call.sys_.unlock_process_ms_(segment.ptr, code)
             if code.val != 0:
-                print "sys_.add_process_msg: Could not unlock %s process.ms"
+                print "sys_.add_process_msg: Could not unlock process.ms"
                 print code.val
             # end if
         # end try

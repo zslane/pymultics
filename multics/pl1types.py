@@ -122,9 +122,6 @@ class PL1(object):
             
         def BitstringFactory(self, val=""):
             return bitstring(self.size, val)
-        
-        def refer(self):
-            return 3
             
         def __call__(self, size=-1, prec=0):
             if size == -1:

@@ -23,6 +23,10 @@ def clock_():
     return system.hardware.clock.current_time()
     
 @system_privileged
+def clock():
+    return system.hardware.clock.current_time()
+    
+@system_privileged
 def shutdown_started_():
     return system.shutdown_started()
     

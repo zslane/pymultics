@@ -1,7 +1,6 @@
 import os
 import time
 import errno
-import cPickle as pickle
 
 from multics.globals import *
 
@@ -27,8 +26,10 @@ class set_lock_(SystemExecutable):
             call.sys_.get_process_ids(process_id_list)
             file_lock = FileLock(segment_data_ptr, process_id, wait_time, process_id_list.ids)
             code.val = file_lock.acquire()
+            
             # file_lock2 = HardwareFileLock(self.system.hardware, segment_data_ptr, process_id, wait_time, process_id_list.ids)
             # file_lock2.acquire()
+            
             #== Make sure that if we had to wait for the lock that the previous locker
             #== wasn't locking it in order to safely delete it. If the file has been
             #== deleted, then return error_table_.no_directory_entry in the result code.
@@ -39,6 +40,7 @@ class set_lock_(SystemExecutable):
             else:
                 file_locks[lock_id] = file_lock
             # end if
+            
         except MulticsCondition:
             raise
         except FileLockException as e:
@@ -62,11 +64,7 @@ class FileLockException(Exception):
         self.code = errcode
         
 class FileLock(object):
-    """ A file locking mechanism that has context-manager support so 
-        you can use it in a with statement. This should be relatively cross
-        compatible as it doesn't rely on msvcrt or fcntl for the locking.
-    """
-    
+
     def __init__(self, segment_data_ptr, process_id, timeout, process_id_list):
         """ Prepare the file locker. Specify the file to lock and optionally
             the maximum timeout and the delay between each attempt to lock.
@@ -100,16 +98,18 @@ class FileLock(object):
                 self.fd = os.open(self.lockfile, os.O_CREAT|os.O_EXCL|os.O_RDWR)
                 os.write(self.fd, str(self.process_id))
                 os.close(self.fd)
-                # self.store_process_id()
                 break;
                 
             except OSError as e:
                 if e.errno == errno.EPERM:
                     raise FileLockException(error_table_.no_w_permission)
+                    
                 elif e.errno != errno.EEXIST:
                     raise FileLockException(e.errno)
-                # elif self.invalid_lock_id2():
-                    # code = error_table_.invalid_lock_reset
+                    
+                elif self.invalid_lock_id():
+                    code = error_table_.invalid_lock_reset
+                    break
                     
                 if (self.timeout != FOREVER and
                     (time.clock() - start_time) >= self.timeout):
@@ -129,41 +129,19 @@ class FileLock(object):
             os.unlink(self.lockfile)
             self.is_locked = False
     
-    def store_process_id(self):
-        os.close(self.fd)
-        with open(self.lockfile, "wb") as f:
-            pickle.dump(self.process_id, f)
-        # end with
-        
-    def invalid_lock_id2(self):
-        fd = os.open(self.lockfile, os.O_RDWR)
-        s = os.read(fd, 32)
-        os.lseek(fd, 0, 0)
-        lock_owner_id = int(s)
-        if lock_owner_id not in self.process_id_list:
-            os.write(fd, str(self.process_id))
-        os.close(fd)
-        return lock_owner_id not in self.process_id_list
-        
     def invalid_lock_id(self):
-        valid_processes = self.process_id_list
-        with open(self.lockfile, "rb") as f:
-            lock_owner_id = pickle.load(f)
-        # end with
-        invalid = lock_owner_id not in valid_processes
-        if invalid:
-            with open(self.lockfile, "wb") as f:
-                pickle.dump(self.process_id, f)
-            # end with
-            return True
-        else:
-            return False
+        fd = os.open(self.lockfile, os.O_RDWR)
+        process_id_string = os.read(fd, 32)
+        lock_owner_process_id = int(process_id_string)
+        is_invalid = lock_owner_process_id not in self.process_id_list
+        if is_invalid:
+            os.lseek(fd, 0, 0)
+            os.write(fd, str(self.process_id))
+        # end if
+        os.close(fd)
+        return is_invalid
         
 class HardwareFileLock(object):
-    """ A file locking mechanism that has context-manager support so 
-        you can use it in a with statement. This should be relatively cross
-        compatible as it doesn't rely on msvcrt or fcntl for the locking.
-    """
     
     def __init__(self, hardware, segment_data_ptr, process_id, timeout, process_id_list):
         """ Prepare the file locker. Specify the file to lock and optionally
@@ -200,7 +178,6 @@ class HardwareFileLock(object):
                 self.fd = os.open(self.lockfile, os.O_CREAT|os.O_EXCL|os.O_RDWR)
                 os.write(self.fd, str(self.process_id))
                 os.close(self.fd)
-                # self.store_process_id()
                 break;
                 
             except OSError as e:
@@ -208,7 +185,7 @@ class HardwareFileLock(object):
                     raise FileLockException(error_table_.no_w_permission)
                 elif e.errno != errno.EEXIST:
                     raise FileLockException(e.errno)
-                # elif self.invalid_lock_id2():
+                # elif self.invalid_lock_id():
                     # code = error_table_.invalid_lock_reset
                     
                 if (self.timeout != FOREVER and
@@ -229,32 +206,14 @@ class HardwareFileLock(object):
             os.unlink(self.lockfile)
             self.is_locked = False
     
-    def store_process_id(self):
-        os.close(self.fd)
-        with open(self.lockfile, "wb") as f:
-            pickle.dump(self.process_id, f)
-        # end with
-        
-    def invalid_lock_id2(self):
-        fd = os.open(self.lockfile, os.O_RDWR)
-        s = os.read(fd, 32)
-        os.lseek(fd, 0, 0)
-        lock_owner_id = int(s)
-        if lock_owner_id not in self.process_id_list:
-            os.write(fd, str(self.process_id))
-        os.close(fd)
-        return lock_owner_id not in self.process_id_list
-        
     def invalid_lock_id(self):
-        valid_processes = self.process_id_list
-        with open(self.lockfile, "rb") as f:
-            lock_owner_id = pickle.load(f)
-        # end with
-        invalid = lock_owner_id not in valid_processes
-        if invalid:
-            with open(self.lockfile, "wb") as f:
-                pickle.dump(self.process_id, f)
-            # end with
-            return True
-        else:
-            return False
+        fd = os.open(self.lockfile, os.O_RDWR)
+        process_id_string = os.read(fd, 32)
+        lock_owner_process_id = int(process_id_string)
+        is_invalid = lock_owner_process_id not in self.process_id_list
+        if is_invalid:
+            os.lseek(fd, 0, 0)
+            os.write(fd, str(self.process_id))
+        # end if
+        os.close(fd)
+        return is_invalid
