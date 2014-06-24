@@ -10,6 +10,21 @@ from pl1types import *
 
 from PySide import QtCore
 
+def before(s, p):
+    return s.partition(p)[0]
+
+def after(s, p):
+    return s.partition(p)[-1]
+
+def verify(s, p):
+    for i, c in enumerate(s):
+        if not c in p:
+            return i + 1
+    return 0
+    
+def vfile_(multics_path):
+    return GlobalEnvironment.supervisor.hardware.filesystem.path2path(multics_path)
+    
 class MulticsCondition(Exception):
     def __init__(self, arg=""):
         super(MulticsCondition, self).__init__(arg)
@@ -41,9 +56,9 @@ class InvalidSegmentFault(MulticsCondition):
         super(InvalidSegmentFault, self).__init__("invalid segment %s" % (entry_point_name))
         self.segment_name = entry_point_name
 
-class ProgramCondition(Exception):
+class NonLocalGoto(Exception):
     def __init__(self, arg=""):
-        super(ProgramCondition, self).__init__(arg)
+        super(NonLocalGoto, self).__init__(arg)
         
 class System:
     
@@ -183,7 +198,7 @@ def do_loop(container, ignore_break_signal=False):
         
         yield
         
-    except ProgramCondition:
+    except NonLocalGoto:
         raise
     except (SegmentFault, LinkageError, InvalidSegmentFault):
         call.dump_traceback_()
@@ -350,6 +365,8 @@ class declare(object):
     def get_initial_value(self, initial_value):
         if type(initial_value) is PL1.Type:
             return initial_value.toPython()
+        elif initial_value is PL1.file:
+            return PL1.file()
         elif type(initial_value) is list:
             return list( self.get_initial_value(t) for t in initial_value )
         elif type(initial_value) is tuple:

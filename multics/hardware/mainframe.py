@@ -302,7 +302,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
     def _resolve_path(self, path):
         original_path = path
         
-        path = path.lstrip("<").rstrip(">").replace(">>", ">").replace("<>", "<").replace("><", "<")
+        path = path.lstrip("<").rstrip(">").replace(">>", ">").replace("<>", "<").replace("><", "<") or original_path
         l = re.split("([<>])", path)
         root = {'>':'>'}.get(path[0], "")
         l = [ x for x in l if x and x != ">" ]

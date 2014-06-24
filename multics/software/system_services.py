@@ -481,7 +481,7 @@ class SystemTimer(object):
                 else:
                     self.__callback_slot()
                     
-            except ProgramCondition as condition:
+            except NonLocalGoto as condition:
                 self.__system_services.signal_condition(get_calling_process_(), condition)
         
     def triggered(self):

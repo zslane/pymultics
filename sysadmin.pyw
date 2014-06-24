@@ -164,7 +164,7 @@ class ProjectUsersTableView(QtGui.QTableView):
     def __init__(self, parent=None):
         super(ProjectUsersTableView, self).__init__(parent)
         
-class ProjectDefinitionTableModel(QtCore.QAbstractItemModel):
+class ProjectDefinitionTableModel(QtCore.QAbstractTableModel):
     def __init__(self, filepath, parent=None):
         super(ProjectDefinitionTableModel, self).__init__(parent)
         

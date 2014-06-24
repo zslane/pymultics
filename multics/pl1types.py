@@ -47,6 +47,48 @@ class parameter(object):
 
 parm = parameter
 
+class FileOp(object):
+    def __init__(self, file_obj):
+        self.file_obj = file_obj
+        
+class OpenFileOp(FileOp):
+    def title(self, path):
+        self.file_obj.path = path
+        return self
+    @property
+    def stream(self):
+        self.file_obj.type = "stream"
+        return self
+    @property
+    def record(self):
+        self.file_obj.type = "record"
+        return self
+    @property
+    def input(self):
+        if self.file_obj.type == "stream":
+            self.file_obj.f = open(self.file_obj.path, "r")
+        else:
+            self.file_obj.f = open(self.file_obj.path, "rb")
+        return self
+    @property
+    def output(self):
+        if self.file_obj.type == "stream":
+            self.file_obj.f = open(self.file_obj.path, "w")
+        else:
+            self.file_obj.f = open(self.file_obj.path, "wb")
+        return self
+        
+class ReadFileOp(FileOp):
+    def into(self, input_parm):
+        if self.file_obj.type == "stream":
+            input_parm.value = self.file_obj.f.readline().strip()
+        else:
+            input_parm.value = self.file_obj.f.read()
+        
+class CloseFileOp(object):
+    def __init__(self, file_obj):
+        file_obj.f.close()
+            
 class PL1(object):
 
     Integer = 0
@@ -380,6 +422,28 @@ class PL1(object):
         def __repr__(self):
             refstring = "(sized by '%s')" % self.dynamic_size_ref if self.dynamic_size_ref else "(%d)" % (len(self))
             return "<PL1.Array %s %s>" % (refstring, repr(self[:]))
+    
+    class file(object):
+        def __init__(self):
+            self.path = ""
+            self.type = "record"
+            self.f = None
+        
+    class Opener(object):
+        def __init__(self):
+            self.file = OpenFileOp
+        
+    class Reader(object):
+        def __init__(self):
+            self.file = ReadFileOp
+        
+    class Closer(object):
+        def __init__(self):
+            self.file = CloseFileOp
+    
+    open = Opener()
+    read = Reader()
+    close = Closer()
         
 #-- end class PL1
 

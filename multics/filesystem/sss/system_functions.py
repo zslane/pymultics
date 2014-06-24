@@ -30,10 +30,6 @@ def clock():
 def shutdown_started_():
     return system.shutdown_started()
     
-@system_privileged
-def vfile_(multics_path):
-    return system.hardware.filesystem.path2path(multics_path)
-    
 def resolve_path_symbol_(path_symbol):
     process = get_calling_process_()
     symbols = {

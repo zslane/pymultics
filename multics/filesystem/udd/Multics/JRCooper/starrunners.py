@@ -5,12 +5,12 @@ from multics.globals import *
 include.pit
 include.query_info
 
-class goto_command_loop(ProgramCondition): pass
-class goto_end_of_game(ProgramCondition): pass
+class goto_command_loop(NonLocalGoto): pass
+class goto_end_of_game(NonLocalGoto): pass
 
 dcl (get_pdir_               = entry . returns (char(168)))
 dcl (clock_                  = entry . returns (fixed.bin(36)))
-dcl (vfile_                  = entry . returns (char(168)))
+# dcl (vfile_                  = entry . returns (char(168)))
 
 #== True global variables (that aren't parm types)
 pdir                         = ""
@@ -1093,9 +1093,9 @@ def starrunners():
                     return
                 else: return
             elif input.val[:12] == "set dial to ":
-                if verify(input.val[12:], "1234567890") != 0: call.ioa_("(DR) ERROR: No such dial setting -- {0}", input.val[12:])
+                if verify(after(input.val, "to "), "1234567890") != 0: call.ioa_("(DR) ERROR: No such dial setting -- {0}", after(input.val, "to "))
                 else:
-                    x = int(input.val[12:])
+                    x = int(after(input.val, "to "))
                     if x > 100: call.ioa_("(DR) ERROR: No such dial setting -- {0}", x)
                     elif x == 55 and not red_switch: call.ioa_("Dial is locked.")
                     elif x == 0 and grey_switch and activated:
@@ -1568,7 +1568,7 @@ def starrunners():
     #-- end def robotship_report
     
     def escape_to_multics():
-        command = input.val[1:]
+        command = after(input.val, ":")
         call.do(command)
     #-- end def escape_to_multics
     
@@ -2151,7 +2151,7 @@ def starrunners():
                 if universe.robot[robot_index(ROBOT)].energy < 200: action.val = "dock"
                 elif universe.robot[robot_index(ROBOT)].condition == "DOCKING": action.val = "dock"
             #-- end def health_check
-         
+            
             def move_or_contact(action):
                 x = (clock_() % 10) + 1
                 if x < 3: return
@@ -2258,29 +2258,27 @@ def starrunners():
             #-- end def robot_move
             
             def robot_send_msg():
-                # open file (msg_file) title ("vfile_ " || dname || ">" || "sv4.4.text") stream input;
-                # read file (msg_file) into (msg);
-                msg_file = open(vfile_(dname + ">" + "sv4.4.text"))
-                msg = msg_file.readline()
-                
-                count = int(msg)
+                dcl (msg_file = PL1.file,
+                     msg      = parm)
+
+                PL1.open.file(msg_file).title(vfile_(dname + ">" + "sv4.4.text")).stream.input
+                PL1.read.file(msg_file).into(msg)
+                count = int(msg.val)
                 which = (clock_() % count) + 1
                 for x in range(which):
-                    # read file (msg_file) into (msg);
-                    msg = msg_file.readline()
-                # end for
-                # close file (msg_file);
-                msg_file.close()
+                    PL1.read.file(msg_file).into(msg)
+                # end if
+                PL1.close.file(msg_file)
                 which = (clock_() % universe.number) + 1
                 for x in range(which):
                     edir = universe.pdir[x]
                     call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
-                    if enemy.ptr != null() and x == which:
+                    if enemy.ptr != null() and x == which - 1:
                         lock(enemy.ship)
                         with enemy.ship:
                             enemy.ship.fromtype = "RobotShip"
                             enemy.ship.fromname = ROBOT
-                            enemy.ship.message = msg
+                            enemy.ship.message = msg.val
                         # end with
                         unlock(enemy.ship)
                     # end if
@@ -2304,7 +2302,7 @@ def starrunners():
             # end for
             
         #-- end def hack_robot_actions
-
+        
         if my.ship.condition != "DOCKING":
             rand_new_robot()
             take_free_robot()
@@ -2460,10 +2458,6 @@ def starrunners():
     def unlock(lock_bit):
         call.set_lock_.unlock(lock_bit, code)
     #-- end def unlock
-    
-    def verify(x, y):
-        return len(set(x) - set(y))
-    #-- end def verify
     
     # /***** STAR ADMIN SYSTEM *****/
 

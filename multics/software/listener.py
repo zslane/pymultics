@@ -29,7 +29,7 @@ class Listener(SystemExecutable):
             now = datetime.datetime.now()
             delta, self.__prev_command_time = now - self.__prev_command_time, now
             
-            ready_message = "r %s %0.3f %d" % (now.strftime("%H%M"), delta.total_seconds(), call.segfault_count)
+            ready_message = "r %s %0.3f %d" % (now.strftime("%H%M"), delta.seconds + (delta.microseconds / 10.0**6), call.segfault_count)
             call.ioa_(ready_message)
     
     def _main_loop(self):
