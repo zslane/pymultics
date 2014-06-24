@@ -98,3 +98,114 @@ interactive process directly via its _process_mbx timer. If the system could spa
 other threads in addition to the LoginSessionManager, then these other threads
 could become daemons with their own processes, and message delivery could be
 off-loaded to them.
+
+import os
+
+def vfile_(p):
+    root = r"Z:\Documents\scripts\SystemP\multics\filesystem"
+    p = p.replace(">", "\\").strip("\\")
+    return os.path.join(root, p)
+
+class parm(object):
+    def __init__(self, value=None):
+        self.value = value
+        
+class FileOp(object):
+    def __init__(self, file_obj):
+        self.file_obj = file_obj
+        
+class OpenFileOp(FileOp):
+    def title(self, path):
+        self.file_obj.path = path
+        return self
+    @property
+    def stream(self):
+        self.file_obj.type = "stream"
+        return self
+    @property
+    def record(self):
+        self.file_obj.type = "record"
+        return self
+    @property
+    def input(self):
+        if self.file_obj.type == "stream":
+            self.file_obj.f = open(self.file_obj.path, "r")
+        else:
+            self.file_obj.f = open(self.file_obj.path, "rb")
+        return self
+    @property
+    def output(self):
+        if self.file_obj.type == "stream":
+            self.file_obj.f = open(self.file_obj.path, "w")
+        else:
+            self.file_obj.f = open(self.file_obj.path, "wb")
+        return self
+        
+class ReadFileOp(FileOp):
+    def into(self, input_parm):
+        if self.file_obj.type == "stream":
+            input_parm.value = self.file_obj.f.readline().strip()
+        else:
+            input_parm.value = self.file_obj.f.read()
+        
+class CloseFileOp(object):
+    def __init__(self, file_obj):
+        file_obj.f.close()
+            
+class PL1(object):
+    
+    class file(object):
+        def __init__(self):
+            self.path = ""
+            self.type = "record"
+            self.f = None
+        
+    class Opener(object):
+        def __init__(self):
+            self.file = OpenFileOp
+        
+    class Reader(object):
+        def __init__(self):
+            self.file = ReadFileOp
+        
+    class Closer(object):
+        def __init__(self):
+            self.file = CloseFileOp
+    
+    open = Opener()
+    read = Reader()
+    close = Closer()
+    
+1. timedelta.total_seconds becomes timedelta.seconds + (timedelta.microseconds / 10.0**6)
+
+
+2. _resolve_path: add "or original_path"
+
+
+3. sysadmin.pyw: Change base class of ProjectDefinitionTableModel to QAbstractTableModel.
+
+
+dname = ">udd>Multics>Games>dbd"
+msg_file = PL1.file
+msg      = parm()
+PL1.open.file(msg_file).title(vfile_(dname + ">" + "sv4.4.text")).stream.input
+PL1.read.file(msg_file).into(msg)
+print msg.value
+count = int(msg.value)
+for i in range(count):
+    PL1.read.file(msg_file).into(msg)
+    print msg.value
+PL1.close.file(msg_file)
+
+def before(s, p):
+    return s.partition(p)[0]
+
+def after(s, p):
+    return s.partition(p)[-1]
+
+def verify(s, p):
+    for i, c in enumerate(s):
+        if not c in p:
+            return i + 1
+    return 0
+    
