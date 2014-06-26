@@ -20,15 +20,14 @@ class VirtualMulticsHardware(QtCore.QObject):
         t = QtCore.QThread.currentThread()
         t.setObjectName("Multics.Supervisor")
         
-        if "-clean" in init_args:
-            self._del_locks_directory()
-            
         self._create_hardware_resources()
 
         #== Create hardware subsystems
         self.__io_subsystem = IOSubsystem()
         self.__filesystem = VirtualMulticsFileSystem(init_args)
-
+        self.__locks_mutex = QtCore.QMutex()
+        self.__locks = {}
+        
         system_includes_path = os.path.join(self.filesystem.path2path(self.filesystem.system_library_standard), "includes")
         if system_includes_path not in sys.path:
             sys.path.append(system_includes_path)
@@ -36,7 +35,6 @@ class VirtualMulticsHardware(QtCore.QObject):
     def _create_hardware_resources(self):
         self.__startup_time = self._load_hardware_statefile()
         self.__clock = HardwareClock(self.__startup_time)
-        self._create_locks_directory()
         self.announce = "Virtual Multics Hardware %s Initialized" % (self.__version__)
 
     @property
@@ -58,10 +56,6 @@ class VirtualMulticsHardware(QtCore.QObject):
     def shutdown(self):
         self.__io_subsystem.shutdown()
         self._del_hardware_statefile()
-        self._del_locks_directory()
-        
-    def locks_dir(self):
-        return os.path.join(os.path.dirname(__file__), "locks")
     
     def _load_hardware_statefile(self):
         hardware_statefile_path = os.path.join(os.path.dirname(__file__), ".hardware_state")
@@ -90,20 +84,27 @@ class VirtualMulticsHardware(QtCore.QObject):
             os.remove(hardware_statefile_path)
         except:
             pass
-            
-    def _create_locks_directory(self):
-        locks_dir = self.locks_dir()
-        try:
-            os.mkdir(locks_dir)
-            with open(os.path.join(locks_dir, ".hardware_directory"), "wb") as f:
-                pass
-        except:
-            pass
+    
+    def generate_lock_word(self):
+        return HardwareLock.generate_id()
         
-    def _del_locks_directory(self):
-        locks_dir = self.locks_dir()
-        shutil.rmtree(locks_dir, ignore_errors=True)
-
+    def acquire_hardware_lock(self, lock_word, process_id, wait_time, code):
+        # process_id = get_calling_process_().id() <-- caller (e.g., set_lock_.lock) should do this and pass it in
+        self.__locks_mutex.lock()
+        lock = self.__locks.setdefault(lock_word, HardwareLock())
+        self.__locks_mutex.unlock()
+        
+        valid_process_list = self.__system_services.whotab.get_process_ids()
+        lock.acquire(process_id, valid_process_list, wait_time, code)
+        
+    def release_hardware_lock(self, lock_word, process_id, code):
+        # process_id = get_calling_process_().id() <-- caller (e.g., set_lock_.unlock) should do this and pass it in
+        lock = self.__locks.get(lock_word)
+        if lock:
+            lock.release(process_id, code)
+        else:
+            code.val = error_table_.lock_not_locked
+        
 class HardwareClock(QtCore.QObject):
 
     def __init__(self, wall_time):
@@ -133,7 +134,7 @@ class IOSubsystem(QtCore.QObject):
         self.__linefeed = False
         self.__break_signal = False
         self.__closed_signal = False
-        self.__terminal = None
+        self.__console = None
         self.__terminal_process_id = 0
 
     def _receive_string(self, s):
@@ -152,17 +153,17 @@ class IOSubsystem(QtCore.QObject):
         self.terminalClosed.emit()
     
     def attach_terminal(self, terminal):
-        self.__terminal = terminal
-        if self.__terminal:
-            self.__terminal.heartbeat.connect(self.heartbeat)
-            self.__terminal.io.textEntered.connect(self._receive_string)
-            self.__terminal.io.lineFeed.connect(self._receive_linefeed)
-            self.__terminal.io.breakSignal.connect(self._receive_break)
-            self.__terminal.closed.connect(self._close_terminal)
-            self.disconnect.connect(self.__terminal.disconnect)
+        self.__console = terminal
+        if self.__console:
+            self.__console.heartbeat.connect(self.heartbeat)
+            self.__console.io.textEntered.connect(self._receive_string)
+            self.__console.io.lineFeed.connect(self._receive_linefeed)
+            self.__console.io.breakSignal.connect(self._receive_break)
+            self.__console.closed.connect(self._close_terminal)
+            self.disconnect.connect(self.__console.disconnect)
             
     def disconnect_terminal(self):
-        if self.__terminal:
+        if self.__console:
             self.disconnect.emit()
     
     def attach_tty_process(self, process_id):
@@ -175,42 +176,66 @@ class IOSubsystem(QtCore.QObject):
     def attached_tty_process(self):
         return self.__terminal_process_id
         
-    def linefeed_received(self):
-        flag, self.__linefeed = self.__linefeed, False
-        return flag
+    def linefeed_received(self, tty_channel=None):
+        if tty_channel:
+            return tty_channel.linefeed_received()
+        else:
+            flag, self.__linefeed = self.__linefeed, False
+            return flag
         
-    def break_received(self):
-        flag, self.__break_signal = self.__break_signal, False
-        return flag
+    def break_received(self, tty_channel=None):
+        if tty_channel:
+            return tty_channel.break_received()
+        else:
+            flag, self.__break_signal = self.__break_signal, False
+            return flag
         
-    def terminal_closed(self):
-        return self.__closed_signal
+    def terminal_closed(self, tty_channel=None):
+        if tty_channel:
+            return tty_channel.terminal_closed()
+        else:
+            return self.__closed_signal
         
-    def has_input(self):
-        return self.__input_buffer != []
+    def has_input(self, tty_channel=None):
+        if tty_channel:
+            return tty_channel.has_input()
+        else:
+            return self.__input_buffer != []
 
-    def get_input(self):
+    def get_input(self, tty_channel=None):
         try:
-            return self.__input_buffer.pop(0)
+            if tty_channel:
+                return tty_channel.get_input()
+            else:
+                return self.__input_buffer.pop(0)
         except:
             return None
     
-    def flush_input(self):
-        self.__input_buffer = []
-        self.__break_signal = False
-        self.__linefeed = False
+    def flush_input(self, tty_channel=None):
+        if tty_channel:
+            tty_channel.flush_input()
+        else:
+            self.__input_buffer = []
+            self.__break_signal = False
+            self.__linefeed = False
         
-    def set_input_mode(self, mode):
-        if self.__terminal:
-            self.__terminal.setEchoMode.emit(mode)
+    def set_input_mode(self, mode, tty_channel=None):
+        if tty_channel:
+            tty_channel.setEchoMode(mode)
+        elif self.__console:
+            self.__console.setEchoMode.emit(mode)
         
-    def put_output(self, s):
-        if self.__terminal:
-            self.__terminal.transmitString.emit(s)
+    def put_output(self, s, tty_channel=None):
+        if tty_channel:
+            tty_channel.transmitString(s)
+        elif self.__console:
+            self.__console.transmitString.emit(s)
 
-    def shutdown(self):
-        if self.__terminal:
-            self.__terminal.shutdown.emit()
+    def shutdown(self, tty_channel=None):
+        if tty_channel:
+            tty_channel.shutdown()
+        elif self.__console:
+            self.__console.shutdown.emit()
         
 class VirtualMulticsFileSystem(QtCore.QObject):
 
@@ -546,28 +571,61 @@ class MemoryMappedIOPtr(object):
             return 0
         except:
             return error_table_.fileioerr
+            
+    def lock_word(self):
+        import zlib
+        return (zlib.crc32(self.__filepath) & 0xFFFFFFFF)
         
     def __repr__(self):
         return repr(self.__data)
         
-class LockedSegment(object):
+class HardwareLock(QtCore.QObject):
 
-    def __init__(self, memory_mapped_ptr, timeout):
-        self.__ptr = memory_mapped_ptr
-        self.__timeout = timeout
+    unique_lock_id = 0
+    gen_mutex      = QtCore.QMutex()
+    
+    def __init__(self):
+        super(HardwareLock, self).__init__()
+        self.semaphore = QtCore.QSemaphore(1)
+        self.process_id = 0
         
-    def __enter__(self):
-        declare (code = parm)
-        call.set_lock_.lock(self.__ptr, self.__timeout, code)
-        if code.val != 0:
-            self.__ptr = None
-        return code.val
+    @staticmethod
+    def generate_id():
+        HardwareLock.gen_mutex.lock()
+        HardwareLock.unique_lock_id += 1
+        HardwareLock.gen_mutex.unlock()
+        return HardwareLock.unique_lock_id
         
-    def __exit__(self, etype, value, traceback):
-        declare (code = parm)
-        if etype:
-            pass
-        elif self.__ptr:
-            self.__ptr._update()
-            call.set_lock_.unlock(self.__ptr, code)
+    def acquire(self, process_id, valid_process_list, timeout, code):
+        if self.process_id == process_id:
+            code.val = error_table_.locked_by_this_process
+            return
+            
+        if self.process_id and (self.process_id not in valid_process_list):
+            self.semaphore.release() # invalid_lock_reset
+            #== ...and then try to acquire it
+            
+        if self.semaphore.tryAcquire(1, timeout * 1000):
+            #== Double-check this...
+            if self.process_id and (self.process_id not in valid_process_list):
+                code.val = error_table_.invalid_lock_reset
+            else:
+                code.val = 0
+            # end if
+            self.process_id = process_id
+        else:
+            # lock_wait_time_exceeded
+            code.val = error_table_.lock_wait_time_exceeded
+        
+    def release(self, process_id, code):
+        if self.semaphore.available():
+            code.val = error_table_.lock_not_locked
+            
+        elif self.process_id != process_id:
+            code.val = error_table_.locked_by_other_process
+            
+        else:
+            self.process_id = 0
+            self.semaphore.release()
+            code.val = 0
             

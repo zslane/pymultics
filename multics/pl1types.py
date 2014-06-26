@@ -269,9 +269,10 @@ class PL1(object):
                         initial_size = self.__dict__[attr.dynamic_size_ref]
                         self.__dict__[attr.dynamic_size_ref] = DynamicArraySizer(attr)
                         if initial_size:
-                            self.__dict__[attr.dynamic_size_ref] += initial_size
+                            self.__dict__[attr.dynamic_size_ref] += int(initial_size)
                         # end if
-                        del attr.__dict__['size']
+                        # del attr.__dict__['size']
+                        attr.__dict__['size'] = self.__dict__[attr.dynamic_size_ref]
                     # end if
                 # end if
             # end for
@@ -374,13 +375,29 @@ class PL1(object):
         def initialize(self, value):
             return self.init(value)
             
-        def append(self, element):
-            super(PL1.Array, self).append(element)
+        def append(self, element=None):
+            if element is None:
+                if type(self.attrs) is dict:
+                    super(PL1.Array, self).append(PL1.Structure(**self.attrs))
+                else:
+                    super(PL1.Array, self).append(self.attrs)
+                # end if
+            else:
+                super(PL1.Array, self).append(element)
+            # end if
             if self.size:
                 self.size.pushing()
             
-        def insert(self, where, element):
-            super(PL1.Array, self).insert(where, element)
+        def insert(self, where, element=None):
+            if element is None:
+                if type(self.attrs) is dict:
+                    super(PL1.Array, self).insert(where, PL1.Structure(**self.attrs))
+                else:
+                    super(PL1.Array, self).insert(where, self.attrs)
+                # end if
+            else:
+                super(PL1.Array, self).insert(where, element)
+            # end if
             if self.size:
                 self.size.pushing()
             
@@ -399,6 +416,12 @@ class PL1(object):
             super(PL1.Array, self).__delitem__(index)
             if self.size:
                 self.size.popping(n - len(self))
+                
+        def __setitem__(self, index, value):
+            if type(value) is PL1.Structure:
+                super(PL1.Array, self).__setitem__(index, value.copy())
+            else:
+                super(PL1.Array, self).__setitem__(index, value)
         
         def _expand(self, num_elements):
             for i in range(num_elements):
@@ -423,7 +446,7 @@ class PL1(object):
             refstring = "(sized by '%s')" % self.dynamic_size_ref if self.dynamic_size_ref else "(%d)" % (len(self))
             return "<PL1.Array %s %s>" % (refstring, repr(self[:]))
     
-    class file(object):
+    class File(object):
         def __init__(self):
             self.path = ""
             self.type = "record"
@@ -475,6 +498,8 @@ class BasedPointer(parameter):
         self.__dict__['__based_type'] = data
     def reset(self):
         self(self.__dict__['__based_type'])
+    def alloc(self):
+        return self.__dict__['__based_type'].copy()
     def __repr__(self):
         return "<BasedPointer of: %s>" % (repr(self.value))
         

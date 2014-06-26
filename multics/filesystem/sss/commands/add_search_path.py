@@ -1,7 +1,8 @@
 
 from multics.globals import *
 
-from sl_info import *
+# from sl_info import *
+include.sl_info
 
 @system_privileged
 def add_search_path():
@@ -27,10 +28,10 @@ def add_search_path():
     
     call.search_paths_.get(sl_name, null(), sl_info_ptr, sl_info_version_1, code)
     if code.val == error_table_.no_search_list:
-        sl_info_ptr.data = sl_info_structure()
+        sl_info_ptr.sl_info = alloc(sl_info_p) # make a fresh sl_info object
     # end if
     
-    insert_where = len(sl_info_ptr.data.paths) # append to end by default
+    insert_where = len(sl_info_ptr.sl_info.paths) # append to end by default
     
     i = 0
     while i < len(arg_list.args):
@@ -39,11 +40,11 @@ def add_search_path():
             insert_where = 0
         elif arg_list.args[i] == "-last":
             i += 1
-            insert_where = len(sl_info_ptr.data.paths) # append to end
+            insert_where = len(sl_info_ptr.sl_info.paths) # append to end
         elif arg_list.args[i] == "-before":
             i += 1
             if i < len(arg_list.args):
-                insert_where = _find_index(sl_info_ptr.data.paths, arg_list.args[i])
+                insert_where = _find_index(sl_info_ptr.sl_info.paths, arg_list.args[i])
                 if insert_where == -1:
                     call.ioa_("{0} not found in search list {1}", arg_list.args[i], sl_name)
                     return
@@ -56,7 +57,7 @@ def add_search_path():
         elif arg_list.args[i] == "-after":
             i += 1
             if i < len(arg_list.args):
-                insert_where = _find_index(sl_info_ptr.data.paths, arg_list.args[i])
+                insert_where = _find_index(sl_info_ptr.sl_info.paths, arg_list.args[i])
                 if insert_where == -1:
                     call.ioa_("{0} not found in search list {1}", arg_list.args[i], sl_name)
                     return
@@ -71,13 +72,19 @@ def add_search_path():
         # end if
     # end while
     
-    info = sl_info_path()
-    info.pathname = new_path
-    sl_info_ptr.data.paths.insert(insert_where, info)
+    # info = sl_info_path()
+    # info.pathname = new_path
+    # sl_info_ptr.sl_info.paths.insert(insert_where, info)
+    sl_info_ptr.sl_info.paths.insert(insert_where)
+    # sl_info_ptr.sl_info.num_paths += 1
+    # for i in range(len(sl_info_ptr.sl_info.paths), insert_where + 1, -1):
+        # sl_info_ptr.sl_info.paths[i - 1] = sl_info_ptr.sl_info.paths[i - 2].copy()
+    sl_info_ptr.sl_info.paths[insert_where].pathname = new_path
+    
     call.search_paths_.set(sl_name, null(), sl_info_ptr, code)
     if code.val == error_table_.action_not_performed:
         call.ioa_("Invalid path {0}", new_path)
-    print code.val, [ p.pathname for p in sl_info_ptr.data.paths ]
+    print code.val, [ p.pathname for p in sl_info_ptr.sl_info.paths ]
     
 asp = add_search_path
 

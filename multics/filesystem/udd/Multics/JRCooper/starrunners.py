@@ -2258,9 +2258,9 @@ def starrunners():
             #-- end def robot_move
             
             def robot_send_msg():
-                dcl (msg_file = PL1.file,
+                dcl (msg_file = PL1.File,
                      msg      = parm)
-
+                
                 PL1.open.file(msg_file).title(vfile_(dname + ">" + "sv4.4.text")).stream.input
                 PL1.read.file(msg_file).into(msg)
                 count = int(msg.val)

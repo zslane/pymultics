@@ -27,9 +27,6 @@ class set_lock_(SystemExecutable):
             file_lock = FileLock(segment_data_ptr, process_id, wait_time, process_id_list.ids)
             code.val = file_lock.acquire()
             
-            # file_lock2 = HardwareFileLock(self.system.hardware, segment_data_ptr, process_id, wait_time, process_id_list.ids)
-            # file_lock2.acquire()
-            
             #== Make sure that if we had to wait for the lock that the previous locker
             #== wasn't locking it in order to safely delete it. If the file has been
             #== deleted, then return error_table_.no_directory_entry in the result code.
@@ -110,83 +107,6 @@ class FileLock(object):
                 elif self.invalid_lock_id():
                     code = error_table_.invalid_lock_reset
                     break
-                    
-                if (self.timeout != FOREVER and
-                    (time.clock() - start_time) >= self.timeout):
-                    raise FileLockException(error_table_.lock_wait_time_exceeded)
-                else:
-                    check_conditions_()
-                    
-                time.sleep(self.delay)
-                
-        self.is_locked = True
-        return code
-    
-    def release(self):
-        """ Get rid of the lock by deleting the lockfile. 
-        """
-        if self.is_locked:
-            os.unlink(self.lockfile)
-            self.is_locked = False
-    
-    def invalid_lock_id(self):
-        fd = os.open(self.lockfile, os.O_RDWR)
-        process_id_string = os.read(fd, 32)
-        lock_owner_process_id = int(process_id_string)
-        is_invalid = lock_owner_process_id not in self.process_id_list
-        if is_invalid:
-            os.lseek(fd, 0, 0)
-            os.write(fd, str(self.process_id))
-        # end if
-        os.close(fd)
-        return is_invalid
-        
-class HardwareFileLock(object):
-    
-    def __init__(self, hardware, segment_data_ptr, process_id, timeout, process_id_list):
-        """ Prepare the file locker. Specify the file to lock and optionally
-            the maximum timeout and the delay between each attempt to lock.
-        """
-        import zlib
-        dirname = hardware.locks_dir()
-        filename = str(zlib.crc32(segment_data_ptr._filepath()) & 0xFFFFFFFF) + ".lock"
-        self.is_locked = False
-        self.lockfile = os.path.join(dirname, filename)
-        self.timeout = timeout
-        self.process_id_list = process_id_list
-        self.process_id = process_id
-        self.delay = 0.05
-        self.fd = None
-    
-    def __del__(self):
-        """ Make sure that the FileLock instance doesn't leave a lockfile
-            lying around.
-        """
-        self.release()
-    
-    def acquire(self):
-        """ Acquire the lock, if possible. If the lock is in use, it check again
-            every self.delay seconds. It does this until it either gets the lock or
-            exceeds self.timeout number of seconds, in which case it throws 
-            an exception.
-        """
-        FOREVER = -1
-        code = 0
-        start_time = time.clock()
-        while True:
-            try:
-                self.fd = os.open(self.lockfile, os.O_CREAT|os.O_EXCL|os.O_RDWR)
-                os.write(self.fd, str(self.process_id))
-                os.close(self.fd)
-                break;
-                
-            except OSError as e:
-                if e.errno == errno.EPERM:
-                    raise FileLockException(error_table_.no_w_permission)
-                elif e.errno != errno.EEXIST:
-                    raise FileLockException(e.errno)
-                # elif self.invalid_lock_id():
-                    # code = error_table_.invalid_lock_reset
                     
                 if (self.timeout != FOREVER and
                     (time.clock() - start_time) >= self.timeout):

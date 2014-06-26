@@ -24,6 +24,14 @@ def verify(s, p):
     
 def vfile_(multics_path):
     return GlobalEnvironment.supervisor.hardware.filesystem.path2path(multics_path)
+
+def alloc(objtype):
+    if type(objtype) is PL1.Structure:
+        return objtype.copy()
+    elif type(objtype) is BasedPointer:
+        return objtype.alloc()
+    else:
+        return objtype()
     
 class MulticsCondition(Exception):
     def __init__(self, arg=""):
@@ -366,7 +374,7 @@ class declare(object):
         if type(initial_value) is PL1.Type:
             return initial_value.toPython()
         elif initial_value is PL1.file:
-            return PL1.file()
+            return PL1.File()
         elif type(initial_value) is list:
             return list( self.get_initial_value(t) for t in initial_value )
         elif type(initial_value) is tuple:

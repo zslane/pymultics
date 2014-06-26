@@ -4,8 +4,7 @@ from multics.globals import *
 @system_privileged
 def print_(*func_args):
 
-    declare (vfile_    = entry . returns (char(168)),
-             arg_list  = parm,
+    declare (arg_list  = parm,
              directory = parm,
              full      = parm,
              segment   = parm,

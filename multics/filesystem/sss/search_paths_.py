@@ -1,7 +1,8 @@
 
 from multics.globals import *
 
-from sl_info import *
+include.sl_info
+# from sl_info import *
 from sl_list import *
 
 SEARCH_PATH_SYMBOLS = [
@@ -19,11 +20,16 @@ class search_paths_(SystemExecutable):
     def _default_search_list(self):
         if self.__default_search_list is None:
             paths_to_add = ["-working_dir", ">sss", ">sss>commands", "-home_dir"]
-            self.__default_search_list = sl_info_structure()
-            for path in paths_to_add:
-                info = sl_info_path()
-                info.pathname = path
-                self.__default_search_list.paths.append(info)
+            # self.__default_search_list = sl_info_structure()
+            # for path in paths_to_add:
+                # info = sl_info_path()
+                # info.pathname = path
+                # self.__default_search_list.paths.append(info)
+            # end for
+            self.__default_search_list = alloc(sl_info_p) #sl_info.copy()
+            for i in range(len(paths_to_add)):
+                self.__default_search_list.num_paths += 1
+                self.__default_search_list.paths[i].pathname = paths_to_add[i]
             # end for
         # end if
         return self.__default_search_list
@@ -78,11 +84,11 @@ class search_paths_(SystemExecutable):
     
     def find_dir(self, sl_name, search_seg_ptr, entryname, dir_name, code):
         declare (resolve_path_symbol_ = entry . returns (char(168)),
-                 sl_info              = parm,
+                 sl_info_get          = parm,
                  code                 = parm)
-        self.get(sl_name, search_seg_ptr, sl_info, sl_info_version_1, code)
+        self.get(sl_name, search_seg_ptr, sl_info_get, sl_info_version_1, code)
         if code.val == 0:
-            for path in sl_info.ptr.paths:
+            for path in sl_info_get.ptr.paths:
                 path = resolve_path_symbol_(path.pathname)
                 native_path = self.system.fs.path2path(path, entryname)
                 if self.system.fs.file_exists(native_path):
@@ -95,18 +101,21 @@ class search_paths_(SystemExecutable):
     
     def find_all(self, sl_name, search_seg_ptr, entryname, sl_info_ptr, code):
         declare (resolve_path_symbol_ = entry . returns (char(168)),
-                 sl_info              = parm,
+                 sl_info_get          = parm,
                  code                 = parm)
-        self.get(sl_name, search_seg_ptr, sl_info, sl_info_version_1, code)
+        self.get(sl_name, search_seg_ptr, sl_info_get, sl_info_version_1, code)
         if code.val == 0:
-            sl_info_ptr.data = sl_info_structure()
-            for path in sl_info.ptr.paths:
+            # sl_info_ptr.data = sl_info_structure()
+            sl_info_ptr.data = alloc(sl_info_p) #sl_info.copy()
+            for path in sl_info_get.ptr.paths:
                 path = resolve_path_symbol_(path.pathname)
                 native_path = self.system.fs.path2path(path, entryname)
                 if self.system.fs.file_exists(native_path):
-                    info = sl_info_path()
-                    info.pathname = path
-                    sl_info_ptr.data.paths.append(info)
+                    # info = sl_info_path()
+                    # info.pathname = path
+                    # sl_info_ptr.data.paths.append(info)
+                    sl_info_ptr.data.num_paths += 1
+                    sl_info_ptr.data.paths[sl_info_ptr.data.num_paths - 1].pathname = path
                 # end if
             # end for
             if sl_info_ptr.data.paths == []:
@@ -123,8 +132,13 @@ class search_paths_(SystemExecutable):
             return
         # end if
         
-        sl_info_ptr.data = sl_info_structure()
-        sl_info_ptr.data.paths = search_seg_ptr.paths[sl_name].paths[:]
+        # sl_info_ptr.data = sl_info_structure()
+        # sl_info_ptr.data.paths = search_seg_ptr.paths[sl_name].paths[:]
+        
+        sl_info_ptr.data = alloc(sl_info_p) #sl_info.copy()
+        for i in range(len(search_seg_ptr.paths[sl_name].paths)):
+            sl_info_ptr.data.num_paths += 1
+            sl_info_ptr.data.paths[sl_info_ptr.data.num_paths - 1] = search_seg_ptr.paths[sl_name].paths[i] # PL1.Array __setitem__ creates a copy of rhs
         code.val = 0
         
     def set(self, sl_name, search_seg_ptr, sl_info_ptr, code):
