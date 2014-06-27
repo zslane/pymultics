@@ -179,6 +179,7 @@ class ProcessThread(QtCore.QThread):
         super(ProcessThread, self).__init__()
         
         self.worker = worker
+        self.tty_channel = None
         
         self.setObjectName(self.worker.uid() + ".Thread")
         
@@ -220,6 +221,9 @@ class ProcessThread(QtCore.QThread):
         
     def gid(self):
         return self.worker.gid()
+        
+    def tty(self):
+        return self.tty_channel
           
 #-- end class ProcessThread
 
@@ -254,6 +258,10 @@ class VirtualMulticsProcess(QtCore.QObject):
         
     def isRunning(self):
         return self.thread.isRunning()
+        
+    def attach_tty(self, tty_channel):
+        tty_channel.moveToThread(self.thread)
+        self.thread.tty_channel = tty_channel
         
     def __repr__(self):
         return "<%s.%s %s>" % (__name__, self.__class__.__name__, self.objectName())

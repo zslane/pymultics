@@ -3,8 +3,9 @@ import datetime
 from pprint import pprint
 
 from ..globals import *
+from tty import TTYChannel
 
-from PySide import QtCore, QtGui
+from PySide import QtCore, QtGui, QtNetwork
 
 include.pnt
 include.pdt
@@ -246,3 +247,68 @@ class AnsweringService(SystemExecutable):
             print "Adding name " + pnt_ptr.name_entries[person_id].alias + " to home directory"
             self.supervisor.fs.add_name(homedir, pnt_ptr.name_entries[person_id].alias)
             
+SERVER_NAME = "localhost"
+SERVER_PORT = 6800
+
+class RFSListener(QtNetwork.QTcpServer):
+
+    def __init__(self, pending_login_ttys, parent=None):
+        super(RFSListener, self).__init__(parent)
+        self.ME = self.__class__.__name__
+        self.__rfs_port = SERVER_PORT
+        self.__new_com_port = SERVER_PORT
+        self.__recycled_com_ports = []
+        self.__handshakers = []
+        self.__pending_login_ttys = pending_login_ttys
+        
+    def _get_next_available_com_port(self):
+        if self.__recycled_com_ports != []:
+            return self.__recycled_com_ports.pop(0)
+        # end if
+        self.__new_com_port += 1
+        return self.__new_com_port
+        
+    def start(self):
+        if self.listen(self.__rfs_port):
+            self.newConnection.connect(self.respond_to_rfs)
+            print self.ME, "listening on port", self.__rfs_port
+        else:
+            print self.ME, self.errorString()
+    
+    def recycle_com_port(self, port_num):
+        print self.ME, "recycling port", port_num
+        self.__recycled_com_ports.append(port_num)
+        
+    @QtCore.Slot()
+    def respond_to_rfs(self):
+        #== Get the incoming 'request for service' socket
+        socket = self.nextPendingConnection()
+        socket.setSocketOption(QtNetwork.QAbstractSocket.LowDelayOption, 1)
+        print self.ME, "respond_to_rfs:", socket.localPort(), socket.localAddress().toString()
+        
+        #== Get a port for ongoing communication and create a 'handshaker' to facilitate the
+        #== switch-over to the new com port
+        com_port = self._get_next_available_com_port()
+        handshaker = QtNetwork.QTcpServer(self)
+        #== Start listening on the new com port
+        if handshaker.listen(com_port):
+            print self.ME, "listening to com port:", com_port
+            handshaker.newConnection.connect(lambda: self.add_com_connection(handshaker))
+            self.__handshakers.append(handshaker)
+            
+            #== Send a packet to the client indicating the (permanent) com port number to switch over to
+            socket.write(QtCore.QByteArray("ATTACH:%d" % (com_port)))
+            if not socket.waitForBytesWritten():
+                print self.ME, "ERROR: Client not responding to handshake"
+    
+    def add_com_connection(self, handshaker):
+        socket = handshaker.nextPendingConnection()
+        socket.setSocketOption(QtNetwork.QAbstractSocket.LowDelayOption, 1)
+        socket.disconnected.connect(lambda: self.recycle_com_port(socket.localPort()))
+        
+        tty_channel = TTYChannel(socket)
+        self.__pending_login_ttys.append(tty_channel)
+        
+        handshaker.close()
+        self.__handshakers.remove(handshaker)
+        

@@ -7,10 +7,12 @@ class ioa_(SystemExecutable):
         
     def procedure(self, format_string="", *args, **kwargs):
         print self._format(format_string, *args, **kwargs)
-        self.system.llout(self._format(format_string, *args, **kwargs) + "\n")
+        tty_channel = get_calling_process_().tty()
+        self.system.llout(self._format(format_string, *args, **kwargs) + "\n", tty_channel)
         
     def nnl(self, format_string="", *args, **kwargs):
-        self.system.llout(self._format(format_string, *args, **kwargs))
+        tty_channel = get_calling_process_().tty()
+        self.system.llout(self._format(format_string, *args, **kwargs), tty_channel)
     
     def rs(self, format_string, return_string, *args, **kwargs):
         return_string.val = self._format(format_string, *args, **kwargs) + "\n"

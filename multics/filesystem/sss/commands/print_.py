@@ -60,8 +60,10 @@ def print_(*func_args):
         
         lines = file_text.split("\n")
         
+        tty_channel = get_calling_process_().tty()
+        
         if print_header:
-            system.llout("%s:\n\n\n" % (segment.name))
+            system.llout("%s:\n\n\n" % (segment.name), tty_channel)
             page_size = 20
         # end if
         
@@ -70,13 +72,13 @@ def print_(*func_args):
         # end if
         count = 0
         for i in range(begin, end):
-            system.llout(lines[i] + "\n")
+            system.llout(lines[i] + "\n", tty_channel)
             count += 1
             if count % page_size == 0:
                 page_size = 24
-                system.llout("(press Enter to continue)")
-                system.llin(block=True)
-                system.llout("\n")
+                system.llout("(press Enter to continue)", tty_channel)
+                system.llin(block=True, tty_channel=tty_channel)
+                system.llout("\n", tty_channel)
             # end if
         # end for
     # end if

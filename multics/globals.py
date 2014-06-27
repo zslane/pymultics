@@ -373,7 +373,7 @@ class declare(object):
     def get_initial_value(self, initial_value):
         if type(initial_value) is PL1.Type:
             return initial_value.toPython()
-        elif initial_value is PL1.file:
+        elif initial_value is PL1.File:
             return PL1.File()
         elif type(initial_value) is list:
             return list( self.get_initial_value(t) for t in initial_value )

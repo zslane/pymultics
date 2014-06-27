@@ -203,16 +203,16 @@ class SystemServices(QtCore.QObject):
     #== These functions can be used to do basic TTY I/O in the absence of
     #== a process
     
-    def llout(self, s, target_tty=None):
-        self.__hardware.io.put_output(s, target_tty)
+    def llout(self, s, tty_channel=None):
+        self.__hardware.io.put_output(s, tty_channel)
         
-    def llin(self, block=False, target_tty=None):
-        while not self.__hardware.io.has_input(target_tty) and block:
+    def llin(self, block=False, tty_channel=None):
+        while not self.__hardware.io.has_input(tty_channel) and block:
         
-            if self.__hardware.io.terminal_closed(target_tty):
+            if self.__hardware.io.terminal_closed(tty_channel):
                 raise DisconnectCondition
             # end if
-            if self.__hardware.io.break_received(target_tty):
+            if self.__hardware.io.break_received(tty_channel):
                 print "Break signal detected by " + get_calling_process_().objectName()
                 raise BreakCondition
             # end if
@@ -231,10 +231,10 @@ class SystemServices(QtCore.QObject):
             self._msleep(self.IDLE_DELAY_TIME) # in milliseconds
         # end while
         
-        if self.__hardware.io.terminal_closed(target_tty):
+        if self.__hardware.io.terminal_closed(tty_channel):
             raise DisconnectCondition
         # end if
-        if self.__hardware.io.break_received(target_tty):
+        if self.__hardware.io.break_received(tty_channel):
             print "Break signal detected by " + get_calling_process_().objectName()
             raise BreakCondition
         # end if
@@ -248,14 +248,14 @@ class SystemServices(QtCore.QObject):
             raise condition_instance
         # end if
         
-        input = self.__hardware.io.get_input(target_tty)
+        input = self.__hardware.io.get_input(tty_channel)
         return input
         
-    def wait_for_linefeed(self, target_tty=None):
-        while not self.__hardware.io.linefeed_received(target_tty):
+    def wait_for_linefeed(self, tty_channel=None):
+        while not self.__hardware.io.linefeed_received(tty_channel):
             QtCore.QCoreApplication.processEvents()
             
-            if self.__hardware.io.terminal_closed(target_tty):
+            if self.__hardware.io.terminal_closed(tty_channel):
                 raise DisconnectCondition
             # end if
             if self.shutting_down():
@@ -265,10 +265,10 @@ class SystemServices(QtCore.QObject):
             
             self._msleep(self.IDLE_DELAY_TIME) # in milliseconds
         # end while
-        self.__hardware.io.flush_input(target_tty)
+        self.__hardware.io.flush_input(tty_channel)
         
-    def set_input_mode(self, mode, target_tty=None):
-        self.__hardware.io.set_input_mode(mode, target_tty)
+    def set_input_mode(self, mode, tty_channel=None):
+        self.__hardware.io.set_input_mode(mode, tty_channel)
         
     def make_timer(self, interval, callback, data=None):
         timer = SystemTimer(self, interval, callback, data)
@@ -292,8 +292,8 @@ class SystemServices(QtCore.QObject):
     
     #== BREAK CONDITION HANDLING ==#
     
-    def signal_break(self, target_tty=None):
-        self.__hardware.io.put_output("BREAK\n", target_tty)
+    def signal_break(self, tty_channel=None):
+        self.__hardware.io.put_output("BREAK\n", tty_channel)
         self._on_condition__break()
         
     def signal_condition(self, signalling_process, condition_instance):

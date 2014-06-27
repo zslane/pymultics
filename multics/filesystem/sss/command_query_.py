@@ -23,7 +23,7 @@ class command_query_(SystemExecutable):
                 
             answer.val = self._get_input(block=True)
             if info_ptr.echo_answer_sw:
-                self.system.llout(answer.val + "\n")
+                call.ioa_(answer.val)
             # end if
             
             call.timer_manager_.reset_alarm_call(self._repeat_question)
@@ -55,7 +55,8 @@ class command_query_(SystemExecutable):
             answer.val = answer.val.strip()
     
     def _get_input(self, block=False):
-        return self.system.llin(block)
+        tty_channel = get_calling_process_().tty()
+        return self.system.llin(block, tty_channel)
         
     def _repeat_question(self, question):
         call.ioa_.nnl(question)
