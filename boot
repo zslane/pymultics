@@ -6,11 +6,11 @@ app = QApplication([])
 
 from multics import *
 
-terminal = TerminalWindow()
-terminal.show()
+console = ConsoleWindow()
+console.show()
 
 hardware = VirtualMulticsHardware(sys.argv)
-hardware.attach_terminal(terminal)
+hardware.attach_console(console)
 
 multics = hardware.boot_OS()
 multics.start()

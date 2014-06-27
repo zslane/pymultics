@@ -67,7 +67,7 @@ class TTYChannel(QtCore.QObject):
         # end if
         if data_packet.length() > 0:
             self.__linefeed = False
-            self.__input_buffer.append(data_packet.toString().strip())
+            self.__input_buffer.append(data_packet.data().strip())
     
     @QtCore.Slot("QAbstractSocket.SocketError")
     def socket_error(self, error):
@@ -88,7 +88,7 @@ class TTYChannel(QtCore.QObject):
         return flag
         
     def terminal_closed(self):
-        return not (self.__socket.isValid() and self.__socket.state() == QtCore.QAbstractSocket.ConnectedState)
+        return not (self.__socket.isValid() and self.__socket.state() == QtNetwork.QAbstractSocket.ConnectedState)
         
     def has_input(self):
         return self.__input_buffer != []
@@ -128,5 +128,4 @@ class TTYChannel(QtCore.QObject):
             self.__socket.write(QtCore.QByteArray(s))
             
     def disconnect(self):
-        if not self.terminal_closed():
-            self.__socket.close()
+        pass

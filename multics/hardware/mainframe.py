@@ -44,8 +44,8 @@ class VirtualMulticsHardware(QtCore.QObject):
     @property
     def filesystem(self): return self.__filesystem
 
-    def attach_terminal(self, terminal):
-        self.__io_subsystem.attach_terminal(terminal)
+    def attach_console(self, console):
+        self.__io_subsystem.attach_console(console)
 
     def boot_OS(self):
         from ..software.system_services import SystemServices
@@ -152,8 +152,8 @@ class IOSubsystem(QtCore.QObject):
         self.__closed_signal = True
         self.terminalClosed.emit()
     
-    def attach_terminal(self, terminal):
-        self.__console = terminal
+    def attach_console(self, console):
+        self.__console = console
         if self.__console:
             self.__console.heartbeat.connect(self.heartbeat)
             self.__console.io.textEntered.connect(self._receive_string)
@@ -162,7 +162,7 @@ class IOSubsystem(QtCore.QObject):
             self.__console.closed.connect(self._close_terminal)
             self.disconnect.connect(self.__console.disconnect)
             
-    def disconnect_terminal(self):
+    def disconnect_console(self):
         if self.__console:
             self.disconnect.emit()
     

@@ -28,6 +28,7 @@ class AnsweringService(SystemExecutable):
         self.__person_name_table = None
         self.__project_definition_tables = {}
         self.__whotab = None
+        self.__pending_login_ttys = []
         self.exit_code = 0
         
     def start(self, owning_process):
@@ -180,13 +181,18 @@ class AnsweringService(SystemExecutable):
         self.__person_name_table = self.supervisor.pnt
         self.__project_definition_tables = self.supervisor.pdt
         self.__whotab = self.supervisor.whotab
+        
         msg_handlers = {
             'upload_pmf_request': self._upload_pmf_request_handler,
         }
         self.__process.register_msg_handlers(msg_handlers)
         
+        self.rfs_listener = RFSListener(self.__pending_login_ttys, self)
+        self.rfs_listener.start()
+        
     def _cleanup(self):
-        pass
+        print "Shutting down RFS listener"
+        self.rfs_listener.close()
         
     def _upload_pmf_request_handler(self, message):
         declare (pnt  = parm,
@@ -269,7 +275,7 @@ class RFSListener(QtNetwork.QTcpServer):
         return self.__new_com_port
         
     def start(self):
-        if self.listen(self.__rfs_port):
+        if self.listen(port=self.__rfs_port):
             self.newConnection.connect(self.respond_to_rfs)
             print self.ME, "listening on port", self.__rfs_port
         else:
@@ -291,7 +297,7 @@ class RFSListener(QtNetwork.QTcpServer):
         com_port = self._get_next_available_com_port()
         handshaker = QtNetwork.QTcpServer(self)
         #== Start listening on the new com port
-        if handshaker.listen(com_port):
+        if handshaker.listen(port=com_port):
             print self.ME, "listening to com port:", com_port
             handshaker.newConnection.connect(lambda: self.add_com_connection(handshaker))
             self.__handshakers.append(handshaker)
@@ -303,11 +309,13 @@ class RFSListener(QtNetwork.QTcpServer):
     
     def add_com_connection(self, handshaker):
         socket = handshaker.nextPendingConnection()
+        com_port = socket.localPort()
         socket.setSocketOption(QtNetwork.QAbstractSocket.LowDelayOption, 1)
-        socket.disconnected.connect(lambda: self.recycle_com_port(socket.localPort()))
+        socket.disconnected.connect(lambda: self.recycle_com_port(com_port))
         
         tty_channel = TTYChannel(socket)
         self.__pending_login_ttys.append(tty_channel)
+        print self.ME, "created tty channel", tty_channel.id
         
         handshaker.close()
         self.__handshakers.remove(handshaker)

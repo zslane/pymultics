@@ -11,5 +11,5 @@ def logout():
     if len(arg_list.args) == 1:
         arg = arg_list.args.pop(0)
         if arg == "-disconnect" or arg == "-d":
-            system.hardware.io.disconnect_terminal()
+            system.hardware.io.disconnect_console()
             
