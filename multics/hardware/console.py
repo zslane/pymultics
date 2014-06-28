@@ -35,7 +35,7 @@ class ConsoleIO(QtGui.QWidget):
 
         self.output = QtGui.QTextEdit()
         self.output.setReadOnly(True)
-        self.output.setStyleSheet("QTextEdit { font-family: '%s'; font-size: %dpt; color: lightgreen; background: black; border: 0px; }" % (FONT_NAME, FONT_SIZE))
+        self.output.setStyleSheet("QTextEdit { font-family: '%s'; font-size: %dpt; color: gold; background: black; border: 0px; }" % (FONT_NAME, FONT_SIZE))
         self.output.setFontFamily(FONT_NAME)
         self.output.setFontPointSize(FONT_SIZE)
         self.output.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -55,7 +55,7 @@ class ConsoleIO(QtGui.QWidget):
         output_frame.setLayout(output_layout)
         
         self.input = KeyboardIO()
-        self.input.setStyleSheet("QLineEdit { font-family: '%s'; font-size: %dpt; color: lightgreen; background: black; }" % (FONT_NAME, FONT_SIZE))
+        self.input.setStyleSheet("QLineEdit { font-family: '%s'; font-size: %dpt; color: gold; background: black; }" % (FONT_NAME, FONT_SIZE))
         self.input.returnPressed.connect(self._process_input)
         self.input.lineFeed.connect(self._process_line_feed)
         self.input.breakSignal.connect(self._process_break_signal)
@@ -128,7 +128,7 @@ class ConsoleWindow(QtGui.QMainWindow):
         self.shutdown.connect(self.io.shutdown)
         
         self.setCentralWidget(self.io)
-        self.setWindowTitle("Virtual VT220 Terminal")
+        self.setWindowTitle("System Console")
         self.setStyleSheet("QWidget, QMainWindow { background: #444444; border: 1px solid #252525; }")
         
         HEARTBEAT_PERIOD = 200

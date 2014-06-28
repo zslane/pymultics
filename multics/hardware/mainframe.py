@@ -166,14 +166,14 @@ class IOSubsystem(QtCore.QObject):
         if self.__console:
             self.disconnect.emit()
     
-    def attach_tty_process(self, process_id):
+    def attach_console_process(self, process_id):
         self.__terminal_process_id = process_id
         
-    def detach_tty_process(self, process_id):
+    def detach_console_process(self, process_id):
         if self.__terminal_process_id == process_id:
             self.__terminal_process_id = 0
             
-    def attached_tty_process(self):
+    def attached_console_process(self):
         return self.__terminal_process_id
         
     def linefeed_received(self, tty_channel=None):
@@ -221,13 +221,13 @@ class IOSubsystem(QtCore.QObject):
         
     def set_input_mode(self, mode, tty_channel=None):
         if tty_channel:
-            tty_channel.setEchoMode(mode)
+            tty_channel.set_input_mode(mode)
         elif self.__console:
             self.__console.setEchoMode.emit(mode)
         
     def put_output(self, s, tty_channel=None):
         if tty_channel:
-            tty_channel.transmitString(s)
+            tty_channel.put_output(s)
         elif self.__console:
             self.__console.transmitString.emit(s)
 

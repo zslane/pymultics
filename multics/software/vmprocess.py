@@ -126,7 +126,8 @@ class ProcessWorker(QtCore.QObject):
             call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
     
     def _main_loop(self):
-        self.supervisor.llout("New process for %s started on %s\n" % (self.uid(), datetime.datetime.now().ctime()))
+        # self.supervisor.llout("New process for %s started on %s\n" % (self.uid(), datetime.datetime.now().ctime()))
+        call.ioa_("New process for {0} started on {1}", self.uid(), datetime.datetime.now().ctime())
         code = self.__process_env.core_function.start(self)
         return code
     
@@ -260,8 +261,9 @@ class VirtualMulticsProcess(QtCore.QObject):
         return self.thread.isRunning()
         
     def attach_tty(self, tty_channel):
-        tty_channel.moveToThread(self.thread)
-        self.thread.tty_channel = tty_channel
+        if tty_channel:
+            tty_channel.moveToThread(self.thread)
+            self.thread.tty_channel = tty_channel
         
     def __repr__(self):
         return "<%s.%s %s>" % (__name__, self.__class__.__name__, self.objectName())
@@ -310,4 +312,6 @@ class VirtualMulticsProcess(QtCore.QObject):
     def gid(self):
         return self.worker.gid()
         
+    def tty(self):
+        return self.thread.tty()
     

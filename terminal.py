@@ -1,3 +1,4 @@
+import re
 
 from PySide import QtCore, QtGui, QtNetwork
 
@@ -11,9 +12,39 @@ CONTROL_CODE       = chr(17) # Device Control 1
 UNKNOWN_CODE       = chr(0)
 ECHO_NORMAL_CODE   = chr(1)
 ECHO_PASSWORD_CODE = chr(2)
+ASSIGN_PORT_CODE   = chr(26) # Substitute
+END_CONTROL_CODE   = chr(4)  # End of Transmission
 
 LINEFEED_CODE      = chr(10) # Linefeed
 BREAK_CODE         = chr(24) # Cancel
+
+class DataPacket(object):
+
+    def __init__(self, byte_array):
+        self.data = byte_array.data()
+        
+    def is_empty(self):
+        return len(self.data) == 0
+        
+    def is_control_seq(self):
+        return self.data != "" and re.match(CONTROL_CODE + ".+" + END_CONTROL_CODE, self.data, re.DOTALL) != None
+        
+    def extract_control_data(self):
+        if self.is_control_seq():
+            m = re.match(CONTROL_CODE + "(.)(.*)" + END_CONTROL_CODE + "(.*)", self.data, re.DOTALL)
+            data_code = m.group(1)
+            payload   = m.group(2)
+            self.data = m.group(3)
+            return (data_code, payload)
+        # end if
+        return (None, None)
+        
+    def extract_plain_data(self):
+        data, control_code, the_rest = self.data.partition(CONTROL_CODE)
+        self.data = control_code + the_rest
+        return data
+
+#-- end class DataPacket
 
 class KeyboardIO(QtGui.QLineEdit):
 
@@ -134,29 +165,34 @@ class TerminalIO(QtGui.QWidget):
         
     @QtCore.Slot()
     def data_available(self):
-        byte_array = self.socket.readAll()
-        if byte_array.startsWith("ATTACH:"):
-            self.com_port = int(byte_array.replace("ATTACH:", ""))
-            print self.ME, "disconnecting and reconnecting on port", self.com_port
-            self.socket.close()
-            
-        elif byte_array[0] == CONTROL_CODE:
-            data_code = byte_array[1]
-            if data_code == ECHO_NORMAL_CODE:
-                self.input.setEchoMode(QtGui.QLineEdit.Normal)
-            elif data_code == ECHO_PASSWORD_CODE:
-                self.input.setEchoMode(QtGui.QLineEdit.Password)
+        data_packet = DataPacket(self.socket.readAll())
+        while not data_packet.is_empty():
+            if data_packet.is_control_seq():
+                data_code, payload = data_packet.extract_control_data()
                 
-        else:
-            s = byte_array.toString()
-            self.display(s)
+                if data_code == ASSIGN_PORT_CODE:
+                    self.com_port = int(payload)
+                    print self.ME, "disconnecting and reconnecting on port", self.com_port
+                    self.socket.close()
+                    
+                elif data_code == ECHO_NORMAL_CODE:
+                    self.input.setEchoMode(QtGui.QLineEdit.Normal)
+                    
+                elif data_code == ECHO_PASSWORD_CODE:
+                    self.input.setEchoMode(QtGui.QLineEdit.Password)
+                    
+                else:
+                    raise ValueError("unknown control data code %d" % (ord(data_code)))
+                # end if
+            else:
+                self.display(data_packet.extract_plain_data())
         
     @QtCore.Slot()
     def send_string(self):
-        s = self.input.text().strip()
+        s = self.input.text().strip() or "\n"
         self.input.clear()
-        if s and self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
-            print self.ME, "sending:", s
+        if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
+            print self.ME, "sending:", repr(s)
             n = self.socket.write(QtCore.QByteArray(s))
             print self.ME, n, "bytes sent"
     
@@ -164,14 +200,14 @@ class TerminalIO(QtGui.QWidget):
     def send_linefeed(self):
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
             print self.ME, "sending LINEFEED"
-            n = self.socket.write(QtCore.QByteArray(CONTROL_CODE + LINEFEED_CODE))
+            n = self.socket.write(QtCore.QByteArray(CONTROL_CODE + LINEFEED_CODE + END_CONTROL_CODE))
             print self.ME, n, "bytes sent"
             
     @QtCore.Slot()
     def send_break_signal(self):
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
             print self.ME, "sending BREAK signal"
-            n = self.socket.write(QtCore.QByteArray(CONTROL_CODE + BREAK_CODE))
+            n = self.socket.write(QtCore.QByteArray(CONTROL_CODE + BREAK_CODE + END_CONTROL_CODE))
             print self.ME, n, "bytes sent"    
     
     def written(self, nbytes):
@@ -215,6 +251,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.setCentralWidget(self.io)
         self.setWindowTitle("Virtual VT220 Terminal")
         self.setStyleSheet("QLineEdit, QMainWindow { background: #444444; border: 1px solid #252525; }")
+        # self.setFixedSize(821, 596)
         
         self.palette = QtGui.QPalette()
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444))
@@ -225,6 +262,11 @@ class TerminalWindow(QtGui.QMainWindow):
         self.statusBar().showMessage("Ready")
         
         self.move(300, 50)
+        
+        QtCore.QTimer.singleShot(0, self.startup)
+        
+    def startup(self):
+        self.setFixedSize(self.size())
         
     @QtCore.Slot(str)
     def set_status(self, data):

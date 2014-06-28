@@ -1,3 +1,4 @@
+import re
 
 from PySide import QtCore, QtGui, QtNetwork
 
@@ -5,6 +6,8 @@ CONTROL_CODE       = chr(17) # Device Control 1
 UNKNOWN_CODE       = chr(0)
 ECHO_NORMAL_CODE   = chr(1)
 ECHO_PASSWORD_CODE = chr(2)
+ASSIGN_PORT_CODE   = chr(26) # Substitute
+END_CONTROL_CODE   = chr(4)  # End of Transmission
 
 LINEFEED_CODE      = chr(10) # Linefeed
 BREAK_CODE         = chr(24) # Cancel
@@ -49,25 +52,25 @@ class TTYChannel(QtCore.QObject):
         
     @QtCore.Slot()
     def data_available(self):
-        data_packet = self.__socket.readAll() # readAll() returns a QByteArray
-        if data_packet.isEmpty():
-            return
-        # end if
-        if data_packet[0] == CONTROL_CODE:
-            #== We assume that if the data packet contains a CONTROL_CODE
-            #== byte, then the data code byte is in the packet as well
-            data_code = data_packet[1]
-            if data_code == LINEFEED_CODE:
-                self.__linefeed = True
-            elif data_code == BREAK_CODE:
+        data_packet = DataPacket(self.__socket.readAll())
+        while not data_packet.is_empty():
+            if data_packet.is_control_seq():
+                data_code, payload = data_packet.extract_control_data()
+                if data_code == LINEFEED_CODE:
+                    print "tty", self.id, "received LINEFEED"
+                    self.__linefeed = True
+                elif data_code == BREAK_CODE:
+                    print "tty", self.id, "received BREAK"
+                    self.__linefeed = False
+                    self.__break_signal = True
+                else:
+                    raise ValueError("unknown control data code %d received" % (ord(data_code)))
+                # end if
+            else:
+                s = data_packet.extract_plain_data().strip()
+                print "tty", self.id, "received", repr(s)
                 self.__linefeed = False
-                self.__break_signal = True
-            # end if
-            data_packet.remove(0, 2) # remove the control/data byte pair
-        # end if
-        if data_packet.length() > 0:
-            self.__linefeed = False
-            self.__input_buffer.append(data_packet.data().strip())
+                self.__input_buffer.append(s)
     
     @QtCore.Slot("QAbstractSocket.SocketError")
     def socket_error(self, error):
@@ -112,20 +115,54 @@ class TTYChannel(QtCore.QObject):
     def set_input_mode(self, mode):
         if not self.terminal_closed():
             if mode == QtGui.QLineEdit.Normal:
+                print "Sending ECHO_NORMAL_CODE out tty channel", self.id
                 mode_code = ECHO_NORMAL_CODE
             elif mode == QtGui.QLineEdit.Password:
+                print "Sending ECHO_PASSWORD_CODE out tty channel", self.id
                 mode_code = ECHO_PASSWORD_CODE
             else:
                 mode_code = UNKNOWN_CODE
             # end if
-            self.__socket.write(QtCore.QByteArray(CONTROL_CODE + mode_code))
+            self.__socket.write(QtCore.QByteArray(CONTROL_CODE + mode_code + END_CONTROL_CODE))
             if not self.__socket.waitForBytesWritten(3000):
-                print self.ME, "failed sending new input mode to tty channel id", self.id()
+                print self.ME, "failed sending new input mode to tty channel id", self.id
                 self.disconnect()
         
     def put_output(self, s):
         if not self.terminal_closed():
+            print "Sending string out tty channel", self.id
+            print s
             self.__socket.write(QtCore.QByteArray(s))
             
     def disconnect(self):
         pass
+        
+#-- end class TTYChannel
+
+class DataPacket(object):
+
+    def __init__(self, byte_array):
+        self.data = byte_array.data()
+        
+    def is_empty(self):
+        return len(self.data) == 0
+        
+    def is_control_seq(self):
+        return self.data != "" and re.match(CONTROL_CODE + ".+" + END_CONTROL_CODE, self.data, re.DOTALL) != None
+        
+    def extract_control_data(self):
+        if self.is_control_seq():
+            m = re.match(CONTROL_CODE + "(.)(.*)" + END_CONTROL_CODE + "(.*)", self.data, re.DOTALL)
+            data_code = m.group(1)
+            payload   = m.group(2)
+            self.data = m.group(3)
+            return (data_code, payload)
+        # end if
+        return (None, None)
+        
+    def extract_plain_data(self):
+        data, control_code, the_rest = self.data.partition(CONTROL_CODE)
+        self.data = control_code + the_rest
+        return data
+
+#-- end class DataPacket

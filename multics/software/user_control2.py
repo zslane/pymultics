@@ -2,6 +2,8 @@ import datetime
 
 from ..globals import *
 
+from PySide import QtCore, QtGui
+
 class UserControl(object):
 
     #== EXTERNAL STATES ==#
@@ -20,7 +22,7 @@ class UserControl(object):
     TIMEOUT_PERIOD = 60 * 1 # 1 minute
     
     def __init__(self, supervisor, pnt, pdt, whotab, tty_channel):
-        self.__supervisor = supervisor
+        self.supervisor = supervisor
         self.__person_name_table = pnt
         self.__project_definition_tables = pdt
         self.__whotab = whotab
@@ -38,10 +40,10 @@ class UserControl(object):
         
     @property
     def hardware(self):
-        return self.__supervisor.hardware
+        return self.supervisor.hardware
     
     def do_state(self):
-        if self.tty.terminal_closed():
+        if self._terminal_closed():
             return self._set_state(self.DISCONNECTED)
         elif self.__state == self.WAITING_FOR_LINEFEED:
             return self._wait_for_linefeed()
@@ -77,6 +79,8 @@ class UserControl(object):
             return self.CONTINUE
             
     #== User I/O is directly through the hardware's I/O subsystem
+    def _terminal_closed(self):
+        return self.hardware.io.terminal_closed(self.tty)
     def _linefeed_received(self):
         return self.hardware.io.linefeed_received(self.tty)
     def _break_received(self):
@@ -204,7 +208,7 @@ class UserControl(object):
         elif self._has_input():
             self._set_input_mode(QtGui.QLineEdit.Normal)
             password = self._get_input()
-            user_lookup = self._authenticate(self.__login_options, password): # _authenticate() prints all our error messages for us
+            user_lookup = self._authenticate(self.__login_options, password) # _authenticate() prints all our error messages for us
             if user_lookup:
                 person_id, pdt = user_lookup
                 self.__login_options['person_id'] = person_id
