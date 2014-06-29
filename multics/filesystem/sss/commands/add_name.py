@@ -18,8 +18,8 @@ def add_name():
     names = arg_list.args
     
     call.sys_.get_abs_path(path, full_path)
-    if system.fs.file_exists(full_path.val):
+    if supervisor.fs.file_exists(full_path.val):
         for name in names:
-            system.fs.add_name(full_path.val, name)
+            supervisor.fs.add_name(full_path.val, name)
 
 an = add_name

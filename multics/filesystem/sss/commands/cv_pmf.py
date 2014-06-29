@@ -21,8 +21,8 @@ def cv_pmf():
     pdt_file = project_id + ".pdt"
     
     current_dir = get_wdir_()
-    pmf_path = system.hardware.filesystem.path2path(current_dir, pmf_file)
-    if not system.hardware.filesystem.file_exists(pmf_path):
+    pmf_path = supervisor.fs.path2path(current_dir, pmf_file)
+    if not supervisor.fs.file_exists(pmf_path):
         call.ioa_("{0}.pmf file not found", project_id)
         return
     # end if
@@ -38,7 +38,7 @@ def cv_pmf():
         pdtab.add_user(user['person_id'], user.get('home_dir', ""), user.get('command_processor', ""))
     # end for
     pprint(pdtab)
-    pdt_path = system.hardware.filesystem.path2path(current_dir, pdt_file)
+    pdt_path = supervisor.fs.path2path(current_dir, pdt_file)
     with open(pdt_path, "wb") as f:
         pickle.dump(pdtab, f)
     # end with

@@ -14,12 +14,12 @@ from PySide import QtCore, QtGui
 include.login_info
 include.sl_info
 
-class SystemServices(QtCore.QObject):
+class Supervisor(QtCore.QObject):
 
     IDLE_DELAY_TIME = 20
     
     def __init__(self, hardware):
-        super(SystemServices, self).__init__()
+        super(Supervisor, self).__init__()
         self.setObjectName("Multics.Supervisor")
         
         self.__hardware = hardware
@@ -40,7 +40,7 @@ class SystemServices(QtCore.QObject):
         self.__hardware.io.terminalClosed.connect(self._kill_daemons)
         self.__hardware.io.heartbeat.connect(self._heartbeat)
         
-        GlobalEnvironment.register_system_services(self, self.__dynamic_linker)
+        GlobalEnvironment.register_supervisor(self, self.__dynamic_linker)
         
         from process_overseer import ProcessOverseer, ProcessStack
         self.__process_overseer = ProcessOverseer(self)
@@ -109,7 +109,6 @@ class SystemServices(QtCore.QObject):
     
     def _on_condition__break(self):
         # do cleanup ... like clearing application timers and stuff
-        # self.__session_thread._on_condition__break()
         pass
         
     #== STARTUP/SHUTDOWN ==#
@@ -122,7 +121,7 @@ class SystemServices(QtCore.QObject):
         self.add_system_timer(DEFAULT_SHUTDOWN_TIME, self._shutdown_task)
         
     def shutdown(self):
-        print get_calling_process_().objectName() + " calling system_services.shutdown()"
+        print get_calling_process_().objectName() + " calling supervisor.shutdown()"
         self.__shutdown_signal = True
         timer = self.add_system_timer(3, self._shutdown_procedure)
         timer.start()
@@ -446,8 +445,8 @@ class SystemServices(QtCore.QObject):
     
 class SystemTimer(object):
 
-    def __init__(self, system_services, interval, callback_slot, callback_args=None):
-        self.__system_services = system_services
+    def __init__(self, supervisor, interval, callback_slot, callback_args=None):
+        self.__supervisor = supervisor
         self.__interval_time = interval # assumed to be in seconds
         self.__callback_slot = callback_slot
         self.__callback_args = callback_args
@@ -483,7 +482,7 @@ class SystemTimer(object):
                     self.__callback_slot()
                     
             except NonLocalGoto as condition:
-                self.__system_services.signal_condition(get_calling_process_(), condition)
+                self.__supervisor.signal_condition(get_calling_process_(), condition)
         
     def triggered(self):
         if self.__started:
@@ -503,11 +502,11 @@ class SystemTimer(object):
             return False
             
 class SegmentDescriptor(QtCore.QObject):
-    def __init__(self, system_services, segment_name, path_to_segment, module_containing_segment):
+    def __init__(self, supervisor, segment_name, path_to_segment, module_containing_segment):
         self.name = segment_name
         self.path = path_to_segment
-        self.fs = system_services.fs
-        self.last_modified = system_services.fs.get_mod_data(path_to_segment)
+        self.fs = supervisor.fs
+        self.last_modified = supervisor.fs.get_mod_data(path_to_segment)
         self.module = module_containing_segment
         
         entry_point = getattr(module_containing_segment, segment_name)
@@ -519,7 +518,7 @@ class SegmentDescriptor(QtCore.QObject):
             if SystemSubroutine in base_classes:
                 #== Instantiate one and return the object
                 # print "Creating SystemSubroutine segment"
-                self.segment = entry_point(system_services)
+                self.segment = entry_point(supervisor)
                 
             #== Is it an Subroutine-derived class?
             elif Subroutine in inspect.getmro(entry_point):
@@ -557,11 +556,11 @@ class DynamicLinker(QtCore.QObject):
         "sys_",
     ]
     
-    def __init__(self, system_services):
+    def __init__(self, supervisor):
         super(DynamicLinker, self).__init__()
         
-        self.__system_services = system_services
-        self.__filesystem = system_services.hardware.filesystem
+        self.__supervisor = supervisor
+        self.__filesystem = supervisor.hardware.filesystem
         self.__system_function_table = {}
         self.__system_segment_table = {}
         self.__segfault_count = 0
@@ -585,7 +584,7 @@ class DynamicLinker(QtCore.QObject):
                         obj = getattr(module, symbol)
                         if isinstance(obj, (types.FunctionType, types.BuiltinFunctionType)):
                             # print "...adding", symbol, obj
-                            self.__system_function_table[symbol] = SegmentDescriptor(self.__system_services, symbol, module_path, module)
+                            self.__system_function_table[symbol] = SegmentDescriptor(self.__supervisor, symbol, module_path, module)
     
     def __getattr__(self, entry_point_name):
         entry_point = self.snap(entry_point_name)
@@ -599,13 +598,13 @@ class DynamicLinker(QtCore.QObject):
         import traceback
         traceback.print_exc()
         excmsg = traceback.format_exc().replace("{", "{{").replace("}", "}}")
-        self.__system_services.llout(excmsg)
+        self.__supervisor.llout(excmsg)
         
     #== Called by hcs_ ==#
     
     #== clear_kst() won't be necessary once KSTs are stored on the new Process objects.
     # def clear_kst(self):
-        # process = self.__system_services.get_calling_process()
+        # process = self.__supervisor.get_calling_process()
         # process.clear_kst()
     
     @property
@@ -620,7 +619,7 @@ class DynamicLinker(QtCore.QObject):
             return process.kst()
         except:
             return self.__system_segment_table
-            # return self.__system_services.session_thread.kst()
+            # return self.__supervisor.session_thread.kst()
         
     def load(self, dir_name, segment_name):
         # print "Trying to load", dir_name, segment_name
@@ -690,7 +689,7 @@ class DynamicLinker(QtCore.QObject):
                         self.dump_traceback_()
                         raise InvalidSegmentFault(segment_name)
                         
-                    self.known_segment_table[segment_name] = SegmentDescriptor(self.__system_services, segment_name, module_path, module)
+                    self.known_segment_table[segment_name] = SegmentDescriptor(self.__supervisor, segment_name, module_path, module)
                     entry_point = self.known_segment_table[segment_name].segment
                     # print "   found", entry_point
                     return entry_point

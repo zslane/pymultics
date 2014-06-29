@@ -25,8 +25,8 @@ class cu_(SystemSubroutine):
         def __repr__(self):
             return "<context: '%s', '%s', %s>" % (self.program_name, self.argument_string, self.command_processor)
         
-    def __init__(self, system_services):
-        super(cu_, self).__init__(self.__class__.__name__, system_services)
+    def __init__(self, supervisor):
+        super(cu_, self).__init__(self.__class__.__name__, supervisor)
         # self.__default_context = cu_.context()
         self.__contexts = defaultdict(list)
         # self.__contexts[_process_id()].append(cu_.context())

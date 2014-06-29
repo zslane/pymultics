@@ -31,7 +31,7 @@ class old_user_control(CommandProcessor):
         self.__whotab = None
         
     def display_login_banner(self):
-        load = len(os.listdir(self.supervisor.hardware.filesystem.path2path(self.supervisor.hardware.filesystem.process_dir_dir)))
+        load = len(os.listdir(self.supervisor.fs.path2path(self.supervisor.fs.process_dir_dir)))
         self.supervisor.llout("\nVirtual Multics MR0.2: %s, %s\nLoad = %0.1f out of %0.1f: users = %d\n" % (
             self.supervisor.site_config['site_location'],
             self.supervisor.site_config['site_name'],

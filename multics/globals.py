@@ -23,7 +23,7 @@ def verify(s, p):
     return 0
     
 def vfile_(multics_path):
-    return GlobalEnvironment.supervisor.hardware.filesystem.path2path(multics_path)
+    return GlobalEnvironment.supervisor.fs.path2path(multics_path)
 
 def alloc(objtype):
     if type(objtype) is PL1.Structure:
@@ -125,10 +125,10 @@ class Subroutine(QtCore.QObject):
             return super(Subroutine, self).__repr__()
     
 class SystemSubroutine(Subroutine):
-    def __init__(self, segment_name, system_services):
+    def __init__(self, segment_name, supervisor):
         super(SystemSubroutine, self).__init__(segment_name)
         
-        self.system = system_services
+        self.supervisor = supervisor
         
 class CommandProcessor(Subroutine):
     def __init__(self, segment_name):
@@ -148,7 +148,7 @@ class CommandProcessor(Subroutine):
     # # end while
     # return pframe
     
-# _system_services = None
+# _supervisor = None
 call = None
 
 class GlobalEnvironment(object):
@@ -157,7 +157,7 @@ class GlobalEnvironment(object):
     async_process = None
     
     @staticmethod
-    def register_system_services(supervisor, dynamic_linker):
+    def register_supervisor(supervisor, dynamic_linker):
         GlobalEnvironment.supervisor = supervisor
         global call
         call = dynamic_linker
@@ -221,10 +221,10 @@ def system_privileged(fn):
     def decorated(*args, **kw):
         # my_globals={}
         # my_globals.update(fn.__globals__)
-        # my_globals['system'] = _system_services
+        # my_globals['system'] = _supervisor
         # call_fn = types.FunctionType(fn.func_code, my_globals)
         # return call_fn(*args, **kw)
-        fn.__globals__['system'] = GlobalEnvironment.supervisor #_system_services
+        fn.__globals__['supervisor'] = GlobalEnvironment.supervisor
         return fn(*args, **kw)
     decorated.__name__ = fn.__name__
     return decorated

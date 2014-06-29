@@ -6,13 +6,13 @@ declare (unique_name_ = entry . returns (fixed.bin(32)),
          get_wdir_    = entry . returns (char(168)))
 
 class hcs_(SystemSubroutine):
-    def __init__(self, system_services):
-        super(hcs_, self).__init__(self.__class__.__name__, system_services)
+    def __init__(self, supervisor):
+        super(hcs_, self).__init__(self.__class__.__name__, supervisor)
         
-        self.__filesystem = system_services.hardware.filesystem
+        self.__filesystem = supervisor.hardware.filesystem
     
     def signal_break(self):
-        self.system.signal_break()
+        self.supervisor.signal_break()
         
     def get_entry_point(self, segment_name, segment):
         dir_name, entryname = None, segment_name
@@ -29,11 +29,11 @@ class hcs_(SystemSubroutine):
             dir_name, entryname = self.__filesystem.split_path(path)
             # print "get_entry_point: dir_name = '%s', entryname = '%s'" % (dir_name, entryname)
         # end if
-        segment.ptr = self.system.dynamic_linker.snap(entryname, dir_name)
+        segment.ptr = self.supervisor.dynamic_linker.snap(entryname, dir_name)
         
     def terminate_name(self, segment_name, code):
         try:
-            self.system.dynamic_linker.unsnap(segment_name)
+            self.supervisor.dynamic_linker.unsnap(segment_name)
             code.val = 0
         except SegmentFault:
             code.val = error_table_.fileioerr
@@ -65,7 +65,7 @@ class hcs_(SystemSubroutine):
             code.val = error_table_.no_directory_entry
         
     def initiate(self, dirname, segment_name, ref_name, seg_sw, copy_ctl_sw, segment, code):
-        seg_ptr = self.system.dynamic_linker.load(dirname, segment_name)
+        seg_ptr = self.supervisor.dynamic_linker.load(dirname, segment_name)
         if segment:
             segment.data_ptr = seg_ptr
         code.val = 0 if seg_ptr else error_table_.no_directory_entry
@@ -82,7 +82,7 @@ class hcs_(SystemSubroutine):
         native_path = self.__filesystem.path2path(dirname, segment_name)
         
         if self.__filesystem.file_exists(native_path):
-            segment.data_ptr = self.system.dynamic_linker.load(dirname, segment_name)
+            segment.data_ptr = self.supervisor.dynamic_linker.load(dirname, segment_name)
             code.val = error_table_.namedup
             return
         # end if
@@ -97,7 +97,7 @@ class hcs_(SystemSubroutine):
             #== Create the file on disk
             self.__filesystem.segment_data_ptr(native_path, segment.data_ptr, force=True)
             #== Make sure the segment gets into the KST
-            segment.data_ptr = self.system.dynamic_linker.load(dirname, segment_name)
+            segment.data_ptr = self.supervisor.dynamic_linker.load(dirname, segment_name)
             code.val = 0
         except:
             import traceback

@@ -175,7 +175,7 @@ class AnsweringService(SystemSubroutine):
         return 0
         
     def _default_home_dir(self, person_id, project_id):
-        return ">".join([self.supervisor.hardware.filesystem.user_dir_dir, project_id, person_id])
+        return ">".join([self.supervisor.fs.user_dir_dir, project_id, person_id])
         
     def _new_process(self, person_id, pdt, login_options={}):
         # pprint(login_options)

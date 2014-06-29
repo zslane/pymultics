@@ -29,11 +29,11 @@ def exec_com():
         # end if
         
         #== Start with site directory for start_up.ec scripts
-        script_dirs = [system.fs.user_dir_dir]
+        script_dirs = [supervisor.fs.user_dir_dir]
         
         #== Add project directory
         call.user_info_.whoami(person, project, acct)
-        script_dirs.append(system.fs.merge_path(system.fs.user_dir_dir, project.id))
+        script_dirs.append(supervisor.fs.merge_path(supervisor.fs.user_dir_dir, project.id))
         
         #== Add user's home directory
         call.user_info_.homedir(homedir)
@@ -44,8 +44,8 @@ def exec_com():
     # end if
     
     for script_dir in script_dirs:
-        native_path = system.fs.path2path(script_dir, script_file)
-        if system.fs.file_exists(native_path):
+        native_path = supervisor.fs.path2path(script_dir, script_file)
+        if supervisor.fs.file_exists(native_path):
             print "exec_com: Running %s script" % (script_dir + ">" + script_file)
             with open(native_path, "r") as f:
                 lines = f.readlines()

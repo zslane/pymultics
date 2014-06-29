@@ -52,10 +52,10 @@ class VirtualMulticsHardware(QtCore.QObject):
         self.__io_subsystem.attach_console(console)
     
     def boot_OS(self):
-        from ..software.system_services import SystemServices
-        self.__system_services = SystemServices(self)
-        self.__system_services.startup()
-        return self.__system_services
+        from ..software.supervisor import Supervisor
+        self.__supervisor = Supervisor(self)
+        self.__supervisor.startup()
+        return self.__supervisor
     
     def shutdown(self):
         self.__io_subsystem.shutdown()
@@ -98,7 +98,7 @@ class VirtualMulticsHardware(QtCore.QObject):
         lock = self.__locks.setdefault(lock_word, HardwareLock())
         self.__locks_mutex.unlock()
         
-        valid_process_list = self.__system_services.whotab.get_process_ids()
+        valid_process_list = self.__supervisor.whotab.get_process_ids()
         lock.acquire(process_id, valid_process_list, wait_time, code)
         
     def release_hardware_lock(self, lock_word, process_id, code):

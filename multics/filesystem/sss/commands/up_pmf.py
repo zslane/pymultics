@@ -23,7 +23,7 @@ def up_pmf():
     project_id = arg_list.args.pop()
     pdt_file = project_id + ".pdt"
     
-    call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", "", 0, 0, sys_admin_table, code)
+    call.hcs_.initiate(supervisor.fs.system_control_dir, "system_administrator_table", "", 0, 0, sys_admin_table, code)
     call.user_info_.whoami(person, project, acct)
     if not ((sys_admin_table.ptr and
              project_id in sys_admin_table.ptr.projects and
@@ -35,7 +35,7 @@ def up_pmf():
     
     src_dir = get_wdir_()
     
-    if not system.fs.file_exists(system.fs.path2path(src_dir, pdt_file)):
+    if not supervisor.fs.file_exists(supervisor.fs.path2path(src_dir, pdt_file)):
         call.ioa_("File not found {0}", pdt_file)
         return
     # end if

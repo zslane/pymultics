@@ -12,8 +12,8 @@ SEARCH_PATH_SYMBOLS = [
 ]
 
 class search_paths_(SystemSubroutine):
-    def __init__(self, system_services):
-        super(search_paths_, self).__init__(self.__class__.__name__, system_services)
+    def __init__(self, supervisor):
+        super(search_paths_, self).__init__(self.__class__.__name__, supervisor)
         
         self.__default_search_list = None
         
@@ -91,8 +91,8 @@ class search_paths_(SystemSubroutine):
         if code.val == 0:
             for path in sl_info_get.ptr.paths:
                 path = resolve_path_symbol_(path.pathname)
-                native_path = self.system.fs.path2path(path, entryname)
-                if self.system.fs.file_exists(native_path):
+                native_path = self.supervisor.fs.path2path(path, entryname)
+                if self.supervisor.fs.file_exists(native_path):
                     dir_name.val = path
                     return
                 # end if
@@ -111,8 +111,8 @@ class search_paths_(SystemSubroutine):
             sl_info_ptr.data = alloc(sl_info_p)
             for path in sl_info_get.ptr.paths:
                 path = resolve_path_symbol_(path.pathname)
-                native_path = self.system.fs.path2path(path, entryname)
-                if self.system.fs.file_exists(native_path):
+                native_path = self.supervisor.fs.path2path(path, entryname)
+                if self.supervisor.fs.file_exists(native_path):
                     sl_info_ptr.data.num_paths += 1
                     sl_info_ptr.data.paths[sl_info_ptr.data.num_paths - 1].pathname = path
                 # end if
@@ -153,7 +153,7 @@ class search_paths_(SystemSubroutine):
         
         if sl_info_ptr != null():
             for path in sl_info_ptr.data.paths:
-                if path.pathname in SEARCH_PATH_SYMBOLS or self.system.fs.file_exists(path.pathname):
+                if path.pathname in SEARCH_PATH_SYMBOLS or self.supervisor.fs.file_exists(path.pathname):
                     path.code = 0
                 else:
                     path.code = error_table_.no_directory_entry

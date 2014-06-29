@@ -40,7 +40,7 @@ class ProcessOverseer(object):
         # end if
         
         #== Make sure the specified home directory exists
-        if not self.supervisor.hardware.filesystem.file_exists(login_info.homedir):
+        if not self.supervisor.fs.file_exists(login_info.homedir):
             self._print_error_message("No home directory for user %s." % (login_info.user_id))
             return null()
         # end if

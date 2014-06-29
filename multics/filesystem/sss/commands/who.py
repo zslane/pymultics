@@ -79,7 +79,7 @@ def who():
 @system_privileged
 def _display_header(show_users, num_users, show_daemons, num_daemons):
     import os
-    load = len(os.listdir(system.hardware.filesystem.path2path(system.hardware.filesystem.process_dir_dir)))
+    load = len(os.listdir(supervisor.fs.path2path(supervisor.fs.process_dir_dir)))
     
     stat_list = []
     if show_users:
@@ -88,9 +88,9 @@ def _display_header(show_users, num_users, show_daemons, num_daemons):
         stat_list.append("{0} daemons".format(num_daemons))
         
     call.ioa_("Virtual Multics {0}, load {1:0.1f}/{2:0.2f}; {3} users\n  {4}.",
-        system.version,
+        supervisor.version,
         load,
-        system.site_config['maximum_load'],
+        supervisor.site_config['maximum_load'],
         num_users + num_daemons,
         ", ".join(stat_list))
         

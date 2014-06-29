@@ -4,8 +4,8 @@ from multics.globals import *
 declare (get_wdir_ = entry . returns (char(168)))
 
 class sys_(SystemSubroutine):
-    def __init__(self, system_services):
-        super(sys_, self).__init__(self.__class__.__name__, system_services)
+    def __init__(self, supervisor):
+        super(sys_, self).__init__(self.__class__.__name__, supervisor)
         
         self.__command_exit_code = 0
         
@@ -21,7 +21,7 @@ class sys_(SystemSubroutine):
         long_person_id, long_project_id = short_person_id, short_project_id
         
         if short_person_id != "*":
-            long_person_id = self.system.pnt.aliases.get(short_person_id) or short_person_id
+            long_person_id = self.supervisor.pnt.aliases.get(short_person_id) or short_person_id
             
             if not short_project_id:
                 long_name.val = long_person_id
@@ -31,7 +31,7 @@ class sys_(SystemSubroutine):
         # end if
         
         if short_project_id != "*":
-            for pdt in self.system.pdt.values():
+            for pdt in self.supervisor.pdt.values():
                 if short_project_id == pdt.project_id or short_project_id == pdt.alias:
                         long_project_id = pdt.project_id
                         break
@@ -48,13 +48,13 @@ class sys_(SystemSubroutine):
     
     def get_users(self, users, matching="*.*"):
         matching = matching.replace(".", r"\.").replace("*", r"(\w+)")
-        users.list = filter(lambda k: re.match(matching, k), self.system.whotab.entries.keys())
+        users.list = filter(lambda k: re.match(matching, k), self.supervisor.whotab.entries.keys())
         
     def get_daemons(self, daemons):
-        daemons.list = [ process.uid() for process in self.system.get_daemon_processes() ]
+        daemons.list = [ process.uid() for process in self.supervisor.get_daemon_processes() ]
         
     def get_daemon(self, which, daemon):
-        for process in self.system.get_daemon_processes():
+        for process in self.supervisor.get_daemon_processes():
             if process.uid() == which:
                 daemon.ptr = process
                 return
@@ -63,7 +63,7 @@ class sys_(SystemSubroutine):
         daemon.ptr = null()
         
     def get_process_ids(self, process_ids):
-        process_ids.list = self.system.whotab.get_process_ids()
+        process_ids.list = self.supervisor.whotab.get_process_ids()
         
     def get_rel_directory(self, dir_ref, relative_to, out_dir, code):
         if relative_to == "":
@@ -72,22 +72,22 @@ class sys_(SystemSubroutine):
         if dir_ref.startswith(">"):
             new_dir = dir_ref
         else:
-            new_dir = self.system.fs.merge_path(relative_to, dir_ref)
+            new_dir = self.supervisor.fs.merge_path(relative_to, dir_ref)
         # end if
         out_dir.name = new_dir
         
-        if self.system.fs.file_exists(new_dir):
+        if self.supervisor.fs.file_exists(new_dir):
             code.val = 0
         else:
             code.val = error_table_.no_directory_entry
     
     def get_abs_path(self, name, output):
         if name.startswith(">"):
-            output.path = self.system.fs._resolve_path(name)
+            output.path = self.supervisor.fs._resolve_path(name)
             return
         # end if
         current_dir = get_wdir_()
-        output.path = self.system.fs.merge_path(current_dir, name)
+        output.path = self.supervisor.fs.merge_path(current_dir, name)
     
     def split_path_(self, full_path, dir_name, entryname):
         rev_full_path = full_path[::-1]
@@ -100,9 +100,9 @@ class sys_(SystemSubroutine):
             new_dir = dir_ref
         else:
             cur_dir = get_wdir_()
-            new_dir = self.system.fs.merge_path(cur_dir, dir_ref)
+            new_dir = self.supervisor.fs.merge_path(cur_dir, dir_ref)
         # end if
-        if self.system.fs.file_exists(new_dir):
+        if self.supervisor.fs.file_exists(new_dir):
             self.push_directory(new_dir)
             code.val = 0
         else:
@@ -158,7 +158,7 @@ class sys_(SystemSubroutine):
                 self.get_daemon(user_id, daemon)
                 process_dir = daemon.process.dir()
             else:
-                whotab_entry = self.system.whotab.entries[user_id]
+                whotab_entry = self.supervisor.whotab.entries[user_id]
                 process_dir = whotab_entry.process_dir
             # end if
         except:
@@ -179,7 +179,7 @@ class sys_(SystemSubroutine):
     def lock_user_mbx_(self, user_id, mailbox_segment, code):
         pit = parm()
         try:
-            whotab_entry = self.system.whotab.entries[user_id]
+            whotab_entry = self.supervisor.whotab.entries[user_id]
             call.hcs_.initiate(whotab_entry.process_dir, "pit", "", 0, 0, pit, code)
             if code.val != 0:
                 return
@@ -214,15 +214,15 @@ class sys_(SystemSubroutine):
             pass
             
     def signal_condition(self, signalling_process, condition_instance):
-        self.system.signal_condition(signalling_process, condition_instance)
+        self.supervisor.signal_condition(signalling_process, condition_instance)
         
     def signal_shutdown(self):
-        if not self.system.shutting_down():
-            self.system.shutdown()
+        if not self.supervisor.shutting_down():
+            self.supervisor.shutdown()
         
     def start_shutdown(self, how_long, message):
-        self.system.start_shutdown(how_long, message)
+        self.supervisor.start_shutdown(how_long, message)
         
     def cancel_shutdown(self):
-        self.system.cancel_shutdown()
+        self.supervisor.cancel_shutdown()
         

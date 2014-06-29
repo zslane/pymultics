@@ -20,15 +20,15 @@ def get_wdir_():
     
 @system_privileged
 def clock_():
-    return system.hardware.clock.current_time()
+    return supervisor.hardware.clock.current_time()
     
 @system_privileged
 def clock():
-    return system.hardware.clock.current_time()
+    return supervisor.hardware.clock.current_time()
     
 @system_privileged
 def shutdown_started_():
-    return system.shutdown_started()
+    return supervisor.shutdown_started()
     
 def resolve_path_symbol_(path_symbol):
     process = get_calling_process_()
