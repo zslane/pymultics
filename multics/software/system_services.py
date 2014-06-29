@@ -349,7 +349,7 @@ class SystemServices(QtCore.QObject):
         login_info.process_type = pit_process_type_daemon
         login_info.process_id = 0o777777000000
         login_info.homedir = ">sc1"
-        login_info.cp_path = ">sss>user_control"
+        login_info.cp_path = ">sss>default_cp"
         try:
             from answering_service import AnsweringService
             self.__initializer = self.__process_overseer.create_process(login_info, AnsweringService)
@@ -367,7 +367,7 @@ class SystemServices(QtCore.QObject):
         login_info.process_type = pit_process_type_daemon
         login_info.process_id = 0
         login_info.homedir = ">sc1"
-        # login_info.cp_path = ">sss>user_control"
+        login_info.cp_path = ">sss>default_cp"
         try:
             from messenger import Messenger
             daemon = self.__process_overseer.create_process(login_info, Messenger)
@@ -390,10 +390,6 @@ class SystemServices(QtCore.QObject):
         from whotab import WhoTable
         from multics.globals import call
         # call = multics.globals.call
-        x = 1
-        y = 2
-        z = 3
-        pprint(locals())
         
         #== Get a pointer to the PNT (create it if necessary)
         call.hcs_.initiate(self.fs.system_control_dir, "person_name_table", "", 0, 0, segment, code)

@@ -72,13 +72,7 @@ def add_search_path():
         # end if
     # end while
     
-    # info = sl_info_path()
-    # info.pathname = new_path
-    # sl_info_ptr.sl_info.paths.insert(insert_where, info)
     sl_info_ptr.sl_info.paths.insert(insert_where)
-    # sl_info_ptr.sl_info.num_paths += 1
-    # for i in range(len(sl_info_ptr.sl_info.paths), insert_where + 1, -1):
-        # sl_info_ptr.sl_info.paths[i - 1] = sl_info_ptr.sl_info.paths[i - 2].copy()
     sl_info_ptr.sl_info.paths[insert_where].pathname = new_path
     
     call.search_paths_.set(sl_name, null(), sl_info_ptr, code)

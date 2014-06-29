@@ -21,10 +21,10 @@ login_help_text +
 """
 )
 
-class user_control(CommandProcessor):
+class old_user_control(CommandProcessor):
 
     def __init__(self):
-        super(user_control, self).__init__(self.__class__.__name__)
+        super(old_user_control, self).__init__(self.__class__.__name__)
         
         self.__person_name_table = None
         self.__project_definition_tables = None

@@ -9,7 +9,7 @@ def print_search_paths():
     sl_list_ptr = parm()
     arg_list    = parm()
     code        = parm()
-             
+    
     expand = False
     sl_name = ""
     
@@ -30,10 +30,12 @@ def print_search_paths():
         call.search_paths_.list(null(), sl_list_ptr, code)
         sl_names = []
         sl_aliases = {}
-        for link in sl_list_ptr.data.link:
-            sl_name = link.names[0]
+        list_link = sl_list_ptr.data
+        while list_link:
+            sl_name = list_link.names[0]
             sl_names.append(sl_name)
-            sl_aliases[sl_name] = link.names[1:]
+            sl_aliases[sl_name] = list_link.names[1:]
+            list_link = list_link.link
         # end for
     else:
         sl_names = [sl_name]

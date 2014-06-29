@@ -38,7 +38,7 @@ class ProcessOverseer(object):
             self._print_error_message("Could not find command processor %s." % (login_info.cp_path))
             return null()
         # end if
-            
+        
         #== Make sure the specified home directory exists
         if not self.supervisor.hardware.filesystem.file_exists(login_info.homedir):
             self._print_error_message("No home directory for user %s." % (login_info.user_id))

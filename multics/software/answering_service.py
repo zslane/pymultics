@@ -4,7 +4,7 @@ from pprint import pprint
 
 from ..globals import *
 from tty import *
-from user_control2 import UserControl
+from user_control import UserControl
 
 from PySide import QtCore, QtGui, QtNetwork
 
