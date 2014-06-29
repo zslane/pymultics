@@ -2,11 +2,11 @@
 from multics.globals import *
 
 def dd():
-    declare (arg_list    = parm,
-             get_wdir_   = entry . returns (char(168)),
-             dir_to_kill = parm,
-             code        = parm)
-             
+    declare (get_wdir_ = entry . returns (char(168)))
+    arg_list    = parm()
+    dir_to_kill = parm()
+    code        = parm()
+    
     current_dir = get_wdir_()
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) == 0:

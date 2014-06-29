@@ -25,12 +25,12 @@ class ProcessOverseer(object):
         return self.__running_processes[:]
     
     def create_process(self, login_info, CoreFunction):
+        declare (clock_   = entry . returns (fixed.bin(32)))
         
-        declare (clock_            = entry . returns (fixed.bin(32)),
-                 command_processor = parm,
-                 process_dir       = parm,
-                 segment           = parm,
-                 code              = parm)
+        command_processor = parm()
+        process_dir       = parm()
+        segment           = parm()
+        code              = parm()
         
         #== Make sure the specified command processor exists
         call.hcs_.get_entry_point(login_info.cp_path, command_processor)
@@ -141,7 +141,7 @@ class ProcessOverseer(object):
         return process
         
     def destroy_process(self, process, keep_process_data=False):
-        declare (code = parm)
+        code = parm()
         
         print get_calling_process_().objectName() + " process_overseer waiting for " + process.objectName() + " to terminate"
         process.kill()
@@ -150,10 +150,10 @@ class ProcessOverseer(object):
         
         if not keep_process_data:
             try:
-                call.set_lock_.lock(process.msg(), 5, code)
+                call.set_lock_.lock(process.msg().lock_word(), 5, code)
                 call.hcs_.delentry_seg(process.msg(), code)
             finally:
-                call.set_lock_.unlock(process.msg(), code)
+                call.set_lock_.unlock(process.msg().lock_word(), code)
             # end try
                 
             call.hcs_.delete_branch_(process.dir(), code)

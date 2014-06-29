@@ -4,13 +4,13 @@ import os
 from multics.globals import *
 
 def compile():
-    declare (arg_list    = parm,
-             arg_count   = parm,
-             get_wdir_   = entry . returns (char(168)),
-             source_file = parm,
-             object_file = parm,
-             code        = parm)
-             
+    declare (get_wdir_ = entry . returns (char(168)))
+    arg_list    = parm()
+    arg_count   = parm()
+    source_file = parm()
+    object_file = parm()
+    code        = parm()
+    
     call.cu_.arg_count(arg_count)
     if arg_count.val != 1:
         call.ioa_("Usage: compile [module.py]")

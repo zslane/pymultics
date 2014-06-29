@@ -50,8 +50,8 @@ def mycommand():
              test1_bits = bit(6) . init ("0b110101"),
              test2_bits = bit(6) . init ("0b011001"))
     
-    universe.black_hole.size += 5
-    print universe
+    # universe.black_hole.size += 5
+    # print universe
     print dyn_array
     dyn_array.size += 3
     print dyn_array

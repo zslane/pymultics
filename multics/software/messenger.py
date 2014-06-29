@@ -46,7 +46,7 @@ class Messenger(SystemExecutable):
         pass
         
     def _interactive_message_handler(self, message):
-        declare (users = parm)
+        users = parm()
         
         print self.__process.objectName(), "handling message", message
         
@@ -55,7 +55,7 @@ class Messenger(SystemExecutable):
             self._deliver_interactive_message(user_id, message)
     
     def _deliver_interactive_message(self, recipient, message):
-        declare (code = parm)
+        code = parm()
         print self.__process.uid(), "delivering interactive message to", recipient
         message['to'] = recipient
         call.sys_.add_process_msg(recipient, message, code)

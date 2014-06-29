@@ -285,7 +285,7 @@ class Injector(object):
                 # with_init_string = "with initial value {0}".format(initial_value)
             # else:
                 # with_init_string = ""
-            # print "Injecting", p, "into", pframe.f_globals['__name__'], "as", name, with_init_string
+            # print "Inject {0} into {1} module GLOBALS as {2} {3}", p, pframe.f_globals['__name__'], name, with_init_string
             pframe.f_globals.update({name:p})
         
     @staticmethod

@@ -40,9 +40,9 @@ class user_control(CommandProcessor):
             
     def login_ui(self, supervisor, pnt, pdt, whotab):
     
-        declare (command_name = parm,
-                 code         = parm)
-                 
+        command_name = parm()
+        code         = parm()
+        
         self.supervisor = supervisor
         self.__person_name_table = pnt
         self.__project_definition_tables = pdt
@@ -77,9 +77,9 @@ class user_control(CommandProcessor):
         return login_options
         
     def login_command(self):
-        declare (arg_list = parm,
-                 password = parm,
-                 code     = parm)
+        arg_list = parm()
+        password = parm()
+        code     = parm()
         
         def show_usage():
             call.ioa_("Usage:\n" + login_help_text)

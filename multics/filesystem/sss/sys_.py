@@ -122,7 +122,7 @@ class sys_(SystemExecutable):
                 directory.name = None
     
     def add_process_msg(self, user_id, message, code):
-        declare (segment = parm)
+        segment = parm()
         try:
             call.sys_.lock_process_ms_(user_id, segment, code)
             if code.val == error_table_.locked_by_this_process:
@@ -152,7 +152,7 @@ class sys_(SystemExecutable):
         # end try
     
     def lock_process_ms_(self, user_id, process_msg_segment, code):
-        declare (daemon = parm)
+        daemon = parm()
         try:
             if user_id.endswith("SysDaemon"):
                 self.get_daemon(user_id, daemon)
@@ -169,15 +169,15 @@ class sys_(SystemExecutable):
         person_id, _, _ = user_id.partition(".")
         call.hcs_.initiate(process_dir, "process.ms", "", 0, 0, process_msg_segment, code)
         if process_msg_segment.ptr != null():
-            call.set_lock_.lock(process_msg_segment.ptr, 5, code)
+            call.set_lock_.lock(process_msg_segment.ptr.lock_word(), 5, code)
         else:
             code.val = error_table_.lock_not_locked
             
     def unlock_process_ms_(self, process_msg_segment, code):
-        call.set_lock_.unlock(process_msg_segment, code)
+        call.set_lock_.unlock(process_msg_segment.lock_word(), code)
     
     def lock_user_mbx_(self, user_id, mailbox_segment, code):
-        declare (pit = parm)
+        pit = parm()
         try:
             whotab_entry = self.system.whotab.entries[user_id]
             call.hcs_.initiate(whotab_entry.process_dir, "pit", "", 0, 0, pit, code)
@@ -193,12 +193,12 @@ class sys_(SystemExecutable):
         person_id, _, _ = user_id.partition(".")
         call.hcs_.initiate(homedir, person_id + ".mbx", "", 0, 0, mailbox_segment, code)
         if mailbox_segment.ptr != null():
-            call.set_lock_.lock(mailbox_segment.ptr, 5, code)
+            call.set_lock_.lock(mailbox_segment.ptr.lock_word(), 5, code)
         else:
             code.val = error_table_.lock_not_locked
             
     def unlock_user_mbx_(self, mailbox_segment, code):
-        call.set_lock_.unlock(mailbox_segment, code)
+        call.set_lock_.unlock(mailbox_segment.lock_word(), code)
     
     def accept_messages_(self, flag):
         process = get_calling_process_()

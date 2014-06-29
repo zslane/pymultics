@@ -7,9 +7,9 @@ class user_info_(SystemExecutable):
         self.__pit = parm()
         
     def _load_pit(self):
-        declare (get_pdir_ = entry . returns (char ('*')),
-                 code      = parm)
-                 
+        declare (get_pdir_ = entry . returns (char ('*')))
+        code = parm()
+        
         if not self.__pit.data:
             call.hcs_.initiate(get_pdir_(), "pit", "", 0, 0, self.__pit, code)
             if code.val != 0:

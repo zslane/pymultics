@@ -8,8 +8,8 @@ include.pdt
 @system_privileged
 def cv_pmf():
 
-    declare (arg_list    = parm,
-             get_wdir_   = entry . returns (char(168)))
+    declare (get_wdir_ = entry . returns (char(168)))
+    arg_list = parm()
     
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) != 1:

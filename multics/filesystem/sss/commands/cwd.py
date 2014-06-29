@@ -2,9 +2,9 @@
 from multics.globals import *
 
 def cwd():
-    declare (arg_list = parm,
-             code     = parm)
-             
+    arg_list = parm()
+    code     = parm()
+    
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) == 1:
         new_dir = arg_list.args.pop()

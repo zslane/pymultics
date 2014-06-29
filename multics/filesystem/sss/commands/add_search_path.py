@@ -6,11 +6,11 @@ include.sl_info
 
 @system_privileged
 def add_search_path():
-    declare (sl_info_ptr = parm,
-             arg_list    = parm,
-             full_path   = parm,
-             code        = parm)
-             
+    sl_info_ptr = parm()
+    arg_list    = parm()
+    full_path   = parm()
+    code        = parm()
+    
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) < 2:
         call.ioa_("""Usage: add_search_path|asp [search_list_name] [path] {{-control_args}}

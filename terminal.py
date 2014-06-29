@@ -43,6 +43,19 @@ class DataPacket(object):
         data, control_code, the_rest = self.data.partition(CONTROL_CODE)
         self.data = control_code + the_rest
         return data
+    
+    @staticmethod
+    def In(byte_array):
+        return DataPacket(byte_array)
+        
+    @staticmethod
+    def Out(data_code, payload=""):
+        if data_code[0] < chr(32) and data_code[0] != '\r': # control codes are all less than ASCII value 32
+            # print "DataPacket.Out(CONTROL_CODE + chr(%d) + %s + END_CONTROL_CODE)" % (ord(data_code[0]), repr(payload))
+            return QtCore.QByteArray(CONTROL_CODE + data_code + str(payload) + END_CONTROL_CODE)
+        else:
+            # print "DataPacket.Out(%s)" % (repr(data_code))
+            return QtCore.QByteArray(data_code)
 
 #-- end class DataPacket
 
@@ -67,6 +80,9 @@ class KeyboardIO(QtGui.QLineEdit):
 class TerminalIO(QtGui.QWidget):
     
     setStatus = QtCore.Signal(list)
+    setNormalStatus = QtCore.Signal(str)
+    setConnectStatus = QtCore.Signal(str)
+    setErrorStatus = QtCore.Signal(str)
     
     def __init__(self, parent=None):
         super(TerminalIO, self).__init__(parent)
@@ -134,45 +150,48 @@ class TerminalIO(QtGui.QWidget):
     @QtCore.Slot("QAbstractSocket.SocketError")
     def socket_error(self, error):
         if error == QtNetwork.QAbstractSocket.SocketError.ConnectionRefusedError:
-            self.setStatus.emit(["Host Server not Active", 0x935353])
+            self.setErrorStatus.emit("Host Server not Active")
             pass
 
         else:
-            self.setStatus.emit([self.socket.errorString(), 0x935353])
+            self.setErrorStatus.emit(self.socket.errorString())
             print self.ME, "socket_error:", error
         
     @QtCore.Slot()
     def host_found(self):
-        self.setStatus.emit(["Waiting for Host Server", None])
+        self.setNormalStatus.emit("Waiting for Host Server")
         pass
         
     @QtCore.Slot()
     def connection_made(self):
         self.socket.setSocketOption(QtNetwork.QAbstractSocket.LowDelayOption, 1)
-        self.setStatus.emit(["Connected on port %d" % (self.socket.peerPort()), 0x445e44])
+        self.setConnectStatus.emit("Connected on port %d" % (self.socket.peerPort()))
         if self.socket.peerPort() != SERVER_PORT:
             self.input.setEnabled(True)
             self.input.setFocus()
         
     @QtCore.Slot()
     def connection_lost(self):
-        self.setStatus.emit(["Not Connected", None])
+        self.input.setEnabled(False)
+        self.setNormalStatus.emit("Disconnected")
         #== Original connection closed; this sets up the "permanent" connection
         if self.com_port:
             self.socket.connectToHost(SERVER_NAME, self.com_port)
             self.socket.bytesWritten.connect(self.written)
             self.com_port = 0
+        else:
+            print self.ME, "connection closed by host"
         
     @QtCore.Slot()
     def data_available(self):
-        data_packet = DataPacket(self.socket.readAll())
+        data_packet = DataPacket.In(self.socket.readAll())
         while not data_packet.is_empty():
             if data_packet.is_control_seq():
                 data_code, payload = data_packet.extract_control_data()
                 
                 if data_code == ASSIGN_PORT_CODE:
                     self.com_port = int(payload)
-                    print self.ME, "disconnecting and reconnecting on port", self.com_port
+                    # print self.ME, "disconnecting and reconnecting on port", self.com_port
                     self.socket.close()
                     
                 elif data_code == ECHO_NORMAL_CODE:
@@ -189,29 +208,30 @@ class TerminalIO(QtGui.QWidget):
         
     @QtCore.Slot()
     def send_string(self):
-        s = self.input.text().strip() or "\n"
+        s = self.input.text().strip() or "\r"
         self.input.clear()
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
-            print self.ME, "sending:", repr(s)
-            n = self.socket.write(QtCore.QByteArray(s))
-            print self.ME, n, "bytes sent"
+            # print self.ME, "sending:", repr(s)
+            n = self.socket.write(DataPacket.Out(s))
+            # print self.ME, n, "bytes sent"
     
     @QtCore.Slot()
     def send_linefeed(self):
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
-            print self.ME, "sending LINEFEED"
-            n = self.socket.write(QtCore.QByteArray(CONTROL_CODE + LINEFEED_CODE + END_CONTROL_CODE))
-            print self.ME, n, "bytes sent"
+            # print self.ME, "sending LINEFEED"
+            n = self.socket.write(DataPacket.Out(LINEFEED_CODE))
+            # print self.ME, n, "bytes sent"
             
     @QtCore.Slot()
     def send_break_signal(self):
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
-            print self.ME, "sending BREAK signal"
-            n = self.socket.write(QtCore.QByteArray(CONTROL_CODE + BREAK_CODE + END_CONTROL_CODE))
-            print self.ME, n, "bytes sent"    
+            # print self.ME, "sending BREAK signal"
+            n = self.socket.write(DataPacket.Out(BREAK_CODE))
+            # print self.ME, n, "bytes sent"    
     
     def written(self, nbytes):
-        print self.ME, nbytes, "written"
+        # print self.ME, nbytes, "written"
+        pass
         
     @QtCore.Slot()
     def shutdown(self):
@@ -244,14 +264,15 @@ class TerminalWindow(QtGui.QMainWindow):
         super(TerminalWindow, self).__init__(parent)
         
         self.io = TerminalIO(self)
-        self.io.setStatus.connect(self.set_status)
+        self.io.setNormalStatus.connect(self.set_normal_status)
+        self.io.setConnectStatus.connect(self.set_connect_status)
+        self.io.setErrorStatus.connect(self.set_error_status)
         self.transmitString.connect(self.io.display)
         self.shutdown.connect(self.io.shutdown)
         
         self.setCentralWidget(self.io)
         self.setWindowTitle("Virtual VT220 Terminal")
         self.setStyleSheet("QLineEdit, QMainWindow { background: #444444; border: 1px solid #252525; }")
-        # self.setFixedSize(821, 596)
         
         self.palette = QtGui.QPalette()
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444))
@@ -267,11 +288,22 @@ class TerminalWindow(QtGui.QMainWindow):
         
     def startup(self):
         self.setFixedSize(self.size())
+                
+    @QtCore.Slot(str)
+    def set_normal_status(self, txt):
+        self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444))
+        self.statusBar().setPalette(self.palette)
+        self.statusBar().showMessage(txt)
         
     @QtCore.Slot(str)
-    def set_status(self, data):
-        txt, color = data
-        self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(color or 0x444444))
+    def set_connect_status(self, txt):
+        self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x445e44))
+        self.statusBar().setPalette(self.palette)
+        self.statusBar().showMessage(txt)
+        
+    @QtCore.Slot(str)
+    def set_error_status(self, txt):
+        self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x935353))
         self.statusBar().setPalette(self.palette)
         self.statusBar().showMessage(txt)
     

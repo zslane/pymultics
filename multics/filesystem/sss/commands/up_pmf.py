@@ -6,13 +6,13 @@ from multics.globals import *
 @system_privileged
 def up_pmf():
 
-    declare (arg_list        = parm,
-             person          = parm,
-             project         = parm,
-             acct            = parm,
-             sys_admin_table = parm,
-             code            = parm,
-             get_wdir_       = entry . returns (char(168)))
+    declare (get_wdir_ = entry . returns (char(168)))
+    arg_list        = parm()
+    person          = parm()
+    project         = parm()
+    acct            = parm()
+    sys_admin_table = parm()
+    code            = parm()
     
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) != 1:

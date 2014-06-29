@@ -1,6 +1,10 @@
+from collections import defaultdict
 
 from multics.globals import *
 
+def _process_id():
+    return get_calling_process_().objectName()
+    
 class cu_(SystemExecutable):
 
     class context(object):
@@ -23,35 +27,43 @@ class cu_(SystemExecutable):
         
     def __init__(self, system_services):
         super(cu_, self).__init__(self.__class__.__name__, system_services)
+        # self.__default_context = cu_.context()
+        self.__contexts = defaultdict(list)
+        # self.__contexts[_process_id()].append(cu_.context())
         
-        self.__contexts = []
-        self.__contexts.append(cu_.context())
+    @property
+    def _current_context(self):
+        try:
+            return self.__contexts[_process_id()][-1]
+        except:
+            self.__contexts[_process_id()].append(cu_.context())
+            return self.__contexts[_process_id()][-1]
+            # return self.__default_context
         
     def _push_context(self):
-        current_context = self.__contexts[-1]
-        self.__contexts.append(current_context.copy())
+        self.__contexts[_process_id()].append(self._current_context.copy())
         
     def _pop_context(self):
-        self.__contexts.pop()
+        return self.__contexts[_process_id()].pop()
         
     def arg_count(self, arg_count, code=None):
-        arg_count.val = len(self.__contexts[-1].argument_string.split())
+        arg_count.val = len(self._current_context.argument_string.split())
         if code:
             code.val = 0
         
     def arg_list(self, arg_list):
-        arg_list.args = self.__contexts[-1].argument_string.split()
+        arg_list.args = self._current_context.argument_string.split()
         
     def arg_ptr(self, arg_no, arg, code):
         try:
-            arg.str = self.__contexts[-1].argument_string.split()[arg_no]
+            arg.str = self._current_context.argument_string.split()[arg_no]
             code.val = 0
         except KeyError:
             arg.str = null()
             code.val = error_table_.noarg
         
     def arg_string(self, before, result, starting_with=0):
-        s = self.__contexts[-1].argument_string
+        s = self._current_context.argument_string
         d = []
         for i in range(starting_with):
             discard, _, s = s.strip().partition(" ")
@@ -66,43 +78,43 @@ class cu_(SystemExecutable):
             return s.strip()
         
     def get_command_name(self, command, code):
-        command.name = self.__contexts[-1].program_name
-        if not self.__contexts[-1].program_name:
+        command.name = self._current_context.program_name
+        if not self._current_context.program_name:
             code.val = error_table_.no_command_name_available
         else:
             code.val = 0
         
     def set_command_string_(self, command_string):
         command_name, _, args_string = command_string.strip().partition(" ")
-        self.__contexts[-1].program_name = command_name
-        self.__contexts[-1].argument_string = args_string.strip()
+        self._current_context.program_name = command_name
+        self._current_context.argument_string = args_string.strip()
 
     def set_command_processor(self, command_processor):
-        self.__contexts[-1].command_processor = command_processor
+        self._current_context.command_processor = command_processor
         
     def get_command_processor(self, command_processor):
-        command_processor.ptr = self.__contexts[-1].command_processor
+        command_processor.ptr = self._current_context.command_processor
         
     def cp(self, command_string, code):
         self._push_context()
-        self.__contexts[-1].command_processor.execute(command_string, code)
+        self._current_context.command_processor.execute(command_string, code)
         self._pop_context()
         
     def set_ready_procedure(self, ready_procedure):
-        self.__contexts[-1].ready_procedure = ready_procedure
+        self._current_context.ready_procedure = ready_procedure
         
     def get_ready_procedure(self, ready_procedure):
-        ready_procedure.ptr = self.__contexts[-1].ready_procedure
+        ready_procedure.ptr = self._current_context.ready_procedure
         
     def ready_proc(self, mode=None):
         if mode is None:
-            self.__contexts[-1].ready_procedure(self.__contexts[-1].ready_mode)
+            self._current_context.ready_procedure(self._current_context.ready_mode)
         else:
-            self.__contexts[-1].ready_procedure(mode)
+            self._current_context.ready_procedure(mode)
         
     def set_ready_mode(self, mode):
-        self.__contexts[-1].ready_mode = mode
+        self._current_context.ready_mode = mode
         
     def get_ready_mode(self, mode):
-        mode.val = self.__contexts[-1].ready_mode
+        mode.val = self._current_context.ready_mode
         

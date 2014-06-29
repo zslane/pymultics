@@ -4,10 +4,10 @@ from multics.globals import *
 
 @system_privileged
 def add_name():
-    declare (arg_list  = parm,
-             full_path = parm,
-             code      = parm)
-             
+    arg_list  = parm()
+    full_path = parm()
+    code      = parm()
+    
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) < 2:
         call.ioa_("Usage: add_name|an [path] [names]")

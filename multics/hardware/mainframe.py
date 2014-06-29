@@ -161,10 +161,6 @@ class IOSubsystem(QtCore.QObject):
             self.__console.io.breakSignal.connect(self._receive_break)
             self.__console.closed.connect(self._close_terminal)
             self.disconnect.connect(self.__console.disconnect)
-            
-    def disconnect_console(self):
-        if self.__console:
-            self.disconnect.emit()
     
     def attach_console_process(self, process_id):
         self.__terminal_process_id = process_id
@@ -230,7 +226,13 @@ class IOSubsystem(QtCore.QObject):
             tty_channel.put_output(s)
         elif self.__console:
             self.__console.transmitString.emit(s)
-
+            
+    def disconnect_tty(self, tty_channel=None):
+        if tty_channel:
+            tty_channel.disconnect()
+        elif self.__console:
+            self.disconnect.emit()
+    
     def shutdown(self, tty_channel=None):
         if tty_channel:
             tty_channel.shutdown()

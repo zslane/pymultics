@@ -29,12 +29,12 @@ au_usage_text = (
 MAIN = "admin"
 
 def admin():
-    declare (command  = parm . init (""),
-             person   = parm,
-             project  = parm,
-             acct     = parm,
-             arg_list = parm,
-             code     = parm)
+    command  = parm("")
+    person   = parm()
+    project  = parm()
+    acct     = parm()
+    arg_list = parm()
+    code     = parm()
     
     call.user_info_.whoami(person, project, acct)
     if project.id != "SysAdmin":
@@ -76,10 +76,10 @@ def admin():
     
 @system_privileged
 def list_users():
-    declare (arg_list          = parm,
-             person_name_table = parm,
-             code              = parm)
-
+    person_name_table = parm()
+    arg_list          = parm()
+    code              = parm()
+    
     call.hcs_.initiate(system.fs.system_control_dir, "person_name_table", "", 0, 0, person_name_table, code)
     if person_name_table.ptr:
         call.ioa_("Person Id              Alias     D Project Password?")
@@ -93,10 +93,10 @@ def list_users():
     
 @system_privileged
 def add_user():
-    declare (arg_list          = parm,
-             person_name_table = parm,
-             project_definition_table = parm,
-             code              = parm)
+    project_definition_table = parm()
+    person_name_table = parm()
+    arg_list          = parm()
+    code              = parm()
     
     alias = ""
     default_project_id = ""
@@ -173,10 +173,10 @@ def add_user():
             
 @system_privileged
 def delete_user():
-    declare (arg_list          = parm,
-             answer            = parm,
-             person_name_table = parm,
-             code              = parm)
+    person_name_table = parm()
+    arg_list          = parm()
+    answer            = parm()
+    code              = parm()
     
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) == 0:
@@ -205,9 +205,9 @@ def delete_user():
     
 @system_privileged
 def rename_user():
-    declare (arg_list          = parm,
-             person_name_table = parm,
-             code              = parm)
+    person_name_table = parm()
+    arg_list          = parm()
+    code              = parm()
     
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) < 2:
@@ -234,11 +234,11 @@ def rename_user():
             
 @system_privileged
 def refresh_sat():
-    declare (sys_admin_table = parm,
-             branch          = parm,
-             segment         = parm,
-             code            = parm)
-             
+    sys_admin_table = parm()
+    branch          = parm()
+    segment         = parm()
+    code            = parm()
+    
     call.hcs_.initiate(system.fs.system_control_dir, "system_administrator_table", "", 0, 0, sys_admin_table, code)
     if sys_admin_table.ptr != null():
         call.hcs_.delentry_seg(sys_admin_table.ptr, code)
@@ -264,8 +264,8 @@ def refresh_sat():
 
 @system_privileged
 def list_projects():
-    declare (sys_admin_table = parm,
-             code            = parm)
+    sys_admin_table = parm()
+    code            = parm()
              
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) != 0:
@@ -286,8 +286,8 @@ def list_projects():
 
 @system_privileged
 def list_project_admins():
-    declare (sys_admin_table = parm,
-             code            = parm)
+    sys_admin_table = parm()
+    code            = parm()
              
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) != 1:
@@ -313,9 +313,9 @@ def list_project_admins():
     
 @system_privileged
 def add_project_admin():
-    declare (sys_admin_table = parm,
-             arg_list        = parm,
-             code            = parm)
+    sys_admin_table = parm()
+    arg_list        = parm()
+    code            = parm()
              
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) != 2:
@@ -343,9 +343,9 @@ def add_project_admin():
     
 @system_privileged
 def delete_project_admin():
-    declare (sys_admin_table = parm,
-             arg_list        = parm,
-             code            = parm)
+    sys_admin_table = parm()
+    arg_list        = parm()
+    code            = parm()
              
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) != 2:

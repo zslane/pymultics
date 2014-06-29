@@ -52,7 +52,7 @@ class AnsweringService(SystemExecutable):
                     self.supervisor.hardware.io.flush_input()
                     process = self._user_login()
                     if process:
-                        print "Attaching tty to process", process.id(), process.objectName()
+                        print "Attaching system console to process", process.id(), process.objectName()
                         self.supervisor.hardware.io.attach_console_process(process.id())
                         print "Starting process", process.objectName()
                         process.start()
@@ -92,7 +92,7 @@ class AnsweringService(SystemExecutable):
         self._initialize()
         
         shutting_down = False
-        while not shutting_down:
+        while not (shutting_down and self.process_overseer.running_processes == []):
             try:
                 #== Visit each tty in the process of logging in and advance its UserControl
                 #== state if possible
@@ -107,7 +107,7 @@ class AnsweringService(SystemExecutable):
                         process = self._user_login2(login.login_options(), tty_channel)
                         if process:
                             if tty_channel:
-                                print "Attaching tty", tty_channel.id, "to process", process.id(), process.objectName()
+                                print "Attaching tty_channel", tty_channel.id, "to process", process.id(), process.objectName()
                                 process.attach_tty(tty_channel)
                             else:
                                 print "Attaching system console to process", process.id(), process.objectName()
@@ -119,7 +119,7 @@ class AnsweringService(SystemExecutable):
                         
                     elif state == UserControl.DISCONNECTED:
                         if login.tty:
-                            print "tty", login.tty.id, "disconnected during login"
+                            print "tty_channel", login.tty.id, "disconnected during login"
                     # end if
                     
                     self.__logins_in_progress.remove(login)
@@ -204,6 +204,7 @@ class AnsweringService(SystemExecutable):
             # end with
             
             self.supervisor.llout("\n%s logged in on %s\n" % (login_info.user_id, login_info.time_login.ctime()))
+            print "%s logged in on %s" % (login_info.user_id, login_info.time_login.ctime())
         # end if
         
         return process
@@ -219,6 +220,7 @@ class AnsweringService(SystemExecutable):
             # end with
             
             self.supervisor.llout("\n%s logged in on %s\n" % (login_info.user_id, login_info.time_login.ctime()), tty_channel)
+            print "%s logged in on %s" % (login_info.user_id, login_info.time_login.ctime())
         # end if
         
         return process
@@ -239,9 +241,8 @@ class AnsweringService(SystemExecutable):
         
     def _user_logout2(self, process):
         user_id = process.uid()
-        if process.tty() == None:
-            self.supervisor.hardware.io.detach_console_process(process.id())
-        # end if
+        tty_channel = process.tty()
+        
         self.process_overseer.destroy_process(process)
         
         self.supervisor.llout("%s logged out on %s\n" % (user_id, datetime.datetime.now().ctime()), process.tty())
@@ -252,6 +253,12 @@ class AnsweringService(SystemExecutable):
             del self.__whotab.entries[user_id]
         # end with
         pprint(self.__whotab)
+        
+        if tty_channel == None:
+            self.supervisor.hardware.io.detach_console_process(process.id())
+        else:
+            self.__pending_login_ttys.append(tty_channel)
+        # end if
         
     def _user_new_proc(self, process):
         user_id = process.uid()
@@ -309,7 +316,7 @@ class AnsweringService(SystemExecutable):
         process = self._new_process(person_id, pdt, login_options)
         if process:
             if tty_channel:
-                print "Attaching tty", tty_channel.id, "to process", process.id(), process.objectName()
+                print "Attaching tty_channel", tty_channel.id, "to process", process.id(), process.objectName()
                 process.attach_tty(tty_channel)
             else:
                 print "Attaching system console to process", process.id(), process.objectName()
@@ -348,11 +355,11 @@ class AnsweringService(SystemExecutable):
         self.rfs_listener.close()
         
     def _upload_pmf_request_handler(self, message):
-        declare (pnt  = parm,
-                 pdt  = parm,
-                 sat  = parm,
-                 code = parm)
-                 
+        pnt  = parm()
+        pdt  = parm()
+        sat  = parm()
+        code = parm()
+        
         pdt_file = message['src_file']
         src_dir = message['src_dir']
         dst_dir = self.supervisor.fs.system_control_dir
@@ -392,8 +399,8 @@ class AnsweringService(SystemExecutable):
                     self._create_new_home_dir(user_config.person_id, pnt.ptr, homedir)
                     
     def _create_new_home_dir(self, person_id, pnt_ptr, homedir):
-        declare (segment = parm,
-                 code    = parm)
+        segment = parm()
+        code    = parm()
         
         print "Creating user home directory " + homedir
         code.val = self.supervisor.fs.mkdir(homedir)
@@ -456,21 +463,21 @@ class RFSListener(QtNetwork.QTcpServer):
             self.__handshakers.append(handshaker)
             
             #== Send a packet to the client indicating the (permanent) com port number to switch over to
-            socket.write(QtCore.QByteArray(CONTROL_CODE + ASSIGN_PORT_CODE + str(com_port) + END_CONTROL_CODE)) # ("ATTACH:%d" % (com_port)))
+            socket.write(DataPacket.Out(ASSIGN_PORT_CODE, com_port))
             if not socket.waitForBytesWritten():
                 print self.ME, "ERROR: Client not responding to handshake"
     
     def add_com_connection(self, handshaker):
         socket = handshaker.nextPendingConnection()
         com_port = socket.localPort()
+        socket.setObjectName("tty_socket_%d" % (com_port))
         socket.setSocketOption(QtNetwork.QAbstractSocket.LowDelayOption, 1)
         socket.disconnected.connect(lambda: self.recycle_com_port(com_port))
         
         tty_channel = TTYChannel(socket)
         self.__pending_login_ttys.append(tty_channel)
-        print self.ME, "created tty channel", tty_channel.id
+        print self.ME, "created tty_channel", tty_channel.id
         
         handshaker.close()
         self.__handshakers.remove(handshaker)
         
-

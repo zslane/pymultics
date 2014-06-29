@@ -35,10 +35,11 @@ class search_paths_(SystemExecutable):
         return self.__default_search_list
         
     def _default_search_segment(self):
-        declare (get_pdir_  = entry . returns (char(168)),
-                 search_seg = parm,
-                 code       = parm)
-                 
+        declare (get_pdir_  = entry . returns (char(168)))
+        
+        search_seg = parm()
+        code       = parm()
+        
         process_dir = get_pdir_()
         call.hcs_.initiate(process_dir, "search_paths", "", 0, 0, search_seg, code)
         if search_seg.ptr == null():
@@ -60,8 +61,9 @@ class search_paths_(SystemExecutable):
         return sl_name
     
     def init_search_seg(self, search_seg_ptr, code):
-        declare (get_pdir_  = entry . returns (char(168)),
-                 search_seg = parm)
+        declare (get_pdir_  = entry . returns (char(168)))
+        
+        search_seg = parm()
         
         if search_seg_ptr == null():
             #== If the process search segment already exists, then get it
@@ -83,9 +85,11 @@ class search_paths_(SystemExecutable):
         code.val = 0
     
     def find_dir(self, sl_name, search_seg_ptr, entryname, dir_name, code):
-        declare (resolve_path_symbol_ = entry . returns (char(168)),
-                 sl_info_get          = parm,
-                 code                 = parm)
+        declare (resolve_path_symbol_ = entry . returns (char(168)))
+        
+        sl_info_get = parm()
+        code        = parm()
+        
         self.get(sl_name, search_seg_ptr, sl_info_get, sl_info_version_1, code)
         if code.val == 0:
             for path in sl_info_get.ptr.paths:
@@ -100,9 +104,11 @@ class search_paths_(SystemExecutable):
         # end if
     
     def find_all(self, sl_name, search_seg_ptr, entryname, sl_info_ptr, code):
-        declare (resolve_path_symbol_ = entry . returns (char(168)),
-                 sl_info_get          = parm,
-                 code                 = parm)
+        declare (resolve_path_symbol_ = entry . returns (char(168)))
+        
+        sl_info_get = parm()
+        code        = parm()
+        
         self.get(sl_name, search_seg_ptr, sl_info_get, sl_info_version_1, code)
         if code.val == 0:
             # sl_info_ptr.data = sl_info_structure()

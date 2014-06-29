@@ -3,13 +3,13 @@ from collections import defaultdict
 from multics.globals import *
 
 def ls():
-    declare (arg_list    = parm,
-             get_wdir_   = entry . returns (char(168)),
-             dir_to_list = parm,
-             branch      = parm,
-             segment     = parm,
-             code        = parm)
-             
+    declare (get_wdir_ = entry . returns (char(168)))
+    arg_list    = parm()
+    dir_to_list = parm()
+    branch      = parm()
+    segment     = parm()
+    code        = parm()
+    
     excluded_extensions = (".pyc", ".pyo")
     
     current_dir = get_wdir_()

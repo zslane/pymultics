@@ -121,8 +121,8 @@ class UserControl(object):
             return self._timeout_expired()
         
     def _wait_for_login_command(self):
-        declare (command_name = parm,
-                 code         = parm)
+        command_name = parm()
+        code         = parm()
         
         if self._has_input():
             command_line = self._get_input()
@@ -146,9 +146,9 @@ class UserControl(object):
             return self._timeout_expired()
         
     def _verify_login_command(self):
-        declare (arg_list = parm,
-                 password = parm,
-                 code     = parm)
+        arg_list = parm()
+        password = parm()
+        code     = parm()
         
         def show_usage():
             self._put_output("Usage:\n" + login_help_text)

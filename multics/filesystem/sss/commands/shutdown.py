@@ -6,12 +6,12 @@ MAIN = "shutdown"
 def shutdown():
     declare (shutdown_started_ = entry . returns (bit(1)))
     
-    declare (person   = parm,
-             project  = parm,
-             acct     = parm,
-             before   = parm,
-             result   = parm,
-             arg_list = parm)
+    person   = parm()
+    project  = parm()
+    acct     = parm()
+    before   = parm()
+    result   = parm()
+    arg_list = parm()
     
     call.user_info_.whoami(person, project, acct)
     if project.id != "SysAdmin":

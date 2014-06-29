@@ -77,9 +77,7 @@ class ProcessWorker(QtCore.QObject):
         self._cleanup()
         
     def kill(self):
-        print QtCore.QThread.currentThread().objectName(), "executing kill() method"
         self.__process_env.core_function.kill()
-        # self._cleanup()
     
     def timerEvent(self, event):
         # print QtCore.QThread.currentThread().objectName(), "timerEvent!"
@@ -90,7 +88,8 @@ class ProcessWorker(QtCore.QObject):
     
     @QtCore.Slot()
     def _process_messages(self):
-        declare (code = parm)
+        code = parm()
+        
         next_message = ""
         # print QtCore.QThread.currentThread().objectName(), "executing _process_messages()"
         
@@ -100,7 +99,7 @@ class ProcessWorker(QtCore.QObject):
             #== Process msg messages one per timer trigger ==#
             try:
                 # print self.objectName()+"._process_messages calling set_lock_.lock"
-                call.set_lock_.lock(self.__process_env.msg, 3, code)
+                call.set_lock_.lock(self.__process_env.msg.lock_word(), 3, code)
                 if code.val != 0:
                     print "Could not lock %s" % self.__process_env.msg._filepath()
                     return
@@ -112,7 +111,7 @@ class ProcessWorker(QtCore.QObject):
                 
             finally:
                 # print self.objectName()+"._process_messages calling set_lock_.unlock"
-                call.set_lock_.unlock(self.__process_env.msg, code)
+                call.set_lock_.unlock(self.__process_env.msg.lock_word(), code)
                 if code.val != 0:
                     print "Could not unlock %s" % self.__process_env.msg._filepath()
                     return
@@ -135,6 +134,9 @@ class ProcessWorker(QtCore.QObject):
         self.__process_env.core_function._on_condition__break()
         
     def _initialize(self):
+        search_seg = parm()
+        code       = parm()
+        
         #== Create the internal process heartbeat timer. It processes the high-level
         #== 'process timers', created with timer_manager_.
         HEARTBEAT_PERIOD = 250
@@ -144,8 +146,6 @@ class ProcessWorker(QtCore.QObject):
         call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
         
         #== Create default search paths and store them in the process stack
-        declare (search_seg = parm,
-                 code = parm)
         call.search_paths_.set("objects", null(), null(), code)
         call.hcs_.initiate(self.dir(), "search_paths", "", 0, 0, search_seg, code)
         self.__process_env.pds.process_stack.search_seg_ptr = search_seg.ptr
@@ -251,6 +251,7 @@ class VirtualMulticsProcess(QtCore.QObject):
         
     def kill(self):
         print self.objectName() + ".kill() called"
+        self.worker.kill()
         self.worker.deleteLater()
         self.thread.quit()
         
@@ -262,7 +263,7 @@ class VirtualMulticsProcess(QtCore.QObject):
         
     def attach_tty(self, tty_channel):
         if tty_channel:
-            tty_channel.moveToThread(self.thread)
+            # tty_channel.moveToThread(self.thread)
             self.thread.tty_channel = tty_channel
         
     def __repr__(self):

@@ -1,0 +1,11 @@
+#!/bin/env python
+
+from terminal import TerminalWindow
+
+from PySide.QtGui import QApplication
+app = QApplication([])
+        
+terminal = TerminalWindow()
+terminal.show()
+
+app.exec_()

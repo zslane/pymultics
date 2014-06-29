@@ -2,9 +2,9 @@
 from multics.globals import *
 
 def who():
-    declare (users    = parm,
-             daemons  = parm,
-             arg_list = parm)
+    users    = parm()
+    daemons  = parm()
+    arg_list = parm()
     
     show_header = True
     show_users = True

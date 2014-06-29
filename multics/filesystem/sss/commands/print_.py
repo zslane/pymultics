@@ -3,13 +3,12 @@ from multics.globals import *
 
 @system_privileged
 def print_(*func_args):
-
-    declare (arg_list  = parm,
-             directory = parm,
-             full      = parm,
-             segment   = parm,
-             code      = parm)
-             
+    arg_list  = parm()
+    directory = parm()
+    full      = parm()
+    segment   = parm()
+    code      = parm()
+    
     if func_args:
         arg_list.args = list(func_args)
     else:

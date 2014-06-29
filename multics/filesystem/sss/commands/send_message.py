@@ -3,18 +3,18 @@ import datetime
 from multics.globals import *
 
 def send_message():
-    declare (before    = parm,
-             result    = parm,
-             arg_count = parm,
-             code      = parm)
+    before    = parm()
+    result    = parm()
+    arg_count = parm()
+    code      = parm()
              
     def send_msg(recipient, message, code):
     
-        declare (users     = parm,
-                 long_name = parm,
-                 person    = parm,
-                 project   = parm,
-                 acct      = parm)
+        users     = parm()
+        long_name = parm()
+        person    = parm()
+        project   = parm()
+        acct      = parm()
         
         call.sys_.get_userid_long(recipient, long_name, code)
         if code.val != 0:

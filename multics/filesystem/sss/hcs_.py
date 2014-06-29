@@ -14,9 +14,6 @@ class hcs_(SystemExecutable):
     def signal_break(self):
         self.system.signal_break()
         
-    # def clear_kst(self):
-        # self.system.dynamic_linker.clear_kst()
-        
     def get_entry_point(self, segment_name, segment):
         dir_name, entryname = None, segment_name
         if ">" in segment_name:

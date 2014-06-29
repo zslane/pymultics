@@ -33,8 +33,9 @@ class Listener(SystemExecutable):
             call.ioa_(ready_message)
     
     def _main_loop(self):
-        declare (command_line = parm,
-                 code         = parm)
+        command_line = parm()
+        code         = parm()
+        
         query_info.suppress_name_sw = True
         query_info.suppress_spacing = True
         
@@ -76,7 +77,7 @@ class Listener(SystemExecutable):
         pass
         
     def _initialize(self):
-        declare (homedir = parm)
+        homedir = parm()
         call.user_info_.homedir(homedir)
         call.sys_.push_directory(homedir.val)
         call.cu_.set_command_processor(self.__default_command_processor)

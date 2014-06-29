@@ -4,11 +4,11 @@ from multics.globals import *
 from sl_info import *
 
 def print_search_paths():
-    declare (sl_info_ptr = parm,
-             sl_list_ptr = parm,
-             arg_list    = parm,
-             code        = parm,
-             resolve_path_symbol_ = entry . returns (char(168)))
+    declare (resolve_path_symbol_ = entry . returns (char(168)))
+    sl_info_ptr = parm()
+    sl_list_ptr = parm()
+    arg_list    = parm()
+    code        = parm()
              
     expand = False
     sl_name = ""

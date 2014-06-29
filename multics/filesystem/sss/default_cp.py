@@ -7,8 +7,8 @@ class default_cp(CommandProcessor):
         super(default_cp, self).__init__(self.__class__.__name__)
         
     def execute(self, command_line, code):
-        declare (segment = parm,
-                 command = parm)
+        segment = parm()
+        command = parm()
         
         command_line = self._strip_comments(command_line)
         if command_line != "":

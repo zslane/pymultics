@@ -151,7 +151,7 @@ class SystemServices(QtCore.QObject):
             self._send_shutdown_message("shutdown_announcement", CANCELLED)
     
     def _send_shutdown_message(self, msgtype, how_long=-1):
-        declare (code    = parm)
+        code = parm()
         
         announcement = ""
         if msgtype == "shutdown_announcement":
@@ -380,16 +380,20 @@ class SystemServices(QtCore.QObject):
             self.dynamic_linker.dump_traceback_()
             
     def _load_user_accounts_data(self):
-        declare (process_dir = parm,
-                 branch      = parm,
-                 segment     = parm,
-                 code        = parm)
+        process_dir = parm()
+        branch      = parm()
+        segment     = parm()
+        code        = parm()
         
         from pnt import PersonNameTable
         from pdt import ProjectDefinitionTable
         from whotab import WhoTable
         from multics.globals import call
         # call = multics.globals.call
+        x = 1
+        y = 2
+        z = 3
+        pprint(locals())
         
         #== Get a pointer to the PNT (create it if necessary)
         call.hcs_.initiate(self.fs.system_control_dir, "person_name_table", "", 0, 0, segment, code)

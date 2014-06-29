@@ -5,13 +5,13 @@ from multics.globals import *
 def exec_com():
     declare (get_wdir_ = entry . returns (char(168)))
     
-    declare (arg_list  = parm,
-             person    = parm,
-             project   = parm,
-             acct      = parm,
-             homedir   = parm,
-             full_path = parm,
-             code      = parm)
+    arg_list  = parm()
+    person    = parm()
+    project   = parm()
+    acct      = parm()
+    homedir   = parm()
+    full_path = parm()
+    code      = parm()
     
     call.cu_.arg_list(arg_list)
     if arg_list.args == []:
