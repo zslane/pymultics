@@ -9,10 +9,6 @@ def get_pdir_():
 def get_process_id_():
     process = get_calling_process_()
     return process.id()
-
-def get_lock_id_():
-    process = get_calling_process_()
-    return process.stack.lock_id
     
 def get_wdir_():
     process = get_calling_process_()

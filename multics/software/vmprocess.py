@@ -100,7 +100,7 @@ class ProcessWorker(QtCore.QObject):
             try:
                 # print self.objectName()+"._process_messages calling set_lock_.lock"
                 call.set_lock_.lock(self.__process_env.msg.lock_word(), 3, code)
-                if code.val != 0:
+                if code.val != 0 and code.val != error_table_.invalid_lock_reset:
                     print "Could not lock %s" % self.__process_env.msg._filepath()
                     return
                 # end if
@@ -112,7 +112,7 @@ class ProcessWorker(QtCore.QObject):
             finally:
                 # print self.objectName()+"._process_messages calling set_lock_.unlock"
                 call.set_lock_.unlock(self.__process_env.msg.lock_word(), code)
-                if code.val != 0:
+                if code.val != 0 and code.val != error_table_.invalid_lock_reset:
                     print "Could not unlock %s" % self.__process_env.msg._filepath()
                     return
                 # end if
@@ -129,9 +129,6 @@ class ProcessWorker(QtCore.QObject):
         call.ioa_("New process for {0} started on {1}", self.uid(), datetime.datetime.now().ctime())
         code = self.__process_env.core_function.start(self)
         return code
-    
-    def _on_condition__break(self):
-        self.__process_env.core_function._on_condition__break()
         
     def _initialize(self):
         search_seg = parm()
@@ -159,12 +156,12 @@ class ProcessWorker(QtCore.QObject):
                 timer.check()
         
     def _cleanup(self):
+        print QtCore.QThread.currentThread().objectName() + " process terminating (_cleanup)"
         #== Kill the MBX process timer
         call.timer_manager_.reset_alarm_call(self._process_messages)
-        # if self.__timerid:
-            # self.killTimer(self.__timerid)
-            # self.__timerid = 0
-        print QtCore.QThread.currentThread().objectName() + " process terminating"
+        if self.__timerid:
+            self.killTimer(self.__timerid)
+            self.__timerid = 0
         
     def _dispatch_msg_message(self, msg_message):
         print "(%s)" % (get_calling_process_().objectName()), self.objectName(), "process message found", msg_message

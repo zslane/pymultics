@@ -1,9 +1,5 @@
-from collections import defaultdict
 
 from multics.globals import *
-
-def _process_id():
-    return get_calling_process_().objectName()
     
 class cu_(SystemSubroutine):
 
@@ -27,24 +23,23 @@ class cu_(SystemSubroutine):
         
     def __init__(self, supervisor):
         super(cu_, self).__init__(self.__class__.__name__, supervisor)
-        # self.__default_context = cu_.context()
-        self.__contexts = defaultdict(list)
-        # self.__contexts[_process_id()].append(cu_.context())
         
     @property
     def _current_context(self):
+        process = get_calling_process_()
         try:
-            return self.__contexts[_process_id()][-1]
+            return process.stack.cp_contexts[-1]
         except:
-            self.__contexts[_process_id()].append(cu_.context())
-            return self.__contexts[_process_id()][-1]
-            # return self.__default_context
+            process.stack.cp_contexts = [cu_.context()]
+            return process.stack.cp_contexts[-1]
         
     def _push_context(self):
-        self.__contexts[_process_id()].append(self._current_context.copy())
+        process = get_calling_process_()
+        process.stack.cp_contexts.append(self._current_context.copy())
         
     def _pop_context(self):
-        return self.__contexts[_process_id()].pop()
+        process = get_calling_process_()
+        return process.stack.cp_contexts.pop()
         
     def arg_count(self, arg_count, code=None):
         arg_count.val = len(self._current_context.argument_string.split())

@@ -127,20 +127,19 @@ class HardwareClock(QtCore.QObject):
 class IOSubsystem(QtCore.QObject):
 
     heartbeat = QtCore.Signal()
-    terminalClosed = QtCore.Signal()
+    poweredDown = QtCore.Signal()
     breakSignal = QtCore.Signal()
-    disconnect = QtCore.Signal()
-
+    
     def __init__(self):
         super(IOSubsystem, self).__init__()
 
         self.__input_buffer = []
         self.__linefeed = False
         self.__break_signal = False
-        self.__closed_signal = False
+        # self.__closed_signal = False
         self.__console = None
         self.__terminal_process_id = 0
-
+    
     def _receive_string(self, s):
         self.__linefeed = False
         self.__input_buffer.append(s.strip())
@@ -152,9 +151,9 @@ class IOSubsystem(QtCore.QObject):
         self.__linefeed = False
         self.__break_signal = True
         
-    def _close_terminal(self):
-        self.__closed_signal = True
-        self.terminalClosed.emit()
+    def _power_down(self):
+        # self.__closed_signal = True
+        self.poweredDown.emit()
     
     def attach_console(self, console):
         self.__console = console
@@ -163,8 +162,7 @@ class IOSubsystem(QtCore.QObject):
             self.__console.io.textEntered.connect(self._receive_string)
             self.__console.io.lineFeed.connect(self._receive_linefeed)
             self.__console.io.breakSignal.connect(self._receive_break)
-            self.__console.closed.connect(self._close_terminal)
-            self.disconnect.connect(self.__console.disconnect)
+            self.__console.closed.connect(self._power_down)
     
     def attach_console_process(self, process_id):
         self.__terminal_process_id = process_id
@@ -194,7 +192,7 @@ class IOSubsystem(QtCore.QObject):
         if tty_channel:
             return tty_channel.terminal_closed()
         else:
-            return self.__closed_signal
+            return False #self.__closed_signal
         
     def has_input(self, tty_channel=None):
         if tty_channel:
@@ -235,7 +233,7 @@ class IOSubsystem(QtCore.QObject):
         if tty_channel:
             tty_channel.disconnect()
         elif self.__console:
-            self.disconnect.emit()
+            print "Disconnect request ignored by system console"
     
     def shutdown(self, tty_channel=None):
         if tty_channel:

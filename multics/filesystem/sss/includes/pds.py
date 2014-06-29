@@ -8,6 +8,4 @@ class pds_structure(PL1.Structure):
         PL1.Structure.__init__(self,
             version       = pds_version_1,
             process_stack = None,
-            lock_id       = 0,
         )
-    

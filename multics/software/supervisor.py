@@ -37,7 +37,7 @@ class Supervisor(QtCore.QObject):
         self.__shutdown_message = ""
         self.__shutdown_signal = False
         
-        self.__hardware.io.terminalClosed.connect(self._kill_daemons)
+        self.__hardware.io.poweredDown.connect(self.hard_shutdown)
         self.__hardware.io.heartbeat.connect(self._heartbeat)
         
         GlobalEnvironment.register_supervisor(self, self.__dynamic_linker)
@@ -100,16 +100,13 @@ class Supervisor(QtCore.QObject):
     
     def _send_system_greeting(self):
         self.__hardware.io.put_output("%s\n" % (self.__hardware.announce))
+        print "%s" % (self.__hardware.announce)
         self.__hardware.io.put_output("Multics Supervisor %s started on %s\n" % (self.version, self.__startup_datetime.ctime()))
+        print "Multics Supervisor %s started on %s\n" % (self.version, self.__startup_datetime.ctime())
         
     def _send_system_farewell(self):
         self.__hardware.io.put_output("\n:Multics Supervisor shutdown on %s:\n" % (self.__shutdown_datetime.ctime()))
-        
-    #== CONDITION HANDLERS ==#
-    
-    def _on_condition__break(self):
-        # do cleanup ... like clearing application timers and stuff
-        pass
+        print "\n:Multics Supervisor shutdown on %s:\n" % (self.__shutdown_datetime.ctime())
         
     #== STARTUP/SHUTDOWN ==#
     
@@ -119,12 +116,21 @@ class Supervisor(QtCore.QObject):
         self.__dynamic_linker.initialize()
         DEFAULT_SHUTDOWN_TIME = 10 * 60 # 10 minutes
         self.add_system_timer(DEFAULT_SHUTDOWN_TIME, self._shutdown_task)
+        PAUSE_TO_SHUTDOWN = 3 # 3 seconds
+        self.add_system_timer(PAUSE_TO_SHUTDOWN, self._shutdown_procedure)
         
+    #== Unexpected shutdown (console window closed). System timers non-functioning at this point.
+    def hard_shutdown(self):
+        if not self.shutting_down():
+            print get_calling_process_().objectName() + " calling supervisor.hard_shutdown()"
+            self.__shutdown_signal = True
+            self._shutdown_procedure()
+    
+    #== Controlled shutdown (via shutdown command). Requires system timers still be running.
     def shutdown(self):
         print get_calling_process_().objectName() + " calling supervisor.shutdown()"
         self.__shutdown_signal = True
-        timer = self.add_system_timer(3, self._shutdown_procedure)
-        timer.start()
+        self.__system_timers[self._shutdown_procedure].start()
         
     def _shutdown_procedure(self):
         self.__system_timers[self._shutdown_procedure].stop()
@@ -196,12 +202,10 @@ class Supervisor(QtCore.QObject):
             self.__system_timers[self._shutdown_task].start(next_time)
             
         elif self.__shutdown_time_left == 0:
-            self._send_shutdown_message("shutdown") # <-- this is how we force shutdown logout for other logged in users
             self.shutdown()
         
     #== LOW-LEVEL I/O ==#
-    #== These functions can be used to do basic TTY I/O in the absence of
-    #== a process
+    #== I/O sent to a 'null' TTY device go to the system console
     
     def llout(self, s, tty_channel=None):
         self.__hardware.io.put_output(s, tty_channel)
@@ -294,7 +298,6 @@ class Supervisor(QtCore.QObject):
     
     def signal_break(self, tty_channel=None):
         self.__hardware.io.put_output("BREAK\n", tty_channel)
-        self._on_condition__break()
         
     def signal_condition(self, signalling_process, condition_instance):
         self.__signalled_conditions.append( (signalling_process, condition_instance) )
@@ -314,12 +317,8 @@ class Supervisor(QtCore.QObject):
         # end for
         return None
         
-    #== THREAD CONTROL ==#
+    #== DAEMON PROCESS CONTROL ==#
     
-    def get_calling_process(self):
-        calling_process = QtCore.QThread.currentThread()
-        return calling_process
-        
     def add_daemon_process(self, process):
         print "Adding daemon process", process.objectName()
         self.__daemons.insert(0, process)
@@ -329,14 +328,12 @@ class Supervisor(QtCore.QObject):
         
     def _kill_process(self, process):
         if process:
-            keep_process_data = (process == self.__initializer)
-            self.__process_overseer.destroy_process(process, keep_process_data)
+            self.__process_overseer.destroy_process(process)
     
     def _kill_daemons(self):
         for daemon_process in self.__daemons[:]:
             self._kill_process(daemon_process)
             self.__daemons.remove(daemon_process)
-        # end for
         
     def start(self):
         self._load_user_accounts_data()
@@ -601,11 +598,6 @@ class DynamicLinker(QtCore.QObject):
         self.__supervisor.llout(excmsg)
         
     #== Called by hcs_ ==#
-    
-    #== clear_kst() won't be necessary once KSTs are stored on the new Process objects.
-    # def clear_kst(self):
-        # process = self.__supervisor.get_calling_process()
-        # process.clear_kst()
     
     @property
     def segfault_count(self):

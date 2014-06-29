@@ -12,7 +12,7 @@ class hcs_(SystemSubroutine):
         self.__filesystem = supervisor.hardware.filesystem
     
     def signal_break(self):
-        self.supervisor.signal_break()
+        self.supervisor.signal_break(get_calling_process_().tty())
         
     def get_entry_point(self, segment_name, segment):
         dir_name, entryname = None, segment_name

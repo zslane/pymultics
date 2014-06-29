@@ -15,7 +15,8 @@ class Messenger(SystemSubroutine):
         return self._main_loop()
         
     def kill(self):
-        self._cleanup()
+        # self._cleanup()
+        self.exit_code = self.exit_code or System.LOGOUT
         
     def _main_loop(self):
         self._initialize()
@@ -31,14 +32,10 @@ class Messenger(SystemSubroutine):
         
         return self.exit_code
         
-    def _on_condition__break(self):
-        pass
-        
     def _initialize(self):
         msg_handlers = {
             'interactive_message': self._interactive_message_handler,
             'shutdown_announcement': self._interactive_message_handler,
-            'shutdown': self._interactive_message_handler,
         }
         self.__process.register_msg_handlers(msg_handlers)
         

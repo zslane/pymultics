@@ -78,7 +78,6 @@ class ProcessOverseer(object):
         
         pds = pds_structure()
         pds.process_stack = ProcessStack()
-        pds.lock_id = clock_()
         
         #== Create the process data segment (PDS)
         call.hcs_.initiate(process_dir.val, "pds", "", 0, 0, segment, code)
@@ -180,7 +179,6 @@ class ProcessStack(object):
     
     def __init__(self):
         self.process_timers = {}
-        self.file_locks = {}
         #== More attributes added as needed by system services...
         
     def assert_create(self, attrname, attrtype):

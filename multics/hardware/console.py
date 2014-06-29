@@ -151,7 +151,7 @@ class ConsoleWindow(QtGui.QMainWindow):
         self.closed.emit()
         event.accept()
 
-    @QtCore.Slot()
-    def disconnect(self):
-        QtCore.QTimer.singleShot(0, self.close)
+    # @QtCore.Slot()
+    # def disconnect(self):
+        # QtCore.QTimer.singleShot(0, self.close)
         

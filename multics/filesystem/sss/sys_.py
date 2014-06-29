@@ -7,13 +7,14 @@ class sys_(SystemSubroutine):
     def __init__(self, supervisor):
         super(sys_, self).__init__(self.__class__.__name__, supervisor)
         
-        self.__command_exit_code = 0
-        
     def set_exit_code(self, code):
-        self.__command_exit_code = code
+        process = get_calling_process_()
+        process.stack.command_exit_code = code
         
     def get_exit_code(self, code):
-        code.val = self.__command_exit_code
+        process = get_calling_process_()
+        process.stack.assert_create("command_exit_code", int)
+        code.val = process.stack.command_exit_code
         
     def get_userid_long(self, short_name, long_name, code):
         short_person_id, _, short_project_id = short_name.partition(".")
@@ -215,10 +216,6 @@ class sys_(SystemSubroutine):
             
     def signal_condition(self, signalling_process, condition_instance):
         self.supervisor.signal_condition(signalling_process, condition_instance)
-        
-    def signal_shutdown(self):
-        if not self.supervisor.shutting_down():
-            self.supervisor.shutdown()
         
     def start_shutdown(self, how_long, message):
         self.supervisor.start_shutdown(how_long, message)

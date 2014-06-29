@@ -13,6 +13,9 @@ include.pdt
 include.whotab
 include.pit
 include.login_info
+            
+SERVER_NAME = "localhost"
+SERVER_PORT = 6800
 
 class AnsweringService(SystemSubroutine):
 
@@ -32,67 +35,22 @@ class AnsweringService(SystemSubroutine):
         self.__pending_login_ttys = []
         self.__logins_in_progress = []
         self.exit_code = 0
+        self.shutting_down = False
         
     def start(self, owning_process):
         self.__process = owning_process
-        return self._main_loop2()
+        return self._main_loop()
         
     def kill(self):
-        self._cleanup()
+        # self._cleanup()
+        self.shutting_down = True
+        pass
         
     def _main_loop(self):
         self._initialize()
         
-        shutting_down = False
-        while not (shutting_down and self.process_overseer.running_processes == []):
-            try:
-                #== See if any terminals are trying to log in
-                if (not self.supervisor.hardware.io.attached_console_process() and
-                    self.supervisor.hardware.io.linefeed_received()):
-                    self.supervisor.hardware.io.flush_input()
-                    process = self._user_login()
-                    if process:
-                        print "Attaching system console to process", process.id(), process.objectName()
-                        self.supervisor.hardware.io.attach_console_process(process.id())
-                        print "Starting process", process.objectName()
-                        process.start()
-                    # end if
-                    
-                else:
-                    check_conditions_(ignore_break_signal=True)
-                # end if
-            
-            except DisconnectCondition:
-                shutting_down = True
-            # end try
-            
-            except ShutdownCondition:
-                shutting_down = True
-            # end try
-            
-            #== See if any processes have terminated with LOGOUT or NEW_PROC exit codes
-            for process in self.process_overseer.running_processes:
-                if process.exit_code != 0:
-                    if process.exit_code == System.LOGOUT:
-                        self._user_logout(process)
-                        
-                    elif process.exit_code == System.NEW_PROCESS:
-                        self._user_new_proc(process)
-                    # end if
-                # end if
-            # end for
-            
-        # end while
-        
-        self._cleanup()
-        
-        return 0
-        
-    def _main_loop2(self):
-        self._initialize()
-        
-        shutting_down = False
-        while not (shutting_down and self.process_overseer.running_processes == []):
+        # shutting_down = False
+        while not (self.shutting_down and self.process_overseer.running_processes == []):
             try:
                 #== Visit each tty in the process of logging in and advance its UserControl
                 #== state if possible
@@ -104,7 +62,7 @@ class AnsweringService(SystemSubroutine):
                         
                     elif state == UserControl.LOGIN_COMPLETE:
                         tty_channel = login.tty
-                        process = self._user_login2(login.login_options(), tty_channel)
+                        process = self._user_login(login.login_options(), tty_channel)
                         if process:
                             if tty_channel:
                                 print "Attaching tty_channel", tty_channel.id, "to process", process.id(), process.objectName()
@@ -118,10 +76,12 @@ class AnsweringService(SystemSubroutine):
                         # end if
                         
                     elif state == UserControl.DISCONNECTED:
-                        if login.tty:
-                            print "tty_channel", login.tty.id, "disconnected during login"
+                        #== Only ttys disconnect
+                        print "tty_channel", login.tty.id, "disconnected during login"
                     # end if
                     
+                    #== For LOGIN_COMPLETE and DISCONNECTED states, we remove the UserControl object
+                    #== from the list of logins still in progress
                     self.__logins_in_progress.remove(login)
                 # end for
                 
@@ -137,7 +97,8 @@ class AnsweringService(SystemSubroutine):
                     
                 #== Add the system console to the list of logins 'in progress' if it isn't
                 #== already attached to a process and not already in the list
-                if (not self.supervisor.hardware.io.attached_console_process() and
+                if (not self.supervisor.hardware.io.terminal_closed() and
+                    not self.supervisor.hardware.io.attached_console_process() and
                     not any([ login.tty == None for login in self.__logins_in_progress ])):
                     login = UserControl(self.supervisor,
                                         self.__person_name_table,
@@ -146,24 +107,26 @@ class AnsweringService(SystemSubroutine):
                                         None)
                     self.__logins_in_progress.append(login)
                 # end if
-                    
-                check_conditions_(ignore_break_signal=True)
+                
+                if not self.shutting_down:
+                    check_conditions_(ignore_break_signal=True)
+                # end if
             
-            except DisconnectCondition:
-                shutting_down = True
+            # except DisconnectCondition:
+                # shutting_down = True
             
             except ShutdownCondition:
-                shutting_down = True
+                self.shutting_down = True
             # end try
             
             #== See if any processes have terminated with LOGOUT or NEW_PROC exit codes
             for process in self.process_overseer.running_processes:
                 if process.exit_code != 0:
                     if process.exit_code == System.LOGOUT:
-                        self._user_logout2(process)
+                        self._user_logout(process)
                         
                     elif process.exit_code == System.NEW_PROCESS:
-                        self._user_new_proc2(process)
+                        self._user_new_proc(process)
                     # end if
                 # end if
             # end for
@@ -188,28 +151,7 @@ class AnsweringService(SystemSubroutine):
         from listener import Listener
         return self.process_overseer.create_process(login_info, Listener)
     
-    def _user_login(self):
-        login_options = self.user_control.login_ui(self.supervisor,
-                                                   self.__person_name_table,
-                                                   self.__project_definition_tables,
-                                                   self.__whotab)
-        
-        login_info.time_login = datetime.datetime.now()
-        
-        process = self._new_process(login_options['person_id'], login_options['pdt'], login_options)
-        if process:
-            #== Add the user to the whotab
-            with self.__whotab:
-                self.__whotab.entries[login_info.user_id] = WhotabEntry(login_info.time_login, process.id(), process.dir())
-            # end with
-            
-            self.supervisor.llout("\n%s logged in on %s\n" % (login_info.user_id, login_info.time_login.ctime()))
-            print "%s logged in on %s" % (login_info.user_id, login_info.time_login.ctime())
-        # end if
-        
-        return process
-    
-    def _user_login2(self, login_options, tty_channel):
+    def _user_login(self, login_options, tty_channel):
         login_info.time_login = datetime.datetime.now()
         
         process = self._new_process(login_options['person_id'], login_options['pdt'], login_options)
@@ -226,20 +168,6 @@ class AnsweringService(SystemSubroutine):
         return process
         
     def _user_logout(self, process):
-        user_id = process.uid()
-        self.supervisor.hardware.io.detach_console_process(process.id())
-        self.process_overseer.destroy_process(process)
-        
-        self.supervisor.llout("%s logged out on %s\n" % (user_id, datetime.datetime.now().ctime()))
-        print "%s logged out on %s" % (user_id, datetime.datetime.now().ctime())
-        
-        #== Remove the entry in the whotab corresponding to this user
-        with self.__whotab:
-            del self.__whotab.entries[user_id]
-        # end with
-        pprint(self.__whotab)
-        
-    def _user_logout2(self, process):
         user_id = process.uid()
         tty_channel = process.tty()
         
@@ -261,60 +189,31 @@ class AnsweringService(SystemSubroutine):
         # end if
         
     def _user_new_proc(self, process):
-        user_id = process.uid()
-        pit = process.pit()
+        #== Save importnt user process info from the process being destroyed
+        user_id       = process.uid()
         person_id, _, project_id = user_id.partition(".")
-        pdt = self.__project_definition_tables.get(project_id)
+        pit           = process.pit()
+        tty_channel   = process.tty()
+        pdt           = self.__project_definition_tables.get(project_id)
         login_options = {
-            'person_id': person_id,
-            'project_id': project_id,
-            'pdt': pdt,
-            'home_dir': pit.homedir,
+            'person_id'  : person_id,
+            'project_id' : project_id,
+            'pdt'        : pdt,
+            'home_dir'   : pit.homedir,
             'no_start_up': pit.no_start_up,
         }
         login_options.update(process.stack.new_proc_options)
         
-        self.supervisor.hardware.io.detach_console_process(process.id())
-        self.process_overseer.destroy_process(process)
-        
-        process = self._new_process(person_id, pdt, login_options)
-        if process:
-            print "Starting new process", process.objectName()
-            process.start()
-            #== Update the entry in the whotab corresponding to this user
-            with self.__whotab:
-                self.__whotab.entries[user_id].process_id = process.id()
-                self.__whotab.entries[user_id].process_dir = process.dir()
-            # end with
-            pprint(self.__whotab)
-            print "Attaching tty to process", process.id(), process.objectName()
-            self.supervisor.hardware.io.attach_console_process(process.id())
-        else:
-            self.supervisor.llout("Error creating process!")
-        # end if
-        
-    def _user_new_proc2(self, process):
-        user_id = process.uid()
-        pit = process.pit()
-        tty_channel = process.tty()
-        person_id, _, project_id = user_id.partition(".")
-        pdt = self.__project_definition_tables.get(project_id)
-        login_options = {
-            'person_id': person_id,
-            'project_id': project_id,
-            'pdt': pdt,
-            'home_dir': pit.homedir,
-            'no_start_up': pit.no_start_up,
-        }
-        login_options.update(process.stack.new_proc_options)
-        
+        #== Destroy the old process
         if tty_channel == None:
             self.supervisor.hardware.io.detach_console_process(process.id())
         # end if
         self.process_overseer.destroy_process(process)
         
+        #== Create the new process
         process = self._new_process(person_id, pdt, login_options)
         if process:
+            #== Re-attach the tty/console
             if tty_channel:
                 print "Attaching tty_channel", tty_channel.id, "to process", process.id(), process.objectName()
                 process.attach_tty(tty_channel)
@@ -322,8 +221,11 @@ class AnsweringService(SystemSubroutine):
                 print "Attaching system console to process", process.id(), process.objectName()
                 self.supervisor.hardware.io.attach_console_process(process.id())
             # end if
+            
+            #== Start the new process
             print "Starting new process", process.objectName()
             process.start()
+            
             #== Update the entry in the whotab corresponding to this user
             with self.__whotab:
                 self.__whotab.entries[user_id].process_id = process.id()
@@ -334,9 +236,6 @@ class AnsweringService(SystemSubroutine):
             self.supervisor.llout("Error creating process!")
         # end if
     
-    def _on_condition__break(self):
-        pass
-        
     def _initialize(self):
         self.__person_name_table = self.supervisor.pnt
         self.__project_definition_tables = self.supervisor.pdt
@@ -351,6 +250,17 @@ class AnsweringService(SystemSubroutine):
         self.rfs_listener.start()
         
     def _cleanup(self):
+        #== Close down any tty channels in the midst of logging in
+        for login in self.__logins_in_progress:
+            tty_channel = login.tty
+            if tty_channel:
+                tty_channel.disconnect()
+            # end if
+        # end for
+        #== Close down any tty channels connected but not yet under User Control
+        for tty_channel in self.__pending_login_ttys:
+            tty_channel.disconnect()
+        # end for
         print "Shutting down RFS listener"
         self.rfs_listener.close()
         
@@ -412,9 +322,6 @@ class AnsweringService(SystemSubroutine):
         if pnt_ptr.name_entries[person_id].alias:
             print "Adding name " + pnt_ptr.name_entries[person_id].alias + " to home directory"
             self.supervisor.fs.add_name(homedir, pnt_ptr.name_entries[person_id].alias)
-            
-SERVER_NAME = "localhost"
-SERVER_PORT = 6800
 
 class RFSListener(QtNetwork.QTcpServer):
 
