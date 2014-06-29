@@ -1,7 +1,7 @@
 
 from multics.globals import *
 
-class term_(SystemExecutable):
+class term_(SystemSubroutine):
     def __init__(self, system_services):
         super(term_, self).__init__(self.__class__.__name__, system_services)
         

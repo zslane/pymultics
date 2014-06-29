@@ -1,7 +1,7 @@
 
 from multics.globals import *
 
-class ioa_(SystemExecutable):
+class ioa_(SystemSubroutine):
     def __init__(self, system_services):
         super(ioa_, self).__init__(self.__class__.__name__, system_services)
         

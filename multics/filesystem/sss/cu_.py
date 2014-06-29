@@ -5,7 +5,7 @@ from multics.globals import *
 def _process_id():
     return get_calling_process_().objectName()
     
-class cu_(SystemExecutable):
+class cu_(SystemSubroutine):
 
     class context(object):
         def __init__(self):

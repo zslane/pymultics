@@ -64,7 +64,7 @@ class TTYChannel(QtCore.QObject):
                 data_code, payload = data_packet.extract_control_data()
                 
                 if data_code == LINEFEED_CODE:
-                    print "tty", self.id, "received LINEFEED"
+                    # print "tty", self.id, "received LINEFEED"
                     self.__linefeed = True
                     
                 elif data_code == BREAK_CODE:

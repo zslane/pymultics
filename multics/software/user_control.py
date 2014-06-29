@@ -98,7 +98,8 @@ class UserControl(object):
         
     def _display_login_banner(self):
         load = len(os.listdir(self.supervisor.fs.path2path(self.supervisor.fs.process_dir_dir)))
-        self._put_output("\nVirtual Multics MR3.0: %s, %s\nLoad = %0.1f out of %0.1f: users = %d\n" % (
+        self._put_output("\nVirtual Multics MR%s: %s, %s\nLoad = %0.1f out of %0.1f: users = %d\n" % (
+            self.supervisor.version,
             self.supervisor.site_config['site_location'],
             self.supervisor.site_config['site_name'],
             load, self.supervisor.site_config['maximum_load'],

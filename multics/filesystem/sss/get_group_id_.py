@@ -1,7 +1,7 @@
 
 from multics.globals import *
 
-class get_group_id_(SystemExecutable):
+class get_group_id_(SystemSubroutine):
     def __init__(self, supervisor):
         super(get_group_id_, self).__init__(self.__class__.__name__, supervisor)
         

@@ -1,7 +1,7 @@
 
 from ..globals import *
 
-class Messenger(SystemExecutable):
+class Messenger(SystemSubroutine):
 
     def __init__(self, supervisor, command_processor):
         super(Messenger, self).__init__(self.__class__.__name__, supervisor)

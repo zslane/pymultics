@@ -14,14 +14,12 @@ def collapse(l): return [ item for sublist in l for item in sublist ]
 
 class VirtualMulticsHardware(QtCore.QObject):
 
-    __version__ = "v1.0.0"
-    
     def __init__(self, init_args=[]):
         t = QtCore.QThread.currentThread()
         t.setObjectName("Multics.Supervisor")
         
         self._create_hardware_resources()
-
+        
         #== Create hardware subsystems
         self.__io_subsystem = IOSubsystem()
         self.__filesystem = VirtualMulticsFileSystem(init_args)
@@ -35,24 +33,30 @@ class VirtualMulticsHardware(QtCore.QObject):
     def _create_hardware_resources(self):
         self.__startup_time = self._load_hardware_statefile()
         self.__clock = HardwareClock(self.__startup_time)
-        self.announce = "Virtual Multics Hardware %s Initialized" % (self.__version__)
-
+        self.announce = "Virtual Multics Hardware %s Initialized" % (self.version)
+    
     @property
-    def clock(self): return self.__clock
+    def version(self):
+        return "3.0"
     @property
-    def io(self): return self.__io_subsystem
+    def clock(self):
+        return self.__clock
     @property
-    def filesystem(self): return self.__filesystem
-
+    def io(self):
+        return self.__io_subsystem
+    @property
+    def filesystem(self):
+        return self.__filesystem
+    
     def attach_console(self, console):
         self.__io_subsystem.attach_console(console)
-
+    
     def boot_OS(self):
         from ..software.system_services import SystemServices
         self.__system_services = SystemServices(self)
         self.__system_services.startup()
         return self.__system_services
-
+    
     def shutdown(self):
         self.__io_subsystem.shutdown()
         self._del_hardware_statefile()

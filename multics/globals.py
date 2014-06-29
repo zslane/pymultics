@@ -94,13 +94,13 @@ error_table_ = PL1.Enum("error_table_",
     noentry = -19,
 )
 
-class Executable(QtCore.QObject):
+class Subroutine(QtCore.QObject):
     """
-    Executables are created within the SegmentDescriptor constructor to
+    Subroutines are created within the SegmentDescriptor constructor to
     represent both procedure$entrypoint executables and pure functions.
     """
     def __init__(self, segment_name, fn=None):
-        super(Executable, self).__init__()
+        super(Subroutine, self).__init__()
         
         self.__segment_name = segment_name
         self.__fn = fn # wrapped python function
@@ -122,15 +122,15 @@ class Executable(QtCore.QObject):
         if self.__fn:
             return "<%s.%sCommand %s>" % (__name__, self.__class__.__name__, self.__segment_name)
         else:
-            return super(Executable, self).__repr__()
+            return super(Subroutine, self).__repr__()
     
-class SystemExecutable(Executable):
+class SystemSubroutine(Subroutine):
     def __init__(self, segment_name, system_services):
-        super(SystemExecutable, self).__init__(segment_name)
+        super(SystemSubroutine, self).__init__(segment_name)
         
         self.system = system_services
         
-class CommandProcessor(Executable):
+class CommandProcessor(Subroutine):
     def __init__(self, segment_name):
         super(CommandProcessor, self).__init__(segment_name)
         
@@ -362,7 +362,7 @@ class declare(object):
                 Injector.inject_parm(pframe, fn_name, dcl_type.initial_value)
             elif type(dcl_type) in [PL1.FuncSignature, PL1.ProcSignature]:
                 #== Creates and injects a LinkageReference object. Inclusion of
-                #== PL1.ProcSignature here allows methods inside Executable
+                #== PL1.ProcSignature here allows methods inside Subroutine
                 #== objects to be called with regular function call syntax.
                 Injector.inject_func(pframe, fn_name, call)
             else:

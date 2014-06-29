@@ -16,8 +16,6 @@ include.sl_info
 
 class SystemServices(QtCore.QObject):
 
-    __version__ = "v1.0.0"
-    
     IDLE_DELAY_TIME = 20
     
     def __init__(self, hardware):
@@ -50,6 +48,9 @@ class SystemServices(QtCore.QObject):
         
         self._load_site_config()
         
+    @property
+    def version(self):
+        return "3.0"
     @property
     def hardware(self):
         return self.__hardware
@@ -99,10 +100,10 @@ class SystemServices(QtCore.QObject):
     
     def _send_system_greeting(self):
         self.__hardware.io.put_output("%s\n" % (self.__hardware.announce))
-        self.__hardware.io.put_output("System Services %s started on %s\n" % (self.__version__, self.__startup_datetime.ctime()))
+        self.__hardware.io.put_output("Multics Supervisor %s started on %s\n" % (self.version, self.__startup_datetime.ctime()))
         
     def _send_system_farewell(self):
-        self.__hardware.io.put_output("\n:System Services shutdown on %s:\n" % (self.__shutdown_datetime.ctime()))
+        self.__hardware.io.put_output("\n:Multics Supervisor shutdown on %s:\n" % (self.__shutdown_datetime.ctime()))
         
     #== CONDITION HANDLERS ==#
     
@@ -514,16 +515,16 @@ class SegmentDescriptor(QtCore.QObject):
         if hasattr(entry_point, "__bases__"):
             import inspect
             base_classes = inspect.getmro(entry_point)
-            #== Is it a SystemExecutable-derived class?
-            if SystemExecutable in base_classes:
+            #== Is it a SystemSubroutine-derived class?
+            if SystemSubroutine in base_classes:
                 #== Instantiate one and return the object
-                # print "Creating SystemExecutable segment"
+                # print "Creating SystemSubroutine segment"
                 self.segment = entry_point(system_services)
                 
-            #== Is it an Executable-derived class?
-            elif Executable in inspect.getmro(entry_point):
+            #== Is it an Subroutine-derived class?
+            elif Subroutine in inspect.getmro(entry_point):
                 #== Instantiate one and return the object
-                # print "Creating Executable segment"
+                # print "Creating Subroutine segment"
                 self.segment = entry_point()
                 
             else:
@@ -531,9 +532,9 @@ class SegmentDescriptor(QtCore.QObject):
             
         #== Is it a function (or other callable)?
         elif callable(entry_point):
-            #== Wrap it up as an Executable object
+            #== Wrap it up as an Subroutine object
             # print "Creating function segment"
-            self.segment = Executable(segment_name, entry_point)
+            self.segment = Subroutine(segment_name, entry_point)
             
         else:
             # print "Creating null segment"

@@ -319,10 +319,10 @@ class PL1(object):
                 raise Exception(pointer_name + " not found")
             return BasedStructureFactory(globals_dict, struct_name, pointer_name)
             
-        def __repr__(self):
-            attributes = ",\n  ".join([ "{0}: {1}".format(k, repr(v)) for k, v in self.__dict__.items() if k != "_frozen_" ])
-            s = "<PL1.Structure\n  %s>" % (attributes)
-            return s
+        # def __repr__(self):
+            # attributes = ",\n  ".join([ "{0}: {1}".format(k, repr(v)) for k, v in self.__dict__.items() if k != "_frozen_" ])
+            # s = "<PL1.Structure\n  %s>" % (attributes)
+            # return s
     
     class EnumValue(object):
         def __init__(self, enum_name, member_name, value):

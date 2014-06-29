@@ -174,7 +174,7 @@ class ProcessStack(object):
     #== accessed directly by the process object itself (it wouldn't even know about the
     #== data attributes added by system services), but used behind the scenes when
     #== the associated system service functions are called. This is better than
-    #== keeping the data as resident attributes of the SystemExecutable class instances
+    #== keeping the data as resident attributes of the SystemSubroutine class instances
     #== because even though it is data only those methods know or care about, the data
     #== really 'belongs' to the process, not the system service.
     

@@ -2,7 +2,7 @@
 from multics.globals import *
 from query_info import *
 
-class command_query_(SystemExecutable):
+class command_query_(SystemSubroutine):
     def __init__(self, system_services):
         super(command_query_, self).__init__(self.__class__.__name__, system_services)
         

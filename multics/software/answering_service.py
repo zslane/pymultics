@@ -14,7 +14,7 @@ include.whotab
 include.pit
 include.login_info
 
-class AnsweringService(SystemExecutable):
+class AnsweringService(SystemSubroutine):
 
     DEFAULT_CP_PATH = ">sss>default_cp"
 

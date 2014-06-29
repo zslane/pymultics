@@ -1,7 +1,7 @@
 
 from multics.globals import *
 
-class test_(Executable):
+class test_(Subroutine):
     def __init__(self):
         super(test_, self).__init__(self.__class__.__name__)
 

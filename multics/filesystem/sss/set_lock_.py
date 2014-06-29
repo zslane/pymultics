@@ -1,7 +1,7 @@
 
 from multics.globals import *
 
-class set_lock_(SystemExecutable):
+class set_lock_(SystemSubroutine):
     def __init__(self, system_services):
         super(set_lock_, self).__init__(self.__class__.__name__, system_services)
         

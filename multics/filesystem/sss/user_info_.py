@@ -1,7 +1,7 @@
 
 from multics.globals import *
 
-class user_info_(SystemExecutable):
+class user_info_(SystemSubroutine):
     def __init__(self, system_services):
         super(user_info_, self).__init__(self.__class__.__name__, system_services)
         self.__pit = parm()

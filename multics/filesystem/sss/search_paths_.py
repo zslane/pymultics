@@ -11,7 +11,7 @@ SEARCH_PATH_SYMBOLS = [
     "-working_dir",
 ]
 
-class search_paths_(SystemExecutable):
+class search_paths_(SystemSubroutine):
     def __init__(self, system_services):
         super(search_paths_, self).__init__(self.__class__.__name__, system_services)
         

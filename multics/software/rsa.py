@@ -123,15 +123,15 @@ def decode(bcipher, privkey, verbose=False):
     return b''.join(result).rstrip(b'\x00').decode()
 
 
-if __name__ == '__main__':
-    import doctest
-    print(doctest.testmod())
+# if __name__ == '__main__':
+    # import doctest
+    # print(doctest.testmod())
 
-    pubkey, privkey = keygen(2 ** 64)
-    msg = 'the quick brown fox jumped over the lazy dog'
-    h = encode(msg, pubkey, verbose=True)
-    p = decode(h, privkey, verbose=True)
-    print('-' * 20)
-    print(repr(msg))
-    print(h)
-    print(repr(p))
+    # pubkey, privkey = keygen(2 ** 64)
+    # msg = 'the quick brown fox jumped over the lazy dog'
+    # h = encode(msg, pubkey, verbose=True)
+    # p = decode(h, privkey, verbose=True)
+    # print('-' * 20)
+    # print(repr(msg))
+    # print(h)
+    # print(repr(p))

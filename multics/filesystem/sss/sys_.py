@@ -3,7 +3,7 @@ from multics.globals import *
 
 declare (get_wdir_ = entry . returns (char(168)))
 
-class sys_(SystemExecutable):
+class sys_(SystemSubroutine):
     def __init__(self, system_services):
         super(sys_, self).__init__(self.__class__.__name__, system_services)
         

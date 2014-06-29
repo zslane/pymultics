@@ -1,7 +1,7 @@
 
 from multics.globals import *
 
-class com_err_(Executable):
+class com_err_(Subroutine):
 
     def __init__(self):
         super(com_err_, self).__init__(self.__class__.__name__)

@@ -1,7 +1,7 @@
 
 from multics.globals import *
             
-class timer_manager_(SystemExecutable):
+class timer_manager_(SystemSubroutine):
     def __init__(self, system_services):
         super(timer_manager_, self).__init__(self.__class__.__name__, system_services)
         

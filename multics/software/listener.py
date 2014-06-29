@@ -4,7 +4,7 @@ from ..globals import *
 
 include.query_info
 
-class Listener(SystemExecutable):
+class Listener(SystemSubroutine):
 
     def __init__(self, supervisor, command_processor):
         super(Listener, self).__init__(self.__class__.__name__, supervisor)

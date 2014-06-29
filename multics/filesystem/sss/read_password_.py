@@ -3,7 +3,7 @@ from multics.globals import *
 
 from PySide import QtGui
 
-class read_password_(SystemExecutable):
+class read_password_(SystemSubroutine):
     def __init__(self, system_services):
         super(read_password_, self).__init__(self.__class__.__name__, system_services)
         

@@ -30,9 +30,9 @@ class ConsoleIO(QtGui.QWidget):
     def __init__(self, parent=None):
         super(ConsoleIO, self).__init__(parent)
         
-        FONT_NAME = "Glass TTY VT220"
-        FONT_SIZE = 15
-
+        FONT_NAME = "Consolas" #"Glass TTY VT220"
+        FONT_SIZE = 8 #15
+        
         self.output = QtGui.QTextEdit()
         self.output.setReadOnly(True)
         self.output.setStyleSheet("QTextEdit { font-family: '%s'; font-size: %dpt; color: gold; background: black; border: 0px; }" % (FONT_NAME, FONT_SIZE))
@@ -127,7 +127,14 @@ class ConsoleWindow(QtGui.QMainWindow):
         self.setEchoMode.connect(self.io.setEchoMode)
         self.shutdown.connect(self.io.shutdown)
         
-        self.setCentralWidget(self.io)
+        layout = QtGui.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.io)
+        
+        central_widget = QtGui.QWidget()
+        central_widget.setLayout(layout)
+        
+        self.setCentralWidget(central_widget) #(self.io)
         self.setWindowTitle("System Console")
         self.setStyleSheet("QWidget, QMainWindow { background: #444444; border: 1px solid #252525; }")
         

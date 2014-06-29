@@ -5,7 +5,7 @@ declare (unique_name_ = entry . returns (fixed.bin(32)),
          get_pdir_    = entry . returns (char(168)),
          get_wdir_    = entry . returns (char(168)))
 
-class hcs_(SystemExecutable):
+class hcs_(SystemSubroutine):
     def __init__(self, system_services):
         super(hcs_, self).__init__(self.__class__.__name__, system_services)
         
