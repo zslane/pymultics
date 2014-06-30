@@ -159,9 +159,9 @@ class ProcessWorker(QtCore.QObject):
         print QtCore.QThread.currentThread().objectName() + " process terminating (_cleanup)"
         #== Kill the MBX process timer
         call.timer_manager_.reset_alarm_call(self._process_messages)
-        if self.__timerid:
-            self.killTimer(self.__timerid)
-            self.__timerid = 0
+        # if self.__timerid:
+            # self.killTimer(self.__timerid)
+            # self.__timerid = 0
         
     def _dispatch_msg_message(self, msg_message):
         print "(%s)" % (get_calling_process_().objectName()), self.objectName(), "process message found", msg_message

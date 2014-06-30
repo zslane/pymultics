@@ -352,7 +352,7 @@ def starrunners():
         # end with
         unlock(universe.lock)
         
-        # print univptr.ptr.dumps()
+        print univptr.ptr.dumps()
         
     # /* RECORED THE USER'S PERSON_ID */
         lock(my.ship.lock)
@@ -528,7 +528,7 @@ def starrunners():
     def long_scan():
         stars = [""] * 5
         
-        # print univptr.ptr.dumps()
+        print univptr.ptr.dumps()
         
         if my.ship.location == "Romula": stars[0] = "o"
         elif my.ship.location == "Vindicar": stars[1] = "o"

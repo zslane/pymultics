@@ -139,7 +139,7 @@ class ProcessOverseer(object):
         
         return process
         
-    def destroy_process(self, process, keep_process_data=False):
+    def destroy_process(self, process):
         code = parm()
         
         print get_calling_process_().objectName() + " process_overseer waiting for " + process.objectName() + " to terminate"
@@ -147,16 +147,14 @@ class ProcessOverseer(object):
         if not process.wait(5000):
             print "[[[ %s did not terminate ]]]" % (process.objectName())
         
-        if not keep_process_data:
-            try:
-                call.set_lock_.lock(process.msg().lock_word(), 5, code)
-                call.hcs_.delentry_seg(process.msg(), code)
-            finally:
-                call.set_lock_.unlock(process.msg().lock_word(), code)
-            # end try
-                
-            call.hcs_.delete_branch_(process.dir(), code)
-        # end if
+        # try:
+            # call.set_lock_.lock(process.msg().lock_word(), 5, code)
+            # call.hcs_.delentry_seg(process.msg(), code)
+        # finally:
+            # call.set_lock_.unlock(process.msg().lock_word(), code)
+        # end try
+        
+        call.hcs_.delete_branch_(process.dir(), code)
         
         self.__running_processes.remove(process)
     

@@ -19,6 +19,12 @@ class term_(SystemSubroutine):
             code.val = error_table_.fileioerr
         
     def seg_ptr(self, segment, code):
-        dir_name, segment_name = self.__filesystem.split_path(segment._filepath())
-        self.single_refname(segment_name, code)
+        # dir_name, segment_name = self.__filesystem.split_path(segment._filepath())
+        # self.single_refname(segment_name, code)
+        multics_path = self.__filesystem.path2path(segment._filepath())
+        try:
+            self.supervisor.dynamic_linker.unsnap(multics_path)
+            code.val = 0
+        except SegmentFault:
+            code.val = error_table_.fileioerr
     

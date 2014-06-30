@@ -93,7 +93,6 @@ class VirtualMulticsHardware(QtCore.QObject):
         return HardwareLock.generate_id()
         
     def acquire_hardware_lock(self, lock_word, process_id, wait_time, code):
-        # process_id = get_calling_process_().id() <-- caller (e.g., set_lock_.lock) should do this and pass it in
         self.__locks_mutex.lock()
         lock = self.__locks.setdefault(lock_word, HardwareLock())
         self.__locks_mutex.unlock()
@@ -102,7 +101,6 @@ class VirtualMulticsHardware(QtCore.QObject):
         lock.acquire(process_id, valid_process_list, wait_time, code)
         
     def release_hardware_lock(self, lock_word, process_id, code):
-        # process_id = get_calling_process_().id() <-- caller (e.g., set_lock_.unlock) should do this and pass it in
         lock = self.__locks.get(lock_word)
         if lock:
             lock.release(process_id, code)

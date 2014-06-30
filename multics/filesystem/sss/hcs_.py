@@ -39,12 +39,19 @@ class hcs_(SystemSubroutine):
             code.val = error_table_.fileioerr
         
     def terminate_file(self, filepath, code):
-        dir_name, segment_name = self.__filesystem.split_path(filepath)
-        self.terminate_name(segment_name, code)
+        # dir_name, segment_name = self.__filesystem.split_path(filepath)
+        # self.terminate_name(segment_name, code)
+        multics_path = self.__filesystem.path2path(filepath)
+        try:
+            self.supervisor.dynamic_linker.unsnap(multics_path)
+            code.val = 0
+        except SegmentFault:
+            code.val = error_table_.fileioerr
         
     def terminate_ptr(self, segment, code):
-        dir_name, segment_name = self.__filesystem.split_path(segment._filepath())
-        self.terminate_name(segment_name, code)
+        # dir_name, segment_name = self.__filesystem.split_path(segment._filepath())
+        # self.terminate_name(segment_name, code)
+        self.terminate_file(segment._filepath(), code)
         
     #== DATA FILE I/O ==#
     

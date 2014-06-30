@@ -605,17 +605,16 @@ class DynamicLinker(QtCore.QObject):
         
     @property
     def known_segment_table(self):
-        # return self.__known_segment_table
         process = get_calling_process_()
         try:
             return process.kst()
         except:
             return self.__system_segment_table
-            # return self.__supervisor.session_thread.kst()
         
     def load(self, dir_name, segment_name):
         # print "Trying to load", dir_name, segment_name
-        multics_path = dir_name + ">" + segment_name
+        # multics_path = dir_name + ">" + segment_name
+        multics_path = self.__filesystem.merge_path(dir_name, segment_name)
         native_path = self.__filesystem.path2path(multics_path)
         
         #== First look in the KST for a matching filepath
@@ -632,7 +631,8 @@ class DynamicLinker(QtCore.QObject):
             if self.__filesystem.file_exists(native_path):
                 segment_data_ptr = self.__filesystem.segment_data_ptr(native_path)
                 # print "Adding to KST:", segment_name, "->", segment_data_ptr, native_path
-                self.known_segment_table[segment_name] = segment_data_ptr
+                # self.known_segment_table[segment_name] = segment_data_ptr
+                self.known_segment_table[multics_path] = segment_data_ptr
                 return segment_data_ptr
             else:
                 return None
@@ -669,7 +669,6 @@ class DynamicLinker(QtCore.QObject):
             for multics_path in search_paths:
                 # print "...searching", multics_path
                 module_path = self.__filesystem.path2path(multics_path, segment_name + ".py")
-                # module_path = os.path.join(native_path, segment_name + ".py")
                 # print module_path
                 if self.__filesystem.file_exists(module_path):
                     try:
@@ -706,23 +705,23 @@ class DynamicLinker(QtCore.QObject):
                 if seg_desc.is_out_of_date():
                     # print "...found in KST but newer version available"
                     raise SegmentFault(segment_name)
-                # entry_point = self.known_segment_table[segment_name].segment
                 # print "...found in KST"
-                # return entry_point
                 return seg_desc.segment
             except KeyError:
+                # print "...raising SegmentFault"
                 raise SegmentFault(segment_name)
-
+    
     def _unlink_segment(self, segment_name):
-        # print "Unlinking segment", segment_name
+        print "Unlinking segment", segment_name
         try:
             del self.__system_function_table[segment_name]
-            # print "...removed from SFT"
+            print "...removed from SFT"
         except KeyError:
             try:
                 del self.known_segment_table[segment_name]
-                # print "...removed from KST"
+                print "...removed from KST"
             except KeyError:
+                print "...raising SegmentFault"
                 raise SegmentFault(segment_name)
     
     def _load_python_code(self, module_name, module_path):
