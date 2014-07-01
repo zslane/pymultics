@@ -75,6 +75,8 @@ class Supervisor(QtCore.QObject):
         
     def id(self):
         return 0
+    def uid(self):
+        return "Multics.Supervisor"
     
     def _msleep(self, milliseconds):
         QtCore.QThread.msleep(milliseconds)
@@ -613,7 +615,6 @@ class DynamicLinker(QtCore.QObject):
         
     def load(self, dir_name, segment_name):
         # print "Trying to load", dir_name, segment_name
-        # multics_path = dir_name + ">" + segment_name
         multics_path = self.__filesystem.merge_path(dir_name, segment_name)
         native_path = self.__filesystem.path2path(multics_path)
         
@@ -635,17 +636,29 @@ class DynamicLinker(QtCore.QObject):
                 self.known_segment_table[multics_path] = segment_data_ptr
                 return segment_data_ptr
             else:
-                return None
+                #== This allows us to load object segments via hcs_.initiate() as
+                #== is done (repeatedly) in starrunners with >sss>do.py. Does this
+                #== mess something up though? Maybe not now that we're using the
+                #== full Multics path as the KST key. Something to keep an eye on.
+                
+                # print "...failed to find/load file...trying to snap it instead"
+                segment_data_ptr = self.snap(segment_name, dir_name)
+                # print "...snap results:", segment_data_ptr
+                return segment_data_ptr
             # end if
         except:
             # print "...failed to find/load file...trying to snap it instead"
-            return None # self.snap(segment_name, dir_name)
+            segment_data_ptr = self.snap(segment_name, dir_name)
+            # print "...snap results:", segment_data_ptr
+            return segment_data_ptr
         
     def snap(self, segment_name, known_location=None):
-        #== Special case segment names: 'print',
-        if segment_name == "print":
-            segment_name = "print_"
-        # end if
+        #== Special case segment names: 'print', 'list'
+        special_seg_names = {
+            'print': "print_",
+            'list' : "list_",
+        }
+        segment_name = special_seg_names.get(segment_name, segment_name)
         
         try:
             entry_point = self._find_segment(segment_name)
@@ -712,19 +725,25 @@ class DynamicLinker(QtCore.QObject):
                 raise SegmentFault(segment_name)
     
     def _unlink_segment(self, segment_name):
-        print "Unlinking segment", segment_name
+        # print "Unlinking segment", segment_name
         try:
             del self.__system_function_table[segment_name]
-            print "...removed from SFT"
+            # print "...removed from SFT"
         except KeyError:
             try:
                 del self.known_segment_table[segment_name]
-                print "...removed from KST"
+                # print "...removed from KST"
             except KeyError:
-                print "...raising SegmentFault"
+                # print "...raising SegmentFault"
                 raise SegmentFault(segment_name)
     
     def _load_python_code(self, module_name, module_path):
+        #== Turn the module name into a unique namespace based on the process id
+        process = get_calling_process_()
+        idstring = "%015X" % (process.id())
+        namespace = module_name + "_" + idstring
+        # print "%s: import %s as %s\t(using %s)" % (process.uid(), module_name, namespace, module_path)
+        
         # base_path, _ = os.path.split(module_path)
         # for ext in [".pyo", ".pyc"]:
             # compiled_module_path = os.path.join(base_path, ext)
@@ -732,5 +751,5 @@ class DynamicLinker(QtCore.QObject):
                 # return imp.load_compiled(module_name, compiled_module_path)
                 
         #== We disable the loading of optimized modules until main development is done
-        return imp.load_source(module_name, module_path)
+        return imp.load_source(namespace, module_path)
         

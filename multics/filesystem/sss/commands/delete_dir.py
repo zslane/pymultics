@@ -1,7 +1,7 @@
 
 from multics.globals import *
 
-def dd():
+def delete_dir():
     declare (get_wdir_ = entry . returns (char(168)))
     arg_list    = parm()
     dir_to_kill = parm()
@@ -25,3 +25,6 @@ def dd():
     if code.val != 0:
         call.ioa_("Could not delete directory")
         
+#-- end def delete_dir
+
+dd = delete_dir

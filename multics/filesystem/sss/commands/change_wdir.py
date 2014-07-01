@@ -1,7 +1,7 @@
 
 from multics.globals import *
 
-def cwd():
+def change_wdir():
     arg_list = parm()
     code     = parm()
     
@@ -14,3 +14,6 @@ def cwd():
     else:
         call.ioa_("Usage: cwd [directory ref]")
         
+#-- end def change_wdir
+
+cwd = change_wdir

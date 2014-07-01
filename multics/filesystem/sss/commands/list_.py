@@ -2,7 +2,7 @@ from collections import defaultdict
 
 from multics.globals import *
 
-def ls():
+def list_():
     declare (get_wdir_ = entry . returns (char(168)))
     arg_list    = parm()
     dir_to_list = parm()
@@ -50,6 +50,8 @@ def ls():
                 # end if
                 for add_name in sorted(segment_add_names.get(segment_name, []), key=len, reverse=True):
                     call.ioa_("    {0}", add_name)
+                    
+#-- end def list_
     
 def _sift_add_names(name_list, file_list):
     add_names = defaultdict(list)
@@ -66,3 +68,6 @@ def _sift_add_names(name_list, file_list):
     # end for
     return dict(add_names)
     
+#-- end def _sift_add_names
+
+ls = list_

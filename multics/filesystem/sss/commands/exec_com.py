@@ -62,3 +62,7 @@ def exec_com():
         # for
     # end if
     return 0
+
+#-- end def exec_com
+
+ec = exec_com

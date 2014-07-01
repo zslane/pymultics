@@ -190,6 +190,7 @@ def starrunners():
             return
             
         # end if
+        
         print "admin_info =", admin_info
         print adminptr.ptr.dumps()
         
@@ -352,7 +353,7 @@ def starrunners():
         # end with
         unlock(universe.lock)
         
-        print univptr.ptr.dumps()
+        # print univptr.ptr.dumps()
         
     # /* RECORED THE USER'S PERSON_ID */
         lock(my.ship.lock)
@@ -528,7 +529,7 @@ def starrunners():
     def long_scan():
         stars = [""] * 5
         
-        print univptr.ptr.dumps()
+        # print univptr.ptr.dumps()
         
         if my.ship.location == "Romula": stars[0] = "o"
         elif my.ship.location == "Vindicar": stars[1] = "o"
@@ -568,12 +569,13 @@ def starrunners():
         shipname   = [""] * 30
         shiptype   = [""] * 30
         docked     = [""] * 30
-        present    = parm . init(0)
-        black_hole = False
+        present    = fixed.bin . parm . init(0)
+        # black_hole = False
+        black_hole = bit(1) . init("0b0") ()
         
         call.ioa_("\nSECTOR: {0}", my.ship.location)
         for x in range(5):
-            if universe.black_hole[x] == my.ship.location: black_hole = True
+            if universe.black_hole[x] == my.ship.location: black_hole = "0b1" #black_hole = True
         # end for
         for x in range(universe.number):
             edir = universe.pdir[x]
@@ -589,12 +591,12 @@ def starrunners():
             # end if
         # end for
         robot_sscan(present, shipname, shiptype, docked)
-        if present.val == 0 and not black_hole:
+        if present.val == 0 and black_hole == "0b0": #not black_hole:
             call.ioa_("*** SENSOR SCAN: Sector Void")
             return
         # end if
         call.ioa_("*** SENSOR SCAN:")
-        if black_hole: call.ioa_("(((BLACK HOLE)))")
+        if black_hole == "0b1": call.ioa_("(((BLACK HOLE)))")
         for x in range(present.val):
             call.ioa_("   {0} {1} {2}", shiptype[x], shipname[x], docked[x])
         # end for

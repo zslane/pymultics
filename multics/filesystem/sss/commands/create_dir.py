@@ -1,7 +1,7 @@
 
 from multics.globals import *
 
-def cd():
+def create_dir():
     declare (get_wdir_   = entry . returns (char(168)))
     
     arg_list    = parm()
@@ -28,3 +28,6 @@ def cd():
         else:
             call.ioa_("Could not create directory {0}", branch.name)
         
+#-- end def create_dir
+
+cd = create_dir

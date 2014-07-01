@@ -114,7 +114,7 @@ class hcs_(SystemSubroutine):
             
     def delentry_seg(self, segment_data_ptr, code):
         self.terminate_ptr(segment_data_ptr, code)
-        code.val = code.val or segment_data_ptr.delete_file()
+        code.val = segment_data_ptr.delete_file()
     
     def create_branch_(self, dir_name, entryname, info_ptr, code):
         dir_path = dir_name + ">" + entryname
