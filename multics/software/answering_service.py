@@ -73,6 +73,10 @@ class AnsweringService(SystemSubroutine):
                             # end if
                             print "Starting process", process.objectName()
                             process.start()
+                        else:
+                            #== If there were errors creating a process for the user, just put the
+                            #== tty channel back on the list of pending login ttys
+                            self.__pending_login_ttys.append(tty_channel)
                         # end if
                         
                     elif state == UserControl.DISCONNECTED:

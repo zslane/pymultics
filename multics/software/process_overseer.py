@@ -147,19 +147,12 @@ class ProcessOverseer(object):
         if not process.wait(5000):
             print "[[[ %s did not terminate ]]]" % (process.objectName())
         
-        # try:
-            # call.set_lock_.lock(process.msg().lock_word(), 5, code)
-            # call.hcs_.delentry_seg(process.msg(), code)
-        # finally:
-            # call.set_lock_.unlock(process.msg().lock_word(), code)
-        # end try
-        
         call.hcs_.delete_branch_(process.dir(), code)
         
         self.__running_processes.remove(process)
     
     def _print_error_message(self, s, tty_channel):
-        self.supervisor.llout(s + "\n", tty_channel)
+        self.supervisor.llout("\n%s\n" % (s), tty_channel)
         self.supervisor.llout("Please contact System Administrator.\n", tty_channel)
     
 #-- end class ProcessOverseer
