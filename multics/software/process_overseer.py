@@ -24,7 +24,7 @@ class ProcessOverseer(object):
     def running_processes(self):
         return self.__running_processes[:]
     
-    def create_process(self, login_info, CoreFunction):
+    def create_process(self, login_info, CoreFunction, tty_channel=None):
         declare (clock_   = entry . returns (fixed.bin(32)))
         
         command_processor = parm()
@@ -35,13 +35,13 @@ class ProcessOverseer(object):
         #== Make sure the specified command processor exists
         call.hcs_.get_entry_point(login_info.cp_path, command_processor)
         if command_processor.ptr == null():
-            self._print_error_message("Could not find command processor %s." % (login_info.cp_path))
+            self._print_error_message("Could not find command processor %s." % (login_info.cp_path), tty_channel)
             return null()
         # end if
         
         #== Make sure the specified home directory exists
         if not self.supervisor.fs.file_exists(login_info.homedir):
-            self._print_error_message("No home directory for user %s." % (login_info.user_id))
+            self._print_error_message("No home directory for user %s." % (login_info.user_id), tty_channel)
             return null()
         # end if
             
@@ -51,7 +51,7 @@ class ProcessOverseer(object):
         #== Create the process directory
         call.hcs_.create_process_dir(process_id, process_dir, code)
         if code.val != 0 and code.val != error_table_.namedup:
-            self._print_error_message("Failed to create process directory.")
+            self._print_error_message("Failed to create process directory.", tty_channel)
             return null()
         # end if
         
@@ -70,7 +70,7 @@ class ProcessOverseer(object):
         if segment.ptr == null():
             call.hcs_.make_seg(process_dir.val, "pit", "", 0, segment(pit), code)
             if code.val != 0:
-                self._print_error_message("Failed to create process initialization table.")
+                self._print_error_message("Failed to create process initialization table.", tty_channel)
                 return null()
             # end if
         # end if
@@ -84,7 +84,7 @@ class ProcessOverseer(object):
         if segment.ptr == null():
             call.hcs_.make_seg(process_dir.val, "pds", "", 0, segment(pds), code)
             if code.val != 0:
-                self._print_error_message("Failed to create process data segment.")
+                self._print_error_message("Failed to create process data segment.", tty_channel)
                 return null()
             # end if
         # end if
@@ -97,7 +97,7 @@ class ProcessOverseer(object):
         if segment.ptr == null():
             call.hcs_.make_seg(process_dir.val, "rnt", "", 0, segment(rnt), code)
             if code.val != 0:
-                self._print_error_message("Failed to create reference name table.")
+                self._print_error_message("Failed to create reference name table.", tty_channel)
                 return null()
             # end if
         # end if
@@ -108,7 +108,7 @@ class ProcessOverseer(object):
         if segment.ptr == null():
             call.hcs_.make_seg(process_dir.val, "process.ms", "", 0, segment(ProcessMsgSegment()), code)
             if code.val != 0:
-                self._print_error_message("Failed to create process message segment.")
+                self._print_error_message("Failed to create process message segment.", tty_channel)
                 return null()
             # end if
         # end if
@@ -158,9 +158,9 @@ class ProcessOverseer(object):
         
         self.__running_processes.remove(process)
     
-    def _print_error_message(self, s):
-        self.supervisor.llout(s + "\n")
-        self.supervisor.llout("Please contact System Administrator.\n")
+    def _print_error_message(self, s, tty_channel):
+        self.supervisor.llout(s + "\n", tty_channel)
+        self.supervisor.llout("Please contact System Administrator.\n", tty_channel)
     
 #-- end class ProcessOverseer
     

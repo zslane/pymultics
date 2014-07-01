@@ -140,7 +140,7 @@ class AnsweringService(SystemSubroutine):
     def _default_home_dir(self, person_id, project_id):
         return ">".join([self.supervisor.fs.user_dir_dir, project_id, person_id])
         
-    def _new_process(self, person_id, pdt, login_options={}):
+    def _new_process(self, person_id, pdt, login_options, tty_channel):
         # pprint(login_options)
         login_info.person_id    = person_id
         login_info.project_id   = pdt.project_id
@@ -149,12 +149,12 @@ class AnsweringService(SystemSubroutine):
         login_info.cp_path      = pdt.users[person_id].cp_path or self.DEFAULT_CP_PATH
         login_info.no_start_up  = login_options.get('no_start_up', False)
         from listener import Listener
-        return self.process_overseer.create_process(login_info, Listener)
+        return self.process_overseer.create_process(login_info, Listener, tty_channel)
     
     def _user_login(self, login_options, tty_channel):
         login_info.time_login = datetime.datetime.now()
         
-        process = self._new_process(login_options['person_id'], login_options['pdt'], login_options)
+        process = self._new_process(login_options['person_id'], login_options['pdt'], login_options, tty_channel)
         if process:
             #== Add the user to the whotab
             with self.__whotab:
@@ -211,7 +211,7 @@ class AnsweringService(SystemSubroutine):
         self.process_overseer.destroy_process(process)
         
         #== Create the new process
-        process = self._new_process(person_id, pdt, login_options)
+        process = self._new_process(person_id, pdt, login_options, tty_channel)
         if process:
             #== Re-attach the tty/console
             if tty_channel:
