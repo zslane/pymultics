@@ -15,6 +15,7 @@ LINEFEED_CODE      = chr(10) # Linefeed
 BREAK_CODE         = chr(24) # Cancel
 
 class TTYChannel(QtCore.QObject):
+    
     def __init__(self, socket, parent=None):
         super(TTYChannel, self).__init__(parent)
         self.setObjectName("tty_channel_%d" % (socket.localPort()))
@@ -23,6 +24,7 @@ class TTYChannel(QtCore.QObject):
         self.__linefeed = False
         self.__break_signal = False
         self.__closed_signal = False
+        self.__origin_thread = QtCore.QThread.currentThread()
         
         self.__socket = socket
         self.__socket.setParent(None)
@@ -85,6 +87,10 @@ class TTYChannel(QtCore.QObject):
     @QtCore.Slot("QAbstractSocket.SocketError")
     def socket_error(self, error):
         self.__socket_error = error
+        
+    def detach_from_process(self):
+        # print get_calling_process_().objectName() + " detaching tty channel to " + self.__origin_thread.objectName()
+        self.moveToThread(self.__origin_thread)
         
     #== CLIENT INTERFACE ==#
     

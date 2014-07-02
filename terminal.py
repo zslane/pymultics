@@ -4,9 +4,10 @@ from PySide import QtCore, QtGui, QtNetwork
 
 N_HORZ_CHARS = 80
 N_VERT_LINES = 25
-            
-SERVER_NAME = "localhost"
-SERVER_PORT = 6800
+
+DEFAULT_SERVER_NAME = "localhost"
+DEFAULT_SERVER_PORT = 6800
+DEFAULT_PHOSPHOR_COLOR = "green"
 
 CONTROL_CODE       = chr(17) # Device Control 1
 UNKNOWN_CODE       = chr(0)
@@ -79,14 +80,28 @@ class KeyboardIO(QtGui.QLineEdit):
         
 class TerminalIO(QtGui.QWidget):
     
-    setStatus = QtCore.Signal(list)
     setNormalStatus = QtCore.Signal(str)
     setConnectStatus = QtCore.Signal(str)
     setErrorStatus = QtCore.Signal(str)
     
-    def __init__(self, parent=None):
+    TEXT_EDIT_STYLE_SHEETS = {
+        'green': "QTextEdit { font-family: '%s'; font-size: %dpt; color: lightgreen; background: black; border: 0px; }",
+        'amber': "QTextEdit { font-family: '%s'; font-size: %dpt; color: gold; background: black; border: 0px; }",
+        'white': "QTextEdit { font-family: '%s'; font-size: %dpt; color: white; background: black; border: 0px; }",
+    }
+    
+    LINE_EDIT_STYLE_SHEETS = {
+        'green': "QLineEdit { font-family: '%s'; font-size: %dpt; color: lightgreen; background: black; }",
+        'amber': "QLineEdit { font-family: '%s'; font-size: %dpt; color: gold; background: black; }",
+        'white': "QLineEdit { font-family: '%s'; font-size: %dpt; color: white; background: black; }",
+    }
+    
+    def __init__(self, phosphor_color, parent=None):
         super(TerminalIO, self).__init__(parent)
         self.ME = self.__class__.__name__
+        
+        self.host = DEFAULT_SERVER_NAME
+        self.port = DEFAULT_SERVER_PORT
         
         self.socket = QtNetwork.QTcpSocket(self)
         self.socket.error.connect(self.socket_error)
@@ -96,18 +111,17 @@ class TerminalIO(QtGui.QWidget):
         self.socket.readyRead.connect(self.data_available)
         self.com_port = 0
         
-        FONT_NAME = "Glass TTY VT220"
-        FONT_SIZE = 15
-
+        self.FONT_NAME = "Glass TTY VT220"
+        self.FONT_SIZE = 15
+        
         self.output = QtGui.QTextEdit()
         self.output.setReadOnly(True)
-        self.output.setStyleSheet("QTextEdit { font-family: '%s'; font-size: %dpt; color: lightgreen; background: black; border: 0px; }" % (FONT_NAME, FONT_SIZE))
-        self.output.setFontFamily(FONT_NAME)
-        self.output.setFontPointSize(FONT_SIZE)
+        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEETS[phosphor_color] % (self.FONT_NAME, self.FONT_SIZE))
+        self.output.setFontFamily(self.FONT_NAME)
+        self.output.setFontPointSize(self.FONT_SIZE)
         self.output.setFocusPolicy(QtCore.Qt.NoFocus)
         self.output.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
         self.output.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        # self.output.setViewportMargins(3, 0, 0, 0)
         self.output.setFixedSize(self._width(N_HORZ_CHARS), self._height(N_VERT_LINES))
         self.output.setEnabled(False)
         
@@ -121,7 +135,7 @@ class TerminalIO(QtGui.QWidget):
         output_frame.setLayout(output_layout)
         
         self.input = KeyboardIO()
-        self.input.setStyleSheet("QLineEdit { font-family: '%s'; font-size: %dpt; color: lightgreen; background: black; }" % (FONT_NAME, FONT_SIZE))
+        self.input.setStyleSheet(self.LINE_EDIT_STYLE_SHEETS[phosphor_color] % (self.FONT_NAME, self.FONT_SIZE))
         self.input.setEnabled(False)
         self.input.returnPressed.connect(self.send_string)
         self.input.lineFeed.connect(self.send_linefeed)
@@ -133,10 +147,11 @@ class TerminalIO(QtGui.QWidget):
         
         self.setLayout(layout)
         
-        QtCore.QTimer.singleShot(0, self.startup)
-        
     def startup(self):
-        self.socket.connectToHost(SERVER_NAME, SERVER_PORT)
+        self.socket.connectToHost(self.host, self.port)
+        
+    def reconnect(self):
+        self.socket.connectToHost(self.host, self.port)
         
     def _width(self, nchars):
         fm = QtGui.QFontMetrics(self.output.currentFont())
@@ -151,8 +166,6 @@ class TerminalIO(QtGui.QWidget):
     def socket_error(self, error):
         if error == QtNetwork.QAbstractSocket.SocketError.ConnectionRefusedError:
             self.setErrorStatus.emit("Host Server not Active")
-            pass
-
         else:
             self.setErrorStatus.emit(self.socket.errorString())
             print self.ME, "socket_error:", error
@@ -160,13 +173,12 @@ class TerminalIO(QtGui.QWidget):
     @QtCore.Slot()
     def host_found(self):
         self.setNormalStatus.emit("Waiting for Host Server")
-        pass
         
     @QtCore.Slot()
     def connection_made(self):
         self.socket.setSocketOption(QtNetwork.QAbstractSocket.LowDelayOption, 1)
         self.setConnectStatus.emit("Connected on port %d" % (self.socket.peerPort()))
-        if self.socket.peerPort() != SERVER_PORT:
+        if self.socket.peerPort() != self.port:
             self.input.setEnabled(True)
             self.input.setFocus()
         
@@ -176,7 +188,7 @@ class TerminalIO(QtGui.QWidget):
         self.setNormalStatus.emit("Disconnected")
         #== Original connection closed; this sets up the "permanent" connection
         if self.com_port:
-            self.socket.connectToHost(SERVER_NAME, self.com_port)
+            self.socket.connectToHost(self.host, self.com_port)
             self.socket.bytesWritten.connect(self.written)
             self.com_port = 0
         else:
@@ -254,6 +266,23 @@ class TerminalIO(QtGui.QWidget):
         # end if
         self.output.moveCursor(QtGui.QTextCursor.End)
         
+    def set_server_name(self, host):
+        self.host = host
+        
+    def set_server_port(self, port):
+        self.port = port
+        
+    def set_phosphor_color(self, color):
+        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEETS[color] % (self.FONT_NAME, self.FONT_SIZE))
+        self.output.style().unpolish(self)
+        self.output.style().polish(self)
+        self.output.update()
+        
+        self.input.setStyleSheet(self.LINE_EDIT_STYLE_SHEETS[color] % (self.FONT_NAME, self.FONT_SIZE))
+        self.input.style().unpolish(self)
+        self.input.style().polish(self)
+        self.input.update()
+        
 class TerminalWindow(QtGui.QMainWindow):
 
     transmitString = QtCore.Signal(str)
@@ -263,7 +292,9 @@ class TerminalWindow(QtGui.QMainWindow):
     def __init__(self, parent=None):
         super(TerminalWindow, self).__init__(parent)
         
-        self.io = TerminalIO(self)
+        self.settings = QtCore.QSettings("pymultics", "Multics.Terminal")
+        
+        self.io = TerminalIO("green", self)
         self.io.setNormalStatus.connect(self.set_normal_status)
         self.io.setConnectStatus.connect(self.set_connect_status)
         self.io.setErrorStatus.connect(self.set_error_status)
@@ -277,44 +308,129 @@ class TerminalWindow(QtGui.QMainWindow):
         self.palette = QtGui.QPalette()
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444))
         
+        self.status_label = QtGui.QLabel()
+        self.status_label.setAutoFillBackground(True)
+        self.status_label.setPalette(self.palette)
+        self.status_label.setText("Ready")
+        
+        status_layout = QtGui.QVBoxLayout()
+        status_layout.addWidget(self.status_label)
+        status_layout.setContentsMargins(5, 5, 5, 5)
+        
+        status_frame = QtGui.QFrame()
+        status_frame.setLayout(status_layout)
+        
         self.statusBar().setSizeGripEnabled(False)
         self.statusBar().setAutoFillBackground(True)
         self.statusBar().setPalette(self.palette)
-        self.statusBar().showMessage("Ready")
+        self.statusBar().addPermanentWidget(status_frame, 1)
+        
+        self.setup_menus()
         
         self.move(300, 50)
         
         QtCore.QTimer.singleShot(0, self.startup)
         
+    def setup_menus(self):
+        self.menuBar().setStyleSheet("QMenuBar { background: #252525; color: #c8c8c8; } QMenuBar::item { background: transparent; } QMenuBar::item:selected { background: #444444; }")
+        
+        self.options_menu = self.menuBar().addMenu("Options")
+        self.options_menu.setStyleSheet("QMenu { background: #444444; color: #c8c8c8; } QMenu::item:selected { background: #656565; }")
+        
+        self.set_host_action = self.options_menu.addAction("Set Host...")
+        self.set_port_action = self.options_menu.addAction("Set Port...")
+        self.options_menu.addSeparator()
+        self.phosphor_color_menu = self.options_menu.addMenu("Phosphor Color")
+        self.options_menu.addSeparator()
+        self.reconnect_action = self.options_menu.addAction("Reconnect")
+        
+        self.set_phosphor_green = self.phosphor_color_menu.addAction("Green")
+        self.set_phosphor_amber = self.phosphor_color_menu.addAction("Amber")
+        self.set_phosphor_white = self.phosphor_color_menu.addAction("White")
+        
+        self.phosphor_color_group = QtGui.QActionGroup(self)
+        self.phosphor_color_group.addAction(self.set_phosphor_green)
+        self.phosphor_color_group.addAction(self.set_phosphor_amber)
+        self.phosphor_color_group.addAction(self.set_phosphor_white)
+        
+        self.set_phosphor_green.setCheckable(True)
+        self.set_phosphor_amber.setCheckable(True)
+        self.set_phosphor_white.setCheckable(True)
+        
+        self.set_phosphor_green.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "green")
+        self.set_phosphor_amber.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "amber")
+        self.set_phosphor_white.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "white")
+        self.reconnect_action.setEnabled(False)
+        
+        self.set_host_action.triggered.connect(self.set_host_dialog)
+        self.set_port_action.triggered.connect(self.set_port_dialog)
+        
+        self.set_phosphor_green.triggered.connect(lambda: self.set_phosphor_color("green"))
+        self.set_phosphor_amber.triggered.connect(lambda: self.set_phosphor_color("amber"))
+        self.set_phosphor_white.triggered.connect(lambda: self.set_phosphor_color("white"))
+        
+        self.reconnect_action.triggered.connect(self.io.reconnect)
+        self.io.socket.connected.connect(lambda: self.reconnect_action.setEnabled(False))
+        self.io.socket.disconnected.connect(lambda: self.reconnect_action.setEnabled(True))
+        self.io.socket.error.connect(lambda: self.reconnect_action.setEnabled(True))
+    
     def startup(self):
         self.setFixedSize(self.size())
-                
+        self.io.set_server_name(self.settings.value("host", DEFAULT_SERVER_NAME))
+        self.io.set_server_port(self.settings.value("port", DEFAULT_SERVER_PORT))
+        self.io.set_phosphor_color(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR))
+        self.io.startup()
+        
+    def set_phosphor_color(self, color):
+        self.io.set_phosphor_color(color)
+        self.settings.setValue("phosphor_color", color)
+    
     @QtCore.Slot(str)
     def set_normal_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444))
         self.statusBar().setPalette(self.palette)
-        self.statusBar().showMessage(txt)
+        # self.statusBar().showMessage(txt)
+        self.status_label.setPalette(self.palette)
+        self.status_label.setText(txt)
         
     @QtCore.Slot(str)
     def set_connect_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x445e44))
         self.statusBar().setPalette(self.palette)
-        self.statusBar().showMessage(txt)
+        # self.statusBar().showMessage(txt)
+        self.status_label.setPalette(self.palette)
+        self.status_label.setText(txt)
         
     @QtCore.Slot(str)
     def set_error_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x935353))
         self.statusBar().setPalette(self.palette)
-        self.statusBar().showMessage(txt)
-    
-    def closeEvent(self, event):
-        self.closed.emit()
-        event.accept()
+        # self.statusBar().showMessage(txt)
+        self.status_label.setPalette(self.palette)
+        self.status_label.setText(txt)
     
     @QtCore.Slot()
     def disconnect(self):
         QtCore.QTimer.singleShot(0, self.close)
         
+    @QtCore.Slot()
+    def set_host_dialog(self):
+        host, ok = QtGui.QInputDialog.getText(None, "Set Host", "Enter host address:", text=self.settings.value("host", DEFAULT_SERVER_NAME))
+        if ok:
+            self.io.set_server_name(host)
+            self.settings.setValue("host", host)
+        
+    @QtCore.Slot()
+    def set_port_dialog(self):
+        port, ok = QtGui.QInputDialog.getInt(None, "Set Port", "Enter port number:", value=self.settings.value("port", DEFAULT_SERVER_PORT))
+        if ok:
+            self.io.set_server_port(port)
+            self.settings.setValue("port", port)
+    
+    def closeEvent(self, event):
+        self.closed.emit()
+        event.accept()
+    
 if __name__ == "__main__":
     app = QtGui.QApplication([])
     win = TerminalWindow()

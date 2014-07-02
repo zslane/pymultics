@@ -12,13 +12,15 @@ class ProcessWorker(QtCore.QObject):
         super(ProcessWorker, self).__init__()
         self.supervisor = supervisor
         self.__process_env = process_env
+        self.__registered_msg_handlers = {}
         self.__known_segment_table = {}
         self.__timerid = 0
-        self.__registered_msg_handlers = {}
         self.exit_code = 0
         
         self.setObjectName(self.uid() + ".Worker")
         self.__process_env.core_function.setParent(self)
+        
+        self.tty_channel = None
         
     def __repr__(self):
         return "<%s.%s %s>" % (__name__, self.__class__.__name__, self.objectName())
@@ -78,11 +80,11 @@ class ProcessWorker(QtCore.QObject):
         
     def kill(self):
         self.__process_env.core_function.kill()
-    
+        
     def timerEvent(self, event):
         # print QtCore.QThread.currentThread().objectName(), "timerEvent!"
         self._process_timers()
-    
+        
     def register_msg_handlers(self, handler_table):
         self.__registered_msg_handlers.update(handler_table)
     
@@ -159,9 +161,13 @@ class ProcessWorker(QtCore.QObject):
         print QtCore.QThread.currentThread().objectName() + " process terminating (_cleanup)"
         #== Kill the MBX process timer
         call.timer_manager_.reset_alarm_call(self._process_messages)
+        
         # if self.__timerid:
             # self.killTimer(self.__timerid)
             # self.__timerid = 0
+            
+        if self.tty_channel:
+            self.tty_channel.detach_from_process()
         
     def _dispatch_msg_message(self, msg_message):
         print "(%s)" % (get_calling_process_().objectName()), self.objectName(), "process message found", msg_message
@@ -260,9 +266,10 @@ class VirtualMulticsProcess(QtCore.QObject):
         
     def attach_tty(self, tty_channel):
         if tty_channel:
-            # tty_channel.moveToThread(self.thread)
+            tty_channel.moveToThread(self.thread)
             self.thread.tty_channel = tty_channel
-        
+            self.worker.tty_channel = tty_channel
+            
     def __repr__(self):
         return "<%s.%s %s>" % (__name__, self.__class__.__name__, self.objectName())
         # return repr(self.worker)

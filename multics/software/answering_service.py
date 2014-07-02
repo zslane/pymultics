@@ -14,7 +14,6 @@ include.whotab
 include.pit
 include.login_info
             
-SERVER_NAME = "localhost"
 SERVER_PORT = 6800
 
 class AnsweringService(SystemSubroutine):
@@ -250,7 +249,7 @@ class AnsweringService(SystemSubroutine):
         }
         self.__process.register_msg_handlers(msg_handlers)
         
-        self.rfs_listener = RFSListener(self.__pending_login_ttys, self)
+        self.rfs_listener = RFSListener(self.supervisor.site_config['port'], self.__pending_login_ttys, self)
         self.rfs_listener.start()
         
     def _cleanup(self):
@@ -329,11 +328,11 @@ class AnsweringService(SystemSubroutine):
 
 class RFSListener(QtNetwork.QTcpServer):
 
-    def __init__(self, pending_login_ttys, parent=None):
+    def __init__(self, server_port, pending_login_ttys, parent=None):
         super(RFSListener, self).__init__(parent)
         self.ME = self.__class__.__name__
-        self.__rfs_port = SERVER_PORT
-        self.__new_com_port = SERVER_PORT
+        self.__rfs_port = server_port
+        self.__new_com_port = server_port
         self.__recycled_com_ports = []
         self.__handshakers = []
         self.__pending_login_ttys = pending_login_ttys
