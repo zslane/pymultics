@@ -321,8 +321,14 @@ class AnsweringService(SystemSubroutine):
             print "Creating user mailbox file"
             call.hcs_.make_seg(homedir, person_id + ".mbx", "", 0, segment(dict), code)
         # end if
-            
-        if pnt_ptr.name_entries[person_id].alias:
+        
+        alias = pnt_ptr.name_entries[person_id].alias
+        _, homedir_name = self.supervisor.fs.split_path(homedir)
+        #== If there's an alias, only create an add_name for the home directory if the
+        #== first letter of each matches. We don't want an alias like 'bar' being added
+        #== as a name to a home dir like >udd>Multics>Common just because it was specified
+        #== as user Bar's home dir in the Multics PDT.
+        if alias and alias[0].lower() == homedir_name[0].lower():
             print "Adding name " + pnt_ptr.name_entries[person_id].alias + " to home directory"
             self.supervisor.fs.add_name(homedir, pnt_ptr.name_entries[person_id].alias)
 

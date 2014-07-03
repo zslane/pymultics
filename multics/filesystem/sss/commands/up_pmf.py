@@ -26,8 +26,8 @@ def up_pmf():
     call.hcs_.initiate(supervisor.fs.system_control_dir, "system_administrator_table", "", 0, 0, sys_admin_table, code)
     call.user_info_.whoami(person, project, acct)
     if not ((sys_admin_table.ptr and
-             project_id in sys_admin_table.ptr.projects and
-             person_id in sys_admin_table.ptr.projects[project_id]['admins']) or
+             project.id in sys_admin_table.ptr.projects and
+             person.id in sys_admin_table.ptr.projects[project_id]['admins']) or
             (project.id == "SysAdmin")):
         call.ioa_("You are not authorized to upload {0}", pdt_file)
         return
