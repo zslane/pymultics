@@ -140,15 +140,17 @@ class TTYChannel(QtCore.QObject):
                 mode_code = UNKNOWN_CODE
             # end if
             self.__socket.write(DataPacket.Out(mode_code))
-            if not self.__socket.waitForBytesWritten(3000):
-                print self.ME, "failed sending new input mode to tty channel id", self.id
-                self.disconnect()
+            self.__socket.flush()
+            # if not self.__socket.waitForBytesWritten(3000):
+                # print "Failed sending new input mode to tty channel id " + str(self.id)
+                # self.disconnect()
         
     def put_output(self, s):
         if not self.terminal_closed():
             # print "Sending string out tty channel", self.id
             # print s
             self.__socket.write(QtCore.QByteArray(s))
+            self.__socket.flush()
         
 #-- end class TTYChannel
 

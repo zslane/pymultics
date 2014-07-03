@@ -84,21 +84,16 @@ class TerminalIO(QtGui.QWidget):
     setConnectStatus = QtCore.Signal(str)
     setErrorStatus = QtCore.Signal(str)
     
-    TEXT_EDIT_STYLE_SHEETS = {
-        'green': "QTextEdit { font-family: '%s'; font-size: %dpt; color: lightgreen; background: black; border: 0px; }",
-        'amber': "QTextEdit { font-family: '%s'; font-size: %dpt; color: gold; background: black; border: 0px; }",
-        'white': "QTextEdit { font-family: '%s'; font-size: %dpt; color: white; background: black; border: 0px; }",
-    }
-    
-    LINE_EDIT_STYLE_SHEETS = {
-        'green': "QLineEdit { font-family: '%s'; font-size: %dpt; color: lightgreen; background: black; }",
-        'amber': "QLineEdit { font-family: '%s'; font-size: %dpt; color: gold; background: black; }",
-        'white': "QLineEdit { font-family: '%s'; font-size: %dpt; color: white; background: black; }",
-    }
+    TEXT_EDIT_STYLE_SHEET = "QTextEdit { font-family: '%s'; font-size: %dpt; color: %s; background: black; border: 0px; }"
+    LINE_EDIT_STYLE_SHEET = "QLineEdit { font-family: '%s'; font-size: %dpt; color: %s; background: black; }"
     
     def __init__(self, phosphor_color, parent=None):
         super(TerminalIO, self).__init__(parent)
         self.ME = self.__class__.__name__
+        
+        if phosphor_color == "green": color = "lightgreen"
+        if phosphor_color == "amber": color = "gold"
+        if phosphor_color == "white": color = "white"
         
         self.host = DEFAULT_SERVER_NAME
         self.port = DEFAULT_SERVER_PORT
@@ -116,7 +111,7 @@ class TerminalIO(QtGui.QWidget):
         
         self.output = QtGui.QTextEdit()
         self.output.setReadOnly(True)
-        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEETS[phosphor_color] % (self.FONT_NAME, self.FONT_SIZE))
+        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEET % (self.FONT_NAME, self.FONT_SIZE, color))
         self.output.setFontFamily(self.FONT_NAME)
         self.output.setFontPointSize(self.FONT_SIZE)
         self.output.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -135,7 +130,7 @@ class TerminalIO(QtGui.QWidget):
         output_frame.setLayout(output_layout)
         
         self.input = KeyboardIO()
-        self.input.setStyleSheet(self.LINE_EDIT_STYLE_SHEETS[phosphor_color] % (self.FONT_NAME, self.FONT_SIZE))
+        self.input.setStyleSheet(self.LINE_EDIT_STYLE_SHEET % (self.FONT_NAME, self.FONT_SIZE, color))
         self.input.setEnabled(False)
         self.input.returnPressed.connect(self.send_string)
         self.input.lineFeed.connect(self.send_linefeed)
@@ -226,6 +221,7 @@ class TerminalIO(QtGui.QWidget):
             # print self.ME, "sending:", repr(s)
             n = self.socket.write(DataPacket.Out(s))
             # print self.ME, n, "bytes sent"
+            self.socket.flush()
     
     @QtCore.Slot()
     def send_linefeed(self):
@@ -233,6 +229,7 @@ class TerminalIO(QtGui.QWidget):
             # print self.ME, "sending LINEFEED"
             n = self.socket.write(DataPacket.Out(LINEFEED_CODE))
             # print self.ME, n, "bytes sent"
+            self.socket.flush()
             
     @QtCore.Slot()
     def send_break_signal(self):
@@ -240,6 +237,7 @@ class TerminalIO(QtGui.QWidget):
             # print self.ME, "sending BREAK signal"
             n = self.socket.write(DataPacket.Out(BREAK_CODE))
             # print self.ME, n, "bytes sent"    
+            self.socket.flush()
     
     def written(self, nbytes):
         # print self.ME, nbytes, "written"
@@ -272,13 +270,17 @@ class TerminalIO(QtGui.QWidget):
     def set_server_port(self, port):
         self.port = port
         
-    def set_phosphor_color(self, color):
-        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEETS[color] % (self.FONT_NAME, self.FONT_SIZE))
+    def set_phosphor_color(self, phosphor_color):
+        if phosphor_color == "green": color = "lightgreen"
+        if phosphor_color == "amber": color = "gold"
+        if phosphor_color == "white": color = "white"
+        
+        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEET % (self.FONT_NAME, self.FONT_SIZE, color))
         self.output.style().unpolish(self)
         self.output.style().polish(self)
         self.output.update()
         
-        self.input.setStyleSheet(self.LINE_EDIT_STYLE_SHEETS[color] % (self.FONT_NAME, self.FONT_SIZE))
+        self.input.setStyleSheet(self.LINE_EDIT_STYLE_SHEET % (self.FONT_NAME, self.FONT_SIZE, color))
         self.input.style().unpolish(self)
         self.input.style().polish(self)
         self.input.update()
