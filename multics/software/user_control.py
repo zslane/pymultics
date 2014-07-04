@@ -38,12 +38,13 @@ class UserControl(object):
     
     TIMEOUT_PERIOD = 60 * 1 # 1 minute
     
-    def __init__(self, supervisor, whotab, tty_channel):
+    def __init__(self, supervisor, max_attempts, whotab, tty_channel):
         self.supervisor = supervisor
         self.__whotab = whotab
         self.__tty_channel = tty_channel
         self.__start_time = None
         self.__state = None
+        self.__max_attempts = max_attempts
         self.__login_options = {}
         self.__new_password = ""
         
@@ -113,12 +114,14 @@ class UserControl(object):
         
     def _display_login_banner(self):
         load = len(os.listdir(self.supervisor.fs.path2path(self.supervisor.fs.process_dir_dir)))
-        self._put_output("Virtual Multics MR%s: %s, %s\nLoad = %0.1f out of %0.1f: users = %d\n" % (
+        date_time_string = datetime.datetime.now().strftime("%m/%d/%y %H%M.%S %Z %a")
+        self._put_output("Virtual Multics MR%s: %s, %s\nLoad = %0.1f out of %0.1f: users = %d. %s\n" % (
             self.supervisor.version,
             self.supervisor.site_config['site_location'],
             self.supervisor.site_config['site_name'],
             load, self.supervisor.site_config['maximum_load'],
-            len(self.__whotab.entries)))
+            len(self.__whotab.entries),
+            datetime.datetime.now().ctime()))
         
     def _go_to_login(self):
         self._set_input_mode(QtGui.QLineEdit.Normal)
@@ -150,11 +153,13 @@ class UserControl(object):
                     self.__login_options = self._verify_login_command()
                     if self.__login_options:
                         self._set_input_mode(QtGui.QLineEdit.Password)
-                        self._put_output("password: ")
+                        self._put_output("Password:")
                         return self._set_state(self.WAITING_FOR_PASSWORD)
                     # end if
                 elif command_name.val == "help" or command_name.val == "?":
                     self._put_output(help_text)
+                else:
+                    self._error_msg("Incorrect login word \"%s\"." % (command_name.val))
                 # end if
             # end if
             return self._set_state(self.WAITING_FOR_LOGIN_COMMAND) # resets timeout
@@ -198,15 +203,18 @@ class UserControl(object):
                     login_options['home_dir'] = arg_list.args[i]
                     i += 1
                 else:
-                    self._put_output("-home_dir requires a path argument")
+                    self._error_msg("-home_dir requires a path argument")
                     return None
                 # end if
+                
+            elif arg == "-brief" or arg == "-bf":
+                login_options['brief'] = True
                 
             elif arg == "-no_start_up" or arg == "-ns":
                 login_options['no_start_up'] = True
                 
             elif arg.startswith("-"):
-                self._put_output("Unrecognized control argument " + arg)
+                self._error_msg("Unrecognized control argument " + arg)
                 return None
                 
             else:
@@ -233,10 +241,16 @@ class UserControl(object):
                 self.__login_options['pdt'] = pdt
                 if self.__login_options.get('change_password'):
                     self._set_input_mode(QtGui.QLineEdit.Password)
-                    self._put_output("new password:")
+                    self._put_output("New password:")
                     return self._set_state(self.WAITING_FOR_CHANGE_PASSWORD)
                 # end if
                 return self._set_state(self.LOGIN_COMPLETE)
+                
+            elif self.__max_attempts == 0: # too many password failures!
+                self.supervisor.hardware.io.disconnect_tty(self.tty)
+                # self.tty.disconnect()
+                return self._set_state(self.DISCONNECTED)
+                
             else:
                 return self._set_state(self.WAITING_FOR_LOGIN_COMMAND)
             # end if
@@ -246,7 +260,6 @@ class UserControl(object):
         
     def _authenticate(self, options, password):
         pnt_segment = parm()
-        pdt_segment = parm()
         code        = parm()
         
         login_name = options['login_name']
@@ -259,22 +272,30 @@ class UserControl(object):
             project = project or pnt_segment.ptr.get_default_project_id(person_id)
             encrypted_password, pubkey = pnt_segment.ptr.get_password(person_id)
             if (not pubkey) or (self.supervisor.encrypt_password(password, pubkey) == encrypted_password):
-                call.hcs_.initiate(self.supervisor.fs.system_control_dir, project + ".pdt", "", 0, 0, pdt_segment, code)
-                pdt = pdt_segment.ptr
+                pdt = self.supervisor.pdt.get(project)
                 if pdt and pdt.recognizes(person_id):
                     user_id = person_id + "." + pdt.project_id
                     if user_id in self.__whotab.entries:
-                        self._put_output("%s is already logged in\n" % (user_id))
+                        self._error_msg("%s is already logged in." % (user_id))
                         return None
                     # end if
                     return (person_id, pdt)
                 # end if
+            else:
+                self._put_output("Incorrect password supplied.")
+                #== Track password failures for ttys (but not the system console)
+                if self.tty:
+                    self.__max_attempts -= 1
+                # end if
+                if self.__max_attempts != 0:
+                    self._error_msg("")
+                return None
             # end if
         except:
             # call.dump_traceback_()
             pass
         # end try
-        self._put_output("Unrecognized user id/password\n")
+        self._error_msg("The user name you supplied is not registered.")
         return None
     
     def _wait_for_password_change(self):
@@ -284,7 +305,7 @@ class UserControl(object):
         elif self._has_input():
             self.__new_password = self._get_input()
             self._put_output("\n")
-            self._put_output("new password again:")
+            self._put_output("New Password Again:")
             return self._set_state(self.WAITING_FOR_CHANGE_PASSWORD_CONFIRM)
             
         else:
@@ -309,6 +330,7 @@ class UserControl(object):
                 with pnt_segment.ptr:
                     pnt_segment.ptr.add_person(person_id, current.alias, current.default_project_id, encrypted_password, pubkey)
                 # end with
+                self._put_output("Password changed.\n")
             else:
                 self._put_output("Entries do not match. Password not changed.\n")
             # end if
@@ -316,4 +338,8 @@ class UserControl(object):
             
         else:
             return self._timeout_expired()
+        
+    def _error_msg(self, message):
+        self._put_output(message + "\n")
+        self._put_output("Please try again or type \"help\" for instructions.\n")
         

@@ -299,7 +299,7 @@ class Supervisor(QtCore.QObject):
     #== BREAK CONDITION HANDLING ==#
     
     def signal_break(self, tty_channel=None):
-        self.__hardware.io.put_output("BREAK\n", tty_channel)
+        self.__hardware.io.put_output("QUIT\n", tty_channel)
         
     def signal_condition(self, signalling_process, condition_instance):
         self.__signalled_conditions.append( (signalling_process, condition_instance) )
@@ -423,7 +423,9 @@ class Supervisor(QtCore.QObject):
                 if segment_name.endswith(".pdt"):
                     call.hcs_.initiate(self.fs.system_control_dir, segment_name, "", 0, 0, segment, code)
                     self.__project_definition_tables[segment.ptr.project_id] = segment.ptr
-                    self.__project_definition_tables[segment.ptr.alias] = segment.ptr
+                    if segment.ptr.alias:
+                        self.__project_definition_tables[segment.ptr.alias] = segment.ptr
+                    # end if
                 # end if
             # end for
         # end if

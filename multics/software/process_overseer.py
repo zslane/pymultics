@@ -77,7 +77,7 @@ class ProcessOverseer(object):
         pit = segment.ptr
         
         pds = pds_structure()
-        pds.process_stack = ProcessStack()
+        pds.process_stack = [ProcessStack()]
         
         #== Create the process data segment (PDS)
         call.hcs_.initiate(process_dir.val, "pds", "", 0, 0, segment, code)
@@ -171,6 +171,11 @@ class ProcessStack(object):
     def __init__(self):
         self.process_timers = {}
         #== More attributes added as needed by system services...
+        
+    def copy(self):
+        new_stack = ProcessStack()
+        new_stack.__dict__.update(self.__dict__.copy())
+        return new_stack
         
     def assert_create(self, attrname, attrtype):
         if not hasattr(self, attrname):

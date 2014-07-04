@@ -19,7 +19,7 @@ class default_cp(CommandProcessor):
             if program_entry_point:
                 program_entry_point()
             else:
-                call.ioa_("Unrecognized command {0}", command.name)
+                call.ioa_("Segment {0} not found.", command.name)
             # end if
         # end if
         

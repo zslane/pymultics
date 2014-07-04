@@ -103,7 +103,7 @@ def add_user():
     encrypted_password = ""
     pubkey = None
     setting_password = False
-
+    
     def show_usage():
         call.ioa_(au_usage_text)
     
@@ -165,6 +165,9 @@ def add_user():
             default_project_id = default_project_id or name_entry.default_project_id
             encrypted_password = encrypted_password if setting_password else name_entry.encrypted_password
             pubkey             = pubkey if setting_password else name_entry.password_pubkey
+        elif not pubkey:
+            #== If we're adding a new user with a blank initial password then generate a pubkey for that
+            encrypted_password, pubkey = supervisor.encrypt_password("")
         # end if
         #== Prevent duplicating aliases
         if alias and person_name_table.ptr.resolve_alias(alias) not in [person_id, ""]:

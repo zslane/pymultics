@@ -89,7 +89,7 @@ class TTYChannel(QtCore.QObject):
         self.__socket_error = error
         
     def detach_from_process(self):
-        # print get_calling_process_().objectName() + " detaching tty channel to " + self.__origin_thread.objectName()
+        print get_calling_process_().objectName() + " detaching tty channel to " + self.__origin_thread.objectName()
         self.moveToThread(self.__origin_thread)
         
     #== CLIENT INTERFACE ==#

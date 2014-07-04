@@ -1,3 +1,4 @@
+import datetime
 
 from multics.globals import *
 
@@ -62,7 +63,8 @@ def print_(*func_args):
         tty_channel = get_calling_process_().tty()
         
         if print_header:
-            supervisor.llout("%s:\n\n\n" % (segment.name), tty_channel)
+            header = "%s %s" % (segment.name, datetime.datetime.now().ctime())
+            supervisor.llout("{0:^80}\n\n".format(header), tty_channel)
             page_size = 20
         # end if
         

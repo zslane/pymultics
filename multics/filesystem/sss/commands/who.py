@@ -83,11 +83,11 @@ def _display_header(show_users, num_users, show_daemons, num_daemons):
     
     stat_list = []
     if show_users:
-        stat_list.append("{0} users".format(num_users))
+        stat_list.append("{0} interactive".format(num_users))
     if show_daemons:
         stat_list.append("{0} daemons".format(num_daemons))
         
-    call.ioa_("Virtual Multics {0}, load {1:0.1f}/{2:0.2f}; {3} users\n  {4}.",
+    call.ioa_("Virtual Multics {0}, load {1:0.1f}/{2:0.2f}; {3} users, {4}.",
         supervisor.version,
         load,
         supervisor.site_config['maximum_load'],

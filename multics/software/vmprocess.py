@@ -27,13 +27,13 @@ class ProcessWorker(QtCore.QObject):
     
     @property
     def stack(self):
-        return self.__process_env.pds.process_stack
+        return self.__process_env.pds.process_stack[-1]
         
     @property
     def search_paths(self):
         try:
             declare (resolve_path_symbol_ = entry . returns (char(168)))
-            search_paths = self.__process_env.pds.process_stack.search_seg_ptr.paths['objects'].paths
+            search_paths = self.stack.search_seg_ptr.paths['objects'].paths
             return [ resolve_path_symbol_(p.pathname) for p in search_paths ]
         except:
             return [">sss", ">sss>commands"]
@@ -87,7 +87,16 @@ class ProcessWorker(QtCore.QObject):
         
     def register_msg_handlers(self, handler_table):
         self.__registered_msg_handlers.update(handler_table)
+        
+    def push_stack(self):
+        self.__process_env.pds.process_stack.append(self.stack.copy())
+        
+    def pop_stack(self):
+        self.__process_env.pds.process_stack.pop()
     
+    def stack_level(self):
+        return len(self.__process_env.pds.process_stack)
+        
     @QtCore.Slot()
     def _process_messages(self):
         code = parm()
@@ -127,7 +136,6 @@ class ProcessWorker(QtCore.QObject):
             call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
     
     def _main_loop(self):
-        # self.supervisor.llout("New process for %s started on %s\n" % (self.uid(), datetime.datetime.now().ctime()))
         call.ioa_("New process for {0} started on {1}", self.uid(), datetime.datetime.now().ctime())
         code = self.__process_env.core_function.start(self)
         return code
@@ -147,7 +155,7 @@ class ProcessWorker(QtCore.QObject):
         #== Create default search paths and store them in the process stack
         call.search_paths_.set("objects", null(), null(), code)
         call.hcs_.initiate(self.dir(), "search_paths", "", 0, 0, search_seg, code)
-        self.__process_env.pds.process_stack.search_seg_ptr = search_seg.ptr
+        self.stack.search_seg_ptr = search_seg.ptr
     
     def _process_timers(self):
         for routine_key in self.stack.process_timers.keys():

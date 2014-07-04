@@ -23,18 +23,18 @@ class AnsweringService(SystemSubroutine):
     def __init__(self, supervisor, command_processor):
         super(AnsweringService, self).__init__(self.__class__.__name__, supervisor)
         
-        self.supervisor = supervisor
-        self.user_control = command_processor
-        from process_overseer import ProcessOverseer
-        self.process_overseer = ProcessOverseer(supervisor)
-        self.__process = None
-        self.__person_name_table = None
-        self.__project_definition_tables = {}
-        self.__whotab = None
+        self.supervisor           = supervisor
+        
+        self.__process            = None
+        self.__whotab             = None
         self.__pending_login_ttys = []
         self.__logins_in_progress = []
-        self.exit_code = 0
-        self.shutting_down = False
+        
+        self.exit_code            = 0
+        self.shutting_down        = False
+        
+        from process_overseer import ProcessOverseer
+        self.process_overseer = ProcessOverseer(supervisor)
         
     def start(self, owning_process):
         self.__process = owning_process
@@ -43,24 +43,24 @@ class AnsweringService(SystemSubroutine):
     def kill(self):
         # self._cleanup()
         self.shutting_down = True
-        pass
         
     def _main_loop(self):
+        MAX_ATTEMPTS = 6
+        
         self._initialize()
         
-        # shutting_down = False
         while not (self.shutting_down and self.process_overseer.running_processes == []):
             try:
                 #== Visit each tty in the process of logging in and advance its UserControl
                 #== state if possible
                 for login in self.__logins_in_progress[:]:
                     state = login.do_state()
+                    tty_channel = login.tty
                     
                     if state == UserControl.CONTINUE:
                         continue
                         
                     elif state == UserControl.LOGIN_COMPLETE:
-                        tty_channel = login.tty
                         process = self._user_login(login.login_options(), tty_channel)
                         if process:
                             if tty_channel:
@@ -80,7 +80,7 @@ class AnsweringService(SystemSubroutine):
                         
                     elif state == UserControl.DISCONNECTED:
                         #== Only ttys disconnect
-                        print "tty_channel", login.tty.id, "disconnected during login"
+                        print "tty_channel", tty_channel.id, "disconnected during login"
                     # end if
                     
                     #== For LOGIN_COMPLETE and DISCONNECTED states, we remove the UserControl object
@@ -91,15 +91,15 @@ class AnsweringService(SystemSubroutine):
                 #== Add the next pending login tty to the list of logins 'in progress'
                 if self.__pending_login_ttys:
                     tty_channel = self.__pending_login_ttys.pop(0)
-                    login = UserControl(self.supervisor, self.__whotab, tty_channel)
+                    login = UserControl(self.supervisor, MAX_ATTEMPTS, self.__whotab, tty_channel)
                     self.__logins_in_progress.append(login)
+                # end if
                     
                 #== Add the system console to the list of logins 'in progress' if it isn't
                 #== already attached to a process and not already in the list
-                if (not self.supervisor.hardware.io.terminal_closed() and
-                    not self.supervisor.hardware.io.attached_console_process() and
+                if (not self.supervisor.hardware.io.attached_console_process() and
                     not any([ login.tty == SYSTEM_CONSOLE for login in self.__logins_in_progress ])):
-                    login = UserControl(self.supervisor, self.__whotab, SYSTEM_CONSOLE)
+                    login = UserControl(self.supervisor, -1, self.__whotab, SYSTEM_CONSOLE)
                     self.__logins_in_progress.append(login)
                 # end if
                 
@@ -156,19 +156,23 @@ class AnsweringService(SystemSubroutine):
                 self.__whotab.entries[login_info.user_id] = WhotabEntry(login_info.time_login, process.id(), process.dir())
             # end with
             
-            self.supervisor.llout("\n%s logged in on %s\n" % (login_info.user_id, login_info.time_login.ctime()), tty_channel)
+            if not login_options.get('brief'):
+                self.supervisor.llout("\n%s logged in on %s\n" % (login_info.user_id, login_info.time_login.ctime()), tty_channel)
             print "%s logged in on %s" % (login_info.user_id, login_info.time_login.ctime())
         # end if
         
         return process
         
     def _user_logout(self, process):
-        user_id = process.uid()
+        user_id     = process.uid()
         tty_channel = process.tty()
+        
+        logout_options = process.stack.logout_options
         
         self.process_overseer.destroy_process(process)
         
-        self.supervisor.llout("%s logged out on %s\n" % (user_id, datetime.datetime.now().ctime()), process.tty())
+        if not logout_options.get('brief'):
+            self.supervisor.llout("%s logged out on %s\n" % (user_id, datetime.datetime.now().ctime()), process.tty())
         print "%s logged out on %s" % (user_id, datetime.datetime.now().ctime())
         
         #== Remove the entry in the whotab corresponding to this user
@@ -179,6 +183,8 @@ class AnsweringService(SystemSubroutine):
         
         if tty_channel == SYSTEM_CONSOLE:
             self.supervisor.hardware.io.detach_console_process(process.id())
+        elif not logout_options.get('hold'):
+            self.supervisor.hardware.io.disconnect_tty(tty_channel)
         else:
             self.__pending_login_ttys.append(tty_channel)
         # end if
@@ -189,7 +195,7 @@ class AnsweringService(SystemSubroutine):
         person_id, _, project_id = user_id.partition(".")
         pit           = process.pit()
         tty_channel   = process.tty()
-        pdt           = self.__project_definition_tables.get(project_id)
+        pdt           = self.supervisor.pdt.get(project_id)
         login_options = {
             'person_id'  : person_id,
             'project_id' : project_id,
@@ -232,8 +238,6 @@ class AnsweringService(SystemSubroutine):
         # end if
     
     def _initialize(self):
-        self.__person_name_table = self.supervisor.pnt
-        self.__project_definition_tables = self.supervisor.pdt
         self.__whotab = self.supervisor.whotab
         
         msg_handlers = {
@@ -284,6 +288,14 @@ class AnsweringService(SystemSubroutine):
                 # end if
             # end if
             
+            #== Add pdt segment to supervisor's pdt table if necessary
+            if pdt.ptr.project_id not in self.supervisor.pdt:
+                self.supervisor.pdt[pdt.ptr.project_id] = pdt.ptr
+                if pdt.ptr.alias:
+                    self.supervisor.pdt[pdt.ptr.alias] = pdt.ptr
+                # end if
+            # end if
+            
             #== Create project directory (with add_name for alias) if necessary
             project_dir = self.supervisor.fs.path2path(self.supervisor.fs.user_dir_dir, pdt.ptr.project_id)
             if not self.supervisor.fs.file_exists(project_dir):
@@ -302,6 +314,10 @@ class AnsweringService(SystemSubroutine):
                 homedir = user_config.home_dir or self._default_home_dir(user_config.person_id, pdt.ptr.project_id)
                 if not self.supervisor.fs.file_exists(homedir):
                     self._create_new_home_dir(user_config.person_id, pnt.ptr, homedir)
+                # end if
+            # end for
+        else:
+            self.supervisor.llout("Failed to install %s." % (pdt_file))
                     
     def _create_new_home_dir(self, person_id, pnt_ptr, homedir):
         segment = parm()

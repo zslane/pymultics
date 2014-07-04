@@ -28,8 +28,12 @@ class Listener(SystemSubroutine):
         if ready_mode:
             now = datetime.datetime.now()
             delta, self.__prev_command_time = now - self.__prev_command_time, now
+            if self.__process.stack_level() > 1:
+                command_level_str = ", level %d" % (self.__process.stack_level())
+            else:
+                command_level_str = ""
             
-            ready_message = "r %s %0.3f %d" % (now.strftime("%H%M"), delta.seconds + (delta.microseconds / 10.0**6), call.segfault_count)
+            ready_message = "r %s %0.3f %d%s" % (now.strftime("%H%M"), delta.seconds + (delta.microseconds / 10.0**6), call.segfault_count, command_level_str)
             call.ioa_(ready_message)
     
     def _main_loop(self):
