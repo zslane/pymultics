@@ -285,6 +285,17 @@ class TerminalIO(QtGui.QWidget):
         self.input.style().polish(self)
         self.input.update()
         
+MENUBAR_STYLE_SHEET = """
+    QMenuBar                { background: #252525; color: #c8c8c8; }
+    QMenuBar::item          { background: transparent; }
+    QMenuBar::item:selected { background: #444444; }")
+"""
+
+MENU_STYLE_SHEET = """
+    QMenu                { background: #444444; color: #c8c8c8; }
+    QMenu::item:selected { background: #656565; }
+"""
+
 class TerminalWindow(QtGui.QMainWindow):
 
     transmitString = QtCore.Signal(str)
@@ -296,7 +307,7 @@ class TerminalWindow(QtGui.QMainWindow):
         
         self.settings = QtCore.QSettings("pymultics", "Multics.Terminal")
         
-        self.io = TerminalIO("green", self)
+        self.io = TerminalIO(DEFAULT_PHOSPHOR_COLOR, self)
         self.io.setNormalStatus.connect(self.set_normal_status)
         self.io.setConnectStatus.connect(self.set_connect_status)
         self.io.setErrorStatus.connect(self.set_error_status)
@@ -334,10 +345,10 @@ class TerminalWindow(QtGui.QMainWindow):
         QtCore.QTimer.singleShot(0, self.startup)
         
     def setup_menus(self):
-        self.menuBar().setStyleSheet("QMenuBar { background: #252525; color: #c8c8c8; } QMenuBar::item { background: transparent; } QMenuBar::item:selected { background: #444444; }")
+        self.menuBar().setStyleSheet(MENUBAR_STYLE_SHEET)
         
         self.options_menu = self.menuBar().addMenu("Options")
-        self.options_menu.setStyleSheet("QMenu { background: #444444; color: #c8c8c8; } QMenu::item:selected { background: #656565; }")
+        self.options_menu.setStyleSheet(MENU_STYLE_SHEET)
         
         self.set_host_action = self.options_menu.addAction("Set Host...")
         self.set_port_action = self.options_menu.addAction("Set Port...")
@@ -391,7 +402,6 @@ class TerminalWindow(QtGui.QMainWindow):
     def set_normal_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444))
         self.statusBar().setPalette(self.palette)
-        # self.statusBar().showMessage(txt)
         self.status_label.setPalette(self.palette)
         self.status_label.setText(txt)
         
@@ -399,7 +409,6 @@ class TerminalWindow(QtGui.QMainWindow):
     def set_connect_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x445e44))
         self.statusBar().setPalette(self.palette)
-        # self.statusBar().showMessage(txt)
         self.status_label.setPalette(self.palette)
         self.status_label.setText(txt)
         
@@ -407,7 +416,6 @@ class TerminalWindow(QtGui.QMainWindow):
     def set_error_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x935353))
         self.statusBar().setPalette(self.palette)
-        # self.statusBar().showMessage(txt)
         self.status_label.setPalette(self.palette)
         self.status_label.setText(txt)
     

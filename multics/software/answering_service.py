@@ -14,7 +14,7 @@ include.whotab
 include.pit
 include.login_info
             
-SERVER_PORT = 6800
+SYSTEM_CONSOLE = None
 
 class AnsweringService(SystemSubroutine):
 
@@ -91,23 +91,15 @@ class AnsweringService(SystemSubroutine):
                 #== Add the next pending login tty to the list of logins 'in progress'
                 if self.__pending_login_ttys:
                     tty_channel = self.__pending_login_ttys.pop(0)
-                    login = UserControl(self.supervisor,
-                                        self.__person_name_table,
-                                        self.__project_definition_tables,
-                                        self.__whotab,
-                                        tty_channel)
+                    login = UserControl(self.supervisor, self.__whotab, tty_channel)
                     self.__logins_in_progress.append(login)
                     
                 #== Add the system console to the list of logins 'in progress' if it isn't
                 #== already attached to a process and not already in the list
                 if (not self.supervisor.hardware.io.terminal_closed() and
                     not self.supervisor.hardware.io.attached_console_process() and
-                    not any([ login.tty == None for login in self.__logins_in_progress ])):
-                    login = UserControl(self.supervisor,
-                                        self.__person_name_table,
-                                        self.__project_definition_tables,
-                                        self.__whotab,
-                                        None)
+                    not any([ login.tty == SYSTEM_CONSOLE for login in self.__logins_in_progress ])):
+                    login = UserControl(self.supervisor, self.__whotab, SYSTEM_CONSOLE)
                     self.__logins_in_progress.append(login)
                 # end if
                 
@@ -185,7 +177,7 @@ class AnsweringService(SystemSubroutine):
         # end with
         pprint(self.__whotab)
         
-        if tty_channel == None:
+        if tty_channel == SYSTEM_CONSOLE:
             self.supervisor.hardware.io.detach_console_process(process.id())
         else:
             self.__pending_login_ttys.append(tty_channel)
@@ -208,7 +200,7 @@ class AnsweringService(SystemSubroutine):
         login_options.update(process.stack.new_proc_options)
         
         #== Destroy the old process
-        if tty_channel == None:
+        if tty_channel == SYSTEM_CONSOLE:
             self.supervisor.hardware.io.detach_console_process(process.id())
         # end if
         self.process_overseer.destroy_process(process)

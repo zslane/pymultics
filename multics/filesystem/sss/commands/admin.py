@@ -166,11 +166,16 @@ def add_user():
             encrypted_password = encrypted_password if setting_password else name_entry.encrypted_password
             pubkey             = pubkey if setting_password else name_entry.password_pubkey
         # end if
+        #== Prevent duplicating aliases
+        if alias and person_name_table.ptr.resolve_alias(alias) not in [person_id, ""]:
+            call.ioa_("Alias '{0}' already assigned to user {1}", alias, person_name_table.ptr.resolve_alias(alias))
+            return
+        # end if
         with person_name_table.ptr:
             person_name_table.ptr.add_person(person_id, alias, default_project_id, encrypted_password, pubkey)
         # end with
     # end if
-            
+    
 @system_privileged
 def delete_user():
     person_name_table = parm()
@@ -337,8 +342,8 @@ def add_project_admin():
         return
     # end if
     
-    with sys_admin_table.ptr:
-        if person_id not in sys_admin_table.ptr.get_admins(project_id):
+    if person_id not in sys_admin_table.ptr.get_admins(project_id):
+        with sys_admin_table.ptr:
             sys_admin_table.ptr.add_admin(project_id, person_id)
     
 @system_privileged
@@ -367,9 +372,10 @@ def delete_project_admin():
         return
     # end if
     
-    with sys_admin_table.ptr:
-        if person_id in sys_admin_table.ptr.get_admins(project_id):
+    if person_id in sys_admin_table.ptr.get_admins(project_id):
+        with sys_admin_table.ptr:
             sys_admin_table.ptr.remove_admin(project_id, person_id)
-        else:
-            call.ioa_("{0} not a {1} project administrator", person_id, project_id)
-                        
+        # end with
+    else:
+        call.ioa_("{0} not a {1} project administrator", person_id, project_id)
+    

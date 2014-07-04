@@ -4,6 +4,23 @@ from ..globals import *
 
 from PySide import QtCore, QtGui
 
+login_help_text = (
+"""    login, l [person_id] {{project_id}} {{-control_args}}
+        -change_password, -cpw
+        -home_dir [path], -h [path]
+        -no_start_up, -ns
+"""
+)
+
+help_text = (
+"""Available commands:
+""" +
+login_help_text +
+"""
+    help, ?
+"""
+)
+
 class UserControl(object):
 
     #== EXTERNAL STATES ==#
@@ -21,10 +38,8 @@ class UserControl(object):
     
     TIMEOUT_PERIOD = 60 * 1 # 1 minute
     
-    def __init__(self, supervisor, pnt, pdt, whotab, tty_channel):
+    def __init__(self, supervisor, whotab, tty_channel):
         self.supervisor = supervisor
-        self.__person_name_table = pnt
-        self.__project_definition_tables = pdt
         self.__whotab = whotab
         self.__tty_channel = tty_channel
         self.__start_time = None
@@ -98,7 +113,7 @@ class UserControl(object):
         
     def _display_login_banner(self):
         load = len(os.listdir(self.supervisor.fs.path2path(self.supervisor.fs.process_dir_dir)))
-        self._put_output("\nVirtual Multics MR%s: %s, %s\nLoad = %0.1f out of %0.1f: users = %d\n" % (
+        self._put_output("Virtual Multics MR%s: %s, %s\nLoad = %0.1f out of %0.1f: users = %d\n" % (
             self.supervisor.version,
             self.supervisor.site_config['site_location'],
             self.supervisor.site_config['site_name'],
@@ -207,6 +222,7 @@ class UserControl(object):
             return self._go_to_login()
             
         elif self._has_input():
+            self._put_output("\n")
             self._set_input_mode(QtGui.QLineEdit.Normal)
             password = self._get_input()
             user_lookup = self._authenticate(self.__login_options, password) # _authenticate() prints all our error messages for us
@@ -217,7 +233,7 @@ class UserControl(object):
                 self.__login_options['pdt'] = pdt
                 if self.__login_options.get('change_password'):
                     self._set_input_mode(QtGui.QLineEdit.Password)
-                    self._put_output("new password: ")
+                    self._put_output("new password:")
                     return self._set_state(self.WAITING_FOR_CHANGE_PASSWORD)
                 # end if
                 return self._set_state(self.LOGIN_COMPLETE)
@@ -229,19 +245,26 @@ class UserControl(object):
             return self._timeout_expired()
         
     def _authenticate(self, options, password):
+        pnt_segment = parm()
+        pdt_segment = parm()
+        code        = parm()
+        
         login_name = options['login_name']
         project = options['project_id']
         if password == "*": password = ""
-        person_id = self.__person_name_table.person_id(login_name)
+        
         try:
-            encrypted_password, pubkey = self.__person_name_table.get_password(person_id)
+            call.hcs_.initiate(self.supervisor.fs.system_control_dir, "person_name_table", "", 0, 0, pnt_segment, code)
+            person_id = pnt_segment.ptr.person_id(login_name)
+            project = project or pnt_segment.ptr.get_default_project_id(person_id)
+            encrypted_password, pubkey = pnt_segment.ptr.get_password(person_id)
             if (not pubkey) or (self.supervisor.encrypt_password(password, pubkey) == encrypted_password):
-                project = project or self.__person_name_table.get_default_project_id(person_id)
-                pdt = self.__project_definition_tables.get(project)
+                call.hcs_.initiate(self.supervisor.fs.system_control_dir, project + ".pdt", "", 0, 0, pdt_segment, code)
+                pdt = pdt_segment.ptr
                 if pdt and pdt.recognizes(person_id):
                     user_id = person_id + "." + pdt.project_id
                     if user_id in self.__whotab.entries:
-                        self._put_output("%s is already logged in\n\n" % (user_id))
+                        self._put_output("%s is already logged in\n" % (user_id))
                         return None
                     # end if
                     return (person_id, pdt)
@@ -251,7 +274,7 @@ class UserControl(object):
             # call.dump_traceback_()
             pass
         # end try
-        self._put_output("Unrecognized user id/password\n\n")
+        self._put_output("Unrecognized user id/password\n")
         return None
     
     def _wait_for_password_change(self):
@@ -260,25 +283,31 @@ class UserControl(object):
             
         elif self._has_input():
             self.__new_password = self._get_input()
-            self._put_output("new password again: ")
+            self._put_output("\n")
+            self._put_output("new password again:")
             return self._set_state(self.WAITING_FOR_CHANGE_PASSWORD_CONFIRM)
             
         else:
             return self._timeout_expired()
         
     def _wait_for_password_change_confirm(self):
+        pnt_segment = parm()
+        code        = parm()
+        
         if self._break_received():
             return self._go_to_login()
             
         elif self._has_input():
+            self._put_output("\n")
             self._set_input_mode(QtGui.QLineEdit.Normal)
             confirm_password = self._get_input()
             if self.__new_password == confirm_password:
                 person_id = self.__login_options['person_id']
-                current = self.__person_name_table.name_entries[person_id]
+                call.hcs_.initiate(self.supervisor.fs.system_control_dir, "person_name_table", "", 0, 0, pnt_segment, code)
+                current = pnt_segment.ptr.name_entries[person_id]
                 encrypted_password, pubkey = self.supervisor.encrypt_password(self.__new_password)
-                with self.__person_name_table:
-                    self.__person_name_table.add_person(person_id, current.alias, current.default_project_id, encrypted_password, pubkey)
+                with pnt_segment.ptr:
+                    pnt_segment.ptr.add_person(person_id, current.alias, current.default_project_id, encrypted_password, pubkey)
                 # end with
             else:
                 self._put_output("Entries do not match. Password not changed.\n")
