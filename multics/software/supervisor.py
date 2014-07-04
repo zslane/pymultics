@@ -42,9 +42,9 @@ class Supervisor(QtCore.QObject):
         
         GlobalEnvironment.register_supervisor(self, self.__dynamic_linker)
         
-        from process_overseer import ProcessOverseer, ProcessStack
+        from process_overseer import ProcessOverseer, ProcessStackFrame
         self.__process_overseer = ProcessOverseer(self)
-        self.__system_stack = ProcessStack()
+        self.__system_stack = ProcessStackFrame()
         
         self._load_site_config()
         

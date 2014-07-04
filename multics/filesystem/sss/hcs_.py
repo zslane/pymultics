@@ -78,6 +78,10 @@ class hcs_(SystemSubroutine):
         code.val = 0 if seg_ptr else error_table_.no_directory_entry
         
     def make_seg(self, dirname, segment_name, ref_name, mode, segment, code):
+        if segment == null():
+            segment = parm("")
+        # end if
+        
         if dirname == "":
             dirname = get_pdir_()
         # end if

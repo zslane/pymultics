@@ -167,7 +167,11 @@ class AnsweringService(SystemSubroutine):
         user_id     = process.uid()
         tty_channel = process.tty()
         
-        logout_options = process.stack.logout_options
+        try:
+            logout_options = process.stack.logout_options
+        except:
+            logout_options = {}
+        # end try
         
         self.process_overseer.destroy_process(process)
         
@@ -325,9 +329,10 @@ class AnsweringService(SystemSubroutine):
         
         print "Creating user home directory " + homedir
         code.val = self.supervisor.fs.mkdir(homedir)
-        if code.val == 0:
-            print "Creating user mailbox file"
-            call.hcs_.make_seg(homedir, person_id + ".mbx", "", 0, segment(dict), code)
+        # if code.val == 0:
+            ### THIS IS DONE BY THE accept_messages COMMAND NOW
+            # print "Creating user mailbox file"
+            # call.hcs_.make_seg(homedir, person_id + ".mbx", "", 0, segment(dict), code)
         # end if
         
         alias = pnt_ptr.name_entries[person_id].alias

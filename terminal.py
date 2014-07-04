@@ -145,9 +145,6 @@ class TerminalIO(QtGui.QWidget):
     def startup(self):
         self.socket.connectToHost(self.host, self.port)
         
-    def reconnect(self):
-        self.socket.connectToHost(self.host, self.port)
-        
     def _width(self, nchars):
         fm = QtGui.QFontMetrics(self.output.currentFont())
         return fm.width("M" * nchars)
@@ -249,6 +246,10 @@ class TerminalIO(QtGui.QWidget):
         if self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
             self.socket.disconnectFromHost()
         
+    @QtCore.Slot()
+    def reconnect(self):
+        self.socket.connectToHost(self.host, self.port)
+        
     @QtCore.Slot(str)
     def display(self, txt):
         self.output.insertPlainText(txt)
@@ -288,7 +289,7 @@ class TerminalIO(QtGui.QWidget):
 MENUBAR_STYLE_SHEET = """
     QMenuBar                { background: #252525; color: #c8c8c8; }
     QMenuBar::item          { background: transparent; }
-    QMenuBar::item:selected { background: #444444; }")
+    QMenuBar::item:selected { background: #444444; }
 """
 
 MENU_STYLE_SHEET = """
@@ -398,26 +399,25 @@ class TerminalWindow(QtGui.QMainWindow):
         self.io.set_phosphor_color(color)
         self.settings.setValue("phosphor_color", color)
     
-    @QtCore.Slot(str)
-    def set_normal_status(self, txt):
-        self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444))
+    def set_status(self, txt):
         self.statusBar().setPalette(self.palette)
         self.status_label.setPalette(self.palette)
         self.status_label.setText(txt)
+    
+    @QtCore.Slot(str)
+    def set_normal_status(self, txt):
+        self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444))
+        self.set_status(txt)
         
     @QtCore.Slot(str)
     def set_connect_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x445e44))
-        self.statusBar().setPalette(self.palette)
-        self.status_label.setPalette(self.palette)
-        self.status_label.setText(txt)
+        self.set_status(txt)
         
     @QtCore.Slot(str)
     def set_error_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x935353))
-        self.statusBar().setPalette(self.palette)
-        self.status_label.setPalette(self.palette)
-        self.status_label.setText(txt)
+        self.set_status(txt)
     
     @QtCore.Slot()
     def disconnect(self):

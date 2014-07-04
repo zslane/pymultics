@@ -77,7 +77,7 @@ class ProcessOverseer(object):
         pit = segment.ptr
         
         pds = pds_structure()
-        pds.process_stack = [ProcessStack()]
+        pds.process_stack = [ProcessStackFrame()]
         
         #== Create the process data segment (PDS)
         call.hcs_.initiate(process_dir.val, "pds", "", 0, 0, segment, code)
@@ -156,8 +156,8 @@ class ProcessOverseer(object):
         self.supervisor.llout("Please contact System Administrator.\n", tty_channel)
     
 #-- end class ProcessOverseer
-    
-class ProcessStack(object):
+
+class ProcessStackFrame(object):
     #== Various system services can use this to store persistent data for the process.
     #== E.g., the send_message_ facility can keep track of whether or not messages are
     #== being accepted as a flag in the process stack. This information would not be
@@ -173,7 +173,7 @@ class ProcessStack(object):
         #== More attributes added as needed by system services...
         
     def copy(self):
-        new_stack = ProcessStack()
+        new_stack = ProcessStackFrame()
         new_stack.__dict__.update(self.__dict__.copy())
         return new_stack
         
