@@ -120,6 +120,14 @@ class hcs_(SystemSubroutine):
         self.terminate_ptr(segment_data_ptr, code)
         code.val = segment_data_ptr.delete_file()
     
+    def get_segment_length(self, dir_name, entryname, seg_len, code):
+        full_path = self.__filesystem.path2path(dir_name, entryname)
+        try:
+            seg_len.val = self.__filesystem.get_size(full_path)
+            code.val = 0
+        except:
+            code.val = error_table_.fileioerr
+    
     def create_branch_(self, dir_name, entryname, info_ptr, code):
         dir_path = dir_name + ">" + entryname
         if self.__filesystem.file_exists(dir_path):

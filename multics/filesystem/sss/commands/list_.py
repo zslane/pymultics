@@ -2,12 +2,16 @@ from collections import defaultdict
 
 from multics.globals import *
 
+include.query_info
+
 def list_():
     declare (get_wdir_ = entry . returns (char(168)))
     arg_list    = parm()
     dir_to_list = parm()
     branch      = parm()
     segment     = parm()
+    seglen      = parm()
+    return_str  = parm()
     code        = parm()
     
     excluded_extensions = (".pyc", ".pyo")
@@ -23,6 +27,7 @@ def list_():
             return
         # end if
     # end if
+    
     call.hcs_.get_directory_contents(dir_to_list.name, branch, segment, code)
     if code.val == 0:
         if len(branch.list) + len(segment.list) == 0:
@@ -33,24 +38,48 @@ def list_():
             branch_add_names = _sift_add_names(branch.list, segment.list)
             segment_add_names = _sift_add_names(segment.list, segment.list)
             
-            call.ioa_("{0} segments in directory: {1}", len(branch.list) + len(segment.list), dir_to_list.name)
+            total_lengths = 0
+            segment_lengths = {}
+            segment_acl = {}
+            for segment_name in segment.list:
+                seglen.val = 0
+                acl = ""
+                if not segment_name.endswith(".mbx"):
+                    call.hcs_.get_segment_length(dir_to_list.name, segment_name, seglen, code)
+                    seglen.val = max(1, seglen.val / 1024)
+                    acl = "rew"
+                # end if
+                segment_lengths[segment_name] = seglen.val
+                segment_acl[segment_name] = acl
+                total_lengths += seglen.val
+            # end for
+            
+            call.ioa_("\nSegments = {0}, Lengths = {1}\n", len(branch.list) + len(segment.list), total_lengths)
+            
+            lines = []
             
             #== List directories first
             for branch_name in branch.list:
-                call.ioa_("d {0}", branch_name)
+                lines.append("sma      {0}".format(branch_name))
                 for add_name in sorted(branch_add_names.get(branch_name, []), key=len, reverse=True):
-                    call.ioa_("    {0}", add_name)
+                    lines.append("{0:12}{1}".format("", add_name))
                 # end for
             # end for
             
             #== List files second
             for segment_name in segment.list:
                 if not segment_name.endswith(excluded_extensions):
-                    call.ioa_("  {0}", segment_name)
+                    lines.append("{0:3} {1:3}  {2}".format(segment_acl[segment_name], segment_lengths[segment_name], segment_name))
                 # end if
                 for add_name in sorted(segment_add_names.get(segment_name, []), key=len, reverse=True):
-                    call.ioa_("    {0}", add_name)
-                    
+                    lines.append("{0:12}{1}".format("", add_name))
+                # end for
+            # end for
+            
+            _print_lines(lines)
+            
+            call.ioa_()
+            
 #-- end def list_
     
 def _sift_add_names(name_list, file_list):
@@ -69,5 +98,26 @@ def _sift_add_names(name_list, file_list):
     return dict(add_names)
     
 #-- end def _sift_add_names
+
+def _print_lines(lines):
+    answer = parm("")
+    
+    query_info.version = query_info_version_5
+    query_info.suppress_name_sw = True
+    query_info.yes_or_no_sw = True
+    
+    count = 0
+    while lines:
+        line = lines.pop(0)
+        count += 1
+        call.ioa_(line)
+        if count == 20 and lines != []:
+            count = 0
+            call.command_query_(query_info, answer, "list", "Continue ({0} names)? ", len(lines))
+            if answer.val.lower() in ["no", "n"]:
+                break
+            # end if
+        # end if
+    # end while
 
 ls = list_

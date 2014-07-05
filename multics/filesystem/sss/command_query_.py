@@ -44,7 +44,7 @@ class command_query_(SystemSubroutine):
                 break
             # end if
             
-            if info_ptr.prompt_after_explanation:
+            if info_ptr.prompt_after_explanation and question.strip():
                 call.ioa_.nnl(question)
             else:
                 call.ioa_.nnl("Answer: ")

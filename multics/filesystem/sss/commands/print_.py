@@ -2,12 +2,15 @@ import datetime
 
 from multics.globals import *
 
+include.query_info
+
 @system_privileged
 def print_(*func_args):
     arg_list  = parm()
     directory = parm()
     full      = parm()
     segment   = parm()
+    answer    = parm("")
     code      = parm()
     
     if func_args:
@@ -24,7 +27,7 @@ def print_(*func_args):
     begin = 0
     end = -1
     print_header = True
-    page_size = 24
+    page_size = 20
     
     if arg_list.args:
         begin = int(arg_list.args.pop(0)) - 1
@@ -71,15 +74,21 @@ def print_(*func_args):
         if end == -1 or end > len(lines):
             end = len(lines)
         # end if
+        nlines = end - begin + 1
+        
+        query_info.version = query_info_version_5
+        query_info.suppress_name_sw = True
+        query_info.yes_or_no_sw = True
+        
         count = 0
         for i in range(begin, end):
             supervisor.llout(lines[i] + "\n", tty_channel)
             count += 1
-            if count % page_size == 0:
-                page_size = 24
-                supervisor.llout("(press Enter to continue)", tty_channel)
-                supervisor.llin(block=True, tty_channel=tty_channel)
-                supervisor.llout("\n", tty_channel)
+            if (count != nlines) and (count % page_size == 0):
+                call.command_query_(query_info, answer, "print", "Continue ({0} lines)?", nlines - count)
+                if answer.val.lower() in ["no", "n"]:
+                    break
+                # end if
             # end if
         # end for
     # end if
