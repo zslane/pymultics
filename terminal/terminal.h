@@ -116,6 +116,7 @@ public:
 
     void set_server_name(const QString& host);
     void set_server_port(int port);
+    void reset();
     void set_phosphor_color(const QString& phosphor_color);
 };
 

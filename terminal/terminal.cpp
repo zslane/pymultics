@@ -34,7 +34,7 @@ void KeyboardIO::keyPressEvent(QKeyEvent* event)
 
 TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget(parent),
     ME("TerminalIO"),
-    FONT_NAME("Glass TTY VT220"),
+    FONT_NAME("Glass TTY VT220, Courier"),
 #ifdef Q_OS_MAC
     FONT_SIZE(20)
 #else
@@ -124,7 +124,7 @@ void TerminalIO::socket_error(QAbstractSocket::SocketError error)
 {
     if (error == QAbstractSocket::ConnectionRefusedError)
     {
-        emit setErrorStatus("Host Server not Active");
+        emit setErrorStatus(QString("Host Server %1 not Active").arg(m_host));
     }
     else
     {
@@ -135,13 +135,13 @@ void TerminalIO::socket_error(QAbstractSocket::SocketError error)
 
 void TerminalIO::host_found()
 {
-    emit setNormalStatus("Waiting for Host Server");
+    emit setNormalStatus(QString("Waiting for Host Server %1").arg(m_host));
 }
 
 void TerminalIO::connection_made()
 {
     m_socket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
-    emit setConnectStatus(fmtstr.sprintf("Connected on port %d", m_socket->peerPort()));
+    emit setConnectStatus(QString("Connected to %1 on port %2").arg(m_socket->peerName(), QString::number(m_socket->peerPort())));
     if (m_socket->peerPort() != m_port)
     {
         m_input->setEnabled(true);
@@ -162,7 +162,7 @@ void TerminalIO::connection_lost()
     }
     else
     {
-        std::cout << ME << " connection closed by host " << std::endl;
+        std::cout << ME << " connection closed by host " << m_host.toStdString() << std::endl;
     }
 }
 
@@ -280,6 +280,12 @@ void TerminalIO::set_server_name(const QString& host)
 void TerminalIO::set_server_port(int port)
 {
     m_port = port;
+}
+
+void TerminalIO::reset()
+{
+    m_socket->abort();
+    QTimer::singleShot(0, this, SLOT(reconnect()));
 }
 
 void TerminalIO::set_phosphor_color(const QString& phosphor_color)
@@ -468,8 +474,9 @@ void TerminalWindow::set_host_dialog()
     QString host = QInputDialog::getText(0, "Set Host", "Enter host address:", QLineEdit::Normal, m_settings.value("host", DEFAULT_SERVER_NAME).toString(), &ok);
     if (ok)
     {
-        m_io->set_server_name(host);
         m_settings.setValue("host", host);
+        m_io->set_server_name(host);
+        m_io->reset();
     }
 }
 
@@ -479,8 +486,9 @@ void TerminalWindow::set_port_dialog()
     int port = QInputDialog::getInt(0, "Set Port", "Enter port number:", m_settings.value("port", DEFAULT_SERVER_PORT).toInt(), 1, 99999, 1, &ok);
     if (ok)
     {
-        m_io->set_server_port(port);
         m_settings.setValue("port", port);
+        m_io->set_server_port(port);
+        m_io->reset();
     }
 }
 
