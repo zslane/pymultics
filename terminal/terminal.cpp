@@ -33,7 +33,13 @@ void KeyboardIO::keyPressEvent(QKeyEvent* event)
 
 
 TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget(parent),
-    ME("TerminalIO"), FONT_NAME("Glass TTY VT220"), FONT_SIZE(15)
+    ME("TerminalIO"),
+    FONT_NAME("Glass TTY VT220"),
+#ifdef Q_OS_MAC
+    FONT_SIZE(20)
+#else
+    FONT_SIZE(15)
+#endif
 {
     char* color;
     if (phosphor_color == "green") color = "lightgreen";

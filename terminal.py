@@ -1,4 +1,5 @@
 import re
+import sys
 
 from PySide import QtCore, QtGui, QtNetwork
 
@@ -107,7 +108,7 @@ class TerminalIO(QtGui.QWidget):
         self.com_port = 0
         
         self.FONT_NAME = "Glass TTY VT220"
-        self.FONT_SIZE = 15
+        self.FONT_SIZE = 20 if sys.platform == "darwin" else 15
         
         self.output = QtGui.QTextEdit()
         self.output.setReadOnly(True)

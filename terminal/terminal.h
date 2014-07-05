@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include "QGlobal.h"
 #include "QApplication.h"
 #include "QWidget.h"
 #include "QString.h"
