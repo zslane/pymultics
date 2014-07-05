@@ -316,7 +316,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.shutdown.connect(self.io.shutdown)
         
         self.setCentralWidget(self.io)
-        self.setWindowTitle("Virtual VT220 Terminal")
+        self.setWindowTitle("pyMultics Virtual Terminal")
         self.setStyleSheet("QLineEdit, QMainWindow { background: #444444; border: 1px solid #252525; }")
         
         self.palette = QtGui.QPalette()
