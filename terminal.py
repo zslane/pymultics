@@ -107,7 +107,7 @@ class TerminalIO(QtGui.QWidget):
         self.socket.readyRead.connect(self.data_available)
         self.com_port = 0
         
-        self.FONT_NAME = "Glass TTY VT220"
+        self.FONT_NAME = "Glass TTY VT220, Courier"
         self.FONT_SIZE = 20 if sys.platform == "darwin" else 15
         
         self.output = QtGui.QTextEdit()
@@ -158,19 +158,19 @@ class TerminalIO(QtGui.QWidget):
     @QtCore.Slot("QAbstractSocket.SocketError")
     def socket_error(self, error):
         if error == QtNetwork.QAbstractSocket.SocketError.ConnectionRefusedError:
-            self.setErrorStatus.emit("Host Server not Active")
+            self.setErrorStatus.emit("Host Server %s not Active" % (self.host))
         else:
             self.setErrorStatus.emit(self.socket.errorString())
             print self.ME, "socket_error:", error
         
     @QtCore.Slot()
     def host_found(self):
-        self.setNormalStatus.emit("Waiting for Host Server")
+        self.setNormalStatus.emit("Waiting for Host Server %s" % (self.host))
         
     @QtCore.Slot()
     def connection_made(self):
         self.socket.setSocketOption(QtNetwork.QAbstractSocket.LowDelayOption, 1)
-        self.setConnectStatus.emit("Connected on port %d" % (self.socket.peerPort()))
+        self.setConnectStatus.emit("Connected to %s on port %d" % (self.socket.peerName(), self.socket.peerPort()))
         if self.socket.peerPort() != self.port:
             self.input.setEnabled(True)
             self.input.setFocus()
@@ -185,7 +185,7 @@ class TerminalIO(QtGui.QWidget):
             self.socket.bytesWritten.connect(self.written)
             self.com_port = 0
         else:
-            print self.ME, "connection closed by host"
+            print self.ME, "connection closed by host", self.host
         
     @QtCore.Slot()
     def data_available(self):
@@ -265,6 +265,10 @@ class TerminalIO(QtGui.QWidget):
             cursor.removeSelectedText()
         # end if
         self.output.moveCursor(QtGui.QTextCursor.End)
+        
+    def reset(self):
+        self.socket.abort()
+        QtCore.QTimer.singleShot(0, self.reconnect)
         
     def set_server_name(self, host):
         self.host = host
@@ -385,9 +389,9 @@ class TerminalWindow(QtGui.QMainWindow):
         self.set_phosphor_white.triggered.connect(lambda: self.set_phosphor_color("white"))
         
         self.reconnect_action.triggered.connect(self.io.reconnect)
-        self.io.socket.connected.connect(lambda: self.reconnect_action.setEnabled(False))
-        self.io.socket.disconnected.connect(lambda: self.reconnect_action.setEnabled(True))
-        self.io.socket.error.connect(lambda: self.reconnect_action.setEnabled(True))
+        self.io.socket.connected.connect(self.disable_reconnect)
+        self.io.socket.disconnected.connect(self.enable_reconnect)
+        self.io.socket.error.connect(self.enable_reconnect)
     
     def startup(self):
         self.setFixedSize(self.size())
@@ -399,11 +403,23 @@ class TerminalWindow(QtGui.QMainWindow):
     def set_phosphor_color(self, color):
         self.io.set_phosphor_color(color)
         self.settings.setValue("phosphor_color", color)
-    
+        
     def set_status(self, txt):
         self.statusBar().setPalette(self.palette)
         self.status_label.setPalette(self.palette)
         self.status_label.setText(txt)
+    
+    @QtCore.Slot()
+    def enable_reconnect(self):
+        self.reconnect_action.setEnabled(True)
+        # self.set_host_action.setEnabled(True)
+        # self.set_port_action.setEnabled(True)
+        
+    @QtCore.Slot()
+    def disable_reconnect(self):
+        self.reconnect_action.setEnabled(False)
+        # self.set_host_action.setEnabled(False)
+        # self.set_port_action.setEnabled(False)
     
     @QtCore.Slot(str)
     def set_normal_status(self, txt):
@@ -428,15 +444,17 @@ class TerminalWindow(QtGui.QMainWindow):
     def set_host_dialog(self):
         host, ok = QtGui.QInputDialog.getText(None, "Set Host", "Enter host address:", text=self.settings.value("host", DEFAULT_SERVER_NAME))
         if ok:
-            self.io.set_server_name(host)
             self.settings.setValue("host", host)
+            self.io.set_server_name(host)
+            self.io.reset()
         
     @QtCore.Slot()
     def set_port_dialog(self):
         port, ok = QtGui.QInputDialog.getInt(None, "Set Port", "Enter port number:", value=self.settings.value("port", DEFAULT_SERVER_PORT))
         if ok:
-            self.io.set_server_port(port)
             self.settings.setValue("port", port)
+            self.io.set_server_port(port)
+            self.io.reset()
     
     def closeEvent(self, event):
         self.closed.emit()
