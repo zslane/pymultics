@@ -432,12 +432,17 @@ class VirtualMulticsFileSystem(QtCore.QObject):
     def get_directory_contents(self, dirpath):
         try:
             dirpath = self.native_path(dirpath)
+            if not os.path.isdir(dirpath):
+                if not os.path.isfile(dirpath):
+                    return ([], [], error_table_.fileioerr)
+                return ([], [], error_table_.no_directory_entry)
+            # end if
             contents = glob.glob(os.path.join(dirpath, "*")) + glob.glob(os.path.join(dirpath, ".*"))
             file_list = map(os.path.basename, filter(os.path.isfile, contents))
             dir_list = map(os.path.basename, filter(os.path.isdir, contents))
             return (dir_list, file_list, 0)
         except:
-            return (None, None, -1)
+            return ([], [], -1)
     
     def _walk_and_match(self, top, part, parts, new_parts):
         for (dirpath, dirnames, filenames) in os.walk(top):

@@ -1,10 +1,10 @@
 
 from multics.globals import *
 
-class default_cp(CommandProcessor):
+class command_processor_(CommandProcessor):
 
     def __init__(self):
-        super(default_cp, self).__init__(self.__class__.__name__)
+        super(command_processor_, self).__init__(self.__class__.__name__)
         
     def execute(self, command_line, code):
         segment = parm()

@@ -39,6 +39,7 @@ class Listener(SystemSubroutine):
     def _main_loop(self):
         command_line = parm()
         code         = parm()
+        commands     = []
         
         query_info.suppress_name_sw = True
         query_info.suppress_spacing = True
@@ -52,8 +53,17 @@ class Listener(SystemSubroutine):
         self.exit_code = 0
         while self.exit_code == 0:
             try:
-                call.cu_.ready_proc()
-                call.command_query_(query_info, command_line, "listener")
+                #== If there are no more commands queued up from a multi-command line
+                #== then get some commands from command_query_
+                if commands == []:
+                    call.cu_.ready_proc()
+                    call.command_query_(query_info, command_line, "listener")
+                    #== Semi-colons separate multiple commands--create a command queue
+                    commands = command_line.val.split(";")
+                # end if
+                
+                #== Get the next command in the queue and execute it
+                command_line.val = commands.pop(0).strip()
                 self.__command_history.append(command_line.val)
                 call.cu_.cp(command_line.val, code)
                 self.exit_code = code.val

@@ -12,6 +12,7 @@ def list_():
     segment     = parm()
     seglen      = parm()
     return_str  = parm()
+    full        = parm()
     code        = parm()
     
     excluded_extensions = (".pyc", ".pyo")
@@ -23,63 +24,70 @@ def list_():
         dir_ref = arg_list.args.pop()
         call.sys_.get_rel_directory(dir_ref, current_dir, dir_to_list, code)
         if code.val != 0:
-            call.ioa_("No such directory")
+            call.ioa_("list: Entry not found. {0}", dir_to_list.name)
             return
         # end if
     # end if
     
     call.hcs_.get_directory_contents(dir_to_list.name, branch, segment, code)
-    if code.val == 0:
-        if len(branch.list) + len(segment.list) == 0:
-            call.ioa_("Directory empty")
-        else:
-            #== Sift out add_names and files with excluded file extensions
-            segment.list = filter(lambda s: not s.endswith(excluded_extensions), segment.list)
-            branch_add_names = _sift_add_names(branch.list, segment.list)
-            segment_add_names = _sift_add_names(segment.list, segment.list)
-            
-            total_lengths = 0
-            segment_lengths = {}
-            segment_acl = {}
-            for segment_name in segment.list:
-                seglen.val = 0
-                acl = ""
-                if not segment_name.endswith(".mbx"):
-                    call.hcs_.get_segment_length(dir_to_list.name, segment_name, seglen, code)
-                    seglen.val = max(1, seglen.val / 1024)
-                    acl = "rew"
-                # end if
-                segment_lengths[segment_name] = seglen.val
-                segment_acl[segment_name] = acl
-                total_lengths += seglen.val
+    
+    if code.val == error_table_.no_directory_entry:
+        call.sys_.get_abs_path(dir_to_list.name, full)
+        call.sys_.split_path_(full.path, dir_to_list, segment)
+        branch.list = []
+        segment.list = [ segment.name ]
+    # end if
+    
+    if len(branch.list) + len(segment.list) == 0:
+        call.ioa_("Directory empty")
+    else:
+        #== Sift out add_names and files with excluded file extensions
+        segment.list = filter(lambda s: not s.endswith(excluded_extensions), segment.list)
+        branch_add_names = _sift_add_names(branch.list, segment.list)
+        segment_add_names = _sift_add_names(segment.list, segment.list)
+        
+        total_lengths = 0
+        segment_lengths = {}
+        segment_acl = {}
+        for segment_name in segment.list:
+            seglen.val = 0
+            acl = ""
+            if not segment_name.endswith(".mbx"):
+                call.hcs_.get_segment_length(dir_to_list.name, segment_name, seglen, code)
+                seglen.val = max(1, seglen.val / 1024)
+                acl = "rew"
+            # end if
+            segment_lengths[segment_name] = seglen.val
+            segment_acl[segment_name] = acl
+            total_lengths += seglen.val
+        # end for
+        
+        call.ioa_("\nSegments = {0}, Lengths = {1}\n", len(branch.list) + len(segment.list), total_lengths)
+        
+        lines = []
+        
+        #== List directories first
+        for branch_name in branch.list:
+            lines.append("sma {0:5}  {1}".format("", branch_name))
+            for add_name in sorted(branch_add_names.get(branch_name, []), key=len, reverse=True):
+                lines.append("{0:12}{1}".format("", add_name))
             # end for
-            
-            call.ioa_("\nSegments = {0}, Lengths = {1}\n", len(branch.list) + len(segment.list), total_lengths)
-            
-            lines = []
-            
-            #== List directories first
-            for branch_name in branch.list:
-                lines.append("sma      {0}".format(branch_name))
-                for add_name in sorted(branch_add_names.get(branch_name, []), key=len, reverse=True):
-                    lines.append("{0:12}{1}".format("", add_name))
-                # end for
+        # end for
+        
+        #== List files second
+        for segment_name in segment.list:
+            if not segment_name.endswith(excluded_extensions):
+                lines.append("{0:3} {1:5}  {2}".format(segment_acl[segment_name], segment_lengths[segment_name], segment_name))
+            # end if
+            for add_name in sorted(segment_add_names.get(segment_name, []), key=len, reverse=True):
+                lines.append("{0:13}{1}".format("", add_name))
             # end for
-            
-            #== List files second
-            for segment_name in segment.list:
-                if not segment_name.endswith(excluded_extensions):
-                    lines.append("{0:3} {1:3}  {2}".format(segment_acl[segment_name], segment_lengths[segment_name], segment_name))
-                # end if
-                for add_name in sorted(segment_add_names.get(segment_name, []), key=len, reverse=True):
-                    lines.append("{0:12}{1}".format("", add_name))
-                # end for
-            # end for
-            
-            _print_lines(lines)
-            
-            call.ioa_()
-            
+        # end for
+        
+        _print_lines(lines)
+        
+        call.ioa_()
+        
 #-- end def list_
     
 def _sift_add_names(name_list, file_list):

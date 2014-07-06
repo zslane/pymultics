@@ -45,7 +45,7 @@ def print_(*func_args):
     call.sys_.split_path_(full.path, directory, segment)
     call.hcs_.fs_file_exists(directory.name, segment.name, code)
     if code.val != 0:
-        call.ioa_("File not found {0}", filename)
+        call.ioa_("print: Entry not found. {0}", full.path)
     else:
         f = open(vfile_(full.path))
         file_text = f.read()

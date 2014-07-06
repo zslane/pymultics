@@ -348,7 +348,7 @@ class Supervisor(QtCore.QObject):
         login_info.process_type = pit_process_type_daemon
         login_info.process_id = 0o777777000000
         login_info.homedir = ">sc1"
-        login_info.cp_path = ">sss>default_cp"
+        login_info.cp_path = ">sss>command_processor_"
         try:
             from answering_service import AnsweringService
             self.__initializer = self.__process_overseer.create_process(login_info, AnsweringService)
@@ -366,7 +366,7 @@ class Supervisor(QtCore.QObject):
         login_info.process_type = pit_process_type_daemon
         login_info.process_id = 0
         login_info.homedir = ">sc1"
-        login_info.cp_path = ">sss>default_cp"
+        login_info.cp_path = ">sss>command_processor_"
         try:
             from messenger import Messenger
             daemon = self.__process_overseer.create_process(login_info, Messenger)

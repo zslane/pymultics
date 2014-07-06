@@ -40,18 +40,54 @@ class cu_(SystemSubroutine):
     def _pop_context(self):
         process = get_calling_process_()
         return process.stack.cp_contexts.pop()
+    
+    def split_(self, s, result):
+        result.val = self._split(s)
         
+    def _split(self, s):
+        UNIT_SEP = chr(31)
+        inq = False
+        s2 = ""
+        for c in str(s):
+            if c == '"':
+                inq = not inq # toggle the 'in-quote' flag
+                continue # eat the quotation mark
+            elif c == ' ':
+                if inq: c = UNIT_SEP
+            # end if
+            s2 += c
+        # end for
+        l = s2.split()
+        return [ x.replace(UNIT_SEP, ' ') for x in l ]
+    
+    def _poptoken(self, s):
+        inq = False
+        s2 = ""
+        i = 0
+        for c in str(s):
+            i += 1
+            if c == '"':
+                inq = not inq
+                continue
+            elif c == ' ':
+                if s2 == "":
+                    continue
+                elif not inq:
+                    break
+            s2 += c
+        return (s2, s[i:])
+    
     def arg_count(self, arg_count, code=None):
-        arg_count.val = len(self._current_context.argument_string.split())
+        arg_count.val = len(self._split(self._current_context.argument_string))
         if code:
             code.val = 0
         
     def arg_list(self, arg_list):
-        arg_list.args = self._current_context.argument_string.split()
+        arg_list.args = self._split(self._current_context.argument_string)
         
     def arg_ptr(self, arg_no, arg, code):
         try:
-            arg.str = self._current_context.argument_string.split()[arg_no]
+            arg.str = self._split(self._current_context.argument_string)[arg_no]
             code.val = 0
         except KeyError:
             arg.str = null()
@@ -61,16 +97,11 @@ class cu_(SystemSubroutine):
         s = self._current_context.argument_string
         d = []
         for i in range(starting_with):
-            discard, _, s = s.strip().partition(" ")
+            discard, s = self._poptoken(s)
             d.append(discard)
         # end for
         before.list = d
         result.val = s.strip()
-        return
-        if d:
-            return (d, s.strip())
-        else:
-            return s.strip()
         
     def get_command_name(self, command, code):
         command.name = self._current_context.program_name
@@ -83,7 +114,7 @@ class cu_(SystemSubroutine):
         command_name, _, args_string = command_string.strip().partition(" ")
         self._current_context.program_name = command_name
         self._current_context.argument_string = args_string.strip()
-
+    
     def set_command_processor(self, command_processor):
         self._current_context.command_processor = command_processor
         

@@ -18,7 +18,7 @@ SYSTEM_CONSOLE = None
 
 class AnsweringService(SystemSubroutine):
 
-    DEFAULT_CP_PATH = ">sss>default_cp"
+    DEFAULT_CP_PATH = ">sss>command_processor_"
 
     def __init__(self, supervisor, command_processor):
         super(AnsweringService, self).__init__(self.__class__.__name__, supervisor)
