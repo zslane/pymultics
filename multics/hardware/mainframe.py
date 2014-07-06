@@ -269,13 +269,14 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             print "Wiping", self.process_dir_dir
             native_path = self.path2path(self.process_dir_dir)
             shutil.rmtree(native_path, ignore_errors=True)
-            #== Delete the whotab so it won't contain any erroneous users
-            print "Deleting whotab"
-            native_path = self.path2path(self.system_control_dir, "whotab")
-            try:
-                os.remove(native_path)
-            except:
-                pass
+            #== Delete the whotab and login_journal so they won't contain any erroneous data
+            for segment_name in ["whotab", "login_journal"]:
+                print "Deleting", segment_name
+                native_path = self.path2path(self.system_control_dir, segment_name)
+                try:
+                    os.remove(native_path)
+                except:
+                    pass
         # end if
         
         for directory in directory_list:
@@ -366,7 +367,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         #== Null data (None) is written as an empty file
         if type(data) in [str, unicode]:
             f.write(data)
-        elif data:
+        elif data is not None:
             pickle.dump(data, f)
         # end if
         f.close()

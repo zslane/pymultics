@@ -1,1 +1,1 @@
-whoami
+motd

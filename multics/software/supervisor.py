@@ -443,6 +443,13 @@ class Supervisor(QtCore.QObject):
         print "WHOTAB:"
         print "-------"
         pprint(self.__whotab)
+        
+        #== Create the LOGIN JOURNAL if necessary
+        segment({})
+        call.hcs_.make_seg(self.fs.system_control_dir, "login_journal", "", 0, segment, code)
+        print "LOGIN JOURNAL:"
+        print "--------------"
+        pprint(segment.ptr)
     
 class SystemTimer(object):
 

@@ -136,7 +136,8 @@ class ProcessWorker(QtCore.QObject):
             call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
     
     def _main_loop(self):
-        call.ioa_("New process for {0} started on {1}", self.uid(), datetime.datetime.now().ctime())
+        if self.__process_env.pit.instance_tag == "z":
+            call.ioa_("New process for {0} started on {1}", self.uid(), datetime.datetime.now().ctime())
         code = self.__process_env.core_function.start(self)
         return code
         

@@ -147,17 +147,33 @@ class AnsweringService(SystemSubroutine):
         return self.process_overseer.create_process(login_info, Listener, tty_channel)
     
     def _user_login(self, login_options, tty_channel):
-        login_info.time_login = datetime.datetime.now()
+        journal = parm()
+        code    = parm()
         
-        process = self._new_process(login_options['person_id'], login_options['pdt'], login_options, tty_channel)
+        login_info.time_login = datetime.datetime.now()
+        person_id = login_options['person_id']
+        
+        process = self._new_process(person_id, login_options['pdt'], login_options, tty_channel)
         if process:
             #== Add the user to the whotab
             with self.__whotab:
                 self.__whotab.entries[login_info.user_id] = WhotabEntry(login_info.time_login, process.id(), process.dir())
             # end with
             
+            #== Update the login journal
+            call.hcs_.initiate(self.supervisor.fs.system_control_dir, "login_journal", "", 0, 0, journal, code)
+            if code.val == 0 and journal.ptr != null():
+                last_login_time = journal.ptr.get(person_id)
+                with journal.ptr:
+                    journal.ptr[person_id] = login_info.time_login
+                # end with
+            # end if
+            
             if not login_options.get('brief'):
                 self.supervisor.llout("\n%s logged in on %s\n" % (login_info.user_id, login_info.time_login.ctime()), tty_channel)
+                if last_login_time:
+                    self.supervisor.llout("Last login on %s\n" % (last_login_time.ctime()))
+                # end if
             print "%s logged in on %s" % (login_info.user_id, login_info.time_login.ctime())
         # end if
         
