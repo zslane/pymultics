@@ -172,7 +172,7 @@ class AnsweringService(SystemSubroutine):
             if not login_options.get('brief'):
                 self.supervisor.llout("\n%s logged in on %s\n" % (login_info.user_id, login_info.time_login.ctime()), tty_channel)
                 if last_login_time:
-                    self.supervisor.llout("Last login on %s\n" % (last_login_time.ctime()))
+                    self.supervisor.llout("Last login on %s\n" % (last_login_time.ctime()), tty_channel)
                 # end if
             print "%s logged in on %s" % (login_info.user_id, login_info.time_login.ctime())
         # end if
