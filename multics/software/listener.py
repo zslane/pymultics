@@ -103,9 +103,25 @@ class Listener(SystemSubroutine):
         }
         self.__process.register_msg_handlers(msg_handlers)
         
+        self._print_motd()
+        
     def _interactive_message_handler(self, message):
         call.sys_.recv_message_(message)
     
     def _cleanup(self):
         pass
         
+    def _print_motd(self):
+        #== Only do this if the user does not have a start_up.ec in his
+        #== home directory
+        if not self.supervisor.fs.file_exists(self.__homedir + ">start_up.ec"):
+            #== Open the system motd file if it exists and display its contents
+            try:
+                f = open(vfile_(self.supervisor.fs.system_control_dir + ">motd"))
+                file_text = f.read()
+                f.close()
+                
+                call.ioa_(file_text)
+            except:
+                pass
+                

@@ -15,7 +15,8 @@ def list_():
     full        = parm()
     code        = parm()
     
-    excluded_extensions = (".pyc", ".pyo")
+    EXCLUDED_EXTENSIONS = (".pyc", ".pyo")
+    SPECIAL_EXTENSIONS  = (".mbx")
     
     current_dir = get_wdir_()
     dir_to_list.name = current_dir
@@ -39,10 +40,10 @@ def list_():
     # end if
     
     if len(branch.list) + len(segment.list) == 0:
-        call.ioa_("Directory empty")
+        call.ioa_("Directory empty.")
     else:
         #== Sift out add_names and files with excluded file extensions
-        segment.list = filter(lambda s: not s.endswith(excluded_extensions), segment.list)
+        segment.list = filter(lambda s: not s.endswith(EXCLUDED_EXTENSIONS), segment.list)
         branch_add_names = _sift_add_names(branch.list, segment.list)
         segment_add_names = _sift_add_names(segment.list, segment.list)
         
@@ -52,7 +53,7 @@ def list_():
         for segment_name in segment.list:
             seglen.val = 0
             acl = ""
-            if not segment_name.endswith(".mbx"):
+            if not segment_name.endswith(SPECIAL_EXTENSIONS):
                 call.hcs_.get_segment_length(dir_to_list.name, segment_name, seglen, code)
                 seglen.val = max(1, seglen.val / 1024)
                 acl = "rew"
@@ -62,25 +63,29 @@ def list_():
             total_lengths += seglen.val
         # end for
         
-        call.ioa_("\nSegments = {0}, Lengths = {1}\n", len(branch.list) + len(segment.list), total_lengths)
-        
         lines = []
         
-        #== List directories first
-        for branch_name in branch.list:
-            lines.append("sma {0:5}  {1}".format("", branch_name))
-            for add_name in sorted(branch_add_names.get(branch_name, []), key=len, reverse=True):
-                lines.append("{0:12}{1}".format("", add_name))
-            # end for
-        # end for
-        
-        #== List files second
+        #== List files first
+        if segment.list:
+            lines.append("\nSegments = {0}, Lengths = {1}\n".format(len(segment.list), total_lengths))
+        # end if
         for segment_name in segment.list:
-            if not segment_name.endswith(excluded_extensions):
+            if not segment_name.endswith(EXCLUDED_EXTENSIONS):
                 lines.append("{0:3} {1:5}  {2}".format(segment_acl[segment_name], segment_lengths[segment_name], segment_name))
             # end if
             for add_name in sorted(segment_add_names.get(segment_name, []), key=len, reverse=True):
                 lines.append("{0:13}{1}".format("", add_name))
+            # end for
+        # end for
+        
+        #== List directories second
+        if branch.list:
+            lines.append("\nDirectories = {0}.\n".format(len(branch.list)))
+        # end if
+        for branch_name in branch.list:
+            lines.append("sma   {1}".format("", branch_name))
+            for add_name in sorted(branch_add_names.get(branch_name, []), key=len, reverse=True):
+                lines.append("{0:8}{1}".format("", add_name))
             # end for
         # end for
         
@@ -124,8 +129,7 @@ def _print_lines(lines):
             call.command_query_(query_info, answer, "list", "Continue ({0} names)? ", len(lines))
             if answer.val.lower() in ["no", "n"]:
                 break
-            # end if
-        # end if
-    # end while
+    
+#-- end def _print_lines
 
 ls = list_

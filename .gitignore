@@ -2,6 +2,7 @@
 multics/hardware/.hardware_state
 multics/filesystem/pdd/*
 multics/filesystem/udd/*/*/*.mbx
+multics/filesystem/udd/*/*/*.motd
 multics/filesystem/sc1/*.pdt
 multics/filesystem/sc1/system_administrator_table
 multics/filesystem/sc1/person_name_table
