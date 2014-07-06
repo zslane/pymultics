@@ -1,6 +1,4 @@
 
-from multics.pl1types import PL1
-# from multics.globals import MulticsCondition, error_table_
 from multics.globals import *
 
 class ProjectDefinitionTable(object):
@@ -35,4 +33,7 @@ class ProjectUserConfig(object):
         self.person_id = person_id
         self.home_dir = home_dir
         self.cp_path = cp_path
+        
+    def __repr__(self):
+        return "<person_id:%s, home_dir:%s, cp_path:%s>" % (repr(self.person_id), repr(self.home_dir), repr(self.cp_path))
         

@@ -135,6 +135,7 @@ class UserControl(object):
         elif self._break_received() or self._has_input():
             #== Ignore BREAK signals and all other keyboard input
             self._flush_input()
+            return self._set_state(self.WAITING_FOR_LINEFEED)
             
         else:
             return self._timeout_expired()

@@ -36,7 +36,7 @@ def who():
     # end for
     
     if show_users:
-        call.sys_.get_users(users)
+        call.sys_.get_current_users(users)
     else:
         users.list = []
     # end if

@@ -1,6 +1,4 @@
 
-from multics.pl1types import PL1
-# from multics.globals import MulticsCondition, error_table_
 from multics.globals import *
 
 class PersonNameTable(object):

@@ -45,11 +45,11 @@ def send_message():
             return
         # end if
         
-        call.sys_.get_users(users, long_name.val)
-        print "Users matching recipient:", users.list
-        if users.list == []:
-            call.ioa_("send_message: A user named {0} is not logged in.", recipient)
-            return
+        # call.sys_.get_current_users(users, long_name.val)
+        # print "Users matching recipient:", users.list
+        # if users.list == []:
+            # call.ioa_("send_message: A user named {0} is not logged in.", recipient)
+            # return
         # end if
         
         if message:

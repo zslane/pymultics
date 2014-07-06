@@ -69,6 +69,15 @@ class ProcessWorker(QtCore.QObject):
     def gid(self):
         return "%s.%s.%s" % (self.__process_env.pit.login_name, self.__process_env.pit.project, self.__process_env.pit.instance_tag)
         
+    def person_id(self):
+        return self.__process_env.pit.login_name
+        
+    def project_id(self):
+        return self.__process_env.pit.project
+        
+    def homedir(self):
+        return self.__process.env.pit.homedir
+        
     @QtCore.Slot()
     def start(self):
         self._initialize()
@@ -101,7 +110,7 @@ class ProcessWorker(QtCore.QObject):
     def _process_messages(self):
         code = parm()
         
-        next_message = ""
+        next_message = None
         # print QtCore.QThread.currentThread().objectName(), "executing _process_messages()"
         
         if self.__process_env.msg.messages:
@@ -113,27 +122,29 @@ class ProcessWorker(QtCore.QObject):
                 call.set_lock_.lock(self.__process_env.msg.lock_word(), 3, code)
                 if code.val != 0 and code.val != error_table_.invalid_lock_reset:
                     print "Could not lock %s" % self.__process_env.msg._filepath()
-                    return
+                    raise Exception(code.val)
                 # end if
                 
                 with self.__process_env.msg:
                     next_message = self.__process_env.msg.messages.pop(0)
                 # end with
                 
-            finally:
                 # print self.objectName()+"._process_messages calling set_lock_.unlock"
                 call.set_lock_.unlock(self.__process_env.msg.lock_word(), code)
                 if code.val != 0 and code.val != error_table_.invalid_lock_reset:
                     print "Could not unlock %s" % self.__process_env.msg._filepath()
-                    return
                 # end if
+            
+                if next_message:
+                    self._dispatch_msg_message(next_message)
+                # end if
+                
+            except:
+                pass
+                
+            finally:
+                call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
             # end try
-            
-            if next_message:
-                self._dispatch_msg_message(next_message)
-            # end if
-            
-            call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
     
     def _main_loop(self):
         if self.__process_env.pit.instance_tag == "z":
@@ -237,7 +248,16 @@ class ProcessThread(QtCore.QThread):
         
     def tty(self):
         return self.tty_channel
-          
+        
+    def person_id(self):
+        return self.worker.person_id()
+        
+    def project_id(self):
+        return self.worker.project_id()
+        
+    def homedir(self):
+        return self.worker.homedir()
+    
 #-- end class ProcessThread
 
 class VirtualMulticsProcess(QtCore.QObject):
@@ -328,4 +348,13 @@ class VirtualMulticsProcess(QtCore.QObject):
         
     def tty(self):
         return self.thread.tty()
+        
+    def person_id(self):
+        return self.worker.person_id()
+        
+    def project_id(self):
+        return self.worker.project_id()
+        
+    def homedir(self):
+        return self.worker.homedir()
     

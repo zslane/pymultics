@@ -47,7 +47,37 @@ class sys_(SystemSubroutine):
         long_name.val = long_person_id + "." + long_project_id
         code.val = 0
     
-    def get_users(self, users, matching="*.*"):
+    def default_home_dir(self, person_id, project_id):
+        return ">".join([self.supervisor.fs.user_dir_dir, project_id, person_id])
+    #-- end def default_home_dir
+    
+    def get_user_homedir_(self, user_id, homedir):
+        person_id, project_id = user_id.split(".")
+        for pdt in self.supervisor.pdt.values():
+            if project_id == pdt.project_id:
+                for person in pdt.users:
+                    if person == person_id:
+                        homedir.val = pdt.users[person].home_dir or self.default_home_dir(person_id, project_id)
+    
+    def get_registered_users(self, user_ids, homedirs, matching="*.*"):
+        user_ids.list = []
+        homedirs.list = []
+        matching = matching.replace(".", r"\.").replace("*", r"(\w+)")
+        for project_key in self.supervisor.pdt:
+            pdt = self.supervisor.pdt[project_key]
+            #== Skip entries which are just alias copies of the actual project entries
+            if project_key == pdt.alias:
+                continue
+            # end if
+            project_id = pdt.project_id
+            for person_id in pdt.users:
+                user_id = person_id + "." + project_id
+                homedir = pdt.users[person_id].home_dir or self.default_home_dir(person_id, project_id)
+                if re.match(matching, user_id):
+                    user_ids.list.append(user_id)
+                    homedirs.list.append(homedir)
+    
+    def get_current_users(self, users, matching="*.*"):
         matching = matching.replace(".", r"\.").replace("*", r"(\w+)")
         users.list = filter(lambda k: re.match(matching, k), self.supervisor.whotab.entries.keys())
         
@@ -131,7 +161,7 @@ class sys_(SystemSubroutine):
                 #== Proceed with adding process message...
                 
             elif code.val != 0:
-                print "sys_.add_process_msg: Could not lock process.ms"
+                print "sys_.add_process_msg: Could not lock process.ms for {0}".format(user_id)
                 print code.val
                 return
             # end if
@@ -141,15 +171,14 @@ class sys_(SystemSubroutine):
                 msg_segment.messages.append(message)
             # end with
         
-        except:
-            call.dump_traceback_()
-            
-        finally:
             call.sys_.unlock_process_ms_(segment.ptr, code)
             if code.val != 0:
                 print "sys_.add_process_msg: Could not unlock process.ms"
                 print code.val
             # end if
+            
+        except:
+            call.dump_traceback_()
         # end try
     
     def lock_process_ms_(self, user_id, process_msg_segment, code):
@@ -177,26 +206,26 @@ class sys_(SystemSubroutine):
     def unlock_process_ms_(self, process_msg_segment, code):
         call.set_lock_.unlock(process_msg_segment.lock_word(), code)
     
-    def lock_user_mbx_(self, user_id, mailbox_segment, code):
-        pit = parm()
-        try:
-            whotab_entry = self.supervisor.whotab.entries[user_id]
-            call.hcs_.initiate(whotab_entry.process_dir, "pit", "", 0, 0, pit, code)
-            if code.val != 0:
+    def _initiate_user_mbx(self, user_id, homedir, mailbox_segment, code):
+        #== If no homedir is provided, then try to figure it out
+        if not homedir:
+            hd = parm()
+            self.get_user_homedir_(user_id, hd)
+            if not hd.val:
+                code.val = error_table_.no_such_user
                 return
+            else:
+                homedir = hd.val
             # end if
-            homedir = pit.data.homedir
-        except:
-            code.val = error_table_.no_such_user
-            return
-        # end try
+        # end if
         
         person_id, _, _ = user_id.partition(".")
         call.hcs_.initiate(homedir, person_id + ".mbx", "", 0, 0, mailbox_segment, code)
+        
+    def lock_user_mbx_(self, user_id, homedir, mailbox_segment, code):
+        self._initiate_user_mbx(user_id, homedir, mailbox_segment, code)
         if mailbox_segment.ptr != null():
             call.set_lock_.lock(mailbox_segment.ptr.lock_word(), 5, code)
-        else:
-            code.val = error_table_.lock_not_locked
             
     def unlock_user_mbx_(self, mailbox_segment, code):
         call.set_lock_.unlock(mailbox_segment.lock_word(), code)
@@ -205,15 +234,74 @@ class sys_(SystemSubroutine):
         process = get_calling_process_()
         process.stack.accepting_messages = flag
         
+    def hold_messages_(self, flag):
+        process = get_calling_process_()
+        process.stack.holding_messages = flag
+        
+    def messages_held_(self, flag):
+        process = get_calling_process_()
+        process.stack.assert_create("holding_messages", bool)
+        flag.val = process.stack.holding_messages
+        
+    def get_held_messages_(self, user_id, homedir, messages, code):
+        mbx_segment = parm()
+        code        = parm()
+        self.lock_user_mbx_(user_id, homedir, mbx_segment, code)
+        if mbx_segment.ptr != null():
+            with mbx_segment.ptr:
+                messages.list = mbx_segment.ptr.get_held_messages()
+            # end with
+            self.unlock_user_mbx_(mbx_segment.ptr, code)
+        
+    def clear_held_messages_(self, user_id, homedir, code):
+        mbx_segment = parm()
+        code        = parm()
+        self.lock_user_mbx_(user_id, homedir, mbx_segment, code)
+        if mbx_segment.ptr != null():
+            with mbx_segment.ptr:
+                mbx_segment.ptr.clear_held_messages()
+            # end with
+            self.unlock_user_mbx_(mbx_segment.ptr, code)
+    
     def recv_message_(self, message_packet):
         process = get_calling_process_()
         process.stack.assert_create("accepting_messages", bool)
         if process.stack.accepting_messages or message_packet['type'] == "shutdown_announcement":
             call.ioa_("Message from {0} on {1}: {2}", message_packet['from'], message_packet['time'].ctime(), message_packet['text'])
-        else:
-            # STORE IN MAILBOX SOME DAY
-            pass
             
+    def _hold_message(self, user_id, homedir, message, code):
+        mbx_segment = parm()
+        code        = parm()
+        try:
+            call.sys_.lock_user_mbx_(user_id, homedir, mbx_segment, code)
+            if code.val == error_table_.locked_by_this_process:
+                person_id, _ = user_id.split(".")
+                print "sys_._hold_message: {0} already has {1}.mbx locked".format(get_calling_process_().objectName(), person_id)
+                #== Proceed with adding message...
+                
+            elif code.val != 0:
+                print "sys_._hold_message: Could not lock {0}.mbx".format(person_id)
+                print code.val
+                return
+            # end if
+            
+            with mbx_segment.ptr:
+                mbx_segment.ptr.add_message(message)
+            # end with
+        
+        except:
+            call.dump_traceback_()
+            
+        finally:
+            call.sys_.unlock_user_mbx_(mbx_segment.ptr, code)
+            if code.val != 0:
+                print "sys_._hold_message: Could not unlock {0}.mbx".format(person_id)
+                print code.val
+            # end if
+        # end try
+        print "Holding message for", user_id
+        pprint(mbx_segment.ptr)
+        
     def signal_condition(self, signalling_process, condition_instance):
         self.supervisor.signal_condition(signalling_process, condition_instance)
         

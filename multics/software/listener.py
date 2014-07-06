@@ -98,15 +98,52 @@ class Listener(SystemSubroutine):
         self.__prev_command_time = datetime.datetime.now()
         
         msg_handlers = {
-            'interactive_message':   self._interactive_message_handler,
-            'shutdown_announcement': self._interactive_message_handler,
+            'interactive_message':   self._process_ms_handler,
+            'shutdown_announcement': self._process_ms_handler,
         }
         self.__process.register_msg_handlers(msg_handlers)
         
+        call.timer_manager_.alarm_call(1.0, self._interactive_message)
+        
         self._print_motd()
         
-    def _interactive_message_handler(self, message):
+    def _process_ms_handler(self, message):
         call.sys_.recv_message_(message)
+        
+    def _interactive_message(self):
+        mbx_segment = parm()
+        code        = parm()
+        
+        self.__process.stack.assert_create("accepting_messages", bool)
+        accepting = self.__process.stack.accepting_messages
+        self.__process.stack.assert_create("holding_messages", bool)
+        holding = self.__process.stack.holding_messages
+        
+        user_id = self.__process.uid()
+        homedir = self.__homedir
+        
+        call.sys_.lock_user_mbx_(user_id, homedir, mbx_segment, code)
+        if mbx_segment.ptr != null():
+            with mbx_segment.ptr:
+                for message in mbx_segment.ptr.messages[:]:
+                    if message['type'] in ["interactive_message", "shutdown_announcement"]:
+                        #== Print unread interactive messages and shutdown announcements
+                        if ((message['type'] == "shutdown_announcement") or
+                            (message['status'] == "unread" and accepting)):
+                            call.ioa_("Message from {0} on {1}: {2}", message['from'], message['time'].ctime(), message['text'])
+                            message['status'] = "read"
+                        # end if
+                        if accepting and holding:
+                            message['status'] = "hold"
+                        # end if
+                        #== Delete messages marked as read
+                        if message['status'] == "read"):
+                            mbx_segment.ptr.messages.remove(message)
+                        # end if
+                    # end if
+                # end for
+            # end with
+            call.sys_.unlock_user_mbx_(mbx_segment.ptr, code)
     
     def _cleanup(self):
         pass

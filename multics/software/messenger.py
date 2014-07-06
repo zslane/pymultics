@@ -43,17 +43,28 @@ class Messenger(SystemSubroutine):
         pass
         
     def _interactive_message_handler(self, message):
-        users = parm()
+        user_ids = parm()
+        homedirs = parm()
         
         print self.__process.objectName(), "handling message", message
-        
-        call.sys_.get_users(users, message['to'])
-        for user_id in users.list:
-            self._deliver_interactive_message(user_id, message)
+        call.sys_.get_registered_users(user_ids, homedirs, message['to'])
+        for user_id, homedir in zip(user_ids.list, homedirs.list):
+            self._deliver_interactive_message(user_id, homedir, message)
+        # end for
     
-    def _deliver_interactive_message(self, recipient, message):
-        code = parm()
-        print self.__process.uid(), "delivering interactive message to", recipient
-        message['to'] = recipient
-        call.sys_.add_process_msg(recipient, message, code)
+    def _deliver_interactive_message(self, recipient, homedir, message):
+        declare (clock_ = entry . returns (fixed.bin(32)))
+        mbx_segment = parm()
+        code        = parm()
         
+        print self.__process.uid(), "delivering interactive message to", recipient
+        message['id'] = clock_()
+        message['to'] = recipient
+        message['status'] = "unread"
+        call.sys_.lock_user_mbx_(recipient, homedir, mbx_segment, code)
+        if mbx_segment.ptr != null():
+            with mbx_segment.ptr:
+                mbx_segment.ptr.add_message(message)
+            # end with
+            call.sys_.unlock_user_mbx_(mbx_segment.ptr, code)
+        # end if

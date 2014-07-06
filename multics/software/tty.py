@@ -120,9 +120,9 @@ class TTYChannel(QtCore.QObject):
     
     def flush_input(self):
         if not self.terminal_closed():
-            while self.__socket.bytesAvailable() > 0:
+            if self.__socket.bytesAvailable() > 0:
                 self.__socket.readAll() # and discard
-            # end while
+            # end if
         # end if
         self.__input_buffer = []
         self.__break_signal = False
