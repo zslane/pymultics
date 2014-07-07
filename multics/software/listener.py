@@ -97,18 +97,18 @@ class Listener(SystemSubroutine):
         self.__homedir = homedir.val
         self.__prev_command_time = datetime.datetime.now()
         
-        msg_handlers = {
-            'interactive_message':   self._process_ms_handler,
-            'shutdown_announcement': self._process_ms_handler,
-        }
-        self.__process.register_msg_handlers(msg_handlers)
+        # msg_handlers = {
+            # 'interactive_message':   self._process_ms_handler,
+            # 'shutdown_announcement': self._process_ms_handler,
+        # }
+        # self.__process.register_msg_handlers(msg_handlers)
         
         call.timer_manager_.alarm_call(1.0, self._interactive_message)
         
         self._print_motd()
         
-    def _process_ms_handler(self, message):
-        call.sys_.recv_message_(message)
+    # def _process_ms_handler(self, message):
+        # call.sys_.recv_message_(message)
         
     def _interactive_message(self):
         mbx_segment = parm()
@@ -136,8 +136,8 @@ class Listener(SystemSubroutine):
                         if accepting and holding:
                             message['status'] = "hold"
                         # end if
-                        #== Delete messages marked as read
-                        if message['status'] == "read"):
+                        #== Delete messages marked as read; messages marked as unread or hold will remain
+                        if message['status'] == "read":
                             mbx_segment.ptr.messages.remove(message)
                         # end if
                     # end if

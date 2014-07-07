@@ -242,65 +242,12 @@ class sys_(SystemSubroutine):
         process = get_calling_process_()
         process.stack.assert_create("holding_messages", bool)
         flag.val = process.stack.holding_messages
-        
-    def get_held_messages_(self, user_id, homedir, messages, code):
-        mbx_segment = parm()
-        code        = parm()
-        self.lock_user_mbx_(user_id, homedir, mbx_segment, code)
-        if mbx_segment.ptr != null():
-            with mbx_segment.ptr:
-                messages.list = mbx_segment.ptr.get_held_messages()
-            # end with
-            self.unlock_user_mbx_(mbx_segment.ptr, code)
-        
-    def clear_held_messages_(self, user_id, homedir, code):
-        mbx_segment = parm()
-        code        = parm()
-        self.lock_user_mbx_(user_id, homedir, mbx_segment, code)
-        if mbx_segment.ptr != null():
-            with mbx_segment.ptr:
-                mbx_segment.ptr.clear_held_messages()
-            # end with
-            self.unlock_user_mbx_(mbx_segment.ptr, code)
     
     def recv_message_(self, message_packet):
         process = get_calling_process_()
         process.stack.assert_create("accepting_messages", bool)
         if process.stack.accepting_messages or message_packet['type'] == "shutdown_announcement":
             call.ioa_("Message from {0} on {1}: {2}", message_packet['from'], message_packet['time'].ctime(), message_packet['text'])
-            
-    def _hold_message(self, user_id, homedir, message, code):
-        mbx_segment = parm()
-        code        = parm()
-        try:
-            call.sys_.lock_user_mbx_(user_id, homedir, mbx_segment, code)
-            if code.val == error_table_.locked_by_this_process:
-                person_id, _ = user_id.split(".")
-                print "sys_._hold_message: {0} already has {1}.mbx locked".format(get_calling_process_().objectName(), person_id)
-                #== Proceed with adding message...
-                
-            elif code.val != 0:
-                print "sys_._hold_message: Could not lock {0}.mbx".format(person_id)
-                print code.val
-                return
-            # end if
-            
-            with mbx_segment.ptr:
-                mbx_segment.ptr.add_message(message)
-            # end with
-        
-        except:
-            call.dump_traceback_()
-            
-        finally:
-            call.sys_.unlock_user_mbx_(mbx_segment.ptr, code)
-            if code.val != 0:
-                print "sys_._hold_message: Could not unlock {0}.mbx".format(person_id)
-                print code.val
-            # end if
-        # end try
-        print "Holding message for", user_id
-        pprint(mbx_segment.ptr)
         
     def signal_condition(self, signalling_process, condition_instance):
         self.supervisor.signal_condition(signalling_process, condition_instance)

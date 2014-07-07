@@ -76,7 +76,7 @@ class ProcessWorker(QtCore.QObject):
         return self.__process_env.pit.project
         
     def homedir(self):
-        return self.__process.env.pit.homedir
+        return self.__process_env.pit.homedir
         
     @QtCore.Slot()
     def start(self):

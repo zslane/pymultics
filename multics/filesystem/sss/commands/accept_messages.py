@@ -12,13 +12,16 @@ def accept_messages():
     flag     = parm()
     code     = parm()
     
+    brief = False
     print_messages = False
     hold_messages = False
     unhold_messages = False
     
     call.cu_.arg_list(arg_list)
     for arg in arg_list.args:
-        if arg == "-print" or arg == "-pr":
+        if arg == "-brief" or arg == "-bf":
+            brief = True
+        elif arg == "-print" or arg == "-pr":
             print_messages = True
         elif arg == "-hold" or arg == "-hd":
             hold_messages = True
@@ -39,12 +42,15 @@ def accept_messages():
     
     call.hcs_.make_seg(homedir.val, person.id + ".mbx", "", 0, segment(Mailbox()), code)
     if code.val == 0:
+        if not brief:
+            call.ioa_("Created mailbox {0}>{1}.mbx", homedir.val, person.id)
+        # end if
         print "Created user mailbox file %s>%s.mbx" % (homedir.val, person.id)
     # end if
     
     call.sys_.accept_messages_(True)
     call.hcs_.initiate(homedir.val, person.id + ".mbx", "", 0, 0, segment, code)
-    print segment.ptr.messages
+    print segment.ptr
     
     if hold_messages:
         call.sys_.hold_messages_(True)
@@ -61,7 +67,8 @@ def accept_messages():
         if mbx_segment.ptr != null():
             with mbx_segment.ptr:
                 for message in mbx_segment.ptr.messages[:]:
-                    if message['type'] == "interactive_message" and message['status'] == "unread":
+                    #== Only look at previously unread messages.
+                    if (message['type'] == "interactive_message") and (message['status'] == "unread"):
                         call.ioa_("Message from {0} on {1}: {2}", message['from'], message['time'].ctime(), message['text'])
                         if hold_messages:
                             message['status'] = "hold"
