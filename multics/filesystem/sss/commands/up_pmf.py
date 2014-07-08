@@ -27,7 +27,7 @@ def up_pmf():
     call.user_info_.whoami(person, project, acct)
     if not ((sys_admin_table.ptr and
              project.id in sys_admin_table.ptr.projects and
-             person.id in sys_admin_table.ptr.projects[project_id]['admins']) or
+             person.id in sys_admin_table.ptr.projects[project.id]['admins']) or
             (project.id == "SysAdmin")):
         call.ioa_("You are not authorized to upload {0}", pdt_file)
         return

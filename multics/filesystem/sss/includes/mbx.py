@@ -8,6 +8,9 @@ class Mailbox(object):
     def __repr__(self):
         return "<Mailbox states: %s\n       messages: %s>" % (str(self.states), str(self.messages))
         
+    def has_state(self, state):
+        return state in self.states
+        
     def set_state(self, state):
         self.states.add(state)
         

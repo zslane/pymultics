@@ -15,6 +15,7 @@ UNKNOWN_CODE       = chr(0)
 ECHO_NORMAL_CODE   = chr(1)
 ECHO_PASSWORD_CODE = chr(2)
 ASSIGN_PORT_CODE   = chr(26) # Substitute
+WHO_CODE           = chr(3)
 END_CONTROL_CODE   = chr(4)  # End of Transmission
 
 LINEFEED_CODE      = chr(10) # Linefeed
@@ -85,12 +86,14 @@ class TerminalIO(QtGui.QWidget):
     setConnectStatus = QtCore.Signal(str)
     setErrorStatus = QtCore.Signal(str)
     
-    TEXT_EDIT_STYLE_SHEET = "QTextEdit { font-family: '%s'; font-size: %dpt; color: %s; background: black; border: 0px; }"
-    LINE_EDIT_STYLE_SHEET = "QLineEdit { font-family: '%s'; font-size: %dpt; color: %s; background: black; }"
+    TEXT_EDIT_STYLE_SHEET = "QTextEdit { color: %s; background: black; border: 0px; }"
+    LINE_EDIT_STYLE_SHEET = "QLineEdit { color: %s; background: black; }"
     
     def __init__(self, phosphor_color, parent=None):
         super(TerminalIO, self).__init__(parent)
         self.ME = self.__class__.__name__
+        
+        self.name = QtNetwork.QHostInfo.localHostName()
         
         if phosphor_color == "green": color = "lightgreen"
         if phosphor_color == "amber": color = "gold"
@@ -107,14 +110,17 @@ class TerminalIO(QtGui.QWidget):
         self.socket.readyRead.connect(self.data_available)
         self.com_port = 0
         
-        self.FONT_NAME = "Glass TTY VT220, Courier"
-        self.FONT_SIZE = 20 if sys.platform == "darwin" else 15
+        FONT_NAME = "Glass TTY VT220"
+        FONT_SIZE = 20 if sys.platform == "darwin" else 15
+        font = QtGui.QFont(FONT_NAME, FONT_SIZE)
+        font.setStyleHint(QtGui.QFont.TypeWriter)
         
         self.output = QtGui.QTextEdit()
         self.output.setReadOnly(True)
-        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEET % (self.FONT_NAME, self.FONT_SIZE, color))
-        self.output.setFontFamily(self.FONT_NAME)
-        self.output.setFontPointSize(self.FONT_SIZE)
+        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEET % (color))
+        self.output.setFont(font)
+        # self.output.setFontFamily(self.FONT_NAME)
+        # self.output.setFontPointSize(self.FONT_SIZE)
         self.output.setFocusPolicy(QtCore.Qt.NoFocus)
         self.output.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
         self.output.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
@@ -131,7 +137,8 @@ class TerminalIO(QtGui.QWidget):
         output_frame.setLayout(output_layout)
         
         self.input = KeyboardIO()
-        self.input.setStyleSheet(self.LINE_EDIT_STYLE_SHEET % (self.FONT_NAME, self.FONT_SIZE, color))
+        self.input.setStyleSheet(self.LINE_EDIT_STYLE_SHEET % (color))
+        self.input.setFont(font)
         self.input.setEnabled(False)
         self.input.returnPressed.connect(self.send_string)
         self.input.lineFeed.connect(self.send_linefeed)
@@ -172,6 +179,7 @@ class TerminalIO(QtGui.QWidget):
         self.socket.setSocketOption(QtNetwork.QAbstractSocket.LowDelayOption, 1)
         self.setConnectStatus.emit("Connected to %s on port %d" % (self.socket.peerName(), self.socket.peerPort()))
         if self.socket.peerPort() != self.port:
+            self.send_who_code()
             self.input.setEnabled(True)
             self.input.setFocus()
         
@@ -266,6 +274,13 @@ class TerminalIO(QtGui.QWidget):
         # end if
         self.output.moveCursor(QtGui.QTextCursor.End)
         
+    def send_who_code(self):
+        if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
+            # print self.ME, "sending WHO code"
+            n = self.socket.write(DataPacket.Out(WHO_CODE, self.name))
+            # print self.ME, n, "bytes sent"    
+            self.socket.flush()
+    
     def reset(self):
         self.socket.abort()
         QtCore.QTimer.singleShot(0, self.reconnect)
@@ -281,12 +296,12 @@ class TerminalIO(QtGui.QWidget):
         if phosphor_color == "amber": color = "gold"
         if phosphor_color == "white": color = "white"
         
-        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEET % (self.FONT_NAME, self.FONT_SIZE, color))
+        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEET % (color))
         self.output.style().unpolish(self)
         self.output.style().polish(self)
         self.output.update()
         
-        self.input.setStyleSheet(self.LINE_EDIT_STYLE_SHEET % (self.FONT_NAME, self.FONT_SIZE, color))
+        self.input.setStyleSheet(self.LINE_EDIT_STYLE_SHEET % (color))
         self.input.style().unpolish(self)
         self.input.style().polish(self)
         self.input.update()
@@ -321,7 +336,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.shutdown.connect(self.io.shutdown)
         
         self.setCentralWidget(self.io)
-        self.setWindowTitle("pyMultics Virtual Terminal")
+        self.setWindowTitle("pyMultics Virtual Terminal - {0}".format(self.io.name))
         self.setStyleSheet("QLineEdit, QMainWindow { background: #444444; border: 1px solid #252525; }")
         
         self.palette = QtGui.QPalette()
@@ -412,14 +427,10 @@ class TerminalWindow(QtGui.QMainWindow):
     @QtCore.Slot()
     def enable_reconnect(self):
         self.reconnect_action.setEnabled(True)
-        # self.set_host_action.setEnabled(True)
-        # self.set_port_action.setEnabled(True)
         
     @QtCore.Slot()
     def disable_reconnect(self):
         self.reconnect_action.setEnabled(False)
-        # self.set_host_action.setEnabled(False)
-        # self.set_port_action.setEnabled(False)
     
     @QtCore.Slot(str)
     def set_normal_status(self, txt):

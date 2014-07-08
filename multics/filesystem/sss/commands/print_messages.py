@@ -8,11 +8,6 @@ def print_messages():
     print_all = True
     
     process = get_calling_process_()
-    process.stack.assert_create("accepting_messages", bool)
-    accepting = process.stack.accepting_messages
-    process.stack.assert_create("holding_messages", bool)
-    holding = process.stack.holding_messages
-    
     user_id = process.uid()
     homedir = process.homedir()
     
@@ -23,15 +18,16 @@ def print_messages():
         with mbx_segment.ptr:
             for message in mbx_segment.ptr.messages[:]:
                 if message['type'] == "interactive_message":
+                    holding = mbx_segment.ptr.has_state("hold_messages")
                     #== Print unread interactive messages
                     if message['status'] == "unread" or print_all:
                         if message['status'] == "hold" or holding:
                             held_count += 1
-                            count_str = "({0}) ".format(held_count)
+                            count_str = "{0}. ".format(held_count)
                         else:
                             count_str = ""
                         # end if
-                        call.ioa_("{0}Message from {1} on {2}: {3}", count_str, message['from'], message['time'].ctime(), message['text'])
+                        call.ioa_("{0}From {1} {2}: {3}", count_str, message['from'], message['time'].ctime(), message['text'])
                         if message['status'] == "unread": message['status'] = "read"
                     # end if
                     if holding:

@@ -9,6 +9,7 @@ UNKNOWN_CODE       = chr(0)  # Null
 ECHO_NORMAL_CODE   = chr(1)
 ECHO_PASSWORD_CODE = chr(2)
 ASSIGN_PORT_CODE   = chr(26) # Substitute
+WHO_CODE           = chr(3)
 END_CONTROL_CODE   = chr(4)  # End of Transmission
 
 LINEFEED_CODE      = chr(10) # Linefeed
@@ -25,6 +26,7 @@ class TTYChannel(QtCore.QObject):
         self.__break_signal = False
         self.__closed_signal = False
         self.__origin_thread = QtCore.QThread.currentThread()
+        self.__client_name = self.get_tty_name(socket)
         
         self.__socket = socket
         self.__socket.setParent(None)
@@ -42,6 +44,10 @@ class TTYChannel(QtCore.QObject):
     @property
     def id(self):
         return self.__id
+        
+    @property
+    def name(self):
+        return self.__client_name
     
     @property
     def error_code(self):
@@ -88,6 +94,14 @@ class TTYChannel(QtCore.QObject):
     def socket_error(self, error):
         self.__socket_error = error
         
+    def get_tty_name(self, socket):
+        if socket.waitForReadyRead(3000):
+            data_packet = DataPacket.In(socket.readAll())
+            data_code, payload = data_packet.extract_control_data()
+            if data_code == WHO_CODE:
+                return payload.lower()
+        return "unknown_terminal"
+    
     def detach_from_process(self):
         print get_calling_process_().objectName() + " detaching tty channel to " + self.__origin_thread.objectName()
         self.moveToThread(self.__origin_thread)

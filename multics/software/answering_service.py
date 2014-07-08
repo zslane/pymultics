@@ -152,6 +152,7 @@ class AnsweringService(SystemSubroutine):
         
         login_info.time_login = datetime.datetime.now()
         person_id = login_options['person_id']
+        tty_name = (tty_channel and tty_channel.name) or "console"
         
         process = self._new_process(person_id, login_options['pdt'], login_options, tty_channel)
         if process:
@@ -163,18 +164,23 @@ class AnsweringService(SystemSubroutine):
             #== Update the login journal
             call.hcs_.initiate(self.supervisor.fs.system_control_dir, "login_journal", "", 0, 0, journal, code)
             if code.val == 0 and journal.ptr != null():
-                last_login_time = journal.ptr.get(person_id)
+                journal_entry = journal.ptr.get(person_id, {})
+                last_login_time = journal_entry.get('last_login_time')
+                last_login_from = journal_entry.get('last_login_from')
                 with journal.ptr:
-                    journal.ptr[person_id] = login_info.time_login
+                    journal.ptr[person_id] = {
+                        'last_login_time': login_info.time_login,
+                        'last_login_from': tty_name,
+                    }
                 # end with
             # end if
             
             if not login_options.get('brief'):
-                self.supervisor.llout("\n%s logged in on %s\n" % (login_info.user_id, login_info.time_login.ctime()), tty_channel)
+                self.supervisor.llout("\n%s logged in on %s from %s\n" % (login_info.user_id, login_info.time_login.ctime(), tty_name), tty_channel)
                 if last_login_time:
-                    self.supervisor.llout("Last login on %s\n" % (last_login_time.ctime()), tty_channel)
+                    self.supervisor.llout("Last login on %s from %s\n" % (last_login_time.ctime(), last_login_from), tty_channel)
                 # end if
-            print "%s logged in on %s" % (login_info.user_id, login_info.time_login.ctime())
+            print "%s logged in on %s from %s" % (login_info.user_id, login_info.time_login.ctime(), tty_name)
         # end if
         
         return process

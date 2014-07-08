@@ -114,23 +114,25 @@ class Listener(SystemSubroutine):
         mbx_segment = parm()
         code        = parm()
         
-        self.__process.stack.assert_create("accepting_messages", bool)
-        accepting = self.__process.stack.accepting_messages
-        self.__process.stack.assert_create("holding_messages", bool)
-        holding = self.__process.stack.holding_messages
+        # self.__process.stack.assert_create("accepting_messages", bool)
+        # accepting = self.__process.stack.accepting_messages
+        # self.__process.stack.assert_create("holding_messages", bool)
+        # holding = self.__process.stack.holding_messages
         
         user_id = self.__process.uid()
         homedir = self.__homedir
         
         call.sys_.lock_user_mbx_(user_id, homedir, mbx_segment, code)
         if mbx_segment.ptr != null():
+            accepting = mbx_segment.ptr.has_state("accept_messages")
+            holding   = mbx_segment.ptr.has_state("hold_messages")
             with mbx_segment.ptr:
                 for message in mbx_segment.ptr.messages[:]:
                     if message['type'] in ["interactive_message", "shutdown_announcement"]:
                         #== Print unread interactive messages and shutdown announcements
                         if ((message['type'] == "shutdown_announcement") or
                             (message['status'] == "unread" and accepting)):
-                            call.ioa_("Message from {0} on {1}: {2}", message['from'], message['time'].ctime(), message['text'])
+                            call.ioa_("From {0} {1}: {2}", message['from'], message['time'].ctime(), message['text'])
                             message['status'] = "read"
                         # end if
                         if accepting and holding:

@@ -273,8 +273,9 @@ def refresh_sat():
 @system_privileged
 def list_projects():
     sys_admin_table = parm()
+    arg_list        = parm()
     code            = parm()
-             
+    
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) != 0:
         call.ioa_("list_projects takes no arguments")
@@ -295,6 +296,7 @@ def list_projects():
 @system_privileged
 def list_project_admins():
     sys_admin_table = parm()
+    arg_list        = parm()
     code            = parm()
              
     call.cu_.arg_list(arg_list)

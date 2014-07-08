@@ -9,17 +9,20 @@ def send_message():
     result    = parm()
     arg_count = parm()
     long_name = parm()
-    users     = parm()
+    # users     = parm()
     input     = parm("")
     code      = parm(0)
     
+    process   = get_calling_process_()
+    
     def send_msg(recipient, long_name, message, code):
-        person    = parm()
-        project   = parm()
-        acct      = parm()
+        # person    = parm()
+        # project   = parm()
+        # acct      = parm()
         
-        call.user_info_.whoami(person, project, acct)
-        sender = person.id + "." + project.id
+        # call.user_info_.whoami(person, project, acct)
+        # sender = person.id + "." + project.id
+        sender = process.uid()
         msg = ProcessMessage("interactive_message", **{'from':sender, 'to':long_name, 'text':message})
         call.sys_.add_process_msg("Messenger.SysDaemon", msg, code)
         if code.val == error_table_.lock_wait_time_exceeded:
@@ -43,13 +46,6 @@ def send_message():
             call.ioa_("Could not send message to {0}", recipient)
             call.ioa_("{0}", code.val)
             return
-        # end if
-        
-        # call.sys_.get_current_users(users, long_name.val)
-        # print "Users matching recipient:", users.list
-        # if users.list == []:
-            # call.ioa_("send_message: A user named {0} is not logged in.", recipient)
-            # return
         # end if
         
         if message:
