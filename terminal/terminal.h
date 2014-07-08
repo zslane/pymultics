@@ -9,6 +9,7 @@
 #include "QString.h"
 #include "QByteArray.h"
 #include "QTcpSocket.h"
+#include "QHostInfo.h"
 #include "QTextEdit.h"
 #include "QTextCursor.h"
 #include "QLineEdit.h"
@@ -61,11 +62,9 @@ signals:
 
 public:
     QTcpSocket* m_socket;
+    QString     m_name;
 
 protected:
-
-    const char* FONT_NAME;
-    const int   FONT_SIZE;
 
     const char* ME;
     QString     m_host;
@@ -73,10 +72,6 @@ protected:
     int         m_com_port;
     QTextEdit*  m_output;
     KeyboardIO* m_input;
-
-private:
-
-    QString     fmtstr;
 
 public:
 
@@ -104,6 +99,7 @@ public slots:
     void send_string();
     void send_linefeed();
     void send_break_signal();
+    void send_who_code();
 
     void written(qint64 nbytes);
 

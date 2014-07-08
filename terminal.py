@@ -93,12 +93,11 @@ class TerminalIO(QtGui.QWidget):
         super(TerminalIO, self).__init__(parent)
         self.ME = self.__class__.__name__
         
-        self.name = QtNetwork.QHostInfo.localHostName()
-        
         if phosphor_color == "green": color = "lightgreen"
         if phosphor_color == "amber": color = "gold"
         if phosphor_color == "white": color = "white"
         
+        self.name = QtNetwork.QHostInfo.localHostName()
         self.host = DEFAULT_SERVER_NAME
         self.port = DEFAULT_SERVER_PORT
         
@@ -119,8 +118,6 @@ class TerminalIO(QtGui.QWidget):
         self.output.setReadOnly(True)
         self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEET % (color))
         self.output.setFont(font)
-        # self.output.setFontFamily(self.FONT_NAME)
-        # self.output.setFontPointSize(self.FONT_SIZE)
         self.output.setFocusPolicy(QtCore.Qt.NoFocus)
         self.output.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
         self.output.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)

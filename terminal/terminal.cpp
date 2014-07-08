@@ -4,11 +4,11 @@ int N_HORZ_CHARS = 80;
 int N_VERT_LINES = 25;
 
 const char* DEFAULT_SERVER_NAME = "localhost";
-int DEFAULT_SERVER_PORT = 6800;
+const int   DEFAULT_SERVER_PORT = 6800;
 const char* DEFAULT_PHOSPHOR_COLOR = "green";
 
-static char TEXT_EDIT_STYLE_SHEET[] = "QTextEdit { font-family: '%s'; font-size: %dpt; color: %s; background: black; border: 0px; }";
-static char LINE_EDIT_STYLE_SHEET[] = "QLineEdit { font-family: '%s'; font-size: %dpt; color: %s; background: black; }";
+QString TEXT_EDIT_STYLE_SHEET = "QTextEdit { color: %1; background: black; border: 0px; }";
+QString LINE_EDIT_STYLE_SHEET = "QLineEdit { color: %1; background: black; }";
 
 
 KeyboardIO::KeyboardIO(QWidget* parent) : QLineEdit(parent)
@@ -33,19 +33,14 @@ void KeyboardIO::keyPressEvent(QKeyEvent* event)
 
 
 TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget(parent),
-    ME("TerminalIO"),
-    FONT_NAME("Glass TTY VT220, Courier"),
-#ifdef Q_OS_MAC
-    FONT_SIZE(20)
-#else
-    FONT_SIZE(15)
-#endif
+    ME("TerminalIO")
 {
     char* color;
     if (phosphor_color == "green") color = "lightgreen";
     if (phosphor_color == "amber") color = "gold";
     if (phosphor_color == "white") color = "white";
 
+    m_name = QHostInfo::localHostName();
     m_host = DEFAULT_SERVER_NAME;
     m_port = DEFAULT_SERVER_PORT;
 
@@ -57,14 +52,20 @@ TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget
     connect(m_socket, SIGNAL(readyRead()), this, SLOT(data_available()));
     m_com_port = 0;
 
-    //FONT_NAME = "Glass TTY VT220";
-    //FONT_SIZE = 15;
+    const char* FONT_NAME = "Glass TTY VT220";
+#ifdef Q_OS_MAC
+    const int   FONT_SIZE = 20;
+#else
+    const int   FONT_SIZE = 15;
+#endif
+
+    QFont font(FONT_NAME, FONT_SIZE);
+    font.setStyleHint(QFont::TypeWriter);
 
     m_output = new QTextEdit();
     m_output->setReadOnly(true);
-    m_output->setStyleSheet(fmtstr.sprintf(TEXT_EDIT_STYLE_SHEET, FONT_NAME, FONT_SIZE, color));
-    m_output->setFontFamily(FONT_NAME);
-    m_output->setFontPointSize(FONT_SIZE);
+    m_output->setStyleSheet(TEXT_EDIT_STYLE_SHEET.arg(color));
+    m_output->setFont(font);
     m_output->setFocusPolicy(Qt::NoFocus);
     m_output->setWordWrapMode(QTextOption::WrapAnywhere);
     m_output->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -81,7 +82,8 @@ TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget
     output_frame->setLayout(output_layout);
 
     m_input = new KeyboardIO();
-    m_input->setStyleSheet(fmtstr.sprintf(LINE_EDIT_STYLE_SHEET, FONT_NAME, FONT_SIZE, color));
+    m_input->setStyleSheet(LINE_EDIT_STYLE_SHEET.arg(color));
+    m_input->setFont(font);
     m_input->setEnabled(false);
     connect(m_input, SIGNAL(returnPressed()), this, SLOT(send_string()));
     connect(m_input, SIGNAL(lineFeed()), this, SLOT(send_linefeed()));
@@ -144,6 +146,7 @@ void TerminalIO::connection_made()
     emit setConnectStatus(QString("Connected to %1 on port %2").arg(m_socket->peerName(), QString::number(m_socket->peerPort())));
     if (m_socket->peerPort() != m_port)
     {
+        send_who_code();
         m_input->setEnabled(true);
         m_input->setFocus();
     }
@@ -192,7 +195,7 @@ void TerminalIO::data_available()
             }
             else
             {
-                throw fmtstr.sprintf("unknown control data code %d", int(data_code));
+                throw QString("Unknown control data code char(%1)").arg(int(data_code));
             }
         }
         else
@@ -234,6 +237,17 @@ void TerminalIO::send_break_signal()
         // cout << ME << " sending BREAK signal " << endl;
         int n = m_socket->write(DataPacket::Out(BREAK_CODE));
         // cout << ME << " " << n << "bytes sent" << endl;
+        m_socket->flush();
+    }
+}
+
+void TerminalIO::send_who_code()
+{
+    if (m_socket->isValid() && (m_socket->state() == QAbstractSocket::ConnectedState))
+    {
+//        std::cout << ME << " sending WHO CODE " << std::endl;
+        int n = m_socket->write(DataPacket::Out(WHO_CODE, m_name.toStdString().c_str()));
+//        std::cout << ME << " " << n << " bytes sent " << std::endl;
         m_socket->flush();
     }
 }
@@ -295,12 +309,12 @@ void TerminalIO::set_phosphor_color(const QString& phosphor_color)
     if (phosphor_color == "amber") color = "gold";
     if (phosphor_color == "white") color = "white";
 
-    m_output->setStyleSheet(fmtstr.sprintf(TEXT_EDIT_STYLE_SHEET, FONT_NAME, FONT_SIZE, color));
+    m_output->setStyleSheet(TEXT_EDIT_STYLE_SHEET.arg(color));
     m_output->style()->unpolish(this);
     m_output->style()->polish(this);
     m_output->update();
 
-    m_input->setStyleSheet(fmtstr.sprintf(LINE_EDIT_STYLE_SHEET, FONT_NAME, FONT_SIZE, color));
+    m_input->setStyleSheet(LINE_EDIT_STYLE_SHEET.arg(color));
     m_input->style()->unpolish(this);
     m_input->style()->polish(this);
     m_input->update();
@@ -329,7 +343,7 @@ TerminalWindow::TerminalWindow(QWidget* parent) : QMainWindow(parent),
     connect(this, SIGNAL(shutdown()), m_io, SLOT(shutdown()));
 
     setCentralWidget(m_io);
-    setWindowTitle("pyMultics Virtual Terminal");
+    setWindowTitle(QString("pyMultics Virtual Terminal - %1").arg(m_io->m_name));
     setStyleSheet("QLineEdit, QMainWindow { background: #444444; border: 1px solid #252525; }");
 
     m_palette.setColor(QPalette::Background, QColor(0x444444));
