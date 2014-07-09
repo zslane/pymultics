@@ -339,6 +339,9 @@ TerminalWindow::TerminalWindow(QWidget* parent) : QMainWindow(parent),
     connect(m_io, SIGNAL(setNormalStatus(const QString&)), this, SLOT(set_normal_status(const QString&)));
     connect(m_io, SIGNAL(setConnectStatus(const QString&)), this, SLOT(set_connect_status(const QString&)));
     connect(m_io, SIGNAL(setErrorStatus(const QString&)), this, SLOT(set_error_status(const QString&)));
+    connect(m_io->m_socket, SIGNAL(connected()), this, SLOT(disable_reconnect()));
+    connect(m_io->m_socket, SIGNAL(disconnected()), this, SLOT(enable_reconnect()));
+    connect(m_io->m_socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(enable_reconnect()));
     connect(this, SIGNAL(transmitString(const QString&)), m_io, SLOT(display(const QString&)));
     connect(this, SIGNAL(shutdown()), m_io, SLOT(shutdown()));
 
@@ -379,16 +382,16 @@ void TerminalWindow::setup_menus()
     m_options_menu = menuBar()->addMenu("Options");
     m_options_menu->setStyleSheet(MENU_STYLE_SHEET);
 
-    m_set_host_action = m_options_menu->addAction("Set Host...");
-    m_set_port_action = m_options_menu->addAction("Set Port...");
+    m_set_host_action = m_options_menu->addAction("Set Host...", this, SLOT(set_host_dialog()));
+    m_set_port_action = m_options_menu->addAction("Set Port...", this, SLOT(set_port_dialog()));
     m_options_menu->addSeparator();
     m_phosphor_color_menu = m_options_menu->addMenu("Phosphor Color");
     m_options_menu->addSeparator();
-    m_reconnect_action = m_options_menu->addAction("Reconnect");
+    m_reconnect_action = m_options_menu->addAction("Reconnect", m_io, SLOT(reconnect()));
 
-    m_set_phosphor_green = m_phosphor_color_menu->addAction("Green");
-    m_set_phosphor_amber = m_phosphor_color_menu->addAction("Amber");
-    m_set_phosphor_white = m_phosphor_color_menu->addAction("White");
+    m_set_phosphor_green = m_phosphor_color_menu->addAction("Green", this, SLOT(set_phosphor_color_green()));
+    m_set_phosphor_amber = m_phosphor_color_menu->addAction("Amber", this, SLOT(set_phosphor_color_amber()));
+    m_set_phosphor_white = m_phosphor_color_menu->addAction("White", this, SLOT(set_phosphor_color_white()));
 
     m_phosphor_color_group = new QActionGroup(this);
     m_phosphor_color_group->addAction(m_set_phosphor_green);
@@ -403,18 +406,6 @@ void TerminalWindow::setup_menus()
     m_set_phosphor_amber->setChecked(m_settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "amber");
     m_set_phosphor_white->setChecked(m_settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "white");
     m_reconnect_action->setEnabled(false);
-
-    connect(m_set_host_action, SIGNAL(triggered()), this, SLOT(set_host_dialog()));
-    connect(m_set_port_action, SIGNAL(triggered()), this, SLOT(set_port_dialog()));
-
-    connect(m_set_phosphor_green, SIGNAL(triggered()), this, SLOT(set_phosphor_color_green()));
-    connect(m_set_phosphor_amber, SIGNAL(triggered()), this, SLOT(set_phosphor_color_amber()));
-    connect(m_set_phosphor_white, SIGNAL(triggered()), this, SLOT(set_phosphor_color_white()));
-
-    connect(m_reconnect_action, SIGNAL(triggered()), m_io, SLOT(reconnect()));
-    connect(m_io->m_socket, SIGNAL(connected()), this, SLOT(disable_reconnect()));
-    connect(m_io->m_socket, SIGNAL(disconnected()), this, SLOT(enable_reconnect()));
-    connect(m_io->m_socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(enable_reconnect()));
 }
 
 void TerminalWindow::set_phosphor_color(const QString& color)
