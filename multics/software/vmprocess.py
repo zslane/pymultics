@@ -10,17 +10,18 @@ class ProcessWorker(QtCore.QObject):
     
     def __init__(self, supervisor, process_env):
         super(ProcessWorker, self).__init__()
+        
         self.supervisor = supervisor
+        self.tty_channel = None
+        self.exit_code = 0
+        
         self.__process_env = process_env
+        self.__process_env.core_function.setParent(self)
         self.__registered_msg_handlers = {}
         self.__known_segment_table = {}
         self.__timerid = 0
-        self.exit_code = 0
         
         self.setObjectName(self.uid() + ".Worker")
-        self.__process_env.core_function.setParent(self)
-        
-        self.tty_channel = None
         
     def __repr__(self):
         return "<%s.%s %s>" % (__name__, self.__class__.__name__, self.objectName())
@@ -111,44 +112,36 @@ class ProcessWorker(QtCore.QObject):
         code = parm()
         
         next_message = None
-        # print QtCore.QThread.currentThread().objectName(), "executing _process_messages()"
         
         if self.__process_env.msg.messages:
             call.timer_manager_.reset_alarm_call(self._process_messages)
             
-            #== Process msg messages one per timer trigger ==#
-            try:
-                # print self.objectName()+"._process_messages calling set_lock_.lock"
-                call.set_lock_.lock(self.__process_env.msg.lock_word(), 3, code)
-                if code.val != 0 and code.val != error_table_.invalid_lock_reset:
-                    print "Could not lock %s" % self.__process_env.msg._filepath()
-                    raise Exception(code.val)
-                # end if
-                
-                with self.__process_env.msg:
-                    next_message = self.__process_env.msg.messages.pop(0)
-                # end with
-                
-                # print self.objectName()+"._process_messages calling set_lock_.unlock"
-                call.set_lock_.unlock(self.__process_env.msg.lock_word(), code)
-                if code.val != 0 and code.val != error_table_.invalid_lock_reset:
-                    print "Could not unlock %s" % self.__process_env.msg._filepath()
-                # end if
+            #== Process messages one per timer trigger ==#
             
-                if next_message:
-                    self._dispatch_msg_message(next_message)
-                # end if
-                
-            except:
-                pass
-                
-            finally:
-                call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
-            # end try
+            call.set_lock_.lock(self.__process_env.msg.lock_word(), 3, code)
+            if code.val == error_table_.lock_wait_time_exceeded:
+                print "Timeout expired: could not lock %s" % self.__process_env.msg._filepath()
+                return
+            # end if
+            
+            with self.__process_env.msg:
+                next_message = self.__process_env.msg.messages.pop(0)
+            # end with
+            
+            call.set_lock_.unlock(self.__process_env.msg.lock_word(), code)
+            if code.val != 0:
+                print "Could not unlock %s" % self.__process_env.msg._filepath()
+            # end if
+            
+            if next_message:
+                self._dispatch_msg_message(next_message)
+            # end if
+            
+            call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
     
     def _main_loop(self):
         if self.__process_env.pit.instance_tag == "z":
-            call.ioa_("New process for {0} started on {1}", self.uid(), datetime.datetime.now().ctime())
+            call.ioa_("New process for {0} started {1}", self.uid(), datetime.datetime.now().ctime())
         code = self.__process_env.core_function.start(self)
         return code
         
@@ -161,7 +154,7 @@ class ProcessWorker(QtCore.QObject):
         HEARTBEAT_PERIOD = 250
         self.__timerid = self.startTimer(HEARTBEAT_PERIOD)
         
-        #== Start the event MBX process timer
+        #== Start the event msg process timer
         call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
         
         #== Create default search paths and store them in the process stack

@@ -42,9 +42,8 @@ def send_message():
         message = result.val
         
         call.sys_.get_userid_long(recipient, long_name, code)
-        if code.val != 0:
-            call.ioa_("Could not send message to {0}", recipient)
-            call.ioa_("{0}", code.val)
+        if code.val == error_table_.no_such_user:
+            call.ioa_("{0} is not a registered user.", recipient)
             return
         # end if
         

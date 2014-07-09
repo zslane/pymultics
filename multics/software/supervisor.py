@@ -103,12 +103,12 @@ class Supervisor(QtCore.QObject):
     def _send_system_greeting(self):
         self.__hardware.io.put_output("%s\n" % (self.__hardware.announce))
         print "%s" % (self.__hardware.announce)
-        self.__hardware.io.put_output("Multics Supervisor %s started on %s\n" % (self.version, self.__startup_datetime.ctime()))
-        print "Multics Supervisor %s started on %s\n" % (self.version, self.__startup_datetime.ctime())
+        self.__hardware.io.put_output("Multics Supervisor %s started %s\n" % (self.version, self.__startup_datetime.ctime()))
+        print "Multics Supervisor %s started %s\n" % (self.version, self.__startup_datetime.ctime())
         
     def _send_system_farewell(self):
-        self.__hardware.io.put_output("\n:Multics Supervisor shutdown on %s:\n" % (self.__shutdown_datetime.ctime()))
-        print "\n:Multics Supervisor shutdown on %s:\n" % (self.__shutdown_datetime.ctime())
+        self.__hardware.io.put_output("\n:Multics Supervisor shutdown %s:\n" % (self.__shutdown_datetime.ctime()))
+        print "\n:Multics Supervisor shutdown %s:\n" % (self.__shutdown_datetime.ctime())
         
     #== STARTUP/SHUTDOWN ==#
     
@@ -482,7 +482,6 @@ class SystemTimer(object):
     def check(self):
         if self.triggered():
             try:
-            
                 if self.__callback_args is not None:
                     self.__callback_slot(self.__callback_args)
                 else:
@@ -605,7 +604,7 @@ class DynamicLinker(QtCore.QObject):
         import traceback
         traceback.print_exc()
         excmsg = traceback.format_exc().replace("{", "{{").replace("}", "}}")
-        self.__supervisor.llout(excmsg)
+        self.__supervisor.llout(excmsg, get_calling_process_().tty())
         
     #== Called by hcs_ ==#
     

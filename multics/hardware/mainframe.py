@@ -33,7 +33,8 @@ class VirtualMulticsHardware(QtCore.QObject):
     def _create_hardware_resources(self):
         self.__startup_time = self._load_hardware_statefile()
         self.__clock = HardwareClock(self.__startup_time)
-        self.announce = "Virtual Multics Hardware %s Initialized" % (self.version)
+        site_name = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        self.announce = "Virtual Multics Hardware %s Initialized (%s)" % (self.version, site_name)
     
     @property
     def version(self):
@@ -134,7 +135,6 @@ class IOSubsystem(QtCore.QObject):
         self.__input_buffer = []
         self.__linefeed = False
         self.__break_signal = False
-        # self.__closed_signal = False
         self.__console = None
         self.__terminal_process_id = 0
     
@@ -150,7 +150,6 @@ class IOSubsystem(QtCore.QObject):
         self.__break_signal = True
         
     def _power_down(self):
-        # self.__closed_signal = True
         self.poweredDown.emit()
     
     def attach_console(self, console):
@@ -190,7 +189,7 @@ class IOSubsystem(QtCore.QObject):
         if tty_channel:
             return tty_channel.terminal_closed()
         else:
-            return False #self.__closed_signal
+            return False
         
     def has_input(self, tty_channel=None):
         if tty_channel:

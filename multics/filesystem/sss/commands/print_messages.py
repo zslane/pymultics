@@ -18,7 +18,10 @@ def print_messages():
         with mbx_segment.ptr:
             for message in mbx_segment.ptr.messages[:]:
                 if message['type'] == "interactive_message":
-                    holding = mbx_segment.ptr.has_state("hold_messages")
+                    # holding = mbx_segment.ptr.has_state("hold_messages")
+                    flag = parm()
+                    call.sys_.messages_held_(flag)
+                    holding = flag.val
                     #== Print unread interactive messages
                     if message['status'] == "unread" or print_all:
                         if message['status'] == "hold" or holding:

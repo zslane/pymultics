@@ -23,8 +23,6 @@ class AnsweringService(SystemSubroutine):
     def __init__(self, supervisor, command_processor):
         super(AnsweringService, self).__init__(self.__class__.__name__, supervisor)
         
-        self.supervisor           = supervisor
-        
         self.__process            = None
         self.__whotab             = None
         self.__pending_login_ttys = []
@@ -164,11 +162,11 @@ class AnsweringService(SystemSubroutine):
             #== Update the login journal
             call.hcs_.initiate(self.supervisor.fs.system_control_dir, "login_journal", "", 0, 0, journal, code)
             if code.val == 0 and journal.ptr != null():
-                journal_entry = journal.ptr.get(person_id, {})
+                journal_entry = journal.ptr.get(login_info.user_id, {})
                 last_login_time = journal_entry.get('last_login_time')
                 last_login_from = journal_entry.get('last_login_from')
                 with journal.ptr:
-                    journal.ptr[person_id] = {
+                    journal.ptr[login_info.user_id] = {
                         'last_login_time': login_info.time_login,
                         'last_login_from': tty_name,
                     }
@@ -176,9 +174,9 @@ class AnsweringService(SystemSubroutine):
             # end if
             
             if not login_options.get('brief'):
-                self.supervisor.llout("\n%s logged in on %s from %s\n" % (login_info.user_id, login_info.time_login.ctime(), tty_name), tty_channel)
+                self.supervisor.llout("\n%s logged in %s from %s\n" % (login_info.user_id, login_info.time_login.ctime(), tty_name), tty_channel)
                 if last_login_time:
-                    self.supervisor.llout("Last login on %s from %s\n" % (last_login_time.ctime(), last_login_from), tty_channel)
+                    self.supervisor.llout("Last login %s from %s\n" % (last_login_time.ctime(), last_login_from), tty_channel)
                 # end if
             print "%s logged in on %s from %s" % (login_info.user_id, login_info.time_login.ctime(), tty_name)
         # end if
@@ -198,8 +196,8 @@ class AnsweringService(SystemSubroutine):
         self.process_overseer.destroy_process(process)
         
         if not logout_options.get('brief'):
-            self.supervisor.llout("%s logged out on %s\n" % (user_id, datetime.datetime.now().ctime()), process.tty())
-        print "%s logged out on %s" % (user_id, datetime.datetime.now().ctime())
+            self.supervisor.llout("%s logged out %s\n" % (user_id, datetime.datetime.now().ctime()), process.tty())
+        print "%s logged out %s" % (user_id, datetime.datetime.now().ctime())
         
         #== Remove the entry in the whotab corresponding to this user
         with self.__whotab:
@@ -346,16 +344,8 @@ class AnsweringService(SystemSubroutine):
             self.supervisor.llout("Failed to install %s." % (pdt_file))
                     
     def _create_new_home_dir(self, person_id, pnt_ptr, homedir):
-        segment = parm()
-        code    = parm()
-        
         print "Creating user home directory " + homedir
-        code.val = self.supervisor.fs.mkdir(homedir)
-        # if code.val == 0:
-            ### THIS IS DONE BY THE accept_messages COMMAND NOW
-            # print "Creating user mailbox file"
-            # call.hcs_.make_seg(homedir, person_id + ".mbx", "", 0, segment(dict), code)
-        # end if
+        self.supervisor.fs.mkdir(homedir)
         
         alias = pnt_ptr.name_entries[person_id].alias
         _, homedir_name = self.supervisor.fs.split_path(homedir)
@@ -415,6 +405,7 @@ class RFSListener(QtNetwork.QTcpServer):
             
             #== Send a packet to the client indicating the (permanent) com port number to switch over to
             socket.write(DataPacket.Out(ASSIGN_PORT_CODE, com_port))
+            socket.flush()
             if not socket.waitForBytesWritten():
                 print self.ME, "ERROR: Client not responding to handshake"
     

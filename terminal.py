@@ -329,6 +329,9 @@ class TerminalWindow(QtGui.QMainWindow):
         self.io.setNormalStatus.connect(self.set_normal_status)
         self.io.setConnectStatus.connect(self.set_connect_status)
         self.io.setErrorStatus.connect(self.set_error_status)
+        self.io.socket.connected.connect(self.disable_reconnect)
+        self.io.socket.disconnected.connect(self.enable_reconnect)
+        self.io.socket.error.connect(self.enable_reconnect)
         self.transmitString.connect(self.io.display)
         self.shutdown.connect(self.io.shutdown)
         
@@ -368,16 +371,16 @@ class TerminalWindow(QtGui.QMainWindow):
         self.options_menu = self.menuBar().addMenu("Options")
         self.options_menu.setStyleSheet(MENU_STYLE_SHEET)
         
-        self.set_host_action = self.options_menu.addAction("Set Host...")
-        self.set_port_action = self.options_menu.addAction("Set Port...")
+        self.set_host_action = self.options_menu.addAction("Set Host...", self.set_host_dialog)
+        self.set_port_action = self.options_menu.addAction("Set Port...", self.set_port_dialog)
         self.options_menu.addSeparator()
         self.phosphor_color_menu = self.options_menu.addMenu("Phosphor Color")
         self.options_menu.addSeparator()
-        self.reconnect_action = self.options_menu.addAction("Reconnect")
+        self.reconnect_action = self.options_menu.addAction("Reconnect", self.io.reconnect)
         
-        self.set_phosphor_green = self.phosphor_color_menu.addAction("Green")
-        self.set_phosphor_amber = self.phosphor_color_menu.addAction("Amber")
-        self.set_phosphor_white = self.phosphor_color_menu.addAction("White")
+        self.set_phosphor_green = self.phosphor_color_menu.addAction("Green", lambda: self.set_phosphor_color("green"))
+        self.set_phosphor_amber = self.phosphor_color_menu.addAction("Amber", lambda: self.set_phosphor_color("amber"))
+        self.set_phosphor_white = self.phosphor_color_menu.addAction("White", lambda: self.set_phosphor_color("white"))
         
         self.phosphor_color_group = QtGui.QActionGroup(self)
         self.phosphor_color_group.addAction(self.set_phosphor_green)
@@ -392,18 +395,6 @@ class TerminalWindow(QtGui.QMainWindow):
         self.set_phosphor_amber.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "amber")
         self.set_phosphor_white.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "white")
         self.reconnect_action.setEnabled(False)
-        
-        self.set_host_action.triggered.connect(self.set_host_dialog)
-        self.set_port_action.triggered.connect(self.set_port_dialog)
-        
-        self.set_phosphor_green.triggered.connect(lambda: self.set_phosphor_color("green"))
-        self.set_phosphor_amber.triggered.connect(lambda: self.set_phosphor_color("amber"))
-        self.set_phosphor_white.triggered.connect(lambda: self.set_phosphor_color("white"))
-        
-        self.reconnect_action.triggered.connect(self.io.reconnect)
-        self.io.socket.connected.connect(self.disable_reconnect)
-        self.io.socket.disconnected.connect(self.enable_reconnect)
-        self.io.socket.error.connect(self.enable_reconnect)
     
     def startup(self):
         self.setFixedSize(self.size())

@@ -6,10 +6,11 @@ include.query_info
 
 class Listener(SystemSubroutine):
 
+    MESSAGE_TIMER_DURATION = 1.0
+    
     def __init__(self, supervisor, command_processor):
         super(Listener, self).__init__(self.__class__.__name__, supervisor)
         
-        self.supervisor = supervisor
         self.__default_command_processor = command_processor
         self.__process = None
         self.__prev_command_time = None
@@ -103,7 +104,7 @@ class Listener(SystemSubroutine):
         # }
         # self.__process.register_msg_handlers(msg_handlers)
         
-        call.timer_manager_.alarm_call(1.0, self._interactive_message)
+        call.timer_manager_.alarm_call(self.MESSAGE_TIMER_DURATION, self._interactive_message)
         
         self._print_motd()
         
@@ -114,18 +115,20 @@ class Listener(SystemSubroutine):
         mbx_segment = parm()
         code        = parm()
         
-        # self.__process.stack.assert_create("accepting_messages", bool)
-        # accepting = self.__process.stack.accepting_messages
-        # self.__process.stack.assert_create("holding_messages", bool)
-        # holding = self.__process.stack.holding_messages
+        call.timer_manager_.reset_alarm_call(self._interactive_message)
+        
+        self.__process.stack.assert_create("accepting_messages", bool)
+        accepting = self.__process.stack.accepting_messages
+        self.__process.stack.assert_create("holding_messages", bool)
+        holding = self.__process.stack.holding_messages
         
         user_id = self.__process.uid()
         homedir = self.__homedir
         
         call.sys_.lock_user_mbx_(user_id, homedir, mbx_segment, code)
         if mbx_segment.ptr != null():
-            accepting = mbx_segment.ptr.has_state("accept_messages")
-            holding   = mbx_segment.ptr.has_state("hold_messages")
+            # accepting = mbx_segment.ptr.has_state("accept_messages")
+            # holding   = mbx_segment.ptr.has_state("hold_messages")
             with mbx_segment.ptr:
                 for message in mbx_segment.ptr.messages[:]:
                     if message['type'] in ["interactive_message", "shutdown_announcement"]:
@@ -146,6 +149,9 @@ class Listener(SystemSubroutine):
                 # end for
             # end with
             call.sys_.unlock_user_mbx_(mbx_segment.ptr, code)
+        # end if
+        
+        call.timer_manager_.alarm_call(self.MESSAGE_TIMER_DURATION, self._interactive_message)
     
     def _cleanup(self):
         pass

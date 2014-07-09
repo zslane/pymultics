@@ -23,12 +23,6 @@ class sys_(SystemSubroutine):
         
         if short_person_id != "*":
             long_person_id = self.supervisor.pnt.aliases.get(short_person_id) or short_person_id
-            
-            if not short_project_id:
-                long_name.val = long_person_id
-                code.val = 0
-                return
-            # end if
         # end if
         
         if short_project_id != "*":
@@ -234,6 +228,11 @@ class sys_(SystemSubroutine):
         process = get_calling_process_()
         process.stack.accepting_messages = flag
         
+    def messages_accepted_(self, flag):
+        process = get_calling_process_()
+        process.stack.assert_create("accepting_messages", bool)
+        flag.val = process.stack.accepting_messages
+        
     def hold_messages_(self, flag):
         process = get_calling_process_()
         process.stack.holding_messages = flag
@@ -247,7 +246,7 @@ class sys_(SystemSubroutine):
         process = get_calling_process_()
         process.stack.assert_create("accepting_messages", bool)
         if process.stack.accepting_messages or message_packet['type'] == "shutdown_announcement":
-            call.ioa_("Message from {0} on {1}: {2}", message_packet['from'], message_packet['time'].ctime(), message_packet['text'])
+            call.ioa_("From {0} {1}: {2}", message_packet['from'], message_packet['time'].ctime(), message_packet['text'])
         
     def signal_condition(self, signalling_process, condition_instance):
         self.supervisor.signal_condition(signalling_process, condition_instance)
