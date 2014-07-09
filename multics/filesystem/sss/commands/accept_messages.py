@@ -55,13 +55,22 @@ def accept_messages():
     if mbx_segment.ptr != null():
         with mbx_segment.ptr:
         
-            mbx_segment.ptr.set_state("accept_messages")
+            # mbx_segment.ptr.set_state("accept_messages")
+            # if hold_messages:
+                # mbx_segment.ptr.set_state("hold_messages")
+            # elif unhold_messages:
+                # mbx_segment.ptr.remove_state("hold_messages")
+            # # end if
+            # hold_messages = mbx_segment.ptr.has_state("hold_messages")
+            call.sys_.accept_messages_(True)
             if hold_messages:
-                mbx_segment.ptr.set_state("hold_messages")
+                call.sys_.hold_messages_(True)
             elif unhold_messages:
-                mbx_segment.ptr.remove_state("hold_messages")
+                call.sys_.hold_messages_(False)
             # end if
-            hold_messages = mbx_segment.ptr.has_state("hold_messages")
+            flag = parm()
+            call.sys_.messages_held_(flag)
+            hold_messages = flag.val
             
             if print_messages:
                 prev_sender = ""
