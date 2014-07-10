@@ -53,12 +53,10 @@ def send_message():
         for process in supervisor.get_interactive_processes():
             if re.match(matching, process.uid()):
                 process.stack.assert_create("accepting_messages", bool)
-                if process.stack.accepting_messages:
-                    break
+                if not process.stack.accepting_messages:
+                    call.ioa_("{0} is not accepting messages.", process.uid())
                 # end if
             # end if
-        else:
-            call.ioa_("{0} is not accepting messages.", recipient)
         # end for
         
         if message:
