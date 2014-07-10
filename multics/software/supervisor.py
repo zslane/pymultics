@@ -26,6 +26,7 @@ class Supervisor(QtCore.QObject):
         self.__dynamic_linker = DynamicLinker(self)
         self.__initializer = None
         self.__daemons = []
+        self.__interactive_users = []
         self.__startup_datetime = None
         self.__shutdown_datetime = None
         self.__system_timers = {}
@@ -322,8 +323,12 @@ class Supervisor(QtCore.QObject):
     #== DAEMON PROCESS CONTROL ==#
     
     def add_daemon_process(self, process):
-        print "Adding daemon process", process.objectName()
+        print "Supervisor adding daemon process", process.objectName()
         self.__daemons.insert(0, process)
+        
+    def remove_daemon_process(self, process):
+        print "Supervisor removing daemon process", process.objectName()
+        self.__daemons.remove(process)
         
     def get_daemon_processes(self):
         return [ daemon for daemon in self.__daemons if daemon.isRunning() ]
@@ -335,7 +340,7 @@ class Supervisor(QtCore.QObject):
     def _kill_daemons(self):
         for daemon_process in self.__daemons[:]:
             self._kill_process(daemon_process)
-            self.__daemons.remove(daemon_process)
+            # self.__daemons.remove(daemon_process)
         
     def start(self):
         self._load_user_accounts_data()
@@ -377,7 +382,18 @@ class Supervisor(QtCore.QObject):
             # end if
         except:
             self.dynamic_linker.dump_traceback_()
-            
+    
+    def add_interactive_process(self, process):
+        print "Supervisor adding interactive process", process.objectName()
+        self.__interactive_users.insert(0, process)
+        
+    def remove_interactive_process(self, process):
+        print "Supervisor removing interactive process", process.objectName()
+        self.__interactive_users.remove(process)
+        
+    def get_interactive_processes(self):
+        return [ process for process in self.__interactive_users if process.isRunning() ]
+    
     def _load_user_accounts_data(self):
         process_dir = parm()
         branch      = parm()

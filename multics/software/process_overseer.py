@@ -135,12 +135,16 @@ class ProcessOverseer(object):
         
         if process_env.pit.process_type == pit_process_type_daemon:
             self.supervisor.add_daemon_process(process)
+        elif process_env.pit.process_type == pit_process_type_interactive:
+            self.supervisor.add_interactive_process(process)
         # end if
         
         return process
         
     def destroy_process(self, process):
         code = parm()
+        
+        process_type = process.pit().process_type
         
         print get_calling_process_().objectName() + " process_overseer waiting for " + process.objectName() + " to terminate"
         process.kill()
@@ -150,6 +154,11 @@ class ProcessOverseer(object):
         call.hcs_.delete_branch_(process.dir(), code)
         
         self.__running_processes.remove(process)
+        
+        if process_type == pit_process_type_daemon:
+            self.supervisor.remove_daemon_process(process)
+        elif process_type == pit_process_type_interactive:
+            self.supervisor.remove_interactive_process(process)
     
     def _print_error_message(self, s, tty_channel):
         self.supervisor.llout("\n%s\n" % (s), tty_channel)

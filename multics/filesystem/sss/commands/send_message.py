@@ -1,9 +1,11 @@
 import datetime
+import re
 
 from multics.globals import *
 
 include.query_info
 
+@system_privileged
 def send_message():
     before    = parm()
     result    = parm()
@@ -46,6 +48,18 @@ def send_message():
             call.ioa_("{0} is not a registered user.", recipient)
             return
         # end if
+        
+        matching = long_name.val.replace(".", r"\.").replace("*", r"(\w+)")
+        for process in supervisor.get_interactive_processes():
+            if re.match(matching, process.uid()):
+                process.stack.assert_create("accepting_messages", bool)
+                if process.stack.accepting_messages:
+                    break
+                # end if
+            # end if
+        else:
+            call.ioa_("{0} is not accepting messages.", recipient)
+        # end for
         
         if message:
             send_msg(recipient, long_name.val, message, code)

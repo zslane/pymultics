@@ -123,9 +123,10 @@ class UserControl(object):
             len(self.__whotab.entries),
             datetime.datetime.now().ctime()))
         
-    def _go_to_login(self):
+    def _go_to_login(self, suppress_banner=False):
         self._set_input_mode(QtGui.QLineEdit.Normal)
-        self._display_login_banner()
+        if not suppress_banner:
+            self._display_login_banner()
         return self._set_state(self.WAITING_FOR_LOGIN_COMMAND)
     
     def _wait_for_linefeed(self):
@@ -154,7 +155,7 @@ class UserControl(object):
                     self.__login_options = self._verify_login_command()
                     if self.__login_options:
                         self._set_input_mode(QtGui.QLineEdit.Password)
-                        self._put_output("Password:")
+                        self._put_output("Password: ")
                         return self._set_state(self.WAITING_FOR_PASSWORD)
                     # end if
                 elif command_name.val == "help" or command_name.val == "?":
@@ -228,7 +229,8 @@ class UserControl(object):
         
     def _wait_for_password(self):
         if self._break_received():
-            return self._go_to_login()
+            self._error_msg("QUIT")
+            return self._go_to_login(suppress_banner=True)
             
         elif self._has_input():
             self._put_output("\n")
@@ -242,14 +244,13 @@ class UserControl(object):
                 self.__login_options['pdt'] = pdt
                 if self.__login_options.get('change_password'):
                     self._set_input_mode(QtGui.QLineEdit.Password)
-                    self._put_output("New password:")
+                    self._put_output("New password: ")
                     return self._set_state(self.WAITING_FOR_CHANGE_PASSWORD)
                 # end if
                 return self._set_state(self.LOGIN_COMPLETE)
                 
             elif self.__max_attempts == 0: # too many password failures!
                 self.supervisor.hardware.io.disconnect_tty(self.tty)
-                # self.tty.disconnect()
                 return self._set_state(self.DISCONNECTED)
                 
             else:
@@ -301,12 +302,13 @@ class UserControl(object):
     
     def _wait_for_password_change(self):
         if self._break_received():
-            return self._go_to_login()
+            self._error_msg("QUIT")
+            return self._go_to_login(suppress_banner=True)
             
         elif self._has_input():
             self.__new_password = self._get_input()
             self._put_output("\n")
-            self._put_output("New Password Again:")
+            self._put_output("New Password Again: ")
             return self._set_state(self.WAITING_FOR_CHANGE_PASSWORD_CONFIRM)
             
         else:
@@ -317,7 +319,8 @@ class UserControl(object):
         code        = parm()
         
         if self._break_received():
-            return self._go_to_login()
+            self._error_msg("QUIT")
+            return self._go_to_login(suppress_banner=True)
             
         elif self._has_input():
             self._put_output("\n")

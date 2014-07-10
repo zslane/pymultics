@@ -406,8 +406,8 @@ class RFSListener(QtNetwork.QTcpServer):
             #== Send a packet to the client indicating the (permanent) com port number to switch over to
             socket.write(DataPacket.Out(ASSIGN_PORT_CODE, com_port))
             socket.flush()
-            if not socket.waitForBytesWritten():
-                print self.ME, "ERROR: Client not responding to handshake"
+            # if not socket.waitForBytesWritten():
+                # print self.ME, "ERROR: Client not responding to handshake"
     
     def add_com_connection(self, handshaker):
         socket = handshaker.nextPendingConnection()
