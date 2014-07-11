@@ -122,11 +122,21 @@ class MainframePanel(QtGui.QWidget):
         
         self.image_label = QtGui.QLabel()
         self.image_label.setPixmap(QtGui.QPixmap(os.path.join(os.path.dirname(__file__), "pymultics_panel.jpg")))
+        self.image_label.setFocusPolicy(QtCore.Qt.NoFocus)
+        
+        button = QtGui.QPushButton("Shutdown", self.image_label)
+        button.setStyleSheet("QPushButton { font: bold 7pt ; }")
+        button.setFixedSize(96, 15)
+        button.move(87, 187)
+        button.clicked.connect(self.panel_button_1)
         
         main_layout = QtGui.QVBoxLayout()
         main_layout.addWidget(self.image_label)
         
         self.setLayout(main_layout)
+        
+    def panel_button_1(self):
+        print self.sender().text()
         
 #-- end class MainframePanel
 
