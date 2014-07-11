@@ -33,8 +33,8 @@ class VirtualMulticsHardware(QtCore.QObject):
     def _create_hardware_resources(self):
         self.__startup_time = self._load_hardware_statefile()
         self.__clock = HardwareClock(self.__startup_time)
-        site_name = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-        self.announce = "Virtual Multics Hardware %s Initialized (%s)" % (self.version, site_name)
+        self.site_name = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        self.announce = "Virtual Multics Hardware %s Initialized (%s)" % (self.version, self.site_name)
     
     @property
     def version(self):
@@ -51,6 +51,7 @@ class VirtualMulticsHardware(QtCore.QObject):
     
     def attach_console(self, console):
         self.__io_subsystem.attach_console(console)
+        console.setWindowTitle("pyMultics Virtual Mainframe (%s)" % (self.site_name))
     
     def boot_OS(self):
         from ..software.supervisor import Supervisor

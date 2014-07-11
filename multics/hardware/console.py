@@ -1,4 +1,8 @@
+import os
+
 from PySide import QtCore, QtGui
+
+from sysadmin import SysAdminWindow
 
 N_HORZ_CHARS = 80
 N_VERT_LINES = 25
@@ -30,18 +34,15 @@ class ConsoleIO(QtGui.QWidget):
     def __init__(self, parent=None):
         super(ConsoleIO, self).__init__(parent)
         
-        FONT_NAME = "Consolas" #"Glass TTY VT220"
-        FONT_SIZE = 8 #15
+        font = QtGui.QFont("Consolas", 8)
         
         self.output = QtGui.QTextEdit()
         self.output.setReadOnly(True)
-        self.output.setStyleSheet("QTextEdit { font-family: '%s'; font-size: %dpt; color: gold; background: black; border: 0px; }" % (FONT_NAME, FONT_SIZE))
-        self.output.setFontFamily(FONT_NAME)
-        self.output.setFontPointSize(FONT_SIZE)
+        self.output.setStyleSheet("QTextEdit { color: gold; background: black; border: 0px; }")
+        self.output.setFont(font)
         self.output.setFocusPolicy(QtCore.Qt.NoFocus)
         self.output.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
         self.output.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        # self.output.setViewportMargins(3, 0, 0, 0)
         self.output.setFixedSize(self._width(N_HORZ_CHARS), self._height(N_VERT_LINES))
         self.output.setEnabled(False)
         
@@ -55,7 +56,8 @@ class ConsoleIO(QtGui.QWidget):
         output_frame.setLayout(output_layout)
         
         self.input = KeyboardIO()
-        self.input.setStyleSheet("QLineEdit { font-family: '%s'; font-size: %dpt; color: gold; background: black; }" % (FONT_NAME, FONT_SIZE))
+        self.input.setStyleSheet("QLineEdit { color: gold; background: black; }" )
+        self.input.setFont(font)
         self.input.returnPressed.connect(self._process_input)
         self.input.lineFeed.connect(self._process_line_feed)
         self.input.breakSignal.connect(self._process_break_signal)
@@ -111,6 +113,23 @@ class ConsoleIO(QtGui.QWidget):
     def setEchoMode(self, mode):
         self.input.setEchoMode(QtGui.QLineEdit.EchoMode(mode))
         
+#-- end class ConsoleIO
+
+class MainframePanel(QtGui.QWidget):
+
+    def __init__(self, parent=None):
+        super(MainframePanel, self).__init__(parent)
+        
+        self.image_label = QtGui.QLabel()
+        self.image_label.setPixmap(QtGui.QPixmap(os.path.join(os.path.dirname(__file__), "pymultics_panel.jpg")))
+        
+        main_layout = QtGui.QVBoxLayout()
+        main_layout.addWidget(self.image_label)
+        
+        self.setLayout(main_layout)
+        
+#-- end class MainframePanel
+
 class ConsoleWindow(QtGui.QMainWindow):
 
     transmitString = QtCore.Signal(str)
@@ -122,6 +141,8 @@ class ConsoleWindow(QtGui.QMainWindow):
     def __init__(self, parent=None):
         super(ConsoleWindow, self).__init__(parent)
         
+        mainframe_panel = MainframePanel()
+        
         self.io = ConsoleIO(self)
         self.transmitString.connect(self.io.display)
         self.setEchoMode.connect(self.io.setEchoMode)
@@ -129,19 +150,28 @@ class ConsoleWindow(QtGui.QMainWindow):
         
         layout = QtGui.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(mainframe_panel)
         layout.addWidget(self.io)
         
         central_widget = QtGui.QWidget()
         central_widget.setLayout(layout)
         
-        self.setCentralWidget(central_widget) #(self.io)
-        self.setWindowTitle("System Console")
-        self.setStyleSheet("QWidget, QMainWindow { background: #444444; border: 1px solid #252525; }")
+        # sysadmin_widget = SysAdminWindow(self)
+        
+        # splitter = QtGui.QSplitter(QtCore.Qt.Horizontal)
+        # splitter.addWidget(central_widget)
+        # splitter.addWidget(sysadmin_widget)
+        
+        self.setCentralWidget(central_widget)
+        # self.setCentralWidget(splitter)
+        self.setWindowIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), "multics_logo.png")))
+        self.setStyleSheet("QWidget, QMainWindow { background: #c4c4b4; border: 1px solid #252525; }")
         
         HEARTBEAT_PERIOD = 200
         self.timerid = self.startTimer(HEARTBEAT_PERIOD)
         
-        self.move(300, 50)
+        self.move(300, 10)
     
     def timerEvent(self, event):
         self.heartbeat.emit()
