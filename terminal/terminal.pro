@@ -10,6 +10,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = terminal
 TEMPLATE = app
+RC_FILE = terminal.rc
 
 
 SOURCES +=\
@@ -19,3 +20,6 @@ SOURCES +=\
 
 HEADERS  += terminal.h \
     data_packet.h
+
+OTHER_FILES += \
+    terminal.rc

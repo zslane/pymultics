@@ -1,3 +1,4 @@
+import os
 import re
 import sys
 
@@ -360,6 +361,7 @@ class TerminalWindow(QtGui.QMainWindow):
         
         self.setCentralWidget(self.io)
         self.setWindowTitle("pyMultics Virtual Terminal - {0}".format(self.io.name))
+        self.setWindowIcon(QtGui.QIcon(os.path.join(os.path.dirname(__file__), "terminal.png")))
         self.setStyleSheet("QLineEdit, QMainWindow { background: #444444; border: 1px solid #252525; }")
         
         self.palette = QtGui.QPalette()
