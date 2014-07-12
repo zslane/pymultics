@@ -2002,7 +2002,7 @@ def starrunners():
     
     def robot_hit_him(target_parm, robot_was_the_target, weapon, hit):
         if target_is_a_robot(target_parm.val): robot_was_the_target.val = True
-        if weapon != "missile": x = (clock_() % 1601) + 400
+        if weapon == "missile": x = (clock_() % 1601) + 400
         else: x = (clock_() % 1600) + 1
         if (x > 1538 and weapon == "lasers") or (x > 1923 and weapon == "missile"):
             call.ioa_("\n<<< BOOOOOOOOOOM >>>")

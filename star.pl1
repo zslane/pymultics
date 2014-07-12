@@ -2046,7 +2046,7 @@ robot_hit_him: procedure (target, robot_was_the_target, weapon, hit);
           dcl     hit                    bit (1) parm;
           
           if target_is_a_robot (target) then robot_was_the_target = "1"b;
-          if weapon ^= "missile" then x = mod (clock (), 1601) + 400;
+          if weapon = "missile" then x = mod (clock (), 1601) + 400;
           else x = mod (clock (), 1600) + 1;
           if (x > 1538 & weapon = "lasers") | (x > 1923 & weapon = "missile") then do;
                     call ioa_ ("^/<<< BOOOOOOOOOOM >>>");
