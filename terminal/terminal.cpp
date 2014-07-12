@@ -32,6 +32,38 @@ void KeyboardIO::keyPressEvent(QKeyEvent* event)
 }
 
 
+ScreenIO::ScreenIO(const QFont& font, QWidget* parent) : QTextEdit(parent)
+{
+    QFontMetrics fm(font);
+
+    setReadOnly(true);
+    setStyleSheet("QTextEdit { color: gold; background: black; border: 0px; }");
+    setFont(font);
+    setFocusPolicy(Qt::NoFocus);
+    setWordWrapMode(QTextOption::WrapAnywhere);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setCursorWidth(fm.width("M"));
+    setEnabled(false);
+    setConnected(false);
+}
+
+void ScreenIO::setConnected(bool flag)
+{
+    m_connected = flag;
+    update();
+}
+
+void ScreenIO::paintEvent(QPaintEvent* event)
+{
+    QTextEdit::paintEvent(event);
+    if (m_connected)
+    {
+        QPainter painter(viewport());
+        painter.fillRect(cursorRect(), QBrush(palette().text().color()));
+    }
+}
+
+
 TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget(parent),
     ME("TerminalIO")
 {
@@ -62,15 +94,8 @@ TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget
     QFont font(FONT_NAME, FONT_SIZE);
     font.setStyleHint(QFont::TypeWriter);
 
-    m_output = new QTextEdit();
-    m_output->setReadOnly(true);
-    m_output->setStyleSheet(TEXT_EDIT_STYLE_SHEET.arg(color));
-    m_output->setFont(font);
-    m_output->setFocusPolicy(Qt::NoFocus);
-    m_output->setWordWrapMode(QTextOption::WrapAnywhere);
-    m_output->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_output = new ScreenIO(font);
     m_output->setFixedSize(_width(N_HORZ_CHARS), _height(N_VERT_LINES));
-    m_output->setEnabled(false);
 
     QVBoxLayout* output_layout = new QVBoxLayout();
     output_layout->addWidget(m_output);
@@ -147,6 +172,7 @@ void TerminalIO::connection_made()
     if (m_socket->peerPort() != m_port)
     {
         send_who_code();
+        m_output->setConnected(true);
         m_input->setEnabled(true);
         m_input->setFocus();
     }
@@ -155,6 +181,7 @@ void TerminalIO::connection_made()
 void TerminalIO::connection_lost()
 {
     m_input->setEnabled(false);
+    m_output->setConnected(false);
     emit setNormalStatus("Disconnected");
     // Original connection closed; this sets up the "permanent" connection
     if (m_com_port)
@@ -260,6 +287,7 @@ void TerminalIO::written(qint64 nbytes)
 void TerminalIO::shutdown()
 {
     m_input->setEnabled(false);
+    m_output->setConnected(false);
     if (m_socket->state() == QAbstractSocket::ConnectedState)
         m_socket->disconnectFromHost();
 }
