@@ -19,6 +19,7 @@
 #include "QMainWindow.h"
 #include "QScrollBar.h"
 #include "QPalette.h"
+#include "QPainter.h"
 #include "QTimer.h"
 #include "QEvent.h"
 #include "QBoxLayout.h"
@@ -50,6 +51,27 @@ protected:
 };
 
 
+class ScreenIO: public QTextEdit
+{
+    Q_OBJECT
+
+private:
+
+    bool m_connected;
+
+public:
+
+    ScreenIO::ScreenIO(const QFont& font, QWidget* parent = 0);
+
+    void setConnected(bool flag);
+
+protected:
+
+    virtual void paintEvent(QPaintEvent* event);
+
+};
+
+
 class TerminalIO: public QWidget
 {
     Q_OBJECT
@@ -70,7 +92,7 @@ protected:
     QString     m_host;
     int         m_port;
     int         m_com_port;
-    QTextEdit*  m_output;
+    ScreenIO*   m_output;
     KeyboardIO* m_input;
 
 public:
