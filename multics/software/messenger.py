@@ -46,12 +46,18 @@ class Messenger(SystemSubroutine):
         homedirs = parm()
         
         print self.__process.objectName(), "handling message", message
-        call.sys_.get_registered_users(user_ids, homedirs, message['to'])
-        for user_id, homedir in zip(user_ids.list, homedirs.list):
-            self._deliver_interactive_message(user_id, homedir, message)
-        # end for
+        
+        if message['type'] == "shutdown_announcement":
+            call.sys_.get_current_users(user_ids, message['to'])
+            for user_id in user_ids.list:
+                self._deliver_interactive_message(message, user_id)
+            # end for
+        else:
+            call.sys_.get_registered_users(user_ids, homedirs, message['to'])
+            for user_id, homedir in zip(user_ids.list, homedirs.list):
+                self._deliver_interactive_message(message, user_id, homedir)
     
-    def _deliver_interactive_message(self, recipient, homedir, message):
+    def _deliver_interactive_message(self, message, recipient, homedir=None):
         declare (clock_ = entry . returns (fixed.bin(32)))
         msg_segment = parm()
         mbx_segment = parm()

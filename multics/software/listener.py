@@ -107,10 +107,10 @@ class Listener(SystemSubroutine):
         
         self._print_motd()
         
-    def _process_ms_handler(self, message_packet):
-        if message_packet['type'] == "shutdown_announcement":
-            # call.ioa_("From {0} {1}: {2}", message_packet['from'], message_packet['time'].ctime(), message_packet['text'])
-            call.ioa_("Attention: {0}", message_packet['text'])
+    def _process_ms_handler(self, message):
+        if message['type'] == "shutdown_announcement":
+            # call.ioa_("From {0} {1}: {2}", message['from'], message['time'].ctime(), message['text'])
+            call.ioa_("{0}: {1}", message['from'], message['text'])
         
     def _interactive_message(self):
         mbx_segment = parm()
@@ -132,10 +132,9 @@ class Listener(SystemSubroutine):
             # holding   = mbx_segment.ptr.has_state("hold_messages")
             with mbx_segment.ptr:
                 for message in mbx_segment.ptr.messages[:]:
-                    if message['type'] in ["interactive_message", "shutdown_announcement"]:
+                    if message['type'] == "interactive_message":
                         #== Print unread interactive messages and shutdown announcements
-                        if ((message['type'] == "shutdown_announcement") or
-                            (message['status'] == "unread" and accepting)):
+                        if message['status'] == "unread" and accepting:
                             call.ioa_("From {0} {1}: {2}", message['from'], message['time'].ctime(), message['text'])
                             message['status'] = "read"
                         # end if
