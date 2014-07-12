@@ -80,6 +80,33 @@ class KeyboardIO(QtGui.QLineEdit):
         else:
             super(KeyboardIO, self).keyPressEvent(event)
         
+class ScreenIO(QtGui.QTextEdit):
+
+    def __init__(self, font, parent=None):
+        super(ScreenIO, self).__init__(parent)
+        
+        fm = QtGui.QFontMetrics(font)
+        
+        self.setReadOnly(True)
+        self.setStyleSheet("QTextEdit { color: gold; background: black; border: 0px; }")
+        self.setFont(font)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setCursorWidth(fm.width("M"))
+        self.setEnabled(False)
+        self.setConnected(False)
+        
+    def setConnected(self, flag):
+        self.connected = flag
+        self.update()
+        
+    def paintEvent(self, event):
+        super(ScreenIO, self).paintEvent(event)
+        if self.connected:
+            painter = QtGui.QPainter(self.viewport())
+            painter.fillRect(self.cursorRect(), QtGui.QBrush(self.palette().text().color()))
+        
 class TerminalIO(QtGui.QWidget):
     
     setNormalStatus = QtCore.Signal(str)
@@ -114,15 +141,8 @@ class TerminalIO(QtGui.QWidget):
         font = QtGui.QFont(FONT_NAME, FONT_SIZE)
         font.setStyleHint(QtGui.QFont.TypeWriter)
         
-        self.output = QtGui.QTextEdit()
-        self.output.setReadOnly(True)
-        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEET % (color))
-        self.output.setFont(font)
-        self.output.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.output.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
-        self.output.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.output = ScreenIO(font)
         self.output.setFixedSize(self._width(N_HORZ_CHARS), self._height(N_VERT_LINES))
-        self.output.setEnabled(False)
         
         output_layout = QtGui.QVBoxLayout()
         output_layout.addWidget(self.output)
@@ -177,12 +197,14 @@ class TerminalIO(QtGui.QWidget):
         self.setConnectStatus.emit("Connected to %s on port %d" % (self.socket.peerName(), self.socket.peerPort()))
         if self.socket.peerPort() != self.port:
             self.send_who_code()
+            self.output.setConnected(True)
             self.input.setEnabled(True)
             self.input.setFocus()
         
     @QtCore.Slot()
     def connection_lost(self):
         self.input.setEnabled(False)
+        self.output.setConnected(False)
         self.setNormalStatus.emit("Disconnected")
         #== Original connection closed; this sets up the "permanent" connection
         if self.com_port:
@@ -249,6 +271,7 @@ class TerminalIO(QtGui.QWidget):
     @QtCore.Slot()
     def shutdown(self):
         self.input.setEnabled(False)
+        self.output.setConnected(False)
         if self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
             self.socket.disconnectFromHost()
         
