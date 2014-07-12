@@ -1,5 +1,7 @@
 import os
 
+from mainframe import VirtualMulticsHardware
+
 from PySide import QtCore, QtGui
 
 from sysadmin import SysAdminWindow
@@ -25,6 +27,27 @@ class KeyboardIO(QtGui.QLineEdit):
         else:
             super(KeyboardIO, self).keyPressEvent(event)
         
+class ScreenIO(QtGui.QTextEdit):
+
+    def __init__(self, font, parent=None):
+        super(ScreenIO, self).__init__(parent)
+        
+        fm = QtGui.QFontMetrics(font)
+        
+        self.setReadOnly(True)
+        self.setStyleSheet("QTextEdit { color: gold; background: black; border: 0px; }")
+        self.setFont(font)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setCursorWidth(fm.width("M"))
+        self.setEnabled(False)
+        
+    def paintEvent(self, event):
+        super(ScreenIO, self).paintEvent(event)
+        painter = QtGui.QPainter(self.viewport())
+        painter.fillRect(self.cursorRect(), QtGui.QBrush(self.palette().text().color()))
+        
 class ConsoleIO(QtGui.QWidget):
     
     textEntered = QtCore.Signal(str)
@@ -36,15 +59,8 @@ class ConsoleIO(QtGui.QWidget):
         
         font = QtGui.QFont("Consolas", 8)
         
-        self.output = QtGui.QTextEdit()
-        self.output.setReadOnly(True)
-        self.output.setStyleSheet("QTextEdit { color: gold; background: black; border: 0px; }")
-        self.output.setFont(font)
-        self.output.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.output.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
-        self.output.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.output = ScreenIO(font)
         self.output.setFixedSize(self._width(N_HORZ_CHARS), self._height(N_VERT_LINES))
-        self.output.setEnabled(False)
         
         output_layout = QtGui.QVBoxLayout()
         output_layout.addWidget(self.output)
@@ -124,11 +140,11 @@ class MainframePanel(QtGui.QWidget):
         self.image_label.setPixmap(QtGui.QPixmap(os.path.join(os.path.dirname(__file__), "pymultics_panel.jpg")))
         self.image_label.setFocusPolicy(QtCore.Qt.NoFocus)
         
-        button = QtGui.QPushButton("Shutdown", self.image_label)
-        button.setStyleSheet("QPushButton { font: bold 7pt ; }")
-        button.setFixedSize(96, 15)
-        button.move(87, 187)
-        button.clicked.connect(self.panel_button_1)
+        self.restart_button = QtGui.QPushButton("Restart", self.image_label)
+        self.restart_button.setStyleSheet("QPushButton { font: bold 7pt ; }")
+        self.restart_button.setFixedSize(96, 15)
+        self.restart_button.move(87, 187)
+        # button.clicked.connect(self.panel_button_1)
         
         main_layout = QtGui.QVBoxLayout()
         main_layout.addWidget(self.image_label)
@@ -152,6 +168,7 @@ class ConsoleWindow(QtGui.QMainWindow):
         super(ConsoleWindow, self).__init__(parent)
         
         mainframe_panel = MainframePanel()
+        mainframe_panel.restart_button.clicked.connect(self.restart_system)
         
         self.io = ConsoleIO(self)
         self.transmitString.connect(self.io.display)
@@ -182,6 +199,28 @@ class ConsoleWindow(QtGui.QMainWindow):
         self.timerid = self.startTimer(HEARTBEAT_PERIOD)
         
         self.move(300, 10)
+        
+        self.io.input.setFocus()
+        
+        QtCore.QTimer.singleShot(0, self.boot)
+        
+    def boot(self):
+        import sys
+        self.__hardware = VirtualMulticsHardware(sys.argv)
+        self.__hardware.attach_console(self)
+
+        self.__multics = self.__hardware.boot_OS()
+        self.__multics.start()
+        
+    def restart_system(self):
+        self.io.input.setEnabled(True)
+        self.io.input.setFocus()
+        
+        self.__hardware = VirtualMulticsHardware()
+        self.__hardware.attach_console(self)
+
+        self.__multics = self.__hardware.boot_OS()
+        self.__multics.start()
     
     def timerEvent(self, event):
         self.heartbeat.emit()

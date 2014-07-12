@@ -53,17 +53,27 @@ class Messenger(SystemSubroutine):
     
     def _deliver_interactive_message(self, recipient, homedir, message):
         declare (clock_ = entry . returns (fixed.bin(32)))
+        msg_segment = parm()
         mbx_segment = parm()
         code        = parm()
         
         print self.__process.uid(), "delivering interactive message to", recipient
         message['id'] = clock_()
         message['to'] = recipient
-        message['status'] = "unread"
-        call.sys_.lock_user_mbx_(recipient, homedir, mbx_segment, code)
-        if mbx_segment.ptr != null():
-            with mbx_segment.ptr:
-                mbx_segment.ptr.add_message(message)
-            # end with
-            call.sys_.unlock_user_mbx_(mbx_segment.ptr, code)
-        # end if
+        
+        if message['type'] == "shutdown_announcement":
+            call.sys_.lock_process_ms_(recipient, msg_segment, code)
+            if msg_segment.ptr != null():
+                with msg_segment.ptr:
+                    msg_segment.ptr.messages.append(message)
+                # end with
+                call.sys_.unlock_process_ms_(msg_segment, code)
+            # end if
+        else:
+            message['status'] = "unread"
+            call.sys_.lock_user_mbx_(recipient, homedir, mbx_segment, code)
+            if mbx_segment.ptr != null():
+                with mbx_segment.ptr:
+                    mbx_segment.ptr.add_message(message)
+                # end with
+                call.sys_.unlock_user_mbx_(mbx_segment.ptr, code)

@@ -18,6 +18,9 @@ class VirtualMulticsHardware(QtCore.QObject):
         t = QtCore.QThread.currentThread()
         t.setObjectName("Multics.Supervisor")
         
+        import multiprocessing
+        self.__cpu_count = multiprocessing.cpu_count()
+        
         self._create_hardware_resources()
         
         #== Create hardware subsystems
@@ -33,8 +36,7 @@ class VirtualMulticsHardware(QtCore.QObject):
     def _create_hardware_resources(self):
         self.__startup_time = self._load_hardware_statefile()
         self.__clock = HardwareClock(self.__startup_time)
-        self.site_name = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-        self.announce = "Virtual Multics Hardware %s Initialized (%s)" % (self.version, self.site_name)
+        self.announce = "Virtual Multics Hardware %s Initialized (%d cpus online)" % (self.version, self.num_cpus)
     
     @property
     def version(self):
@@ -42,6 +44,9 @@ class VirtualMulticsHardware(QtCore.QObject):
     @property
     def clock(self):
         return self.__clock
+    @property
+    def num_cpus(self):
+        return self.__cpu_count
     @property
     def io(self):
         return self.__io_subsystem
@@ -51,7 +56,6 @@ class VirtualMulticsHardware(QtCore.QObject):
     
     def attach_console(self, console):
         self.__io_subsystem.attach_console(console)
-        console.setWindowTitle("pyMultics Virtual Mainframe (%s)" % (self.site_name))
     
     def boot_OS(self):
         from ..software.supervisor import Supervisor
@@ -155,12 +159,11 @@ class IOSubsystem(QtCore.QObject):
     
     def attach_console(self, console):
         self.__console = console
-        if self.__console:
-            self.__console.heartbeat.connect(self.heartbeat)
-            self.__console.io.textEntered.connect(self._receive_string)
-            self.__console.io.lineFeed.connect(self._receive_linefeed)
-            self.__console.io.breakSignal.connect(self._receive_break)
-            self.__console.closed.connect(self._power_down)
+        self.__console.heartbeat.connect(self.heartbeat)
+        self.__console.io.textEntered.connect(self._receive_string)
+        self.__console.io.lineFeed.connect(self._receive_linefeed)
+        self.__console.io.breakSignal.connect(self._receive_break)
+        self.__console.closed.connect(self._power_down)
     
     def attach_console_process(self, process_id):
         self.__terminal_process_id = process_id
@@ -172,6 +175,9 @@ class IOSubsystem(QtCore.QObject):
     def attached_console_process(self):
         return self.__terminal_process_id
         
+    def set_console_title(self, title):
+        self.__console.setWindowTitle(title)
+    
     def linefeed_received(self, tty_channel=None):
         if tty_channel:
             return tty_channel.linefeed_received()

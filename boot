@@ -9,10 +9,10 @@ from multics import *
 console = ConsoleWindow()
 console.show()
 
-hardware = VirtualMulticsHardware(sys.argv)
-hardware.attach_console(console)
+#hardware = VirtualMulticsHardware(sys.argv)
+#hardware.attach_console(console)
 
-multics = hardware.boot_OS()
-multics.start()
+#multics = hardware.boot_OS()
+#multics.start()
 
 app.exec_()

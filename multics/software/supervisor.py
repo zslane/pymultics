@@ -43,6 +43,8 @@ class Supervisor(QtCore.QObject):
         
         GlobalEnvironment.register_supervisor(self, self.__dynamic_linker)
         
+        import process_overseer
+        reload(process_overseer)
         from process_overseer import ProcessOverseer, ProcessStackFrame
         self.__process_overseer = ProcessOverseer(self)
         self.__system_stack = ProcessStackFrame()
@@ -76,6 +78,7 @@ class Supervisor(QtCore.QObject):
         
     def id(self):
         return 0
+        
     def uid(self):
         return "Multics.Supervisor"
     
@@ -104,12 +107,16 @@ class Supervisor(QtCore.QObject):
     def _send_system_greeting(self):
         self.__hardware.io.put_output("%s\n" % (self.__hardware.announce))
         print "%s" % (self.__hardware.announce)
-        self.__hardware.io.put_output("Multics Supervisor %s started %s\n" % (self.version, self.__startup_datetime.ctime()))
-        print "Multics Supervisor %s started %s\n" % (self.version, self.__startup_datetime.ctime())
+        self.__hardware.io.put_output("Multics Supervisor %s started %s, %s\n" % (self.version, self.__startup_datetime.ctime(), self.site_config['site_name']))
+        print "Multics Supervisor %s started %s, %s\n" % (self.version, self.__startup_datetime.ctime(), self.site_config['site_name'])
+        self.__hardware.io.set_console_title("pyMultics Virtual Mainframe (%s)" % (self.site_config['site_name']))
         
     def _send_system_farewell(self):
+        import multiprocessing
         self.__hardware.io.put_output("\n:Multics Supervisor shutdown %s:\n" % (self.__shutdown_datetime.ctime()))
+        self.__hardware.io.put_output(":Virtual Multics Hardware (%d cpus) offline:\n" % (self.__hardware.num_cpus))
         print "\n:Multics Supervisor shutdown %s:\n" % (self.__shutdown_datetime.ctime())
+        print ":Virtual Multics Hardware (%d cpus) offline:" % (self.__hardware.num_cpus)
         
     #== STARTUP/SHUTDOWN ==#
     
@@ -138,6 +145,7 @@ class Supervisor(QtCore.QObject):
     def _shutdown_procedure(self):
         self.__system_timers[self._shutdown_procedure].stop()
         self._kill_daemons()
+        GlobalEnvironment.deregister_supervisor()        
         self.__shutdown_datetime = datetime.datetime.now()
         self._send_system_farewell()
         self.__hardware.shutdown()
@@ -355,6 +363,8 @@ class Supervisor(QtCore.QObject):
         login_info.homedir = ">sc1"
         login_info.cp_path = ">sss>command_processor_"
         try:
+            import answering_service
+            reload(answering_service)
             from answering_service import AnsweringService
             self.__initializer = self.__process_overseer.create_process(login_info, AnsweringService)
             if not self.__initializer:
@@ -373,6 +383,8 @@ class Supervisor(QtCore.QObject):
         login_info.homedir = ">sc1"
         login_info.cp_path = ">sss>command_processor_"
         try:
+            import messenger
+            reload(messenger)
             from messenger import Messenger
             daemon = self.__process_overseer.create_process(login_info, Messenger)
             if not daemon:
@@ -637,7 +649,6 @@ class DynamicLinker(QtCore.QObject):
             return self.__system_segment_table
         
     def load(self, dir_name, segment_name):
-        # print "Trying to load", dir_name, segment_name
         multics_path = self.__filesystem.merge_path(dir_name, segment_name)
         native_path = self.__filesystem.path2path(multics_path)
         

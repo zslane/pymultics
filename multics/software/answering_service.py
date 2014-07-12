@@ -31,6 +31,8 @@ class AnsweringService(SystemSubroutine):
         self.exit_code            = 0
         self.shutting_down        = False
         
+        import process_overseer
+        reload(process_overseer)
         from process_overseer import ProcessOverseer
         self.process_overseer = ProcessOverseer(supervisor)
         

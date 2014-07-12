@@ -134,7 +134,7 @@ class ProcessWorker(QtCore.QObject):
             # end if
             
             if next_message:
-                self._dispatch_msg_message(next_message)
+                self._dispatch_ms_message(next_message)
             # end if
             
             call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
@@ -182,11 +182,11 @@ class ProcessWorker(QtCore.QObject):
         if self.tty_channel:
             self.tty_channel.detach_from_process()
         
-    def _dispatch_msg_message(self, msg_message):
-        print "(%s)" % (get_calling_process_().objectName()), self.objectName(), "process message found", msg_message
-        handler = self.__registered_msg_handlers.get(msg_message['type'])
+    def _dispatch_ms_message(self, message_packet):
+        print "(%s)" % (get_calling_process_().objectName()), self.objectName(), "ms message found", message_packet
+        handler = self.__registered_msg_handlers.get(message_packet['type'])
         if handler:
-            handler(msg_message)
+            handler(message_packet)
     
 #-- end class ProcessWorker
 

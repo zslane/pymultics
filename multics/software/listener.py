@@ -98,18 +98,19 @@ class Listener(SystemSubroutine):
         self.__homedir = homedir.val
         self.__prev_command_time = datetime.datetime.now()
         
-        # msg_handlers = {
-            # 'interactive_message':   self._process_ms_handler,
-            # 'shutdown_announcement': self._process_ms_handler,
-        # }
-        # self.__process.register_msg_handlers(msg_handlers)
+        msg_handlers = {
+            'shutdown_announcement': self._process_ms_handler,
+        }
+        self.__process.register_msg_handlers(msg_handlers)
         
         call.timer_manager_.alarm_call(self.MESSAGE_TIMER_DURATION, self._interactive_message)
         
         self._print_motd()
         
-    # def _process_ms_handler(self, message):
-        # call.sys_.recv_message_(message)
+    def _process_ms_handler(self, message_packet):
+        if message_packet['type'] == "shutdown_announcement":
+            # call.ioa_("From {0} {1}: {2}", message_packet['from'], message_packet['time'].ctime(), message_packet['text'])
+            call.ioa_("Attention: {0}", message_packet['text'])
         
     def _interactive_message(self):
         mbx_segment = parm()

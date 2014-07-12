@@ -137,6 +137,18 @@ class CommandProcessor(Subroutine):
     def execute(self):
         raise LinkageError(self.__segment_name, "execute (command processor entry point)")
 
+def print_stackframes():
+    import inspect
+    indent = ""
+    cframe = inspect.currentframe()
+    print cframe.f_globals['__name__']+"."+cframe.f_code.co_name
+    pframe = cframe.f_back
+    while pframe:
+        indent += " "
+        print indent, pframe.f_globals['__name__']+"."+pframe.f_code.co_name
+        pframe = pframe.f_back
+    # end while
+    
 # def _find_pframe():
     # import inspect
     # cframe = inspect.currentframe()
@@ -154,13 +166,18 @@ call = None
 class GlobalEnvironment(object):
 
     supervisor    = None
-    async_process = None
     
     @staticmethod
     def register_supervisor(supervisor, dynamic_linker):
         GlobalEnvironment.supervisor = supervisor
         global call
         call = dynamic_linker
+        
+    @staticmethod
+    def deregister_supervisor():
+        GlobalEnvironment.supervisor = None
+        global call
+        call = None
 
 def check_conditions_(ignore_break_signal=False):
     if GlobalEnvironment.supervisor.hardware.io.terminal_closed():
