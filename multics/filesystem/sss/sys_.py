@@ -23,6 +23,10 @@ class sys_(SystemSubroutine):
         
         if short_person_id != "*":
             long_person_id = self.supervisor.pnt.aliases.get(short_person_id) or short_person_id
+            if long_person_id not in self.supervisor.pnt.name_entries:
+                code.val = error_table_.no_such_user
+                return
+            # end if
         # end if
         
         if short_project_id != "*":
