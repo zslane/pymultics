@@ -195,12 +195,15 @@ class TerminalIO(QtGui.QWidget):
     @QtCore.Slot()
     def connection_made(self):
         self.socket.setSocketOption(QtNetwork.QAbstractSocket.LowDelayOption, 1)
-        self.setConnectStatus.emit("Connected to %s on port %d" % (self.socket.peerName(), self.socket.peerPort()))
+        connected_msg = "Connected to %s on port %d" % (self.socket.peerName(), self.socket.peerPort())
         if self.socket.peerPort() != self.port:
             self.send_who_code()
             self.output.setConnected(True)
             self.input.setEnabled(True)
             self.input.setFocus()
+            self.setConnectStatus.emit(connected_msg)
+        else:
+            self.setNormalStatus.emit(connected_msg)
         
     @QtCore.Slot()
     def connection_lost(self):

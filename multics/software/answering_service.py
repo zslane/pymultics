@@ -210,6 +210,7 @@ class AnsweringService(SystemSubroutine):
         if tty_channel == SYSTEM_CONSOLE:
             self.supervisor.hardware.io.detach_console_process(process.id())
         elif not logout_options.get('hold'):
+            self.supervisor.llout("Disconnect\n", tty_channel)
             self.supervisor.hardware.io.disconnect_tty(tty_channel)
         else:
             self.__pending_login_ttys.append(tty_channel)
