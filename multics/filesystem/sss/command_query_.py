@@ -2,9 +2,9 @@
 from multics.globals import *
 from query_info import *
 
-class command_query_(SystemSubroutine):
-    def __init__(self, supervisor):
-        super(command_query_, self).__init__(self.__class__.__name__, supervisor)
+class command_query_(Subroutine):
+    def __init__(self):
+        super(command_query_, self).__init__(self.__class__.__name__)
         
     def __call__(self, info_ptr, answer, caller, control_string="", *args, **kwargs):
         self._do_query(info_ptr, answer, caller, control_string, *args, **kwargs)
@@ -56,7 +56,7 @@ class command_query_(SystemSubroutine):
     
     def _get_input(self, block=False):
         tty_channel = get_calling_process_().tty()
-        return self.supervisor.llin(block, tty_channel)
+        return GlobalEnvironment.supervisor.llin(block, tty_channel)
         
     def _repeat_question(self, question):
         call.ioa_.nnl(question)

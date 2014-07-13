@@ -138,16 +138,18 @@ class CommandProcessor(Subroutine):
         raise LinkageError(self.__segment_name, "execute (command processor entry point)")
 
 def print_stackframes():
+    def _print_pframe(pframe, indent=""):
+        if pframe:
+            indent = _print_pframe(pframe.f_back, indent)
+            module_name = re.sub("_\w{15}$", "", pframe.f_globals['__name__'])
+            function_name = pframe.f_code.co_name
+            print indent, "%s.%s (line %d)" % (module_name, function_name, pframe.f_lineno)
+            # print indent, pframe.f_globals['__name__']+"."+pframe.f_code.co_name+" (line "+str(pframe.f_lineno)+")"
+        return indent + " "
+        
     import inspect
-    indent = ""
-    cframe = inspect.currentframe()
-    print cframe.f_globals['__name__']+"."+cframe.f_code.co_name
-    pframe = cframe.f_back
-    while pframe:
-        indent += " "
-        print indent, pframe.f_globals['__name__']+"."+pframe.f_code.co_name
-        pframe = pframe.f_back
-    # end while
+    print "Calling frame stack:"
+    _print_pframe(inspect.currentframe())
     
 # def _find_pframe():
     # import inspect
@@ -165,19 +167,34 @@ call = None
 
 class GlobalEnvironment(object):
 
-    supervisor    = None
+    supervisor = None
+    hardware   = None
+    fs         = None
     
     @staticmethod
     def register_supervisor(supervisor, dynamic_linker):
         GlobalEnvironment.supervisor = supervisor
+        GlobalEnvironment.hardware   = supervisor.hardware
+        GlobalEnvironment.fs         = supervisor.fs
         global call
         call = dynamic_linker
         
     @staticmethod
     def deregister_supervisor():
         GlobalEnvironment.supervisor = None
+        GlobalEnvironment.hardware   = None
+        GlobalEnvironment.fs         = None
         global call
         call = None
+
+def call_(entryname):
+    procedure_name, _, entry_name = entryname.partition("$")
+    subroutine = GlobalEnvironment.supervisor.dynamic_linker.snap(procedure_name)
+    if subroutine:
+        if entry_name:
+            return getattr(subroutine, entry_name)
+        else:
+            return subroutine
 
 def check_conditions_(ignore_break_signal=False):
     if GlobalEnvironment.supervisor.hardware.io.terminal_closed():

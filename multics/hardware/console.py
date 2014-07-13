@@ -42,11 +42,16 @@ class ScreenIO(QtGui.QTextEdit):
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setCursorWidth(fm.width("M"))
         self.setEnabled(False)
+        self.setConnected(True)
+        
+    def setConnected(self, flag):
+        self.connected = flag
         
     def paintEvent(self, event):
         super(ScreenIO, self).paintEvent(event)
-        painter = QtGui.QPainter(self.viewport())
-        painter.fillRect(self.cursorRect(), QtGui.QBrush(self.palette().text().color()))
+        if self.connected:
+            painter = QtGui.QPainter(self.viewport())
+            painter.fillRect(self.cursorRect(), QtGui.QBrush(self.palette().text().color()))
         
 class ConsoleIO(QtGui.QWidget):
     
@@ -109,6 +114,7 @@ class ConsoleIO(QtGui.QWidget):
     @QtCore.Slot()
     def shutdown(self):
         self.input.setEnabled(False)
+        self.output.setConnected(False)
         
     @QtCore.Slot(str)
     def display(self, txt):
@@ -144,15 +150,11 @@ class MainframePanel(QtGui.QWidget):
         self.restart_button.setStyleSheet("QPushButton { font: bold 7pt ; }")
         self.restart_button.setFixedSize(96, 15)
         self.restart_button.move(87, 187)
-        # button.clicked.connect(self.panel_button_1)
         
         main_layout = QtGui.QVBoxLayout()
         main_layout.addWidget(self.image_label)
         
         self.setLayout(main_layout)
-        
-    def panel_button_1(self):
-        print self.sender().text()
         
 #-- end class MainframePanel
 
@@ -213,6 +215,7 @@ class ConsoleWindow(QtGui.QMainWindow):
         self.__multics.start()
         
     def restart_system(self):
+        self.io.output.setConnected(True)
         self.io.input.setEnabled(True)
         self.io.input.setFocus()
         

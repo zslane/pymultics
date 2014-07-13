@@ -8,10 +8,9 @@ class ProcessWorker(QtCore.QObject):
 
     PROCESS_TIMER_DURATION = 1.0
     
-    def __init__(self, supervisor, process_env):
+    def __init__(self, process_env):
         super(ProcessWorker, self).__init__()
         
-        self.supervisor = supervisor
         self.tty_channel = None
         self.exit_code = 0
         
@@ -255,10 +254,10 @@ class ProcessThread(QtCore.QThread):
 
 class VirtualMulticsProcess(QtCore.QObject):
 
-    def __init__(self, supervisor, process_env):
+    def __init__(self, process_env):
         super(VirtualMulticsProcess, self).__init__()
         
-        self.worker = ProcessWorker(supervisor, process_env)
+        self.worker = ProcessWorker(process_env)
         self.thread = ProcessThread(self.worker)
         
         self.thread.finished.connect(self._thread_finished)

@@ -1,18 +1,18 @@
 
 from multics.globals import *
 
-class ioa_(SystemSubroutine):
-    def __init__(self, supervisor):
-        super(ioa_, self).__init__(self.__class__.__name__, supervisor)
+class ioa_(Subroutine):
+    def __init__(self):
+        super(ioa_, self).__init__(self.__class__.__name__)
         
     def procedure(self, format_string="", *args, **kwargs):
         # print self._format(format_string, *args, **kwargs)
         tty_channel = get_calling_process_().tty()
-        self.supervisor.llout(self._format(format_string, *args, **kwargs) + "\n", tty_channel)
+        GlobalEnvironment.supervisor.llout(self._format(format_string, *args, **kwargs) + "\n", tty_channel)
         
     def nnl(self, format_string="", *args, **kwargs):
         tty_channel = get_calling_process_().tty()
-        self.supervisor.llout(self._format(format_string, *args, **kwargs), tty_channel)
+        GlobalEnvironment.supervisor.llout(self._format(format_string, *args, **kwargs), tty_channel)
     
     def rs(self, format_string, return_string, *args, **kwargs):
         return_string.val = self._format(format_string, *args, **kwargs) + "\n"

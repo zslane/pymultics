@@ -78,7 +78,7 @@ def add_search_path():
     call.search_paths_.set(sl_name, null(), sl_info_ptr, code)
     if code.val == error_table_.action_not_performed:
         call.ioa_("Invalid path {0}", new_path)
-    print code.val, [ p.pathname for p in sl_info_ptr.sl_info.paths ]
+    # print code.val, [ p.pathname for p in sl_info_ptr.sl_info.paths ]
     
 asp = add_search_path
 

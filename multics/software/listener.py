@@ -159,10 +159,10 @@ class Listener(SystemSubroutine):
     def _print_motd(self):
         #== Only do this if the user does not have a start_up.ec in his
         #== home directory
-        if not self.supervisor.fs.file_exists(self.__homedir + ">start_up.ec"):
+        if not GlobalEnvironment.fs.file_exists(self.__homedir + ">start_up.ec"):
             #== Open the system motd file if it exists and display its contents
             try:
-                f = open(vfile_(self.supervisor.fs.system_control_dir + ">motd"))
+                f = open(vfile_(GlobalEnvironment.fs.system_control_dir + ">motd"))
                 file_text = f.read()
                 f.close()
                 

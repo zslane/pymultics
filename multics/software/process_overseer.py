@@ -129,7 +129,7 @@ class ProcessOverseer(object):
         process_env.core_function = core_function
         
         #== Create a Process object
-        process = VirtualMulticsProcess(self.supervisor, process_env)
+        process = VirtualMulticsProcess(process_env)
         self.__running_processes.append(process)
         print "Created", process
         

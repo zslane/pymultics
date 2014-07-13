@@ -1,12 +1,12 @@
 
 from multics.globals import *
             
-class timer_manager_(SystemSubroutine):
-    def __init__(self, supervisor):
-        super(timer_manager_, self).__init__(self.__class__.__name__, supervisor)
+class timer_manager_(Subroutine):
+    def __init__(self):
+        super(timer_manager_, self).__init__(self.__class__.__name__)
         
     def alarm_call(self, time, routine, data_ptr=None):
-        timer = self.supervisor.make_timer(time, routine, data_ptr)
+        timer = GlobalEnvironment.supervisor.make_timer(time, routine, data_ptr)
         process = get_calling_process_()
         process.stack.process_timers[routine] = timer
         timer.start()
@@ -19,5 +19,5 @@ class timer_manager_(SystemSubroutine):
         # end if
         
     def sleep(self, time, flags):
-        self.supervisor.sleep(time)
+        GlobalEnvironment.supervisor.sleep(time)
         

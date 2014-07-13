@@ -339,7 +339,7 @@ class PL1(object):
             return not self.__eq__(rhs)
             
         def __repr__(self):
-            return self.__enum_name + "." + self.__member_name
+            return self.__enum_name + "$" + self.__member_name
 
     class Enum(object):
         def __init__(self, enum_name, **members):
