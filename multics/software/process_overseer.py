@@ -15,10 +15,9 @@ from vmprocess import VirtualMulticsProcess
 
 class ProcessOverseer(object):
 
-    def __init__(self, supervisor):
+    def __init__(self):
         super(ProcessOverseer, self).__init__()
         
-        self.supervisor = supervisor
         self.__running_processes = []
         
     @property
@@ -41,7 +40,7 @@ class ProcessOverseer(object):
         # end if
         
         #== Make sure the specified home directory exists
-        if not self.supervisor.fs.file_exists(login_info.homedir):
+        if not GlobalEnvironment.fs.file_exists(login_info.homedir):
             self._print_error_message("No home directory for user %s." % (login_info.user_id), tty_channel)
             return null()
         # end if
@@ -116,7 +115,7 @@ class ProcessOverseer(object):
         msg = segment.ptr
         
         #== Create the core function object
-        core_function = CoreFunction(self.supervisor, command_processor.ptr)
+        core_function = CoreFunction(command_processor.ptr)
         
         #== Fill the process env structure
         process_env = process_env_structure()
@@ -134,9 +133,9 @@ class ProcessOverseer(object):
         print "Created", process
         
         if process_env.pit.process_type == pit_process_type_daemon:
-            self.supervisor.add_daemon_process(process)
+            GlobalEnvironment.supervisor.add_daemon_process(process)
         elif process_env.pit.process_type == pit_process_type_interactive:
-            self.supervisor.add_interactive_process(process)
+            GlobalEnvironment.supervisor.add_interactive_process(process)
         # end if
         
         return process
@@ -156,13 +155,13 @@ class ProcessOverseer(object):
         self.__running_processes.remove(process)
         
         if process_type == pit_process_type_daemon:
-            self.supervisor.remove_daemon_process(process)
+            GlobalEnvironment.supervisor.remove_daemon_process(process)
         elif process_type == pit_process_type_interactive:
-            self.supervisor.remove_interactive_process(process)
+            GlobalEnvironment.supervisor.remove_interactive_process(process)
     
     def _print_error_message(self, s, tty_channel):
-        self.supervisor.llout("\n%s\n" % (s), tty_channel)
-        self.supervisor.llout("Please contact System Administrator.\n", tty_channel)
+        GlobalEnvironment.supervisor.llout("\n%s\n" % (s), tty_channel)
+        GlobalEnvironment.supervisor.llout("Please contact System Administrator.\n", tty_channel)
     
 #-- end class ProcessOverseer
 
@@ -173,7 +172,7 @@ class ProcessStackFrame(object):
     #== accessed directly by the process object itself (it wouldn't even know about the
     #== data attributes added by system services), but used behind the scenes when
     #== the associated system service functions are called. This is better than
-    #== keeping the data as resident attributes of the SystemSubroutine class instances
+    #== keeping the data as resident attributes of the Subroutine class instances
     #== because even though it is data only those methods know or care about, the data
     #== really 'belongs' to the process, not the system service.
     

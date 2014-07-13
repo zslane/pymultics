@@ -16,15 +16,9 @@ def send_message():
     code      = parm(0)
     
     process   = get_calling_process_()
+    sender    = process.uid()
     
-    def send_msg(recipient, long_name, message, code):
-        # person    = parm()
-        # project   = parm()
-        # acct      = parm()
-        
-        # call.user_info_.whoami(person, project, acct)
-        # sender = person.id + "." + project.id
-        sender = process.uid()
+    def send_msg(sender, recipient, long_name, message, code):
         msg = ProcessMessage("interactive_message", **{'from':sender, 'to':long_name, 'text':message})
         call.sys_.add_process_msg("Messenger.SysDaemon", msg, code)
         if code.val == error_table_.lock_wait_time_exceeded:
@@ -50,17 +44,17 @@ def send_message():
         # end if
         
         matching = long_name.val.replace(".", r"\.").replace("*", r"(\w+)")
-        for process in supervisor.get_interactive_processes():
-            if re.match(matching, process.uid()):
-                process.stack.assert_create("accepting_messages", bool)
-                if not process.stack.accepting_messages:
-                    call.ioa_("{0} is not accepting messages.", process.uid())
+        for user_process in supervisor.get_interactive_processes():
+            if re.match(matching, user_process.uid()):
+                user_process.stack.assert_create("accepting_messages", bool)
+                if not user_process.stack.accepting_messages:
+                    call.ioa_("{0} is not accepting messages. Message sent to user's mailbox.", user_process.uid())
                 # end if
             # end if
         # end for
         
         if message:
-            send_msg(recipient, long_name.val, message, code)
+            send_msg(sender, recipient, long_name.val, message, code)
         else:
             call.ioa_("Input:")
             query_info.version = query_info_version_5

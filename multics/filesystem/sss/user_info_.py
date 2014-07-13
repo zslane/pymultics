@@ -1,9 +1,9 @@
 
 from multics.globals import *
 
-class user_info_(SystemSubroutine):
-    def __init__(self, supervisor):
-        super(user_info_, self).__init__(self.__class__.__name__, supervisor)
+class user_info_(Subroutine):
+    def __init__(self):
+        super(user_info_, self).__init__(self.__class__.__name__)
         self.__pit = parm()
         
     def _load_pit(self):

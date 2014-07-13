@@ -10,6 +10,8 @@ from pl1types import *
 
 from PySide import QtCore
 
+#== Functions provided by PL/1 ==#
+
 def before(s, p):
     return s.partition(p)[0]
 
@@ -33,6 +35,8 @@ def alloc(objtype):
     else:
         return objtype()
     
+#== Conditions represented by exception classes ==#
+
 class MulticsCondition(Exception):
     def __init__(self, arg=""):
         super(MulticsCondition, self).__init__(arg)
@@ -41,6 +45,8 @@ class BreakCondition(MulticsCondition):
     def __init__(self):
         super(BreakCondition, self).__init__()
         
+on_quit = BreakCondition
+
 class ShutdownCondition(MulticsCondition):
     def __init__(self):
         super(ShutdownCondition, self).__init__()
@@ -49,11 +55,15 @@ class DisconnectCondition(MulticsCondition):
     def __init__(self):
         super(DisconnectCondition, self).__init__()
 
+on_finish = DisconnectCondition
+
 class SegmentFault(MulticsCondition):
     def __init__(self, entry_point_name):
         super(SegmentFault, self).__init__("segment not found %s" % (entry_point_name))
         self.segment_name = entry_point_name
         
+on_segfault = SegmentFault
+
 class LinkageError(MulticsCondition):
     def __init__(self, segment_name, entry_point_name):
         super(LinkageError, self).__init__("entry not found %s.%s" % (segment_name, entry_point_name))

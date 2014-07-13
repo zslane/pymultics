@@ -38,8 +38,7 @@ class UserControl(object):
     
     TIMEOUT_PERIOD = 60 * 1 # 1 minute
     
-    def __init__(self, supervisor, max_attempts, whotab, tty_channel):
-        self.supervisor = supervisor
+    def __init__(self, max_attempts, whotab, tty_channel):
         self.__whotab = whotab
         self.__tty_channel = tty_channel
         self.__start_time = None
@@ -56,7 +55,7 @@ class UserControl(object):
         
     @property
     def hardware(self):
-        return self.supervisor.hardware
+        return GlobalEnvironment.hardware
     
     def do_state(self):
         if self._terminal_closed():
@@ -113,13 +112,13 @@ class UserControl(object):
         self.hardware.io.put_output(s, self.tty)
         
     def _display_login_banner(self):
-        load = len(os.listdir(self.supervisor.fs.path2path(self.supervisor.fs.process_dir_dir)))
+        load = len(os.listdir(GlobalEnvironment.fs.path2path(GlobalEnvironment.fs.process_dir_dir)))
         date_time_string = datetime.datetime.now().strftime("%m/%d/%y %H%M.%S %Z %a")
         self._put_output("Virtual Multics MR%s: %s, %s\nLoad = %0.1f out of %0.1f: users = %d. %s\n" % (
-            self.supervisor.version,
-            self.supervisor.site_config['site_location'],
-            self.supervisor.site_config['site_name'],
-            load, self.supervisor.site_config['maximum_load'],
+            GlobalEnvironment.supervisor.version,
+            GlobalEnvironment.supervisor.site_config['site_location'],
+            GlobalEnvironment.supervisor.site_config['site_name'],
+            load, GlobalEnvironment.supervisor.site_config['maximum_load'],
             len(self.__whotab.entries),
             datetime.datetime.now().ctime()))
         
@@ -250,7 +249,7 @@ class UserControl(object):
                 return self._set_state(self.LOGIN_COMPLETE)
                 
             elif self.__max_attempts == 0: # too many password failures!
-                self.supervisor.hardware.io.disconnect_tty(self.tty)
+                GlobalEnvironment.hardware.io.disconnect_tty(self.tty)
                 return self._set_state(self.DISCONNECTED)
                 
             else:
@@ -269,12 +268,12 @@ class UserControl(object):
         if password == "*": password = ""
         
         try:
-            call.hcs_.initiate(self.supervisor.fs.system_control_dir, "person_name_table", "", 0, 0, pnt_segment, code)
+            call.hcs_.initiate(GlobalEnvironment.fs.system_control_dir, "person_name_table", "", 0, 0, pnt_segment, code)
             person_id = pnt_segment.ptr.person_id(login_name)
             project = project or pnt_segment.ptr.get_default_project_id(person_id)
             encrypted_password, pubkey = pnt_segment.ptr.get_password(person_id)
-            if (not pubkey) or (self.supervisor.encrypt_password(password, pubkey) == encrypted_password):
-                pdt = self.supervisor.pdt.get(project)
+            if (not pubkey) or (GlobalEnvironment.supervisor.encrypt_password(password, pubkey) == encrypted_password):
+                pdt = GlobalEnvironment.supervisor.pdt.get(project)
                 if pdt and pdt.recognizes(person_id):
                     user_id = person_id + "." + pdt.project_id
                     if user_id in self.__whotab.entries:
@@ -328,9 +327,9 @@ class UserControl(object):
             confirm_password = self._get_input()
             if self.__new_password == confirm_password:
                 person_id = self.__login_options['person_id']
-                call.hcs_.initiate(self.supervisor.fs.system_control_dir, "person_name_table", "", 0, 0, pnt_segment, code)
+                call.hcs_.initiate(GlobalEnvironment.fs.system_control_dir, "person_name_table", "", 0, 0, pnt_segment, code)
                 current = pnt_segment.ptr.name_entries[person_id]
-                encrypted_password, pubkey = self.supervisor.encrypt_password(self.__new_password)
+                encrypted_password, pubkey = GlobalEnvironment.supervisor.encrypt_password(self.__new_password)
                 with pnt_segment.ptr:
                     pnt_segment.ptr.add_person(person_id, current.alias, current.default_project_id, encrypted_password, pubkey)
                 # end with

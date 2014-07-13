@@ -1,7 +1,7 @@
 
 from multics.globals import *
     
-class cu_(SystemSubroutine):
+class cu_(Subroutine):
 
     class context(object):
         def __init__(self):
@@ -21,8 +21,8 @@ class cu_(SystemSubroutine):
         def __repr__(self):
             return "<context: '%s', '%s', %s>" % (self.program_name, self.argument_string, self.command_processor)
         
-    def __init__(self, supervisor):
-        super(cu_, self).__init__(self.__class__.__name__, supervisor)
+    def __init__(self):
+        super(cu_, self).__init__(self.__class__.__name__)
         
     @property
     def _current_context(self):

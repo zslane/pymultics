@@ -1,9 +1,9 @@
 
 from multics.globals import *
 
-class get_group_id_(SystemSubroutine):
-    def __init__(self, supervisor):
-        super(get_group_id_, self).__init__(self.__class__.__name__, supervisor)
+class get_group_id_(Subroutine):
+    def __init__(self):
+        super(get_group_id_, self).__init__(self.__class__.__name__)
         
     def procedure(self):
         process = get_calling_process_()

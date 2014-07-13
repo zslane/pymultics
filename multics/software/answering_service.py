@@ -16,12 +16,12 @@ include.login_info
             
 SYSTEM_CONSOLE = None
 
-class AnsweringService(SystemSubroutine):
+class AnsweringService(Subroutine):
 
     DEFAULT_CP_PATH = ">sss>command_processor_"
 
-    def __init__(self, supervisor, command_processor):
-        super(AnsweringService, self).__init__(self.__class__.__name__, supervisor)
+    def __init__(self, command_processor):
+        super(AnsweringService, self).__init__(self.__class__.__name__)
         
         self.__process            = None
         self.__whotab             = None
@@ -34,7 +34,7 @@ class AnsweringService(SystemSubroutine):
         import process_overseer
         reload(process_overseer)
         from process_overseer import ProcessOverseer
-        self.process_overseer = ProcessOverseer(supervisor)
+        self.process_overseer = ProcessOverseer()
         
     def start(self, owning_process):
         self.__process = owning_process
@@ -68,7 +68,7 @@ class AnsweringService(SystemSubroutine):
                                 process.attach_tty(tty_channel)
                             else:
                                 print "Attaching system console to process", process.id(), process.objectName()
-                                self.supervisor.hardware.io.attach_console_process(process.id())
+                                GlobalEnvironment.hardware.io.attach_console_process(process.id())
                             # end if
                             print "Starting process", process.objectName()
                             process.start()
@@ -91,15 +91,15 @@ class AnsweringService(SystemSubroutine):
                 #== Add the next pending login tty to the list of logins 'in progress'
                 if self.__pending_login_ttys:
                     tty_channel = self.__pending_login_ttys.pop(0)
-                    login = UserControl(self.supervisor, MAX_ATTEMPTS, self.__whotab, tty_channel)
+                    login = UserControl(MAX_ATTEMPTS, self.__whotab, tty_channel)
                     self.__logins_in_progress.append(login)
                 # end if
                     
                 #== Add the system console to the list of logins 'in progress' if it isn't
                 #== already attached to a process and not already in the list
-                if (not self.supervisor.hardware.io.attached_console_process() and
+                if (not GlobalEnvironment.hardware.io.attached_console_process() and
                     not any([ login.tty == SYSTEM_CONSOLE for login in self.__logins_in_progress ])):
-                    login = UserControl(self.supervisor, -1, self.__whotab, SYSTEM_CONSOLE)
+                    login = UserControl(-1, self.__whotab, SYSTEM_CONSOLE)
                     self.__logins_in_progress.append(login)
                 # end if
                 
@@ -133,7 +133,7 @@ class AnsweringService(SystemSubroutine):
         return 0
         
     def _default_home_dir(self, person_id, project_id):
-        return ">".join([self.supervisor.fs.user_dir_dir, project_id, person_id])
+        return ">".join([GlobalEnvironment.fs.user_dir_dir, project_id, person_id])
         
     def _new_process(self, person_id, pdt, login_options, tty_channel):
         # pprint(login_options)
@@ -162,7 +162,7 @@ class AnsweringService(SystemSubroutine):
             # end with
             
             #== Update the login journal
-            call.hcs_.initiate(self.supervisor.fs.system_control_dir, "login_journal", "", 0, 0, journal, code)
+            call.hcs_.initiate(GlobalEnvironment.fs.system_control_dir, "login_journal", "", 0, 0, journal, code)
             if code.val == 0 and journal.ptr != null():
                 journal_entry = journal.ptr.get(login_info.user_id, {})
                 last_login_time = journal_entry.get('last_login_time')
@@ -176,9 +176,9 @@ class AnsweringService(SystemSubroutine):
             # end if
             
             if not login_options.get('brief'):
-                self.supervisor.llout("\n%s logged in %s from %s\n" % (login_info.user_id, login_info.time_login.ctime(), tty_name), tty_channel)
+                GlobalEnvironment.supervisor.llout("\n%s logged in %s from %s\n" % (login_info.user_id, login_info.time_login.ctime(), tty_name), tty_channel)
                 if last_login_time:
-                    self.supervisor.llout("Last login %s from %s\n" % (last_login_time.ctime(), last_login_from), tty_channel)
+                    GlobalEnvironment.supervisor.llout("Last login %s from %s\n" % (last_login_time.ctime(), last_login_from), tty_channel)
                 # end if
             print "%s logged in on %s from %s" % (login_info.user_id, login_info.time_login.ctime(), tty_name)
         # end if
@@ -198,7 +198,7 @@ class AnsweringService(SystemSubroutine):
         self.process_overseer.destroy_process(process)
         
         if not logout_options.get('brief'):
-            self.supervisor.llout("%s logged out %s\n" % (user_id, datetime.datetime.now().ctime()), process.tty())
+            GlobalEnvironment.supervisor.llout("%s logged out %s\n" % (user_id, datetime.datetime.now().ctime()), process.tty())
         print "%s logged out %s" % (user_id, datetime.datetime.now().ctime())
         
         #== Remove the entry in the whotab corresponding to this user
@@ -208,10 +208,10 @@ class AnsweringService(SystemSubroutine):
         pprint(self.__whotab)
         
         if tty_channel == SYSTEM_CONSOLE:
-            self.supervisor.hardware.io.detach_console_process(process.id())
+            GlobalEnvironment.supervisor.hardware.io.detach_console_process(process.id())
         elif not logout_options.get('hold'):
-            self.supervisor.llout("Disconnect\n", tty_channel)
-            self.supervisor.hardware.io.disconnect_tty(tty_channel)
+            GlobalEnvironment.supervisor.llout("Disconnect\n", tty_channel)
+            GlobalEnvironment.supervisor.hardware.io.disconnect_tty(tty_channel)
         else:
             self.__pending_login_ttys.append(tty_channel)
         # end if
@@ -222,7 +222,7 @@ class AnsweringService(SystemSubroutine):
         person_id, _, project_id = user_id.partition(".")
         pit           = process.pit()
         tty_channel   = process.tty()
-        pdt           = self.supervisor.pdt.get(project_id)
+        pdt           = GlobalEnvironment.supervisor.pdt.get(project_id)
         login_options = {
             'person_id'  : person_id,
             'project_id' : project_id,
@@ -234,7 +234,7 @@ class AnsweringService(SystemSubroutine):
         
         #== Destroy the old process
         if tty_channel == SYSTEM_CONSOLE:
-            self.supervisor.hardware.io.detach_console_process(process.id())
+            GlobalEnvironment.supervisor.hardware.io.detach_console_process(process.id())
         # end if
         self.process_overseer.destroy_process(process)
         
@@ -247,7 +247,7 @@ class AnsweringService(SystemSubroutine):
                 process.attach_tty(tty_channel)
             else:
                 print "Attaching system console to process", process.id(), process.objectName()
-                self.supervisor.hardware.io.attach_console_process(process.id())
+                GlobalEnvironment.supervisor.hardware.io.attach_console_process(process.id())
             # end if
             
             #== Start the new process
@@ -261,18 +261,18 @@ class AnsweringService(SystemSubroutine):
             # end with
             pprint(self.__whotab)
         else:
-            self.supervisor.llout("Error creating process!")
+            GlobalEnvironment.supervisor.llout("Error creating process!")
         # end if
     
     def _initialize(self):
-        self.__whotab = self.supervisor.whotab
+        self.__whotab = GlobalEnvironment.supervisor.whotab
         
         msg_handlers = {
             'upload_pmf_request': self._upload_pmf_request_handler,
         }
         self.__process.register_msg_handlers(msg_handlers)
         
-        self.rfs_listener = RFSListener(self.supervisor.site_config['port'], self.__pending_login_ttys, self)
+        self.rfs_listener = RFSListener(GlobalEnvironment.supervisor.site_config['port'], self.__pending_login_ttys, self)
         self.rfs_listener.start()
         
     def _cleanup(self):
@@ -298,15 +298,15 @@ class AnsweringService(SystemSubroutine):
         
         pdt_file = message['src_file']
         src_dir = message['src_dir']
-        dst_dir = self.supervisor.fs.system_control_dir
-        src_pdt_path = self.supervisor.fs.path2path(src_dir, pdt_file)
-        dst_pdt_path = self.supervisor.fs.path2path(dst_dir, pdt_file)
+        dst_dir = GlobalEnvironment.fs.system_control_dir
+        src_pdt_path = GlobalEnvironment.fs.path2path(src_dir, pdt_file)
+        dst_pdt_path = GlobalEnvironment.fs.path2path(dst_dir, pdt_file)
         shutil.move(src_pdt_path, dst_pdt_path)
         
         call.hcs_.initiate(dst_dir, pdt_file, "", 0, 0, pdt, code)
         if pdt.ptr != null():
             #== Add project to the system_administrator_table if necessary
-            call.hcs_.initiate(self.supervisor.fs.system_control_dir, "system_administrator_table", "", 0, 0, sat, code)
+            call.hcs_.initiate(GlobalEnvironment.fs.system_control_dir, "system_administrator_table", "", 0, 0, sat, code)
             if sat.ptr != null():
                 if pdt.ptr.project_id not in sat.ptr.projects:
                     with sat.ptr:
@@ -316,49 +316,49 @@ class AnsweringService(SystemSubroutine):
             # end if
             
             #== Add pdt segment to supervisor's pdt table if necessary
-            if pdt.ptr.project_id not in self.supervisor.pdt:
-                self.supervisor.pdt[pdt.ptr.project_id] = pdt.ptr
+            if pdt.ptr.project_id not in GlobalEnvironment.supervisor.pdt:
+                GlobalEnvironment.supervisor.pdt[pdt.ptr.project_id] = pdt.ptr
                 if pdt.ptr.alias:
-                    self.supervisor.pdt[pdt.ptr.alias] = pdt.ptr
+                    GlobalEnvironment.supervisor.pdt[pdt.ptr.alias] = pdt.ptr
                 # end if
             # end if
             
             #== Create project directory (with add_name for alias) if necessary
-            project_dir = self.supervisor.fs.path2path(self.supervisor.fs.user_dir_dir, pdt.ptr.project_id)
-            if not self.supervisor.fs.file_exists(project_dir):
+            project_dir = GlobalEnvironment.fs.path2path(GlobalEnvironment.fs.user_dir_dir, pdt.ptr.project_id)
+            if not GlobalEnvironment.fs.file_exists(project_dir):
                 print "Creating project directory " + project_dir
-                self.supervisor.fs.mkdir(project_dir)
+                GlobalEnvironment.fs.mkdir(project_dir)
             # end if
             if pdt.ptr.alias:
                 print "Adding name " + pdt.ptr.alias + " to project directory"
-                self.supervisor.fs.add_name(project_dir, pdt.ptr.alias)
+                GlobalEnvironment.fs.add_name(project_dir, pdt.ptr.alias)
             # end if
             
-            call.hcs_.initiate(self.supervisor.fs.system_control_dir, "person_name_table", "", 0, 0, pnt, code)
+            call.hcs_.initiate(GlobalEnvironment.fs.system_control_dir, "person_name_table", "", 0, 0, pnt, code)
             
             #== Create user home directories (with add_names for aliases) if necessary
             for user_config in pdt.ptr.users.values():
                 homedir = user_config.home_dir or self._default_home_dir(user_config.person_id, pdt.ptr.project_id)
-                if not self.supervisor.fs.file_exists(homedir):
+                if not GlobalEnvironment.fs.file_exists(homedir):
                     self._create_new_home_dir(user_config.person_id, pnt.ptr, homedir)
                 # end if
             # end for
         else:
-            self.supervisor.llout("Failed to install %s." % (pdt_file))
+            GlobalEnvironment.supervisor.llout("Failed to install %s." % (pdt_file))
                     
     def _create_new_home_dir(self, person_id, pnt_ptr, homedir):
         print "Creating user home directory " + homedir
-        self.supervisor.fs.mkdir(homedir)
+        GlobalEnvironment.fs.mkdir(homedir)
         
         alias = pnt_ptr.name_entries[person_id].alias
-        _, homedir_name = self.supervisor.fs.split_path(homedir)
+        _, homedir_name = GlobalEnvironment.fs.split_path(homedir)
         #== If there's an alias, only create an add_name for the home directory if the
         #== first letter of each matches. We don't want an alias like 'bar' being added
         #== as a name to a home dir like >udd>Multics>Common just because it was specified
         #== as user Bar's home dir in the Multics PDT.
         if alias and alias[0].lower() == homedir_name[0].lower():
             print "Adding name " + pnt_ptr.name_entries[person_id].alias + " to home directory"
-            self.supervisor.fs.add_name(homedir, pnt_ptr.name_entries[person_id].alias)
+            GlobalEnvironment.fs.add_name(homedir, pnt_ptr.name_entries[person_id].alias)
 
 class RFSListener(QtNetwork.QTcpServer):
 

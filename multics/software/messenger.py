@@ -1,10 +1,10 @@
 
 from ..globals import *
 
-class Messenger(SystemSubroutine):
+class Messenger(Subroutine):
 
-    def __init__(self, supervisor, command_processor):
-        super(Messenger, self).__init__(self.__class__.__name__, supervisor)
+    def __init__(self, command_processor):
+        super(Messenger, self).__init__(self.__class__.__name__)
         
         self.__process = None
         self.exit_code = 0

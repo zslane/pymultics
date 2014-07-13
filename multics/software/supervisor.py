@@ -46,7 +46,7 @@ class Supervisor(QtCore.QObject):
         import process_overseer
         reload(process_overseer)
         from process_overseer import ProcessOverseer, ProcessStackFrame
-        self.__process_overseer = ProcessOverseer(self)
+        self.__process_overseer = ProcessOverseer()
         self.__system_stack = ProcessStackFrame()
         
         self._load_site_config()

@@ -4,12 +4,12 @@ from ..globals import *
 
 include.query_info
 
-class Listener(SystemSubroutine):
+class Listener(Subroutine):
 
     MESSAGE_TIMER_DURATION = 1.0
     
-    def __init__(self, supervisor, command_processor):
-        super(Listener, self).__init__(self.__class__.__name__, supervisor)
+    def __init__(self, command_processor):
+        super(Listener, self).__init__(self.__class__.__name__)
         
         self.__default_command_processor = command_processor
         self.__process = None
