@@ -168,13 +168,18 @@ void TerminalIO::host_found()
 void TerminalIO::connection_made()
 {
     m_socket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
-    emit setConnectStatus(QString("Connected to %1 on port %2").arg(m_socket->peerName(), QString::number(m_socket->peerPort())));
+    QString connected_msg = QString("Connected to %1 on port %2").arg(m_socket->peerName(), QString::number(m_socket->peerPort()));
     if (m_socket->peerPort() != m_port)
     {
         send_who_code();
         m_output->setConnected(true);
         m_input->setEnabled(true);
         m_input->setFocus();
+        emit setConnectStatus(connected_msg);
+    }
+    else
+    {
+        emit setNormalStatus(connected_msg);
     }
 }
 
