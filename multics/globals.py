@@ -44,8 +44,17 @@ class MulticsCondition(Exception):
 class BreakCondition(MulticsCondition):
     def __init__(self):
         super(BreakCondition, self).__init__()
-        
-on_quit = BreakCondition
+    @property
+    def name(self): return "BreakCondition"
+    
+@contextlib.contextmanager
+def on_quit(handler_function):
+    process = get_calling_process_()
+    try:
+        GlobalEnvironment.supervisor.register_condition_handler(BreakCondition, process, handler_function)
+        yield
+    finally:
+        GlobalEnvironment.supervisor.deregister_condition_handler(BreakCondition, process)
 
 class ShutdownCondition(MulticsCondition):
     def __init__(self):
@@ -212,7 +221,13 @@ def check_conditions_(ignore_break_signal=False):
     # end if
     if (not ignore_break_signal and
         GlobalEnvironment.supervisor.hardware.io.break_received()):
-        raise BreakCondition
+        
+        ### ! EXPERIMENTAL ! ###
+        process = get_calling_process_()
+        GlobalEnvironment.supervisor.llout("QUIT\n", process.tty())
+        GlobalEnvironment.supervisor.invoke_condition_handler(BreakCondition, process)
+        
+        # raise BreakCondition
     # end if
     if GlobalEnvironment.supervisor.shutting_down():
         raise ShutdownCondition

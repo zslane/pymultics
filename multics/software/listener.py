@@ -19,6 +19,7 @@ class Listener(Subroutine):
         self.exit_code = 0
         
     def start(self, owning_process):
+        print "Listener", id(self), "owned by", owning_process.objectName()
         self.__process = owning_process
         return self._main_loop()
         
@@ -30,7 +31,7 @@ class Listener(Subroutine):
             now = datetime.datetime.now()
             delta, self.__prev_command_time = now - self.__prev_command_time, now
             if self.__process.stack_level() > 1:
-                command_level_str = ", level %d" % (self.__process.stack_level())
+                command_level_str = " level %d" % (self.__process.stack_level())
             else:
                 command_level_str = ""
             
@@ -38,12 +39,12 @@ class Listener(Subroutine):
             call.ioa_(ready_message)
     
     def _main_loop(self):
-        command_line = parm()
+        # command_line = parm()
         code         = parm()
-        commands     = []
+        # commands     = []
         
-        query_info.suppress_name_sw = True
-        query_info.suppress_spacing = True
+        # query_info.suppress_name_sw = True
+        # query_info.suppress_spacing = True
         
         self._initialize()
         
@@ -51,37 +52,38 @@ class Listener(Subroutine):
             call.cu_.cp("exec_com start_up new_proc interactive", code)
         # end if
         
-        self.exit_code = 0
-        while self.exit_code == 0:
-            try:
-                #== If there are no more commands queued up from a multi-command line
-                #== then get some commands from command_query_
-                if commands == []:
-                    call.cu_.ready_proc()
-                    call.command_query_(query_info, command_line, "listener")
-                    #== Semi-colons separate multiple commands--create a command queue
-                    commands = command_line.val.split(";")
-                # end if
+        # self.exit_code = 0
+        # while self.exit_code == 0:
+            # try:
+                # #== If there are no more commands queued up from a multi-command line
+                # #== then get some commands from command_query_
+                # if commands == []:
+                    # call.cu_.ready_proc()
+                    # call.command_query_(query_info, command_line, "listener")
+                    # #== Semi-colons separate multiple commands--create a command queue
+                    # commands = command_line.val.split(";")
+                # # end if
                 
-                #== Get the next command in the queue and execute it
-                command_line.val = commands.pop(0).strip()
-                self.__command_history.append(command_line.val)
-                call.cu_.cp(command_line.val, code)
-                self.exit_code = code.val
+                # #== Get the next command in the queue and execute it
+                # command_line.val = commands.pop(0).strip()
+                # self.__command_history.append(command_line.val)
+                # call.cu_.cp(command_line.val, code)
+                # self.exit_code = code.val
                 
-            except BreakCondition:
-                call.hcs_.signal_break()
-            except DisconnectCondition:
-                self.exit_code = System.LOGOUT
-            except ShutdownCondition:
-                self.exit_code = System.LOGOUT
-            except (SegmentFault, LinkageError, InvalidSegmentFault):
-                call.dump_traceback_()
-            except:
-                #== FOR DEBUGGING THE SIMULATION
-                call.dump_traceback_()
-            # end try
-        # end while
+            # except BreakCondition:
+                # call.hcs_.signal_break()
+            # except DisconnectCondition:
+                # self.exit_code = System.LOGOUT
+            # except ShutdownCondition:
+                # self.exit_code = System.LOGOUT
+            # except (SegmentFault, LinkageError, InvalidSegmentFault):
+                # call.dump_traceback_()
+            # except:
+                # #== FOR DEBUGGING THE SIMULATION
+                # call.dump_traceback_()
+            # # end try
+        # # end while
+        self._enter_command_level()
         
         # do any cleanup necessary at the CommandShell level
         self._cleanup()
@@ -107,6 +109,64 @@ class Listener(Subroutine):
         
         self._print_motd()
         
+    def _enter_command_level(self):
+        command_line = parm()
+        code         = parm()
+        commands     = []
+        
+        query_info.suppress_name_sw = True
+        query_info.suppress_spacing = True
+        
+        ### ! EXPERIMENTAL! ###
+        with on_quit(self._push_command_level):
+        
+            self.exit_code = 0
+            while self.exit_code == 0:
+                try:
+                    #== If there are no more commands queued up from a multi-command line
+                    #== then get some commands from command_query_
+                    if commands == []:
+                        call.cu_.ready_proc()
+                        call.command_query_(query_info, command_line, "listener")
+                        #== Semi-colons separate multiple commands--create a command queue
+                        commands = command_line.val.split(";")
+                    # end if
+                    
+                    #== Get the next command in the queue and execute it
+                    command_line.val = commands.pop(0).strip()
+                    
+                    ### ! EXPERIMENTAL! ###
+                    if command_line.val == "release" or command_line.val == "rl":
+                        return 0
+                    # end if
+                    
+                    self.__command_history.append(command_line.val)
+                    call.cu_.cp(command_line.val, code)
+                    self.exit_code = code.val
+                    
+                except BreakCondition:
+                    call.hcs_.signal_break()
+                except DisconnectCondition:
+                    self.exit_code = System.LOGOUT
+                except ShutdownCondition:
+                    self.exit_code = System.LOGOUT
+                except (SegmentFault, LinkageError, InvalidSegmentFault):
+                    call.dump_traceback_()
+                except:
+                    #== FOR DEBUGGING THE SIMULATION
+                    call.dump_traceback_()
+                # end try
+            # end while
+            
+            return self.exit_code
+    
+    def _push_command_level(self):
+        print "Pushing command level"
+        self.__process.push_stack()
+        exit_code = self._enter_command_level()
+        self.__process.pop_stack()
+        print "Popping command level"
+    
     def _process_ms_handler(self, message):
         if message['type'] == "shutdown_announcement":
             # call.ioa_("From {0} {1}: {2}", message['from'], message['time'].ctime(), message['text'])

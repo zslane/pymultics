@@ -63,7 +63,7 @@ def send_message():
             while code.val == 0 and input.val != ".":
                 call.command_query_(query_info, input, "send_message")
                 if input.val != ".":
-                    send_msg(recipient, long_name.val, input.val, code)
+                    send_msg(sender, recipient, long_name.val, input.val, code)
             
 #-- end def send_message
 

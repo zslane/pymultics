@@ -5,6 +5,7 @@ import sys
 import rsa
 import time
 import datetime
+from collections import defaultdict
 
 from ..globals import *
 from pit import *
@@ -31,6 +32,7 @@ class Supervisor(QtCore.QObject):
         self.__shutdown_datetime = None
         self.__system_timers = {}
         self.__signalled_conditions = []
+        self.__condition_handlers = defaultdict(dict)
         self.__person_name_table = None
         self.__project_definition_tables = {}
         self.__whotab = None
@@ -229,7 +231,9 @@ class Supervisor(QtCore.QObject):
             # end if
             if self.__hardware.io.break_received(tty_channel):
                 print "Break signal detected by " + get_calling_process_().objectName()
-                raise BreakCondition
+                self.__hardware.io.put_output("QUIT\n", tty_channel)
+                self.invoke_condition_handler(BreakCondition, get_calling_process_()) ### ! EXPERIMENTAL ! ###
+                # raise BreakCondition
             # end if
             if self.shutting_down():
                 print "Shutdown signal detected by " + get_calling_process_().objectName()
@@ -251,7 +255,9 @@ class Supervisor(QtCore.QObject):
         # end if
         if self.__hardware.io.break_received(tty_channel):
             print "Break signal detected by " + get_calling_process_().objectName()
-            raise BreakCondition
+            self.__hardware.io.put_output("QUIT\n", tty_channel)
+            self.invoke_condition_handler(BreakCondition, get_calling_process_()) ### ! EXPERIMENTAL ! ###
+            # raise BreakCondition
         # end if
         if self.shutting_down():
             print "Shutdown signal detected by " + get_calling_process_().objectName()
@@ -328,6 +334,28 @@ class Supervisor(QtCore.QObject):
         # end for
         return None
         
+    def register_condition_handler(self, condition, process, handler_function):
+        # print process.objectName(), "registering condition handler", handler_function, "for", condition.name
+        pid = process.id()
+        if condition.name not in self.__condition_handlers[pid]:
+            self.__condition_handlers[pid][condition.name] = []
+        self.__condition_handlers[pid][condition.name].append(handler_function)
+        
+    def deregister_condition_handler(self, condition, process):
+        try:
+            # print process.objectName(), "deregistering condition handler for", condition.name
+            self.__condition_handlers[process.id()][condition.name].pop(0)
+        except:
+            print process.objectName(), "No condition handler to deregister for %s." % (condition.name)
+            
+    def invoke_condition_handler(self, condition, process):
+        # print process.objectName(), "invoking %s condition handler" % (condition.name)
+        try:
+            handler_function = self.__condition_handlers[process.id()][condition.name][0]
+            handler_function()
+        except:
+            raise condition
+    
     #== DAEMON PROCESS CONTROL ==#
     
     def add_daemon_process(self, process):

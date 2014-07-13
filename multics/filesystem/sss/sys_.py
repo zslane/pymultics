@@ -255,6 +255,12 @@ class sys_(Subroutine):
     def signal_condition(self, signalling_process, condition_instance):
         GlobalEnvironment.supervisor.signal_condition(signalling_process, condition_instance)
         
+    def register_condition_handler(self, condition, handler):
+        GlobalEnvironment.supervisor.register_condition_handler(condition, handler)
+        
+    def deregister_condition_handler(self, condition):
+        GlobalEnvironment.supervisor.deregister_condition_handler(condition)
+        
     def start_shutdown(self, how_long, message):
         GlobalEnvironment.supervisor.start_shutdown(how_long, message)
         

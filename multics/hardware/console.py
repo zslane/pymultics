@@ -32,6 +32,8 @@ class ScreenIO(QtGui.QTextEdit):
     def __init__(self, font, parent=None):
         super(ScreenIO, self).__init__(parent)
         
+        self.bkgd = QtGui.QPixmap(os.path.join(os.path.dirname(__file__), "multics_watermark.png"))
+        
         fm = QtGui.QFontMetrics(font)
         
         self.setReadOnly(True)
@@ -48,7 +50,15 @@ class ScreenIO(QtGui.QTextEdit):
         self.connected = flag
         
     def paintEvent(self, event):
+        #== Paint Multics logo as a faint background watermark
+        painter = QtGui.QPainter()
+        painter.begin(self.viewport())
+        painter.setOpacity(0.08)
+        painter.drawPixmap(self.viewport().rect(), self.bkgd, self.bkgd.rect())
+        painter.end()
+        #== Call default event handler to draw the text on top of the watermark
         super(ScreenIO, self).paintEvent(event)
+        #== Draw a block cursor if we're connected (i.e., the mainframe is up and running)
         if self.connected:
             painter = QtGui.QPainter(self.viewport())
             painter.fillRect(self.cursorRect(), QtGui.QBrush(self.palette().text().color()))
