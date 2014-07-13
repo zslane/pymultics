@@ -53,7 +53,7 @@ class ScreenIO(QtGui.QTextEdit):
         #== Paint Multics logo as a faint background watermark
         painter = QtGui.QPainter()
         painter.begin(self.viewport())
-        painter.setOpacity(0.08)
+        painter.setOpacity(0.10)
         painter.drawPixmap(self.viewport().rect(), self.bkgd, self.bkgd.rect())
         painter.end()
         #== Call default event handler to draw the text on top of the watermark
@@ -160,6 +160,7 @@ class MainframePanel(QtGui.QWidget):
         self.restart_button.setStyleSheet("QPushButton { font: bold 7pt ; }")
         self.restart_button.setFixedSize(96, 15)
         self.restart_button.move(87, 187)
+        self.restart_button.setEnabled(False)
         
         main_layout = QtGui.QVBoxLayout()
         main_layout.addWidget(self.image_label)
@@ -179,18 +180,18 @@ class ConsoleWindow(QtGui.QMainWindow):
     def __init__(self, parent=None):
         super(ConsoleWindow, self).__init__(parent)
         
-        mainframe_panel = MainframePanel()
-        mainframe_panel.restart_button.clicked.connect(self.restart_system)
+        self.mainframe_panel = MainframePanel()
+        self.mainframe_panel.restart_button.clicked.connect(self.restart_system)
         
         self.io = ConsoleIO(self)
         self.transmitString.connect(self.io.display)
         self.setEchoMode.connect(self.io.setEchoMode)
-        self.shutdown.connect(self.io.shutdown)
+        self.shutdown.connect(self.on_shutdown)
         
         layout = QtGui.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(mainframe_panel)
+        layout.addWidget(self.mainframe_panel)
         layout.addWidget(self.io)
         
         central_widget = QtGui.QWidget()
@@ -225,15 +226,17 @@ class ConsoleWindow(QtGui.QMainWindow):
         self.__multics.start()
         
     def restart_system(self):
-        self.io.output.setConnected(True)
-        self.io.input.setEnabled(True)
-        self.io.input.setFocus()
-        
-        self.__hardware = VirtualMulticsHardware()
-        self.__hardware.attach_console(self)
+        if not self.io.input.isEnabled():
+            self.mainframe_panel.restart_button.setEnabled(False)
+            self.io.output.setConnected(True)
+            self.io.input.setEnabled(True)
+            self.io.input.setFocus()
+            
+            self.__hardware = VirtualMulticsHardware()
+            self.__hardware.attach_console(self)
 
-        self.__multics = self.__hardware.boot_OS()
-        self.__multics.start()
+            self.__multics = self.__hardware.boot_OS()
+            self.__multics.start()
     
     def timerEvent(self, event):
         self.heartbeat.emit()
@@ -243,7 +246,8 @@ class ConsoleWindow(QtGui.QMainWindow):
         self.closed.emit()
         event.accept()
 
-    # @QtCore.Slot()
-    # def disconnect(self):
-        # QtCore.QTimer.singleShot(0, self.close)
+    @QtCore.Slot()
+    def on_shutdown(self):
+        self.io.shutdown()
+        self.mainframe_panel.restart_button.setEnabled(True)
         

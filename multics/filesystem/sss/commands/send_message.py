@@ -11,7 +11,6 @@ def send_message():
     result    = parm()
     arg_count = parm()
     long_name = parm()
-    # users     = parm()
     input     = parm("")
     code      = parm(0)
     
