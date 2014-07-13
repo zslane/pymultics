@@ -3,9 +3,9 @@ from multics.globals import *
 
 declare (get_wdir_ = entry . returns (char(168)))
 
-class sys_(SystemSubroutine):
-    def __init__(self, supervisor):
-        super(sys_, self).__init__(self.__class__.__name__, supervisor)
+class sys_(Subroutine):
+    def __init__(self):
+        super(sys_, self).__init__(self.__class__.__name__)
         
     def set_exit_code(self, code):
         process = get_calling_process_()
@@ -22,15 +22,15 @@ class sys_(SystemSubroutine):
         long_person_id, long_project_id = short_person_id, short_project_id
         
         if short_person_id != "*":
-            long_person_id = self.supervisor.pnt.aliases.get(short_person_id) or short_person_id
-            if long_person_id not in self.supervisor.pnt.name_entries:
+            long_person_id = GlobalEnvironment.supervisor.pnt.aliases.get(short_person_id) or short_person_id
+            if long_person_id not in GlobalEnvironment.supervisor.pnt.name_entries:
                 code.val = error_table_.no_such_user
                 return
             # end if
         # end if
         
         if short_project_id != "*":
-            for pdt in self.supervisor.pdt.values():
+            for pdt in GlobalEnvironment.supervisor.pdt.values():
                 if short_project_id == pdt.project_id or short_project_id == pdt.alias:
                         long_project_id = pdt.project_id
                         break
@@ -46,12 +46,12 @@ class sys_(SystemSubroutine):
         code.val = 0
     
     def default_home_dir(self, person_id, project_id):
-        return ">".join([self.supervisor.fs.user_dir_dir, project_id, person_id])
+        return ">".join([GlobalEnvironment.fs.user_dir_dir, project_id, person_id])
     #-- end def default_home_dir
     
     def get_user_homedir_(self, user_id, homedir):
         person_id, project_id = user_id.split(".")
-        for pdt in self.supervisor.pdt.values():
+        for pdt in GlobalEnvironment.supervisor.pdt.values():
             if project_id == pdt.project_id:
                 for person in pdt.users:
                     if person == person_id:
@@ -61,8 +61,8 @@ class sys_(SystemSubroutine):
         user_ids.list = []
         homedirs.list = []
         matching = matching.replace(".", r"\.").replace("*", r"(\w+)")
-        for project_key in self.supervisor.pdt:
-            pdt = self.supervisor.pdt[project_key]
+        for project_key in GlobalEnvironment.supervisor.pdt:
+            pdt = GlobalEnvironment.supervisor.pdt[project_key]
             #== Skip entries which are just alias copies of the actual project entries
             if project_key == pdt.alias:
                 continue
@@ -77,13 +77,13 @@ class sys_(SystemSubroutine):
     
     def get_current_users(self, users, matching="*.*"):
         matching = matching.replace(".", r"\.").replace("*", r"(\w+)")
-        users.list = filter(lambda k: re.match(matching, k), self.supervisor.whotab.entries.keys())
+        users.list = filter(lambda k: re.match(matching, k), GlobalEnvironment.supervisor.whotab.entries.keys())
         
     def get_daemons(self, daemons):
-        daemons.list = [ process.uid() for process in self.supervisor.get_daemon_processes() ]
+        daemons.list = [ process.uid() for process in GlobalEnvironment.supervisor.get_daemon_processes() ]
         
     def get_daemon(self, which, daemon):
-        for process in self.supervisor.get_daemon_processes():
+        for process in GlobalEnvironment.supervisor.get_daemon_processes():
             if process.uid() == which:
                 daemon.ptr = process
                 return
@@ -92,7 +92,7 @@ class sys_(SystemSubroutine):
         daemon.ptr = null()
         
     def get_process_ids(self, process_ids):
-        process_ids.list = self.supervisor.whotab.get_process_ids()
+        process_ids.list = GlobalEnvironment.supervisor.whotab.get_process_ids()
         
     def get_rel_directory(self, dir_ref, relative_to, out_dir, code):
         if relative_to == "":
@@ -101,22 +101,22 @@ class sys_(SystemSubroutine):
         if dir_ref.startswith(">"):
             new_dir = dir_ref
         else:
-            new_dir = self.supervisor.fs.merge_path(relative_to, dir_ref)
+            new_dir = GlobalEnvironment.fs.merge_path(relative_to, dir_ref)
         # end if
         out_dir.name = new_dir
         
-        if self.supervisor.fs.file_exists(new_dir):
+        if GlobalEnvironment.fs.file_exists(new_dir):
             code.val = 0
         else:
             code.val = error_table_.no_directory_entry
     
     def get_abs_path(self, name, output):
         if name.startswith(">"):
-            output.path = self.supervisor.fs._resolve_path(name)
+            output.path = GlobalEnvironment.fs._resolve_path(name)
             return
         # end if
         current_dir = get_wdir_()
-        output.path = self.supervisor.fs.merge_path(current_dir, name)
+        output.path = GlobalEnvironment.fs.merge_path(current_dir, name)
     
     def split_path_(self, full_path, dir_name, entryname):
         rev_full_path = full_path[::-1]
@@ -129,9 +129,9 @@ class sys_(SystemSubroutine):
             new_dir = dir_ref
         else:
             cur_dir = get_wdir_()
-            new_dir = self.supervisor.fs.merge_path(cur_dir, dir_ref)
+            new_dir = GlobalEnvironment.fs.merge_path(cur_dir, dir_ref)
         # end if
-        if self.supervisor.fs.file_exists(new_dir):
+        if GlobalEnvironment.fs.file_exists(new_dir):
             self.push_directory(new_dir)
             code.val = 0
         else:
@@ -186,7 +186,7 @@ class sys_(SystemSubroutine):
                 self.get_daemon(user_id, daemon)
                 process_dir = daemon.process.dir()
             else:
-                whotab_entry = self.supervisor.whotab.entries[user_id]
+                whotab_entry = GlobalEnvironment.supervisor.whotab.entries[user_id]
                 process_dir = whotab_entry.process_dir
             # end if
         except:
@@ -253,11 +253,11 @@ class sys_(SystemSubroutine):
             call.ioa_("From {0} {1}: {2}", message_packet['from'], message_packet['time'].ctime(), message_packet['text'])
         
     def signal_condition(self, signalling_process, condition_instance):
-        self.supervisor.signal_condition(signalling_process, condition_instance)
+        GlobalEnvironment.supervisor.signal_condition(signalling_process, condition_instance)
         
     def start_shutdown(self, how_long, message):
-        self.supervisor.start_shutdown(how_long, message)
+        GlobalEnvironment.supervisor.start_shutdown(how_long, message)
         
     def cancel_shutdown(self):
-        self.supervisor.cancel_shutdown()
+        GlobalEnvironment.supervisor.cancel_shutdown()
         
