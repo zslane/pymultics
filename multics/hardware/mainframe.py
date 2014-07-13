@@ -18,22 +18,21 @@ class VirtualMulticsHardware(QtCore.QObject):
         t = QtCore.QThread.currentThread()
         t.setObjectName("Multics.Supervisor")
         
-        import multiprocessing
-        self.__cpu_count = multiprocessing.cpu_count()
-        
         self._create_hardware_resources()
         
         #== Create hardware subsystems
         self.__io_subsystem = IOSubsystem()
-        self.__filesystem = VirtualMulticsFileSystem(init_args)
-        self.__locks_mutex = QtCore.QMutex()
-        self.__locks = {}
+        self.__filesystem   = VirtualMulticsFileSystem(init_args)
+        self.__locks_mutex  = QtCore.QMutex()
+        self.__locks        = {}
         
         system_includes_path = os.path.join(self.filesystem.path2path(self.filesystem.system_library_standard), "includes")
         if system_includes_path not in sys.path:
             sys.path.append(system_includes_path)
         
     def _create_hardware_resources(self):
+        import multiprocessing
+        self.__cpu_count = multiprocessing.cpu_count()
         self.__startup_time = self._load_hardware_statefile()
         self.__clock = HardwareClock(self.__startup_time)
         self.announce = "Virtual Multics Hardware %s Initialized (%d cpus online)" % (self.version, self.num_cpus)

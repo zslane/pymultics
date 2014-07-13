@@ -23,35 +23,35 @@ class Supervisor(QtCore.QObject):
         super(Supervisor, self).__init__()
         self.setObjectName("Multics.Supervisor")
         
-        self.__hardware = hardware
-        self.__dynamic_linker = DynamicLinker(self)
-        self.__initializer = None
-        self.__daemons = []
-        self.__interactive_users = []
-        self.__startup_datetime = None
-        self.__shutdown_datetime = None
-        self.__system_timers = {}
-        self.__signalled_conditions = []
-        self.__condition_handlers = defaultdict(dict)
-        self.__person_name_table = None
+        self.__hardware                  = hardware
+        self.__dynamic_linker            = DynamicLinker(self)
+        
+        GlobalEnvironment.register_supervisor(self)
+        
+        #== This import must occur AFTER the supervisor has been registered with the GlobalEnvironment
+        import process_overseer ; reload(process_overseer)
+        from process_overseer import ProcessOverseer, ProcessStackFrame
+        
+        self.__process_overseer          = ProcessOverseer()
+        self.__system_stack              = ProcessStackFrame()
+        self.__startup_datetime          = None
+        self.__shutdown_datetime         = None
+        self.__daemons                   = []
+        self.__interactive_users         = []
+        self.__system_timers             = {}
+        self.__signalled_conditions      = []
+        self.__condition_handlers        = defaultdict(dict)
+        self.__person_name_table         = None
         self.__project_definition_tables = {}
-        self.__whotab = None
-        self.__shutdown_time_left = -1
-        self.__shutdown_message = ""
-        self.__shutdown_signal = False
+        self.__whotab                    = None
+        self.__shutdown_time_left        = -1
+        self.__shutdown_message          = ""
+        self.__shutdown_signal           = False
+        
+        self._load_site_config()
         
         self.__hardware.io.poweredDown.connect(self.hard_shutdown)
         self.__hardware.io.heartbeat.connect(self._heartbeat)
-        
-        GlobalEnvironment.register_supervisor(self, self.__dynamic_linker)
-        
-        import process_overseer
-        reload(process_overseer)
-        from process_overseer import ProcessOverseer, ProcessStackFrame
-        self.__process_overseer = ProcessOverseer()
-        self.__system_stack = ProcessStackFrame()
-        
-        self._load_site_config()
         
     @property
     def version(self):
@@ -108,17 +108,17 @@ class Supervisor(QtCore.QObject):
     
     def _send_system_greeting(self):
         self.__hardware.io.put_output("%s\n" % (self.__hardware.announce))
-        print "%s" % (self.__hardware.announce)
+        print                         "%s" % (self.__hardware.announce)
         self.__hardware.io.put_output("Multics Supervisor %s started %s, %s\n" % (self.version, self.__startup_datetime.ctime(), self.site_config['site_name']))
-        print "Multics Supervisor %s started %s, %s\n" % (self.version, self.__startup_datetime.ctime(), self.site_config['site_name'])
+        print                         "Multics Supervisor %s started %s, %s\n" % (self.version, self.__startup_datetime.ctime(), self.site_config['site_name'])
         self.__hardware.io.set_console_title("pyMultics Virtual Mainframe (%s)" % (self.site_config['site_name']))
         
     def _send_system_farewell(self):
         import multiprocessing
         self.__hardware.io.put_output("\n:Multics Supervisor shutdown %s:\n" % (self.__shutdown_datetime.ctime()))
-        self.__hardware.io.put_output(":Virtual Multics Hardware (%d cpus) offline:\n" % (self.__hardware.num_cpus))
-        print "\n:Multics Supervisor shutdown %s:\n" % (self.__shutdown_datetime.ctime())
-        print ":Virtual Multics Hardware (%d cpus) offline:" % (self.__hardware.num_cpus)
+        print                         "\n:Multics Supervisor shutdown %s:" % (self.__shutdown_datetime.ctime())
+        self.__hardware.io.put_output(":Virtual Multics Hardware shutdown (%d cpus offline):\n" % (self.__hardware.num_cpus))
+        print                         ":Virtual Multics Hardware shutdown (%d cpus offline):" % (self.__hardware.num_cpus)
         
     #== STARTUP/SHUTDOWN ==#
     
@@ -218,6 +218,7 @@ class Supervisor(QtCore.QObject):
             self.shutdown()
         
     #== LOW-LEVEL I/O ==#
+    
     #== I/O sent to a 'null' TTY device go to the system console
     
     def llout(self, s, tty_channel=None):
@@ -384,41 +385,35 @@ class Supervisor(QtCore.QObject):
         self._create_messenger_process()
         
     def _create_initializer_process(self):
-        login_info.person_id = "Initializer"
-        login_info.project_id = "SysDaemon"
+        login_info.person_id    = "Initializer"
+        login_info.project_id   = "SysDaemon"
         login_info.process_type = pit_process_type_daemon
-        login_info.process_id = 0o777777000000
-        login_info.homedir = ">sc1"
-        login_info.cp_path = ">sss>command_processor_"
+        login_info.process_id   = 0o777777000000
         try:
-            import answering_service
-            reload(answering_service)
-            from answering_service import AnsweringService
-            self.__initializer = self.__process_overseer.create_process(login_info, AnsweringService)
-            if not self.__initializer:
-                self.llout("Failed to create Initializer process")
+            import answering_service ; reload(answering_service)
+            from   answering_service import AnsweringService
+            initializer_daemon = self.__process_overseer.create_process(login_info, AnsweringService)
+            if not initializer_daemon:
+                self.llout("Failed to create Initializer daemon process")
             else:
-                self.__initializer.start()
+                initializer_daemon.start()
             # end if
         except:
             self.dynamic_linker.dump_traceback_()
         
     def _create_messenger_process(self):
-        login_info.person_id = "Messenger"
-        login_info.project_id = "SysDaemon"
+        login_info.person_id    = "Messenger"
+        login_info.project_id   = "SysDaemon"
         login_info.process_type = pit_process_type_daemon
-        login_info.process_id = 0
-        login_info.homedir = ">sc1"
-        login_info.cp_path = ">sss>command_processor_"
+        login_info.process_id   = 0
         try:
-            import messenger
-            reload(messenger)
-            from messenger import Messenger
-            daemon = self.__process_overseer.create_process(login_info, Messenger)
-            if not daemon:
-                self.llout("Failed to create Messenger process")
+            import messenger ; reload(messenger)
+            from   messenger import Messenger
+            messenger_daemon = self.__process_overseer.create_process(login_info, Messenger)
+            if not messenger_daemon:
+                self.llout("Failed to create Messenger daemon process")
             else:
-                daemon.start()
+                messenger_daemon.start()
             # end if
         except:
             self.dynamic_linker.dump_traceback_()

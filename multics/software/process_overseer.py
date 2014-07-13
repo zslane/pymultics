@@ -33,16 +33,20 @@ class ProcessOverseer(object):
         code              = parm()
         
         #== Make sure the specified command processor exists
-        call.hcs_.get_entry_point(login_info.cp_path, command_processor)
-        if command_processor.ptr == null():
-            self._print_error_message("Could not find command processor %s." % (login_info.cp_path), tty_channel)
-            return null()
+        if login_info.cp_path:
+            call.hcs_.get_entry_point(login_info.cp_path, command_processor)
+            if command_processor.ptr == null():
+                self._print_error_message("Could not find command processor %s." % (login_info.cp_path), tty_channel)
+                return null()
+            # end if
         # end if
         
         #== Make sure the specified home directory exists
-        if not GlobalEnvironment.fs.file_exists(login_info.homedir):
-            self._print_error_message("No home directory for user %s." % (login_info.user_id), tty_channel)
-            return null()
+        if login_info.homedir:
+            if not GlobalEnvironment.fs.file_exists(login_info.homedir):
+                self._print_error_message("No home directory for user %s." % (login_info.user_id), tty_channel)
+                return null()
+            # end if
         # end if
             
         #== Create a process id if one is not specified in the login_info

@@ -288,7 +288,7 @@ def list_projects():
         return
     # end if
     
-    print sys_admin_table.ptr.projects
+    # print sys_admin_table.ptr.projects
     for project_id in sys_admin_table.ptr.projects:
         alias = sys_admin_table.ptr.projects[project_id]['alias']
         call.ioa_("  {0} {1}", project_id, "(%s)" % alias if alias else "")

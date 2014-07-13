@@ -19,7 +19,6 @@ class Listener(Subroutine):
         self.exit_code = 0
         
     def start(self, owning_process):
-        print "Listener", id(self), "owned by", owning_process.objectName()
         self.__process = owning_process
         return self._main_loop()
         
@@ -136,7 +135,7 @@ class Listener(Subroutine):
                     command_line.val = commands.pop(0).strip()
                     
                     ### ! EXPERIMENTAL! ###
-                    if command_line.val == "release" or command_line.val == "rl":
+                    if self.__process.stack_level() > 1 and command_line.val in ["release", "rl"]:
                         return 0
                     # end if
                     

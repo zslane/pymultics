@@ -89,14 +89,14 @@ def accept_messages():
                         else:
                             mbx_segment.ptr.messages.remove(message)
                         # end if
-                        
                     # end if
                 # end for
             # end if
         # end with
         
         call.sys_.unlock_user_mbx_(mbx_segment.ptr, code)
-        call.ioa_("Accepting messages")
+        if not brief:
+            call.ioa_("Accepting messages")
         
 #-- end def accept_messages
 

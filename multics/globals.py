@@ -191,12 +191,12 @@ class GlobalEnvironment(object):
     fs         = None
     
     @staticmethod
-    def register_supervisor(supervisor, dynamic_linker):
+    def register_supervisor(supervisor):
         GlobalEnvironment.supervisor = supervisor
         GlobalEnvironment.hardware   = supervisor.hardware
         GlobalEnvironment.fs         = supervisor.fs
         global call
-        call = dynamic_linker
+        call = supervisor.dynamic_linker
         
     @staticmethod
     def deregister_supervisor():
