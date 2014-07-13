@@ -1,2 +1,2 @@
-asp objects >udd>m>jrc
+asp objects >udd>m>g>star
 accept_messages

@@ -10,7 +10,6 @@ class goto_end_of_game(NonLocalGoto): pass
 
 dcl (get_pdir_               = entry . returns (char(168)))
 dcl (clock_                  = entry . returns (fixed.bin(36)))
-# dcl (vfile_                  = entry . returns (char(168)))
 
 #== True global variables (that aren't parm types)
 pdir                         = ""
@@ -283,232 +282,232 @@ def starrunners():
             # end if
         # end if
         
-    # /* SET quit AND seg_fault_error TO DESTROY SHIP/END GAME */
-              # on quit call game_over;
-              # on seg_fault_error call universe_destroyed;
-
     # /* SET finish TO TURN OFF NOTIFICATIONS */
-              # on finish begin;
-                        # do x = 1 to 50;
-                             # if universe.notifications (x).person_id = person & universe.notifications (x).project_id = project:;
-                                       # universe.notifications (x).person_id = "";
-                                       # universe.notifications (x).project_id = "";
-                                  # end;
-                        # end;
-                        # call continue_to_signal_ ((0));
-                   # end;
+        def begin_block():
+            with univptr.ptr:
+                for x in range(50):
+                    if universe.notifications[x].person_id == person and universe.notifications[x].project_id == project:
+                        universe.notifications[x].person_id = ""
+                        universe.notifications[x].project_id = ""
+                    # end if
+                # end for
+            # end with
+            continue_to_signal_(0)
+        #-- end def begin_block
         
+        with on_finish(begin_block):
+        
+    # /* SET quit AND seg_fault_error TO DESTROY SHIP/END GAME */
+            with on_quit(game_over):
+                with on_seg_fault_error(universe_destroyed):
+                    try:
+            
     # /* MAKE HIS SHIP */
-        pdir = get_pdir_()
-        call.hcs_.initiate(pdir, ename, "", 0, 0, my, code)
-        if my.ship != null(): call.hcs_.delentry_seg(my.ship, code)
-        call.hcs_.make_seg(pdir, ename, "", 0, my(ship), code)
-        my.ship.lock = my.ship.lock_word()
-        acl_entry = pdir + ">" + ename
-        call.set_acl(acl_entry, acl, whom)
-        call.hcs_.set_ring_brackets(pdir, ename, ring_brackets, code)
-        if code.val != 0:
-            call.com_err_(code.val, MAIN)
-            return
-        # end if
+                        pdir = get_pdir_()
+                        call.hcs_.initiate(pdir, ename, "", 0, 0, my, code)
+                        if my.ship != null(): call.hcs_.delentry_seg(my.ship, code)
+                        call.hcs_.make_seg(pdir, ename, "", 0, my(ship), code)
+                        my.ship.lock = my.ship.lock_word()
+                        acl_entry = pdir + ">" + ename
+                        call.set_acl(acl_entry, acl, whom)
+                        call.hcs_.set_ring_brackets(pdir, ename, ring_brackets, code)
+                        if code.val != 0:
+                            call.com_err_(code.val, MAIN)
+                            return
+                        # end if
         
     # /* CLEAN OUT SHIP DATA FOR A FRESH START */
-        lock(my.ship.lock)
-        with my.ship:
-            my.ship.user = my.ship.name = my.ship.type = my.ship.condition = my.ship.message = my.ship.fromname = my.ship.fromtype = my.ship.deathmes = my.ship.deadname = my.ship.deadtype = my.ship.tracname = my.ship.monitored_by = my.ship.monloc = ""
-            my.ship.psi_name = [""] * 10
-            my.ship.psi_type = [""] * 10
-            my.ship.psi_mes = [""] * 10
-            my.ship.monname = my.ship.montype = "#"
-            my.ship.location = "PHASING"
-            my.ship.black_hole = "start"
-            my.ship.energy_cur = my.ship.energy_old = my.ship.energy_max = my.ship.shields_cur = my.ship.shields_old = my.ship.shields_max = my.ship.torps_cur = my.ship.torps_old = my.ship.torps_max = my.ship.life_cur = my.ship.life_old = my.ship.psi_num = 0
-            my.ship.cloak_on = my.ship.tractor_on = my.ship.psionics = False
-            my.ship.unique_id = clock_()
-        # end with
-        unlock(my.ship.lock)
-        
+                        lock(my.ship.lock)
+                        with my.ship:
+                            my.ship.user = my.ship.name = my.ship.type = my.ship.condition = my.ship.message = my.ship.fromname = my.ship.fromtype = my.ship.deathmes = my.ship.deadname = my.ship.deadtype = my.ship.tracname = my.ship.monitored_by = my.ship.monloc = ""
+                            my.ship.psi_name = [""] * 10
+                            my.ship.psi_type = [""] * 10
+                            my.ship.psi_mes = [""] * 10
+                            my.ship.monname = my.ship.montype = "#"
+                            my.ship.location = "PHASING"
+                            my.ship.black_hole = "start"
+                            my.ship.energy_cur = my.ship.energy_old = my.ship.energy_max = my.ship.shields_cur = my.ship.shields_old = my.ship.shields_max = my.ship.torps_cur = my.ship.torps_old = my.ship.torps_max = my.ship.life_cur = my.ship.life_old = my.ship.psi_num = 0
+                            my.ship.cloak_on = my.ship.tractor_on = my.ship.psionics = False
+                            my.ship.unique_id = clock_()
+                        # end with
+                        unlock(my.ship.lock)
+                        
     # /* ADD HIM TO LIST OF PLAYERS IN THE STARRUNNERS UNIVERSE */
-        if universe.number == 9:
-            call.ioa_("I'm sorry, but the STARRUNNERS universe if filled to maximum capacity.\nPlease feel free to try later.  Thank you...")
-            return
-        # end if
-        lock(universe.lock)
-        with universe:
-            universe.number = universe.number + 1
-            universe.pdir[universe.number - 1] = pdir
-            universe.unique_id[universe.number - 1] = my.ship.unique_id
-            universe.user[universe.number - 1] = person
-            if universe.number == 1:
-                universe.holes = 0
-                universe.black_hole = [""] * 5
-                for i in range(20):
-                    universe.robot[i].name = ""
-                    universe.robot[i].energy = 0
-                    universe.robot[i].location = ""
-                    universe.robot[i].condition = ""
-                    universe.robot[i].controller = "none"
-                # end for
-            # end if
-        # end with
-        unlock(universe.lock)
-        
-        # print univptr.ptr.dumps()
-        
+                        if universe.number == 9:
+                            call.ioa_("I'm sorry, but the STARRUNNERS universe if filled to maximum capacity.\nPlease feel free to try later.  Thank you...")
+                            return
+                        # end if
+                        lock(universe.lock)
+                        with universe:
+                            universe.number = universe.number + 1
+                            universe.pdir[universe.number - 1] = pdir
+                            universe.unique_id[universe.number - 1] = my.ship.unique_id
+                            universe.user[universe.number - 1] = person
+                            if universe.number == 1:
+                                universe.holes = 0
+                                universe.black_hole = [""] * 5
+                                for i in range(20):
+                                    universe.robot[i].name = ""
+                                    universe.robot[i].energy = 0
+                                    universe.robot[i].location = ""
+                                    universe.robot[i].condition = ""
+                                    universe.robot[i].controller = "none"
+                                # end for
+                            # end if
+                        # end with
+                        unlock(universe.lock)
+                        
+                        # print univptr.ptr.dumps()
+                        
     # /* RECORED THE USER'S PERSON_ID */
-        lock(my.ship.lock)
-        my.ship.user = person
-        unlock(my.ship.lock)
+                        lock(my.ship.lock)
+                        my.ship.user = person
+                        unlock(my.ship.lock)
         
     # /* GET SHIP NAME */
-        input.val = ""
-        while input.val == "":
-            call.ioa_.nnl("\nShip name: ")
-            getline(input)
-            if verify(input.val, allowed_chars) != 0:
-                call.ioa_("Invalid ship name: {0}", input.val)
-                input.val = ""
-            # end if
-            for x in range(universe.number):
-                edir = universe.pdir[x]
-                call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
-                if enemy.ptr != null() and edir != pdir and input.val == enemy.ship.name:
-                    call.ioa_("\nThe name you have chosen is presently in use.\nPlease choose a different name.")
-                    input.val = ""
-                # end if
-            # end for
-            if input.val != "": my.ship.name = input.val
-        # end while
-        
-    # /* GET SHIP TYPE */
-        input.val = ""
-        while input.val == "":
-            call.ioa_.nnl("Ship type: ")
-            getline(input)
-            if input.val == "Destroyer" or input.val == "D": shiptype = "Destroyer"
-            elif input.val == "Cruiser" or input.val == "C": shiptype = "Cruiser"
-            elif input.val == "Starship" or input.val == "S": shiptype = "Starship"
-            elif input.val == "Star Commander" or input.val == "SC":
-                if access != "yes":
-                    call.ioa_("\nYou do not have proper clearance for Star Command.\n")
-                    input.val = ""
-                else:
-                    password = parameter()
-                    codeword = parameter()
-                    call.ioa_()
-                    call.read_password_("Password: ", password)
-                    if len(password.val.strip()) < 3:
-                        call.ioa_("{0}: Password must be at least 3 characters long.", MAIN)
-                        return
-                    # end if
-                    call.read_password_("Codeword:", codeword)
-                    if codeword.val != generate_codeword(password.val):
-                        call.ioa_("Star Command clearance check failed.\n")
                         input.val = ""
-                    else: call.ioa_("\nYou have been cleared for Star Command.")
-                    shiptype = "Star Commander"
-                # end if
-            else:
-                call.ioa_("That is not a standard ship type ---> use: Destroyer, Cruiser, or Starship.")
-                input.val = ""
-            # end if
-        # end while
-          
+                        while input.val == "":
+                            call.ioa_.nnl("\nShip name: ")
+                            getline(input)
+                            if verify(input.val, allowed_chars) != 0:
+                                call.ioa_("Invalid ship name: {0}", input.val)
+                                input.val = ""
+                            # end if
+                            for x in range(universe.number):
+                                edir = universe.pdir[x]
+                                call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
+                                if enemy.ptr != null() and edir != pdir and input.val == enemy.ship.name:
+                                    call.ioa_("\nThe name you have chosen is presently in use.\nPlease choose a different name.")
+                                    input.val = ""
+                                # end if
+                            # end for
+                            if input.val != "": my.ship.name = input.val
+                        # end while
+                        
+    # /* GET SHIP TYPE */
+                        input.val = ""
+                        while input.val == "":
+                            call.ioa_.nnl("Ship type: ")
+                            getline(input)
+                            if input.val == "Destroyer" or input.val == "D": shiptype = "Destroyer"
+                            elif input.val == "Cruiser" or input.val == "C": shiptype = "Cruiser"
+                            elif input.val == "Starship" or input.val == "S": shiptype = "Starship"
+                            elif input.val == "Star Commander" or input.val == "SC":
+                                if access != "yes":
+                                    call.ioa_("\nYou do not have proper clearance for Star Command.\n")
+                                    input.val = ""
+                                else:
+                                    password = parameter()
+                                    codeword = parameter()
+                                    call.ioa_()
+                                    call.read_password_("Password: ", password)
+                                    if len(password.val.strip()) < 3:
+                                        call.ioa_("{0}: Password must be at least 3 characters long.", MAIN)
+                                        return
+                                    # end if
+                                    call.read_password_("Codeword:", codeword)
+                                    if codeword.val != generate_codeword(password.val):
+                                        call.ioa_("Star Command clearance check failed.\n")
+                                        input.val = ""
+                                    else: call.ioa_("\nYou have been cleared for Star Command.")
+                                    shiptype = "Star Commander"
+                                # end if
+                            else:
+                                call.ioa_("That is not a standard ship type ---> use: Destroyer, Cruiser, or Starship.")
+                                input.val = ""
+                            # end if
+                        # end while
+                          
     # /* FINAL SET-UP PREPARATIONS */
-        make_ship(shiptype)
-        ship_status()
-        black_hole_check()
-        check_monitor()
-        send_notifications()
+                        make_ship(shiptype)
+                        ship_status()
+                        black_hole_check()
+                        check_monitor()
+                        send_notifications()
+                        
+                    except goto_end_of_game:
+                        return
+                    # end try
+                # end with (on_seg_fault_error)
+            # end with (on_quit)
         
     # /***** ENTER COMMAND LOOP ENVIRONMENT *****/
-        
-        while True:
-            try:
-                update_condition()
-                input.val = ""
-                call.ioa_.nnl("\nCOMMAND :> ")
-                timed_input(input)
-                security_check()
-                if input.val == "status" or input.val == "st": ship_status()
-                elif input.val == "lscan" or input.val == "ls": long_scan()
-                elif input.val == "sscan" or input.val == "ss": short_scan()
-                elif input.val == "thrust" or input.val == "th": move_ship()
-                elif input.val == "warpout" or input.val == "wp": warpout()
-                elif input.val == "missile" or input.val == "ms": launch_missile()
-                elif input.val == "lasers" or input.val == "lr": fire_lasers()
-                elif input.val == "contact" or input.val == "ct": contact_ship()
-                elif input.val == "dock" or input.val == "dk": dock()
-                elif input.val == "sdestruct" or input.val == "sd": self_destruct()
-                elif input.val == "deathray" or input.val == "dr": death_ray()
-                elif input.val == "*": game_over()
-                
-                elif input.val == ".": call.ioa_("\n{0} {1}", MAIN, version)
-                elif my.ship.type == "Star Commander":
-                    if input.val == "cloaking-device" or input.val == "cd": cloaking_device()
-                    elif input.val == "nova-blast" or input.val == "nb": nova_blast()
-                    elif input.val == "star-gate" or input.val == "sg": create_stargate()
-                    elif input.val == "tractor-beam" or input.val == "tb": tractor_beam()
-                    elif input.val == "tractor-pull" or input.val == "tp": tractor_pull()
-                    elif input.val == "trojan-horse" or input.val == "tj": trojan_horse()
-                    elif input.val == "computer" or input.val == "cm": computer()
-                    elif input.val == "monitor" or input.val == "mn": monitor_ship()
-                    elif input.val.startswith(":"): escape_to_multics()
-                    elif input.val == "?":
-                        command_list()
-                        classified_com_list()
-                    elif input.val != "":
-                        call.ioa_("\n*** COMPUTER:")
-                        call.ioa_("   That is not a standard ship command:")
-                        call.ioa_("   Type a \"?\" for a list of proper commands")
-                    # end if
-                elif input.val == "?": command_list()
-                elif input.val != "":
-                    call.ioa_("\n*** COMPUTER:")
-                    call.ioa_("   That is not a standard ship command:")
-                    call.ioa_("   Type a \"?\" for a list of proper commands")
-                    input.val = ""
-                # end if
-                
-            # /* ENVIRONMENT CHECKING ROUTINES -- DAMAGE, MESSAGES, DEATHS, BLACK_HOLES, MONITOR, PSIONICS */
-                damage_check()
-                message_check()
-                death_check()
-                black_hole_check()
-                check_monitor()
-                psionics_check()
-                robot_functions()
+            with on_quit(command_seq_terminator):
+                with on_seg_fault_error(universe_destroyed):
+                    while (b'1'):
+                        try:
+                            update_condition()
+                            input.val = ""
+                            call.ioa_.nnl("\nCOMMAND :> ")
+                            timed_input(input)
+                            security_check()
+                            if input.val == "status" or input.val == "st": ship_status()
+                            elif input.val == "lscan" or input.val == "ls": long_scan()
+                            elif input.val == "sscan" or input.val == "ss": short_scan()
+                            elif input.val == "thrust" or input.val == "th": move_ship()
+                            elif input.val == "warpout" or input.val == "wp": warpout()
+                            elif input.val == "missile" or input.val == "ms": launch_missile()
+                            elif input.val == "lasers" or input.val == "lr": fire_lasers()
+                            elif input.val == "contact" or input.val == "ct": contact_ship()
+                            elif input.val == "dock" or input.val == "dk": dock()
+                            elif input.val == "sdestruct" or input.val == "sd": self_destruct()
+                            elif input.val == "deathray" or input.val == "dr": death_ray()
+                            elif input.val == "*": game_over()
+                            
+                            elif input.val == ".": call.ioa_("\n{0} {1}", MAIN, version)
+                            elif my.ship.type == "Star Commander":
+                                if input.val == "cloaking-device" or input.val == "cd": cloaking_device()
+                                elif input.val == "nova-blast" or input.val == "nb": nova_blast()
+                                elif input.val == "star-gate" or input.val == "sg": create_stargate()
+                                elif input.val == "tractor-beam" or input.val == "tb": tractor_beam()
+                                elif input.val == "tractor-pull" or input.val == "tp": tractor_pull()
+                                elif input.val == "trojan-horse" or input.val == "tj": trojan_horse()
+                                elif input.val == "computer" or input.val == "cm": computer()
+                                elif input.val == "monitor" or input.val == "mn": monitor_ship()
+                                elif input.val.startswith(":"): escape_to_multics()
+                                elif input.val == "?":
+                                    command_list()
+                                    classified_com_list()
+                                elif input.val != "":
+                                    call.ioa_("\n*** COMPUTER:")
+                                    call.ioa_("   That is not a standard ship command:")
+                                    call.ioa_("   Type a \"?\" for a list of proper commands")
+                                # end if
+                            elif input.val == "?": command_list()
+                            elif input.val != "":
+                                call.ioa_("\n*** COMPUTER:")
+                                call.ioa_("   That is not a standard ship command:")
+                                call.ioa_("   Type a \"?\" for a list of proper commands")
+                                input.val = ""
+                            # end if
+                            
+                        # /* ENVIRONMENT CHECKING ROUTINES -- DAMAGE, MESSAGES, DEATHS, BLACK_HOLES, MONITOR, PSIONICS */
+                            damage_check()
+                            message_check()
+                            death_check()
+                            black_hole_check()
+                            check_monitor()
+                            psionics_check()
+                            robot_functions()
+                        
+                        except goto_command_loop: # goto command_loop
+                            continue
+                            
+                        except goto_end_of_game: # goto end_of_game
+                            return
+                            
+                        # except DisconnectCondition: # on finish call universe_destroyed;
+                            # try:
+                                # universe_destroyed()
+                            # finally:
+                                # raise DisconnectCondition()
+                            
+                        except:
+                            raise
+                        # end try
+                            
+                    # end while
             
-            except goto_command_loop: # goto command_loop
-                continue
-                
-            except goto_end_of_game: # goto end_of_game
-                return
-                
-            except BreakCondition: # on quit call command_seq_terminator;
-                command_seq_terminator()
-                
-            except DisconnectCondition: # on finish call universe_destroyed;
-                try:
-                    universe_destroyed()
-                except goto_end_of_game:
-                    pass
-                finally:
-                    raise DisconnectCondition()
-                
-            except SegmentFault: # on seg_fault_error call universe_destroyed;
-                try:
-                    universe_destroyed()
-                    
-                except goto_end_of_game:
-                    return
-                
-            except:
-                raise
-            # end try
-                
-        # end while
-        
     #-- end procedure
     
     # /***** COMMAND ROUTINES *****/
@@ -2402,6 +2401,7 @@ def starrunners():
     
     def command_seq_terminator():
         call.ioa_("\n:: COMMAND SEQUENCE TERMINATED ::")
+        raise goto_command_loop
     #-- end def command_seq_terminator
      
     def send_notifications():
@@ -2627,7 +2627,7 @@ def starrunners():
             # return
         # end if
         password.val = ""
-        while True:
+        while (b'1'):
             call.ioa_.nnl("\nStar admin: ")
             getline(input)
             if input.val == "big-bang" or input.val == "bb": big_bang()

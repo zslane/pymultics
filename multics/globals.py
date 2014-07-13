@@ -4,13 +4,12 @@ import types
 import inspect
 import datetime
 import contextlib
-# from contextlib import contextmanager
 
 from pl1types import *
 
 from PySide import QtCore
 
-#== Functions provided by PL/1 ==#
+#== Functions normally provided by PL/1 ==#
 
 def before(s, p):
     return s.partition(p)[0]
@@ -37,6 +36,9 @@ def alloc(objtype):
     
 #== Conditions represented by exception classes ==#
 
+def continue_to_signal_(code):
+    raise
+    
 class MulticsCondition(Exception):
     def __init__(self, arg=""):
         super(MulticsCondition, self).__init__(arg)
@@ -44,8 +46,8 @@ class MulticsCondition(Exception):
 class BreakCondition(MulticsCondition):
     def __init__(self):
         super(BreakCondition, self).__init__()
-    @property
-    def name(self): return "BreakCondition"
+    @staticmethod
+    def name(): return "BreakCondition"
     
 @contextlib.contextmanager
 def on_quit(handler_function):
@@ -59,19 +61,41 @@ def on_quit(handler_function):
 class ShutdownCondition(MulticsCondition):
     def __init__(self):
         super(ShutdownCondition, self).__init__()
+    @staticmethod
+    def name(): return "ShutdownCondition"
 
 class DisconnectCondition(MulticsCondition):
     def __init__(self):
         super(DisconnectCondition, self).__init__()
+    @staticmethod
+    def name(): return "DisconnectCondition"
 
-on_finish = DisconnectCondition
+@contextlib.contextmanager
+def on_finish(handler_function):
+    process = get_calling_process_()
+    try:
+        GlobalEnvironment.supervisor.register_condition_handler(DisconnectCondition, process, handler_function)
+        GlobalEnvironment.supervisor.register_condition_handler(ShutdownCondition, process, handler_function)
+        yield
+    finally:
+        GlobalEnvironment.supervisor.deregister_condition_handler(ShutdownCondition, process)
+        GlobalEnvironment.supervisor.deregister_condition_handler(DisconnectCondition, process)
 
 class SegmentFault(MulticsCondition):
     def __init__(self, entry_point_name):
         super(SegmentFault, self).__init__("segment not found %s" % (entry_point_name))
         self.segment_name = entry_point_name
-        
-on_segfault = SegmentFault
+    @staticmethod
+    def name(): return "SegmentFault"
+            
+@contextlib.contextmanager
+def on_seg_fault_error(handler_function):
+    process = get_calling_process_()
+    try:
+        GlobalEnvironment.supervisor.register_condition_handler(SegmentFault, process, handler_function)
+        yield
+    finally:
+        GlobalEnvironment.supervisor.deregister_condition_handler(SegmentFault, process)
 
 class LinkageError(MulticsCondition):
     def __init__(self, segment_name, entry_point_name):
@@ -181,7 +205,6 @@ def print_stackframes():
     # # end while
     # return pframe
     
-# _supervisor = None
 call = None
 
 class GlobalEnvironment(object):
@@ -207,6 +230,10 @@ class GlobalEnvironment(object):
         call = None
 
 def call_(entryname):
+    """
+    call_ is an alternate way to invoke the dynamic linker on an entry name.
+    Ex: call_('hcs_$initiate') (dir_name, entryname, ...)
+    """
     procedure_name, _, entry_name = entryname.partition("$")
     subroutine = GlobalEnvironment.supervisor.dynamic_linker.snap(procedure_name)
     if subroutine:
@@ -278,11 +305,6 @@ def do_loop(container, ignore_break_signal=False):
     
 def system_privileged(fn):
     def decorated(*args, **kw):
-        # my_globals={}
-        # my_globals.update(fn.__globals__)
-        # my_globals['system'] = _supervisor
-        # call_fn = types.FunctionType(fn.func_code, my_globals)
-        # return call_fn(*args, **kw)
         fn.__globals__['supervisor'] = GlobalEnvironment.supervisor
         return fn(*args, **kw)
     decorated.__name__ = fn.__name__

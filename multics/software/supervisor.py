@@ -336,26 +336,30 @@ class Supervisor(QtCore.QObject):
         return None
         
     def register_condition_handler(self, condition, process, handler_function):
-        # print process.objectName(), "registering condition handler", handler_function, "for", condition.name
+        print process.objectName(), "registering condition handler", handler_function, "for", condition.name()
         pid = process.id()
-        if condition.name not in self.__condition_handlers[pid]:
-            self.__condition_handlers[pid][condition.name] = []
-        self.__condition_handlers[pid][condition.name].append(handler_function)
+        if condition.name() not in self.__condition_handlers[pid]:
+            self.__condition_handlers[pid][condition.name()] = []
+        self.__condition_handlers[pid][condition.name()].append(handler_function)
         
     def deregister_condition_handler(self, condition, process):
         try:
-            # print process.objectName(), "deregistering condition handler for", condition.name
-            self.__condition_handlers[process.id()][condition.name].pop(0)
+            print process.objectName(), "deregistering condition handler for", condition.name()
+            self.__condition_handlers[process.id()][condition.name()].pop()
         except:
-            print process.objectName(), "No condition handler to deregister for %s." % (condition.name)
+            print process.objectName(), "No condition handler to deregister for %s." % (condition.name())
             
     def invoke_condition_handler(self, condition, process):
-        # print process.objectName(), "invoking %s condition handler" % (condition.name)
+        print process.objectName(), "invoking %s condition handler" % (condition.name()),
         try:
-            handler_function = self.__condition_handlers[process.id()][condition.name][0]
+            handler_function = self.__condition_handlers[process.id()][condition.name()][-1]
+            print handler_function
             handler_function()
-        except:
+            
+        except (KeyError, IndexError):
             raise condition
+        except:
+            raise
     
     #== DAEMON PROCESS CONTROL ==#
     
