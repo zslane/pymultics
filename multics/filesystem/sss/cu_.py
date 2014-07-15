@@ -1,3 +1,4 @@
+import re
 
 from multics.globals import *
     
@@ -76,6 +77,9 @@ class cu_(Subroutine):
                     break
             s2 += c
         return (s2, s[i:])
+        
+    def _mysplit(self, s, maxsplit=0):
+        return [p for p in re.split(r"(\s|\".*?\"|'.*?')", cl, maxsplit=maxsplit) if p.strip()]
     
     def arg_count(self, arg_count, code=None):
         arg_count.val = len(self._split(self._current_context.argument_string))

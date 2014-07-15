@@ -32,7 +32,7 @@ class ScreenIO(QtGui.QTextEdit):
     def __init__(self, font, parent=None):
         super(ScreenIO, self).__init__(parent)
         
-        self.bkgd = QtGui.QPixmap(os.path.join(os.path.dirname(__file__), "multics_watermark.png"))
+        self.bkgd = QtGui.QPixmap(os.path.join(os.path.dirname(__file__), "multics_watermark2.png"))
         
         fm = QtGui.QFontMetrics(font)
         
@@ -53,8 +53,9 @@ class ScreenIO(QtGui.QTextEdit):
         #== Paint Multics logo as a faint background watermark
         painter = QtGui.QPainter()
         painter.begin(self.viewport())
-        painter.setOpacity(0.10)
-        painter.drawPixmap(self.viewport().rect(), self.bkgd, self.bkgd.rect())
+        painter.setOpacity(0.75)
+        # painter.drawPixmap(self.viewport().rect(), self.bkgd, self.bkgd.rect())
+        painter.drawPixmap(0, 0, self.bkgd)
         painter.end()
         #== Call default event handler to draw the text on top of the watermark
         super(ScreenIO, self).paintEvent(event)
@@ -79,11 +80,12 @@ class ConsoleIO(QtGui.QWidget):
         
         output_layout = QtGui.QVBoxLayout()
         output_layout.addWidget(self.output)
-        output_layout.setContentsMargins(3, 3, 0, 3)
+        # output_layout.setContentsMargins(3, 3, 0, 3)
+        output_layout.setContentsMargins(0, 0, 0, 0)
         
         output_frame = QtGui.QFrame()
         output_frame.setFrameStyle(QtGui.QFrame.NoFrame)
-        output_frame.setStyleSheet("QFrame { background: black; }")
+        output_frame.setStyleSheet("QFrame { background: red; }")
         output_frame.setLayout(output_layout)
         
         self.input = KeyboardIO()
@@ -100,8 +102,8 @@ class ConsoleIO(QtGui.QWidget):
         self.setLayout(layout)
         
     def _width(self, nchars):
-        fm = QtGui.QFontMetrics(self.output.currentFont())
-        return fm.width("M" * nchars)
+        fm = QtGui.QFontMetricsF(self.output.currentFont())
+        return int(round(fm.width("M") * nchars) + self.output.document().documentMargin() * 2)
         
     def _height(self, nlines):
         fm = QtGui.QFontMetrics(self.output.currentFont())
@@ -158,8 +160,8 @@ class MainframePanel(QtGui.QWidget):
         
         self.restart_button = QtGui.QPushButton("Restart", self.image_label)
         self.restart_button.setStyleSheet("QPushButton { font: bold 7pt ; }")
-        self.restart_button.setFixedSize(96, 15)
-        self.restart_button.move(87, 187)
+        self.restart_button.setFixedSize(93, 15)
+        self.restart_button.move(85, 181)
         self.restart_button.setEnabled(False)
         
         main_layout = QtGui.QVBoxLayout()

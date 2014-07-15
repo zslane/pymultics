@@ -643,13 +643,9 @@ class bitstring(object):
         # end if
         
         if value.lower().startswith("0b"):
-            for bit in value[2:]:
-                if bit in ["0", "1"]:
-                    self.__value.append(int(bit))
-                else:
-                    raise ValueError(value)
-                # end if
-            # end for
+            value = value[2:]
+        if set(list(value)) - set(['0', '1']) == set():
+            self.__value = map(int, list(value))
         else:
             raise ValueError(value)
         

@@ -147,7 +147,8 @@ class TerminalIO(QtGui.QWidget):
         
         output_layout = QtGui.QVBoxLayout()
         output_layout.addWidget(self.output)
-        output_layout.setContentsMargins(3, 3, 0, 3)
+        # output_layout.setContentsMargins(3, 3, 0, 3)
+        output_layout.setContentsMargins(0, 0, 0, 0)
         
         output_frame = QtGui.QFrame()
         output_frame.setFrameStyle(QtGui.QFrame.NoFrame)
@@ -172,8 +173,8 @@ class TerminalIO(QtGui.QWidget):
         self.socket.connectToHost(self.host, self.port)
         
     def _width(self, nchars):
-        fm = QtGui.QFontMetrics(self.output.currentFont())
-        return fm.width("M" * nchars)
+        fm = QtGui.QFontMetricsF(self.output.currentFont())
+        return int(round(fm.width("M") * nchars) + self.output.document().documentMargin() * 2)
         
     def _height(self, nlines):
         fm = QtGui.QFontMetrics(self.output.currentFont())
