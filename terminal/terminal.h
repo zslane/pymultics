@@ -32,6 +32,8 @@
 #include "QStatusBar.h"
 #include "data_packet.h"
 
+inline double round(double x) { return double(int(x + 0.5)); }
+
 class KeyboardIO: public QLineEdit
 {
     Q_OBJECT

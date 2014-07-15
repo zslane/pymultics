@@ -99,7 +99,7 @@ TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget
 
     QVBoxLayout* output_layout = new QVBoxLayout();
     output_layout->addWidget(m_output);
-    output_layout->setContentsMargins(3, 3, 0, 3);
+    output_layout->setContentsMargins(0, 3, 0, 3);
 
     QFrame* output_frame = new QFrame();
     output_frame->setFrameStyle(QFrame::NoFrame);
@@ -130,8 +130,8 @@ TerminalIO::~TerminalIO()
 
 int TerminalIO::_width(int nchars) const
 {
-    QFontMetrics fm(m_output->currentFont());
-    return fm.width(QString(nchars, 'M'));
+    QFontMetricsF fm(m_output->currentFont());
+    return int(round(fm.width('M') * nchars) + m_output->document()->documentMargin() * 2);
 }
 
 int TerminalIO::_height(int nlines) const
