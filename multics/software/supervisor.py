@@ -446,10 +446,10 @@ class Supervisor(QtCore.QObject):
         # call = multics.globals.call
         
         #== Get a pointer to the PNT (create it if necessary)
-        call.hcs_.initiate(self.fs.system_control_dir, "person_name_table", "", 0, 0, segment, code)
+        call.hcs_.initiate(self.fs.system_control_dir, "PNT.pnt", "", 0, 0, segment, code)
         self.__person_name_table = segment.ptr
         if not self.__person_name_table:
-            call.hcs_.make_seg(self.fs.system_control_dir, "person_name_table", "", 0, segment(PersonNameTable()), code)
+            call.hcs_.make_seg(self.fs.system_control_dir, "PNT.pnt", "", 0, segment(PersonNameTable()), code)
             self.__person_name_table = segment.ptr
             #== Add JRCooper/jrc as a valid user to start with
             with self.__person_name_table:

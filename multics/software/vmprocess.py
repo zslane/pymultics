@@ -33,7 +33,7 @@ class ProcessWorker(QtCore.QObject):
     def search_paths(self):
         try:
             declare (resolve_path_symbol_ = entry . returns (char(168)))
-            search_paths = self.stack.search_seg_ptr.paths['objects'].paths
+            search_paths = self.stack.search_seg_ptr.paths['object'].paths
             return [ resolve_path_symbol_(p.pathname) for p in search_paths ]
         except:
             return [">sss", ">sss>commands"]
@@ -157,7 +157,7 @@ class ProcessWorker(QtCore.QObject):
         call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
         
         #== Create default search paths and store them in the process stack
-        call.search_paths_.set("objects", null(), null(), code)
+        call.search_paths_.set("object", null(), null(), code)
         call.hcs_.initiate(self.dir(), "search_paths", "", 0, 0, search_seg, code)
         self.stack.search_seg_ptr = search_seg.ptr
     

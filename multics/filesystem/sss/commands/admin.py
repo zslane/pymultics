@@ -80,7 +80,7 @@ def list_users():
     arg_list          = parm()
     code              = parm()
     
-    call.hcs_.initiate(supervisor.fs.system_control_dir, "person_name_table", "", 0, 0, person_name_table, code)
+    call.hcs_.initiate(supervisor.fs.system_control_dir, "PNT.pnt", "", 0, 0, person_name_table, code)
     if person_name_table.ptr:
         call.ioa_("Person Id              Alias     D Project Password?")
         call.ioa_("---------------------- --------- --------- ---------")
@@ -154,7 +154,7 @@ def add_user():
         # end if
     # end while
     
-    call.hcs_.initiate(supervisor.fs.system_control_dir, "person_name_table", "", 0, 0, person_name_table, code)
+    call.hcs_.initiate(supervisor.fs.system_control_dir, "PNT.pnt", "", 0, 0, person_name_table, code)
     if person_name_table.ptr:
         if person_id in person_name_table.ptr.alias_list():
             person_id = person_name_table.ptr.resolve_alias(person_id)
@@ -193,7 +193,7 @@ def delete_user():
         
     person_id = arg_list.args.pop(0)
     
-    call.hcs_.initiate(supervisor.fs.system_control_dir, "person_name_table", "", 0, 0, person_name_table, code)
+    call.hcs_.initiate(supervisor.fs.system_control_dir, "PNT.pnt", "", 0, 0, person_name_table, code)
     if person_name_table.ptr:
         if person_id in person_name_table.ptr.alias_list():
             person_id = person_name_table.ptr.resolve_alias(person_id)
@@ -225,7 +225,7 @@ def rename_user():
     old_person_id = arg_list.args.pop(0)
     new_person_id = arg_list.args.pop(0)
     
-    call.hcs_.initiate(supervisor.fs.system_control_dir, "person_name_table", "", 0, 0, person_name_table, code)
+    call.hcs_.initiate(supervisor.fs.system_control_dir, "PNT.pnt", "", 0, 0, person_name_table, code)
     if person_name_table.ptr:
         if old_person_id in person_name_table.ptr.person_id_list():
             person_name_entry = person_name_table.ptr.name_entries[old_person_id]

@@ -334,7 +334,7 @@ class AnsweringService(Subroutine):
                 GlobalEnvironment.fs.add_name(project_dir, pdt.ptr.alias)
             # end if
             
-            call.hcs_.initiate(GlobalEnvironment.fs.system_control_dir, "person_name_table", "", 0, 0, pnt, code)
+            call.hcs_.initiate(GlobalEnvironment.fs.system_control_dir, "PNT.pnt", "", 0, 0, pnt, code)
             
             #== Create user home directories (with add_names for aliases) if necessary
             for user_config in pdt.ptr.users.values():

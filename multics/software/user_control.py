@@ -268,7 +268,7 @@ class UserControl(object):
         if password == "*": password = ""
         
         try:
-            call.hcs_.initiate(GlobalEnvironment.fs.system_control_dir, "person_name_table", "", 0, 0, pnt_segment, code)
+            call.hcs_.initiate(GlobalEnvironment.fs.system_control_dir, "PNT.pnt", "", 0, 0, pnt_segment, code)
             person_id = pnt_segment.ptr.person_id(login_name)
             project = project or pnt_segment.ptr.get_default_project_id(person_id)
             encrypted_password, pubkey = pnt_segment.ptr.get_password(person_id)
@@ -327,7 +327,7 @@ class UserControl(object):
             confirm_password = self._get_input()
             if self.__new_password == confirm_password:
                 person_id = self.__login_options['person_id']
-                call.hcs_.initiate(GlobalEnvironment.fs.system_control_dir, "person_name_table", "", 0, 0, pnt_segment, code)
+                call.hcs_.initiate(GlobalEnvironment.fs.system_control_dir, "PNT.pnt", "", 0, 0, pnt_segment, code)
                 current = pnt_segment.ptr.name_entries[person_id]
                 encrypted_password, pubkey = GlobalEnvironment.supervisor.encrypt_password(self.__new_password)
                 with pnt_segment.ptr:
