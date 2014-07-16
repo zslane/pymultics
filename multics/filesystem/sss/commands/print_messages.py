@@ -30,7 +30,7 @@ def print_messages():
                         else:
                             count_str = ""
                         # end if
-                        call.ioa_("{0}From {1} {2}: {3}", count_str, message['from'], message['time'].ctime(), message['text'])
+                        call.ioa_("^aFrom ^a ^a: ^a", count_str, message['from'], message['time'].ctime(), message['text'])
                         if message['status'] == "unread": message['status'] = "read"
                     # end if
                     if holding:

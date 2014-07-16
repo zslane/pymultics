@@ -45,41 +45,41 @@ class cu_(Subroutine):
     def split_(self, s, result):
         result.val = self._split(s)
         
-    def _split(self, s):
-        UNIT_SEP = chr(31)
-        inq = False
-        s2 = ""
-        for c in str(s):
-            if c == '"':
-                inq = not inq # toggle the 'in-quote' flag
-                continue # eat the quotation mark
-            elif c == ' ':
-                if inq: c = UNIT_SEP
-            # end if
-            s2 += c
-        # end for
-        l = s2.split()
-        return [ x.replace(UNIT_SEP, ' ') for x in l ]
+    # def _split_(self, s):
+        # UNIT_SEP = chr(31)
+        # inq = False
+        # s2 = ""
+        # for c in str(s):
+            # if c == '"':
+                # inq = not inq # toggle the 'in-quote' flag
+                # continue # eat the quotation mark
+            # elif c == ' ':
+                # if inq: c = UNIT_SEP
+            # # end if
+            # s2 += c
+        # # end for
+        # l = s2.split()
+        # return [ x.replace(UNIT_SEP, ' ') for x in l ]
     
-    def _poptoken(self, s):
-        inq = False
-        s2 = ""
-        i = 0
-        for c in str(s):
-            i += 1
-            if c == '"':
-                inq = not inq
-                continue
-            elif c == ' ':
-                if s2 == "":
-                    continue
-                elif not inq:
-                    break
-            s2 += c
-        return (s2, s[i:])
+    # def _poptoken(self, s):
+        # inq = False
+        # s2 = ""
+        # i = 0
+        # for c in str(s):
+            # i += 1
+            # if c == '"':
+                # inq = not inq
+                # continue
+            # elif c == ' ':
+                # if s2 == "":
+                    # continue
+                # elif not inq:
+                    # break
+            # s2 += c
+        # return (s2, s[i:])
         
-    def _mysplit(self, s, maxsplit=0):
-        return [p for p in re.split(r"(\s|\".*?\"|'.*?')", cl, maxsplit=maxsplit) if p.strip()]
+    def _split(self, s, maxsplit=0):
+        return [p for p in re.split(r'(\s)|"(.*?)"', s, maxsplit=maxsplit) if p and p.strip()]
     
     def arg_count(self, arg_count, code=None):
         arg_count.val = len(self._split(self._current_context.argument_string))
@@ -99,13 +99,17 @@ class cu_(Subroutine):
         
     def arg_string(self, before, result, starting_with=0):
         s = self._current_context.argument_string
-        d = []
-        for i in range(starting_with):
-            discard, s = self._poptoken(s)
-            d.append(discard)
-        # end for
-        before.list = d
-        result.val = s.strip()
+        d = self._split(s, starting_with or -1)
+        before.list = d[:starting_with]
+        result.val = d[-1]
+        # return
+        # d = []
+        # for i in range(starting_with):
+            # discard, s = self._poptoken(s)
+            # d.append(discard)
+        # # end for
+        # before.list = d
+        # result.val = s.strip()
         
     def get_command_name(self, command, code):
         command.name = self._current_context.program_name

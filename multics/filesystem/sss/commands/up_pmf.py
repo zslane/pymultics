@@ -29,14 +29,14 @@ def up_pmf():
              project.id in sys_admin_table.ptr.projects and
              person.id in sys_admin_table.ptr.projects[project.id]['admins']) or
             (project.id == "SysAdmin")):
-        call.ioa_("You are not authorized to upload {0}", pdt_file)
+        call.ioa_("You are not authorized to upload ^a", pdt_file)
         return
     # end if
     
     src_dir = get_wdir_()
     
     if not supervisor.fs.file_exists(supervisor.fs.path2path(src_dir, pdt_file)):
-        call.ioa_("File not found {0}", pdt_file)
+        call.ioa_("File not found ^a", pdt_file)
         return
     # end if
     
@@ -47,6 +47,7 @@ def up_pmf():
     msg = ProcessMessage("upload_pmf_request", **{'src_dir':src_dir, 'src_file':pdt_file})
     call.sys_.add_process_msg("Initializer.SysDaemon", msg, code)
     if code.val != 0:
-        call.ioa_("Upload failed. {0}", code.val)
+        call.ioa_.nnl("Upload failed. ")
+        call.ioa_(code.val)
     else:
-        call.ioa_("{0} uploaded", pdt_file)
+        call.ioa_("^a uploaded", pdt_file)

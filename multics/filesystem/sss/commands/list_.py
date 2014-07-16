@@ -15,7 +15,7 @@ def list_():
     full        = parm()
     code        = parm()
     
-    EXCLUDED_EXTENSIONS = (".pyc", ".pyo")
+    EXCLUDED_EXTENSIONS = (".pyc", ".pyd")
     SPECIAL_EXTENSIONS  = (".mbx")
     
     current_dir = get_wdir_()
@@ -25,7 +25,7 @@ def list_():
         dir_ref = arg_list.args.pop()
         call.sys_.get_rel_directory(dir_ref, current_dir, dir_to_list, code)
         if code.val != 0:
-            call.ioa_("list: Entry not found. {0}", dir_to_list.name)
+            call.ioa_("list: Entry not found. ^a", dir_to_list.name)
             return
         # end if
     # end if
@@ -71,7 +71,7 @@ def list_():
         # end if
         for segment_name in segment.list:
             if not segment_name.endswith(EXCLUDED_EXTENSIONS):
-                lines.append("{0:3} {1:5}  {2}".format(segment_acl[segment_name], segment_lengths[segment_name], segment_name))
+                lines.append("{0:3} {1:5}  {2}".format(segment_acl[segment_name], segment_lengths[segment_name], re.sub(r"\.pyo$", "", segment_name)))
             # end if
             for add_name in sorted(segment_add_names.get(segment_name, []), key=len, reverse=True):
                 lines.append("{0:13}{1}".format("", add_name))

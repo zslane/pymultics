@@ -19,7 +19,7 @@ class command_processor_(CommandProcessor):
             if program_entry_point:
                 program_entry_point()
             else:
-                call.ioa_("Segment {0} not found.", command.name)
+                call.ioa_("Segment ^a not found.", command.name)
             # end if
         # end if
         

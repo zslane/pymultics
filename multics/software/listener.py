@@ -168,8 +168,8 @@ class Listener(Subroutine):
     
     def _process_ms_handler(self, message):
         if message['type'] == "shutdown_announcement":
-            # call.ioa_("From {0} {1}: {2}", message['from'], message['time'].ctime(), message['text'])
-            call.ioa_("{0}: {1}", message['from'], message['text'])
+            # call.ioa_("From ^a ^a: ^a", message['from'], message['time'].ctime(), message['text'])
+            call.ioa_("^a: ^a", message['from'], message['text'])
         
     def _interactive_message(self):
         mbx_segment = parm()
@@ -194,7 +194,7 @@ class Listener(Subroutine):
                     if message['type'] == "interactive_message":
                         #== Print unread interactive messages and shutdown announcements
                         if message['status'] == "unread" and accepting:
-                            call.ioa_("From {0} {1}: {2}", message['from'], message['time'].ctime(), message['text'])
+                            call.ioa_("From ^a ^a: ^a", message['from'], message['time'].ctime(), message['text'])
                             message['status'] = "read"
                         # end if
                         if accepting and holding:

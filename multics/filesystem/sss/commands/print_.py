@@ -39,13 +39,13 @@ def print_(*func_args):
         return
     # end if
     
-    # call.ioa_("clock_ = {0}", clock_())
+    # call.ioa_("clock_ = ^d", clock_())
     
     call.sys_.get_abs_path(filename, full)
     call.sys_.split_path_(full.path, directory, segment)
     call.hcs_.fs_file_exists(directory.name, segment.name, code)
     if code.val != 0:
-        call.ioa_("print: Entry not found. {0}", full.path)
+        call.ioa_("print: Entry not found. ^a", full.path)
     else:
         f = open(vfile_(full.path))
         file_text = f.read()

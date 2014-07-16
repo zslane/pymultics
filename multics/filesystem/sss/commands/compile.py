@@ -22,7 +22,7 @@ def compile():
     module_name, _ = os.path.splitext(file_name)
     out_file_name = module_name + ".pyo"
     current_dir = get_wdir_()
-    call.ioa_("Compiling {0} to {1} in {2}", file_name, out_file_name, current_dir)
+    call.ioa_("Compiling ^a to ^a in ^a", file_name, out_file_name, current_dir)
     try:
         call.hcs_.make_path(current_dir, file_name, source_file)
         call.hcs_.make_path(current_dir, out_file_name, object_file)

@@ -46,15 +46,15 @@ def print_search_paths():
         call.search_paths_.get(sl_name, null(), sl_info_ptr, sl_info_version_1, code)
         aliases = sl_aliases.get(sl_name, [])
         aliases_string = ", ".join(aliases)
-        if aliases_string:
-            aliases_string = " (%s)" % (aliases_string)
-        # end if
+        # if aliases_string:
+            # aliases_string = " (%s)" % (aliases_string)
+        # # end if
         if expand:
             path_list = [ resolve_path_symbol_(p.pathname) for p in sl_info_ptr.data.paths ]
         else:
             path_list = [ p.pathname for p in sl_info_ptr.data.paths ]
         # end if
         paths_string = "\n    ".join(path_list)
-        call.ioa_("{0}{1}:\n    {2}", sl_name, aliases_string, paths_string)
+        call.ioa_("^a^[ (^a)^]:\n    ^a", sl_name, aliases_string != "", aliases_string, paths_string)
 
 psp = print_search_paths

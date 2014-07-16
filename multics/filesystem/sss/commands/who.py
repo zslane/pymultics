@@ -29,7 +29,7 @@ def who():
             sort_by_proj = True
             sort_by_name = False
         elif arg.startswith("-"):
-            call.ioa_("Unrecognized control argument {0}", arg)
+            call.ioa_("Unrecognized control argument ^a", arg)
             call.ioa_("  valid: -brief|-br, -interactive|-ia, -daemon|-dmn, -name|-nm, -project|-pr")
             return
         # end if
@@ -64,17 +64,17 @@ def who():
         _display_header(show_users, len(users.list), show_daemons, len(daemons.list))
     # end if
     
-    # call.ioa_("{0} user{1} logged in", len(users.list), "s" if len(users.list) > 1 else "")
+    # call.ioa_("^d user^[s^] logged in", len(users.list), len(users.list) != 1)
     line = ""
     for i, user_id in enumerate(who_list):
         line += "{0:<25}".format(user_id)
         if (i + 1) % 3 == 0:
-            call.ioa_("  {0}", line)
+            call.ioa_("  ^a", line)
             line = ""
         # end if
     # end for
     if line:
-        call.ioa_("  {0}", line)
+        call.ioa_("  ^a", line)
     
 @system_privileged
 def _display_header(show_users, num_users, show_daemons, num_daemons):
@@ -87,7 +87,7 @@ def _display_header(show_users, num_users, show_daemons, num_daemons):
     if show_daemons:
         stat_list.append("{0} daemons".format(num_daemons))
         
-    call.ioa_("Virtual Multics {0}, load {1:0.1f}/{2:0.2f}; {3} users, {4}.",
+    call.ioa_("Virtual Multics ^a, load ^0.1f/^0.2f; ^d users, ^a.",
         supervisor.version,
         load,
         supervisor.site_config['maximum_load'],

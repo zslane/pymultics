@@ -241,6 +241,8 @@ def call_(entryname):
             return getattr(subroutine, entry_name)
         else:
             return subroutine
+    else:
+        raise SegmentFault(procedure_name)
 
 def check_conditions_(ignore_break_signal=False):
     if GlobalEnvironment.supervisor.hardware.io.terminal_closed():

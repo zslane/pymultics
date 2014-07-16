@@ -54,8 +54,8 @@ class ScreenIO(QtGui.QTextEdit):
         painter = QtGui.QPainter()
         painter.begin(self.viewport())
         painter.setOpacity(0.75)
-        # painter.drawPixmap(self.viewport().rect(), self.bkgd, self.bkgd.rect())
-        painter.drawPixmap(0, 0, self.bkgd)
+        painter.drawPixmap(self.viewport().rect(), self.bkgd, self.bkgd.rect())
+        # painter.drawPixmap(0, 0, self.bkgd)
         painter.end()
         #== Call default event handler to draw the text on top of the watermark
         super(ScreenIO, self).paintEvent(event)
@@ -80,12 +80,11 @@ class ConsoleIO(QtGui.QWidget):
         
         output_layout = QtGui.QVBoxLayout()
         output_layout.addWidget(self.output)
-        # output_layout.setContentsMargins(3, 3, 0, 3)
         output_layout.setContentsMargins(0, 0, 0, 0)
         
         output_frame = QtGui.QFrame()
         output_frame.setFrameStyle(QtGui.QFrame.NoFrame)
-        output_frame.setStyleSheet("QFrame { background: red; }")
+        output_frame.setStyleSheet("QFrame { background: black; }")
         output_frame.setLayout(output_layout)
         
         self.input = KeyboardIO()
@@ -156,7 +155,9 @@ class MainframePanel(QtGui.QWidget):
         
         self.image_label = QtGui.QLabel()
         self.image_label.setPixmap(QtGui.QPixmap(os.path.join(os.path.dirname(__file__), "pymultics_panel.jpg")))
+        self.image_label.setAlignment(QtCore.Qt.AlignCenter)
         self.image_label.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.image_label.setStyleSheet("QLabel { background: black; }")
         
         self.restart_button = QtGui.QPushButton("Restart", self.image_label)
         self.restart_button.setStyleSheet("QPushButton { font: bold 7pt ; }")

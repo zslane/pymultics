@@ -2,11 +2,32 @@ import re
 
 from multics.globals import *
         
-def _rxsub(p, s):
+def _doswitch(fmt, *args):
+    p = r"(\^\[.+?(?:\^;.+?)\^\])"
+    r = "\0%s\0\\1"
+    s = re.sub(p, r, fmt)
+    t = s % args
+    x = re.sub("False", "1",
+        re.sub("True",  "0", t))
+    p2 = "(\0\d+?\0" + r"\^\[.+?(?:\^;.+?)\^\])"
+    p3 = "\0(\d+?)\0" + r"\^\[(.+?(?:\^;.+?))\^\]"
+    result = []
+    for a in re.split(p2, x):
+        m = re.match(p3, a)
+        if m:
+            N = int(m.group(1))
+            b = re.split(r"\^;", m.group(2))
+            if -1 < N < len(b):
+                result.append(b[N])
+        else:
+            result.append(a)
+    return "".join(result)
+    
+def _r_sub(p, c, s):
     result = []
     for a in re.split("(%s)" % (re.sub(r"[\(\)]", "", p)), s):
         m = re.match(p, a)
-        result.append( (" " * int(m.group(1) or "1")) if m else a )
+        result.append( (c * int(m.group(1) or "1")) if m else a )
     # end for
     return "".join(result)
     
@@ -15,8 +36,10 @@ def _docond(fmt, *args):
     r = "\0%s\0\\1\0"
     s = re.sub(p, r, fmt)
     t = s % args
-    x = re.sub("\0False\0.*?\0", "",
-        re.sub("\0True\0(.*?)\0", r"\1", t))
+    x = re.sub("\0False\0.+?\^;(.+?)\0", r"\1",
+        re.sub("\0True\0(.+?)\^;.+?\0",  r"\1", t))
+    x = re.sub("\0False\0.+?\0",         r"",
+        re.sub("\0True\0(.+?)\0",        r"\1", x))
     return x
     
 def _dotabs(s, default_tab_stop=10):
@@ -34,7 +57,7 @@ def _dotabs(s, default_tab_stop=10):
         # end for
         result.append(t)
     # end for
-    return "\n".join(result)
+    return ("\n".join(result)).expandtabs(default_tab_stop)
 
 class ioa_(Subroutine):
     def __init__(self):
@@ -57,16 +80,36 @@ class ioa_(Subroutine):
     def _format(self, format_string, *args):
         if isinstance(format_string, PL1.EnumValue):
             s = repr(format_string)
+            
         elif "^" in format_string:
-            s = re.sub(r"\^/", "\n",
-                re.sub(r"\^(\*|\d*)a", r"%-\1s",
-                re.sub(r"\^(\*|\d*)d", r"%\1d",
-                re.sub(r"\^((?:\*|\d*)\.?(?:\*|\d*))f", r"%\1f",
-                _rxsub(r"\^(\d*)x",
-                re.sub(r"%", "%%",
-                    format_string))))))
-            s = _dotabs(_docond(s, *args))
+            #== Order of execution is critial! ==#
+            
+            #== First, turn single '%' signs into double '%%' signs...
+            s = re.sub(r"(?<!%)%(?!%)",             r"%%",    format_string)
+            #== ...next
+            s = re.sub(r"\^v-",                     r"^%d-",  s) # ^v-
+            s = re.sub(r"\^vx",                     r"^%dx",  s) # ^vx
+            s = re.sub(r"\^v/",                     r"^%d/",  s) # ^v/
+            #== ...next
+            s = re.sub(r"(?<=\^)v|(?<=\^v\.)v",     r"*",     s) # ^v , ^v.v
+            #== ...next
+            s = re.sub(r"\^((\*|\d*)\.?(\*|\d*))f", r"%\1f",  s) # ^N.Df
+            s = re.sub(r"\^(\*|\d*)[d|i]",          r"%\1d",  s) # ^Nd , ^Ni
+            s = re.sub(r"\^(\*|\d*)e",              r"%\1e",  s) # ^Ne
+            s = re.sub(r"\^(\*|\d*)o",              r"%\1o",  s) # ^No
+            s = re.sub(r"\^(\*|\d*)a",              r"%-\1s", s) # ^Na
+            #== ...next
+            s = _docond(s, *args)                                # apply *args and ^[^]
+            #== ...next
+            s = _r_sub(r"\^(\d*)\-",                 "\t",    s) # ^N-
+            s = _r_sub(r"\^(\d*)x",                  " ",     s) # ^Nx
+            s = _r_sub(r"\^(\d*)/",                  "\n",    s) # ^N/
+            #== ...next
+            s = _dotabs(s)                                       # ^Nt
+            
         else:
             s = format_string.format(*args)
         # end if
+        
+        s = re.sub(r"[ \t]+?\n", "\n", s) # remove whitespace preceding a newline
         return s

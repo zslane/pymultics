@@ -15,7 +15,7 @@ def shutdown():
     
     call.user_info_.whoami(person, project, acct)
     if project.id != "SysAdmin":
-        call.ioa_("You are not authorized to use the {0} command", MAIN)
+        call.ioa_("You are not authorized to use the ^a command", MAIN)
         return
     # end if
     
@@ -37,7 +37,7 @@ def shutdown():
                     units = arg_list.args.pop(0)
                     i += 2
                     if units not in acceptible_units:
-                        call.ioa_("shutdown time units must be one of:\n  {0}", (", ".join(acceptible_units)))
+                        call.ioa_("shutdown time units must be one of:\n  ^a", (", ".join(acceptible_units)))
                         return 0
                     # end if
                     if units == "minutes":

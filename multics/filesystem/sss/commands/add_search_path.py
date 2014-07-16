@@ -46,7 +46,7 @@ def add_search_path():
             if i < len(arg_list.args):
                 insert_where = _find_index(sl_info_ptr.sl_info.paths, arg_list.args[i])
                 if insert_where == -1:
-                    call.ioa_("{0} not found in search list {1}", arg_list.args[i], sl_name)
+                    call.ioa_("^a not found in search list ^a", arg_list.args[i], sl_name)
                     return
                 # end if
                 i += 1
@@ -59,7 +59,7 @@ def add_search_path():
             if i < len(arg_list.args):
                 insert_where = _find_index(sl_info_ptr.sl_info.paths, arg_list.args[i])
                 if insert_where == -1:
-                    call.ioa_("{0} not found in search list {1}", arg_list.args[i], sl_name)
+                    call.ioa_("^a not found in search list ^a", arg_list.args[i], sl_name)
                     return
                 else:
                     insert_where += 1
@@ -77,7 +77,7 @@ def add_search_path():
     
     call.search_paths_.set(sl_name, null(), sl_info_ptr, code)
     if code.val == error_table_.action_not_performed:
-        call.ioa_("Invalid path {0}", new_path)
+        call.ioa_("Invalid path ^a", new_path)
     # print code.val, [ p.pathname for p in sl_info_ptr.sl_info.paths ]
     
 asp = add_search_path

@@ -21,10 +21,10 @@ def send_message():
         msg = ProcessMessage("interactive_message", **{'from':sender, 'to':long_name, 'text':message})
         call.sys_.add_process_msg("Messenger.SysDaemon", msg, code)
         if code.val == error_table_.lock_wait_time_exceeded:
-            call.ioa_("send_message: Attempt to reach {0} timed out.", recipient)
+            call.ioa_("send_message: Attempt to reach ^a timed out.", recipient)
         elif code.val != 0:
-            call.ioa_("Could not send message to {0}", recipient)
-            call.ioa_("{0}", code.val)
+            call.ioa_("Could not send message to ^a", recipient)
+            call.ioa_(code.val)
         
     #-- end def send_msg
     
@@ -38,7 +38,7 @@ def send_message():
         
         call.sys_.get_userid_long(recipient, long_name, code)
         if code.val == error_table_.no_such_user:
-            call.ioa_("{0} is not a registered user.", recipient)
+            call.ioa_("^a is not a registered user.", recipient)
             return
         # end if
         
@@ -47,7 +47,7 @@ def send_message():
             if re.match(matching, user_process.uid()):
                 user_process.stack.assert_create("accepting_messages", bool)
                 if not user_process.stack.accepting_messages:
-                    call.ioa_("{0} is not accepting messages. Message sent to user's mailbox.", user_process.uid())
+                    call.ioa_("^a is not accepting messages. Message sent to user's mailbox.", user_process.uid())
                 # end if
             # end if
         # end for

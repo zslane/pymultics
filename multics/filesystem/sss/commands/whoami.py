@@ -7,5 +7,5 @@ def whoami():
     acct    = parm()
     
     call.user_info_.whoami(person, project, acct)
-    call.ioa_("{0}.{1}", person.id, project.id)
+    call.ioa_("^a.^a", person.id, project.id)
     

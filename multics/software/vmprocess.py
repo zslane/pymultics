@@ -140,7 +140,7 @@ class ProcessWorker(QtCore.QObject):
     
     def _main_loop(self):
         if self.__process_env.pit.instance_tag == "z":
-            call.ioa_("New process for {0} started {1}", self.uid(), datetime.datetime.now().ctime())
+            call.ioa_("New process for ^a started ^a", self.uid(), datetime.datetime.now().ctime())
         code = self.__process_env.core_function.start(self)
         return code
         

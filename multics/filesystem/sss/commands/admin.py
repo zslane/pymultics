@@ -38,7 +38,7 @@ def admin():
     
     call.user_info_.whoami(person, project, acct)
     if project.id != "SysAdmin":
-        call.ioa_("You are not authorized to use the {0} command", MAIN)
+        call.ioa_("You are not authorized to use the ^a command", MAIN)
         return
     # end if
     
@@ -71,7 +71,7 @@ def admin():
             elif command.name == "help": # '?' handled by command_query_
                 call.ioa_(admin_usage_text)
             elif command.name != "quit" and command.name != "q":
-                call.ioa_("Unrecgonized {0} command", MAIN)
+                call.ioa_("Unrecgonized ^a command", MAIN)
                 call.ioa_(admin_usage_text)
     
 @system_privileged
@@ -85,11 +85,11 @@ def list_users():
         call.ioa_("Person Id              Alias     D Project Password?")
         call.ioa_("---------------------- --------- --------- ---------")
         for person_id in person_name_table.ptr.name_entries:
-            call.ioa_("{0:22} {1:9} {2:9} {3}", person_id,
+            call.ioa_("^22a ^9a ^9a ^[Yes^;No^]", person_id,
                 person_name_table.ptr.name_entries[person_id].alias,
                 person_name_table.ptr.name_entries[person_id].default_project_id,
-                "Yes" if person_name_table.ptr.name_entries[person_id].encrypted_password else "No")
-        call.ioa_("{0} total entries:", len(person_name_table.ptr.name_entries))
+                person_name_table.ptr.name_entries[person_id].encrypted_password != "")
+        call.ioa_("^d total entries:", len(person_name_table.ptr.name_entries))
     
 @system_privileged
 def add_user():
@@ -149,7 +149,7 @@ def add_user():
             # end if
             encrypted_password, pubkey = supervisor.encrypt_password(password)
         else:
-            call.ioa_("Unrecognized argument {0}", arg)
+            call.ioa_("Unrecognized argument ^a", arg)
             return
         # end if
     # end while
@@ -171,7 +171,7 @@ def add_user():
         # end if
         #== Prevent duplicating aliases
         if alias and person_name_table.ptr.resolve_alias(alias) not in [person_id, ""]:
-            call.ioa_("Alias '{0}' already assigned to user {1}", alias, person_name_table.ptr.resolve_alias(alias))
+            call.ioa_("Alias '^a' already assigned to user ^a", alias, person_name_table.ptr.resolve_alias(alias))
             return
         # end if
         with person_name_table.ptr:
@@ -209,7 +209,7 @@ def delete_user():
                 # end with
             # end if
         else:
-            call.ioa_("No such user {0}", person_id)
+            call.ioa_("No such user ^a", person_id)
     
 @system_privileged
 def rename_user():
@@ -238,7 +238,7 @@ def rename_user():
                 person_name_table.ptr.del_person(old_person_id)
             # end with
         else:
-            call.ioa_("No such user {0}", old_person_id)
+            call.ioa_("No such user ^a", old_person_id)
             
 @system_privileged
 def refresh_sat():
@@ -291,7 +291,7 @@ def list_projects():
     # print sys_admin_table.ptr.projects
     for project_id in sys_admin_table.ptr.projects:
         alias = sys_admin_table.ptr.projects[project_id]['alias']
-        call.ioa_("  {0} {1}", project_id, "(%s)" % alias if alias else "")
+        call.ioa_("  ^a ^[(^a)^]", project_id, alias != "", alias)
 
 @system_privileged
 def list_project_admins():
@@ -314,12 +314,12 @@ def list_project_admins():
     project_id = arg_list.args.pop(0)
     
     if project_id not in sys_admin_table.ptr.projects:
-        call.ioa_("{0} not found in the system_administrator_table", project_id)
+        call.ioa_("^a not found in the system_administrator_table", project_id)
         return
     # end if
     
     for admin in sys_admin_table.ptr.get_admins(project_id):
-        call.ioa_("  {0}", admin)
+        call.ioa_("  ^a", admin)
     
 @system_privileged
 def add_project_admin():
@@ -343,7 +343,7 @@ def add_project_admin():
     person_id = arg_list.args.pop(0)
     
     if project_id not in sys_admin_table.ptr.projects:
-        call.ioa_("{0} not found in the system_administrator_table", project_id)
+        call.ioa_("^a not found in the system_administrator_table", project_id)
         return
     # end if
     
@@ -373,7 +373,7 @@ def delete_project_admin():
     person_id = arg_list.args.pop(0)
     
     if project_id not in sys_admin_table.ptr.projects:
-        call.ioa_("{0} not found in the system_administrator_table", project_id)
+        call.ioa_("^a not found in the system_administrator_table", project_id)
         return
     # end if
     
@@ -382,5 +382,5 @@ def delete_project_admin():
             sys_admin_table.ptr.remove_admin(project_id, person_id)
         # end with
     else:
-        call.ioa_("{0} not a {1} project administrator", person_id, project_id)
+        call.ioa_("^a not a ^a project administrator", person_id, project_id)
     

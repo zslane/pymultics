@@ -23,7 +23,7 @@ def cv_pmf():
     current_dir = get_wdir_()
     pmf_path = supervisor.fs.path2path(current_dir, pmf_file)
     if not supervisor.fs.file_exists(pmf_path):
-        call.ioa_("{0}.pmf file not found", project_id)
+        call.ioa_("^a.pmf file not found", project_id)
         return
     # end if
     
@@ -43,7 +43,7 @@ def cv_pmf():
         pickle.dump(pdtab, f)
     # end with
     
-    call.ioa_("{0} written", pdt_file)
+    call.ioa_("^a written", pdt_file)
     
 def load_pmf2(f):
     return eval(f.read())

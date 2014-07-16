@@ -250,7 +250,7 @@ class sys_(Subroutine):
         process = get_calling_process_()
         process.stack.assert_create("accepting_messages", bool)
         if process.stack.accepting_messages or message_packet['type'] == "shutdown_announcement":
-            call.ioa_("From {0} {1}: {2}", message_packet['from'], message_packet['time'].ctime(), message_packet['text'])
+            call.ioa_("From ^a ^a: ^a", message_packet['from'], message_packet['time'].ctime(), message_packet['text'])
         
     def signal_condition(self, signalling_process, condition_instance):
         GlobalEnvironment.supervisor.signal_condition(signalling_process, condition_instance)
