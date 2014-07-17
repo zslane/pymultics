@@ -34,6 +34,9 @@ def alloc(objtype):
     else:
         return objtype()
     
+def addr(obj):
+    return id(obj)
+    
 #== Conditions represented by exception classes ==#
 
 def continue_to_signal_(code):

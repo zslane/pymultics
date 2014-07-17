@@ -707,8 +707,11 @@ class bitstring(object):
     def __bool__(self):
         return any(self.__value)
     
-    def __repr__(self):
+    def __str__(self):
         return '"%s"b' % ("".join(map(str, self.__value)))
+    
+    def __repr__(self):
+        return '%s' % ("".join(map(str, self.__value)))
         
 #-- end class bitstring
 

@@ -32,7 +32,7 @@ class ScreenIO(QtGui.QTextEdit):
     def __init__(self, font, parent=None):
         super(ScreenIO, self).__init__(parent)
         
-        self.bkgd = QtGui.QPixmap(os.path.join(os.path.dirname(__file__), "multics_watermark2.png"))
+        self.bkgd = QtGui.QPixmap(os.path.join(os.path.dirname(__file__), "multics_watermark.png"))
         
         fm = QtGui.QFontMetrics(font)
         
@@ -53,9 +53,8 @@ class ScreenIO(QtGui.QTextEdit):
         #== Paint Multics logo as a faint background watermark
         painter = QtGui.QPainter()
         painter.begin(self.viewport())
-        painter.setOpacity(0.75)
+        painter.setOpacity(0.08)
         painter.drawPixmap(self.viewport().rect(), self.bkgd, self.bkgd.rect())
-        # painter.drawPixmap(0, 0, self.bkgd)
         painter.end()
         #== Call default event handler to draw the text on top of the watermark
         super(ScreenIO, self).paintEvent(event)
