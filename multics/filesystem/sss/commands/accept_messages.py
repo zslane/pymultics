@@ -45,7 +45,7 @@ def accept_messages():
     call.hcs_.make_seg(homedir.val, person.id + ".mbx", "", 0, mbx_segment(Mailbox()), code)
     if code.val == 0:
         if not brief:
-            call.ioa_("Created mailbox ^a>^a}.mbx", homedir.val, person.id)
+            call.ioa_("Created mailbox ^a>^a.mbx", homedir.val, person.id)
         # end if
         print "Created mailbox %s>%s.mbx" % (homedir.val, person.id)
     # end if
@@ -80,7 +80,7 @@ def accept_messages():
                         if message['from'] == prev_sender and short:
                             call.ioa_("^a =: ^a", message['time'].ctime())
                         else:
-                            call.ioa_("From ^a ^a: ^a}", message['from'], message['time'].ctime(), message['text'])
+                            call.ioa_("From ^a ^a: ^a", message['from'], message['time'].ctime(), message['text'])
                         # end if
                         prev_sender = message['from']
                         

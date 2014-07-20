@@ -26,7 +26,7 @@ def create_dir():
         if code.val == error_table_.namedup:
             call.ioa_("Directory already exists")
         else:
-            call.ioa_("Could not create directory ^a}", branch.name)
+            call.ioa_("Could not create directory ^a", branch.name)
         
 #-- end def create_dir
 
