@@ -74,7 +74,7 @@ def list_():
                 lines.append("{0:3} {1:5}  {2}".format(segment_acl[segment_name], segment_lengths[segment_name], re.sub(r"\.pyo$", "", segment_name)))
             # end if
             for add_name in sorted(segment_add_names.get(segment_name, []), key=len, reverse=True):
-                lines.append("{0:13}{1}".format("", add_name))
+                lines.append("{0:13}{1}".format("", re.sub(r"\.pyo$", "", add_name)))
             # end for
         # end for
         
@@ -126,7 +126,7 @@ def _print_lines(lines):
         call.ioa_(line)
         if count == 20 and lines != []:
             count = 0
-            call.command_query_(query_info, answer, "list", "Continue ({0} names)? ", len(lines))
+            call.command_query_(query_info, answer, "list", "Continue (^d names)? ", len(lines))
             if answer.val.lower() in ["no", "n"]:
                 break
     

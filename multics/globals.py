@@ -4,6 +4,7 @@ import types
 import inspect
 import datetime
 import contextlib
+import __builtin__
 
 from pl1types import *
 
@@ -208,29 +209,34 @@ def print_stackframes():
     # # end while
     # return pframe
     
-call = None
+# call = None
 
 class GlobalEnvironment(object):
 
     supervisor = None
     hardware   = None
     fs         = None
+    linker     = None
     
     @staticmethod
     def register_supervisor(supervisor):
         GlobalEnvironment.supervisor = supervisor
         GlobalEnvironment.hardware   = supervisor.hardware
         GlobalEnvironment.fs         = supervisor.fs
-        global call
-        call = supervisor.dynamic_linker
+        GlobalEnvironment.linker     = supervisor.dynamic_linker
+        # global call
+        # call = supervisor.dynamic_linker
+        __builtin__.__dict__['call'] = supervisor.dynamic_linker
         
     @staticmethod
     def deregister_supervisor():
         GlobalEnvironment.supervisor = None
         GlobalEnvironment.hardware   = None
         GlobalEnvironment.fs         = None
-        global call
-        call = None
+        GlobalEnvironment.linker     = None
+        # global call
+        # call = None
+        __builtin__.__dict__['call'] = None
 
 def call_(entryname):
     """
@@ -377,7 +383,7 @@ class Injector(object):
     @staticmethod
     def inject_incl(pframe, name):
         if pframe:
-            module = __import__(name)
+            module = __import__(name, globals(), locals(), ())
             for member_name in dir(module):
                 if re.match("__\w+__", member_name):
                     # print "Injector skipping", member_name

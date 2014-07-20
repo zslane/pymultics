@@ -1,9 +1,11 @@
 import os
 import re
 import sys
+import imp
 import time
 import glob
 import shutil
+import __builtin__
 import cPickle as pickle
 
 from ..globals import *
@@ -29,7 +31,7 @@ class VirtualMulticsHardware(QtCore.QObject):
         system_includes_path = os.path.join(self.filesystem.path2path(self.filesystem.system_library_standard), "includes")
         if system_includes_path not in sys.path:
             sys.path.append(system_includes_path)
-        
+            
     def _create_hardware_resources(self):
         import multiprocessing
         self.__cpu_count = multiprocessing.cpu_count()
@@ -246,7 +248,8 @@ class IOSubsystem(QtCore.QObject):
         
 class VirtualMulticsFileSystem(QtCore.QObject):
 
-    FILESYSTEMROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "filesystem")
+    SYSTEMROOT     = os.path.dirname(os.path.dirname(__file__))
+    FILESYSTEMROOT = os.path.join(SYSTEMROOT, "filesystem")
 
     def __init__(self, init_args=[]):
         super(VirtualMulticsFileSystem, self).__init__()
@@ -256,10 +259,10 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         # print self._resolve_path(">udd>sct>jrc<jjl<<m>rah")
         
     def _create_filesystem_directories(self, init_args):
-        self.system_control_dir = ">sc1"
+        self.system_control_dir      = ">sc1"
         self.system_library_standard = ">sss"
-        self.process_dir_dir = ">pdd"
-        self.user_dir_dir = ">udd"
+        self.process_dir_dir         = ">pdd"
+        self.user_dir_dir            = ">udd"
         
         directory_list = [
             self.system_control_dir,

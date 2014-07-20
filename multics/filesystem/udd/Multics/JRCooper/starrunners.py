@@ -49,7 +49,7 @@ def starrunners():
         target               = char(10) . parm . init(""),
         code                 = fixed.bin(35) . parm . init(0),
         
-        admin_info           = PL1.Structure . based(adminptr) (
+        admin_info           = PL1.Structure . based(adminptr = "admin_info") (
             game_admin       = char(21),
             user_info_line   = char(30),
             com_query_line   = char(30),
@@ -57,7 +57,7 @@ def starrunners():
             star_coms        = Dim(Dynamic.star_comn) (char(21))
         ),
         
-        universe             = PL1.Structure . based(univptr) (
+        universe             = PL1.Structure . based(univptr = "universe") (
             number           = fixed.bin,
             pdir             = Dim(10) (char(32)),
             user             = Dim(10) (char(21)),

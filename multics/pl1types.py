@@ -293,31 +293,47 @@ class PL1(object):
             s = "<PL1.Structure\n  %s>" % (attributes)
             return s
             
+        # @staticmethod
+        # def based(base_pointer):
+            # import inspect, re
+            # pframe = inspect.currentframe()
+            # # x = inspect.getargvalues(pframe)
+            # # print x
+            # outer = pframe.f_back
+            # info = inspect.getframeinfo(outer)
+            # expr = info.code_context[info.index]
+            # expr = re.sub(r"\s+", "", expr)
+            # m = re.search(r"(.*)=.*based\((\w+)\)", expr)
+            # # print expr
+            # # print m
+            # # if m:
+               # # print m.groups()
+            # outer = inspect.getouterframes(outer)
+            # struct_name = m.group(1)
+            # pointer_name = m.group(2)
+            # for pframe in outer:
+                # if pointer_name in pframe[0].f_globals or pointer_name in pframe[0].f_locals:
+                    # globals_dict = pframe[0].f_globals
+                    # break
+            # else:
+                # raise Exception(pointer_name + " not found")
+            # return BasedStructureFactory(globals_dict, struct_name, pointer_name)
+            
         @staticmethod
-        def based(base_pointer):
+        def based(**args):
             import inspect, re
             pframe = inspect.currentframe()
-            # x = inspect.getargvalues(pframe)
-            # print x
             outer = pframe.f_back
-            info = inspect.getframeinfo(outer)
-            expr = info.code_context[info.index]
-            expr = re.sub(r"\s+", "", expr)
-            m = re.search(r"(.*)=.*based\((\w+)\)", expr)
-            # print expr
-            # print m
-            # if m:
-               # print m.groups()
             outer = inspect.getouterframes(outer)
-            struct_name = m.group(1)
-            pointer_name = m.group(2)
-            for pframe in outer:
-                if pointer_name in pframe[0].f_globals or pointer_name in pframe[0].f_locals:
-                    globals_dict = pframe[0].f_globals
-                    break
-            else:
-                raise Exception(pointer_name + " not found")
-            return BasedStructureFactory(globals_dict, struct_name, pointer_name)
+            for pointer_name, struct_name in args.items():
+                for pframe in outer:
+                    if pointer_name in pframe[0].f_globals or pointer_name in pframe[0].f_locals:
+                        globals_dict = pframe[0].f_globals
+                        break
+                else:
+                    raise Exception(pointer_name + " not found")
+                return BasedStructureFactory(globals_dict, struct_name, pointer_name)
+                
             
         # def __repr__(self):
             # attributes = ",\n  ".join([ "{0}: {1}".format(k, repr(v)) for k, v in self.__dict__.items() if k != "_frozen_" ])

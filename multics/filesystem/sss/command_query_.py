@@ -10,7 +10,10 @@ class command_query_(Subroutine):
         self._do_query(info_ptr, answer, caller, control_string, *args, **kwargs)
         
     def _do_query(self, info_ptr, answer, caller, control_string="", *args, **kwargs):
-        question = control_string.format(*args, **kwargs)
+        return_string = parm()
+        call.ioa_.rsnnl(control_string, return_string, *args)
+        question = return_string.val
+        
         if not info_ptr.suppress_name_sw:
             question = caller + ":" + (" " + question if question else "")
         if not info_ptr.suppress_spacing:

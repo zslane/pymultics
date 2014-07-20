@@ -27,7 +27,7 @@ def test():
         argp                 = parm,
         adminptr             = parm,
         
-        admin_info           = PL1.Structure . based(adminptr) (
+        admin_info           = PL1.Structure . based(adminptr = "admin_info") (
             game_admin       = char(21),
             user_info_line   = char(30),
             com_query_line   = char(30),

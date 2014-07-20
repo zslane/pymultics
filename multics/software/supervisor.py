@@ -1,5 +1,6 @@
 from pprint import pprint
 import os
+import re
 import imp
 import sys
 import rsa
@@ -14,6 +15,16 @@ from PySide import QtCore, QtGui
 
 include.login_info
 include.sl_info
+
+bitstr_pat  = r'([\'"])([01]+)\1b'
+dquote_pat  = r'"[^"]*"'
+squote_pat  = r'\'[^\']*\''
+comment_pat = r'#[^\n]*'
+calldot_pat = r'\bcall\s*\.'
+callkwd_pat = r'\b(call)\s+'
+dollar_pat  = r'(\$)'
+pointer_pat = r'\s*(->)\s*'
+patterns    = re.compile("|".join([bitstr_pat, dquote_pat, squote_pat, comment_pat, calldot_pat, callkwd_pat, dollar_pat, pointer_pat]))
 
 class Supervisor(QtCore.QObject):
 
@@ -99,12 +110,11 @@ class Supervisor(QtCore.QObject):
                 timer.check()
         
     def _load_site_config(self):
-        SYSTEMROOT = os.path.dirname(self.fs.FILESYSTEMROOT)
-        with open(os.path.join(SYSTEMROOT, "site.config"), "r") as f:
+        with open(os.path.join(self.fs.SYSTEMROOT, "site.config"), "r") as f:
             config_text = f.read()
         # end with
         self.site_config = eval(config_text)
-        self.site_config['site_name'] = os.path.basename(os.path.dirname(SYSTEMROOT))
+        self.site_config['site_name'] = os.path.basename(os.path.dirname(self.fs.SYSTEMROOT))
     
     def _send_system_greeting(self):
         self.__hardware.io.put_output("%s\n" % (self.__hardware.announce))
@@ -187,10 +197,10 @@ class Supervisor(QtCore.QObject):
             # end if
         # end if
         
-        from multics.globals import call
+        # from multics.globals import call
         
         msg = ProcessMessage(msgtype, **{'from':"Multics.Supervisor", 'to':"*.*", 'text':announcement})
-        call.sys_.add_process_msg("Messenger.SysDaemon", msg, code)
+        call. sys_.add_process_msg ("Messenger.SysDaemon", msg, code)
     
     def _shutdown_task(self):
         self.__system_timers[self._shutdown_task].stop()
@@ -442,14 +452,12 @@ class Supervisor(QtCore.QObject):
         from pnt import PersonNameTable
         from pdt import ProjectDefinitionTable
         from whotab import WhoTable
-        from multics.globals import call
-        # call = multics.globals.call
         
         #== Get a pointer to the PNT (create it if necessary)
-        call.hcs_.initiate(self.fs.system_control_dir, "PNT.pnt", "", 0, 0, segment, code)
+        call. hcs_.initiate (self.fs.system_control_dir, "PNT.pnt", "", 0, 0, segment, code)
         self.__person_name_table = segment.ptr
         if not self.__person_name_table:
-            call.hcs_.make_seg(self.fs.system_control_dir, "PNT.pnt", "", 0, segment(PersonNameTable()), code)
+            call. hcs_.make_seg (self.fs.system_control_dir, "PNT.pnt", "", 0, segment(PersonNameTable()), code)
             self.__person_name_table = segment.ptr
             #== Add JRCooper/jrc as a valid user to start with
             with self.__person_name_table:
@@ -461,7 +469,7 @@ class Supervisor(QtCore.QObject):
         pprint(self.__person_name_table)
         
         #== Make a dictionary of PDTs (project definition tables)
-        call.hcs_.get_directory_contents(self.fs.system_control_dir, branch, segment, code)
+        call. hcs_.get_directory_contents (self.fs.system_control_dir, branch, segment, code)
         if code.val == 0:
             segment_list = segment.list
             #== Add SysAdmin as a project with JRCooper as a recognized user
@@ -470,13 +478,13 @@ class Supervisor(QtCore.QObject):
                     segment_name = "%s.pdt" % (project_id)
                     pdt = ProjectDefinitionTable(project_id, alias)
                     pdt.add_user("JRCooper")
-                    call.hcs_.make_seg(self.fs.system_control_dir, segment_name, "", 0, segment(pdt), code)
+                    call. hcs_.make_seg (self.fs.system_control_dir, segment_name, "", 0, segment(pdt), code)
                     segment_list.append(segment_name)
                 # end for
             # end if
             for segment_name in segment_list:
                 if segment_name.endswith(".pdt"):
-                    call.hcs_.initiate(self.fs.system_control_dir, segment_name, "", 0, 0, segment, code)
+                    call. hcs_.initiate (self.fs.system_control_dir, segment_name, "", 0, 0, segment, code)
                     self.__project_definition_tables[segment.ptr.project_id] = segment.ptr
                     if segment.ptr.alias:
                         self.__project_definition_tables[segment.ptr.alias] = segment.ptr
@@ -489,10 +497,10 @@ class Supervisor(QtCore.QObject):
         pprint(self.__project_definition_tables)
         
         #== Get a pointer to the WHOTAB (create it if necessary)
-        call.hcs_.initiate(self.fs.system_control_dir, "whotab", "", 0, 0, segment, code)
+        call. hcs_.initiate (self.fs.system_control_dir, "whotab", "", 0, 0, segment, code)
         self.__whotab = segment.ptr
         if not self.__whotab:
-            call.hcs_.make_seg(self.fs.system_control_dir, "whotab", "", 0, segment(WhoTable()), code)
+            call. hcs_.make_seg (self.fs.system_control_dir, "whotab", "", 0, segment(WhoTable()), code)
             self.__whotab = segment.ptr
         # end if
         print "WHOTAB:"
@@ -500,7 +508,7 @@ class Supervisor(QtCore.QObject):
         pprint(self.__whotab)
         
         #== Create the LOGIN JOURNAL if necessary
-        call.hcs_.make_seg(self.fs.system_control_dir, "login_journal", "", 0, segment({}), code)
+        call. hcs_.make_seg (self.fs.system_control_dir, "login_journal", "", 0, segment({}), code)
         print "LOGIN JOURNAL:"
         print "--------------"
         pprint(segment.ptr)
@@ -641,7 +649,7 @@ class DynamicLinker(QtCore.QObject):
                 # print "checking for functions in", module_path
                 # print dir(module)
                 for symbol in dir(module):
-                    if (not symbol.startswith("_")) and (symbol not in excluded_symbols):
+                    if (not symbol.startswith("_")) and (symbol not in excluded_symbols) and (symbol not in self.__system_function_table):
                         obj = getattr(module, symbol)
                         if isinstance(obj, (types.FunctionType, types.BuiltinFunctionType)):
                             # print "...adding", symbol, obj
@@ -742,23 +750,25 @@ class DynamicLinker(QtCore.QObject):
             #== Try to find the segment and add it to the KST
             for multics_path in search_paths:
                 # print "...searching", multics_path
-                module_path = self.__filesystem.path2path(multics_path, segment_name + ".py")
-                # print module_path
-                if self.__filesystem.file_exists(module_path):
-                    try:
-                        module = self._load_python_code(segment_name, module_path)
-                    except SyntaxError:
-                        raise
-                    except:
-                        #== Invalid python module...probably a syntax error...
-                        self.dump_traceback_()
-                        raise InvalidSegmentFault(segment_name)
-                        
-                    self.known_segment_table[segment_name] = SegmentDescriptor(self.__supervisor, segment_name, module_path, module)
-                    entry_point = self.known_segment_table[segment_name].segment
-                    # print "   found", entry_point
-                    return entry_point
-                # end if
+                for ext in [".pyo", ".py"]:
+                    module_path = self.__filesystem.path2path(multics_path, segment_name + ext)
+                    # print module_path
+                    if self.__filesystem.file_exists(module_path):
+                        try:
+                            module = self._load_python_code(segment_name, module_path)
+                        except SyntaxError:
+                            raise
+                        except:
+                            #== Invalid python module...probably a syntax error...
+                            self.dump_traceback_()
+                            raise InvalidSegmentFault(segment_name)
+                            
+                        self.known_segment_table[segment_name] = SegmentDescriptor(self.__supervisor, segment_name, module_path, module)
+                        entry_point = self.known_segment_table[segment_name].segment
+                        # print "   found", entry_point
+                        return entry_point
+                    # end if
+                # end for
             # end for
             return None
             
@@ -805,12 +815,31 @@ class DynamicLinker(QtCore.QObject):
         namespace = module_name + "_" + idstring
         # print "%s: import %s as %s\t(using %s)" % (process.uid(), module_name, namespace, module_path)
         
-        # base_path, _ = os.path.split(module_path)
-        # for ext in [".pyo", ".pyc"]:
-            # compiled_module_path = os.path.join(base_path, ext)
-            # if self.__filesystem.file_exists(compiled_module_path):
-                # return imp.load_compiled(module_name, compiled_module_path)
-                
-        #== We disable the loading of optimized modules until main development is done
-        return imp.load_source(namespace, module_path)
+        if module_path.endswith(".pyo"):
+            return imp.load_compiled(namespace, module_path)
+        else:
+            return imp.load_source(namespace, module_path)
+            # return imp.load_source(namespace, self.pl1_preprocess(process.uid(), module_path))
+        
+    def pl1_preprocess(self, user_id, module_path):
+        def replacer(m):
+            if m.group(2):
+                return "0b" + m.group(2)
+            elif m.group(3):
+                return "GlobalEnvironment.linker."
+            elif m.group(4) or m.group(5):
+                return "."
+            else:
+                return m.group(0)
+            # end if
+        # end def
+        with open(module_path) as inf:
+            text = inf.read()
+        # end with
+        module_name = os.path.basename(module_path)
+        temp_path = self.__filesystem.path2path(self.__filesystem.temp_dir_dir, "%s.%s" % (user_id, module_name))
+        with open(temp_path, "w") as outf:
+            outf.write(patterns.sub(replacer, text))
+        # end with
+        return temp_path
         
