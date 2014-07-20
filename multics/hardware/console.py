@@ -79,7 +79,7 @@ class ConsoleIO(QtGui.QWidget):
         
         output_layout = QtGui.QVBoxLayout()
         output_layout.addWidget(self.output)
-        output_layout.setContentsMargins(0, 0, 0, 0)
+        output_layout.setContentsMargins(0, 3, 0, 3)
         
         output_frame = QtGui.QFrame()
         output_frame.setFrameStyle(QtGui.QFrame.NoFrame)

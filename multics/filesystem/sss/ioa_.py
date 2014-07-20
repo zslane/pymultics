@@ -1,25 +1,28 @@
 import re
 
 from multics.globals import *
+
+# def _NEXT(clist): return (clist and clist[0]) or ""
+def _NEXT(clist, n=1): return "".join(clist[:n])
     
-def _flatten(l):
-    r = []
-    for x in l:
+def _flatten(alist):
+    results = []
+    for x in alist:
         if type(x) is list:
-            r.extend(_flatten(x))
+            results.extend(_flatten(x))
         else:
-            r.append(x)
+            results.append(x)
         # end if
     # end for
-    return r
+    return results
     
 def _parse_number(clist):
     #== Return None if there is no leading digit to parse
-    if not (clist and clist[0].isdigit()):
+    if not _NEXT(clist).isdigit():
         return None
     # end if
     n = 0
-    while clist and clist[0].isdigit():
+    while _NEXT(clist).isdigit():
         n = n * 10 + int(clist.pop(0))
     # end while
     return n
@@ -46,6 +49,12 @@ def _edit_float_token(f, N, D):
     else:
         return "%f" % (f)
     
+def _edit_efloat_token(e, N):
+    if N is not None:
+        return "%*e" % (N, e)
+    else:
+        return "%e" % (e)
+        
 def _edit_pointer_token(p, N):
     return "|%0*d|" % (N or 12, p)
     
@@ -76,182 +85,283 @@ def _ignore_args(args, N):
     # end for
     return ""
 
+def _edit_hortab_token(string_so_far, N):
+    result_string = string_so_far[string_so_far.rfind("\n") + 1:]
+    if N is None: N = 1
+    if N == 0: return ""
+    return " " * (N * 4)
+    
 def _edit_tabpos_token(string_so_far, N, D):
-    s = string_so_far[string_so_far.rfind("\n") + 1:]
-    #print "TAB:", repr(s)
-    return " " * ((N or 10) - len(s) - 1)
+    result_string = string_so_far[string_so_far.rfind("\n") + 1:]
+    # print "TAB:", repr(result_string), N
+    return " " * ((N or 10) - len(result_string) - 1)
     
 def _scan_case_block(clist):
     #== Scan the block-start token '^['
-    s  = clist.pop(0)
-    s += clist.pop(0)
-    while len(clist) >= 2 and clist[:2] != ["^","]"]:
-        if clist[:2] == ["^","["]:
-            s += _scan_case_block(clist)
-        else:
-            s += clist.pop(0)
-        # end if
-    # end while
-    #== Scan the block-end token '^]'
-    s += clist.pop(0)
-    s += clist.pop(0)
-    return s
+    result_string  = clist.pop(0)
+    result_string += clist.pop(0)
     
-def _scan_case_token(clist):
-    s = ""
-    while len(clist) >= 2 and clist[:2] != ["^",";"] and clist[:2] != ["^","]"]:
-        if clist[:2] == ["^","["]:
-            s += _scan_case_block(clist)
+    s = _NEXT(clist, 2)
+    while clist and s != "^]":
+        if s == "^[":
+            result_string += _scan_case_block(clist)
         else:
-            s += clist.pop(0)
+            result_string += clist.pop(0)
         # end if
+        s = _NEXT(clist, 2)
     # end while
-    clist.pop(0)
-    if clist[0] == ";":
-        clist.pop(0)
-    # end if
-    return s
+    
+    #== Scan the block-end token '^]'
+    if _NEXT(clist) == '^':
+        result_string += clist.pop(0)
+        if _NEXT(clist) == ']':
+            result_string += clist.pop(0)
+            
+    return result_string
+    
+def _scan_case_token(clist, args):
+    result_string = ""
+    
+    s = _NEXT(clist, 2)
+    while clist and s != "^]":
+        #== Case delimiter requires parsing for expansion because of ^N;
+        if re.match(r"\^(v|\d*);", "".join(clist)):
+            clist.pop(0) # pop the '^'
+            #== Expand the ^N;
+            x = list(_parse_edit_token(result_string, clist, args))
+            # print "Expanding:", x, "after", result_string
+            clist[0:0] = x
+            break
+        elif s == "^[":
+            result_string += _scan_case_block(clist)
+        else:
+            result_string += clist.pop(0)
+        # end if
+        s = _NEXT(clist, 2)
+    # end while
+    
+    #== Discard the case delimiter '^;' or the '^' part
+    #== of the block-end token '^]'
+    if _NEXT(clist) == '^':
+        clist.pop(0) # pop the '^'
+        if _NEXT(clist) == ";":
+            clist.pop(0) # pop the ';'
+        # else leave the ']' in clist
+    
+    return result_string
 
 def _parse_case_token(clist, case_index, args):
+    #== Build a list of case strings; these are unparsed raw
+    #== strings separated by the '^;' delimeter token. Only
+    #== the 'selected' case string will get parsed.
     cases = []
-    while clist and clist[0] != "]":
-        s = _scan_case_token(clist)
-        #print "CASE:", repr(s)
-        cases.append(s)
+    while clist and _NEXT(clist) != "]":
+        result_string = _scan_case_token(clist, args)
+        # print "CASE:", repr(result_string)
+        cases.append(result_string)
     # end while
-    clist.pop(0)
-    #print "Cases:", cases, "***", case_index
-    if case_index is True:
-        case_index = 0
-    elif case_index is False:
-        case_index = 1
-    else:
-        case_index = int(case_index)
-    # end if
+    clist.pop(0) # pop the ']'
+    # print "Cases:", cases, "***", case_index
+    
+    #== Determine the case selection index
+    case_select = {'True':0, 'False':1, '"1"b':0, '"0"b':1}.get(str(case_index), int(case_index))
+    
+    #== Select the case string and insert its characters
+    #== to the front of the character list for parsing
     try:
-        for t in reversed(list(cases[case_index])):
-            clist.insert(0, t)
-        # end for
-        # return _parse_begin(clist, args)
+        clist[0:0] = list(cases[case_select])
     except:
-        # return ""
+        #== If the selection index falls outside the range
+        #== of available cases, then don't add any case
+        #== string characters for subsequent parsing
         pass
+    # end try
+    
     return ""
 
 def _parse_iter_token(clist, args, N):
-    s = ""
-    clist2 = clist[:]
+    result_string = ""
+    clist_dup = clist[:]
+    
     if N is None:
+        #== This is an iter block without an iter count, e.g., ^(foo ...^).
+        #== We keep iterating until we exhaust all remaining args (unless
+        #== the contents of the iter block has no edit tokens that would
+        #== consume any args, in which case we only iterate once).
         while args:
-            clist2 = clist[:]
+            clist_dup = clist[:]
             len_before = len(args)
-            s += _parse_begin(clist2, args)
+            result_string += _parse_begin(clist_dup, args)
+            #== If parsing the contents of the iter block consumed no args,
+            #== then only perform one iteration
             if len(args) == len_before:
                 break
             # end if
         # end while
-        clist[:] = clist2
+        clist[:] = clist_dup
+        
     elif N:
+        #== This is an iter block with an iter count, e.g., ^3(foo ...^)
         for i in range(N):
-            clist2 = clist[:]
-            s += _parse_begin(clist2, args)
+            clist_dup = clist[:]
+            args_before = args[:]
+            try:
+                result_string += _parse_begin(clist_dup, args)
+                
+            except IndexError:
+                #== Ran out of args during iteration; discard that last iteration ==#
+                
+                #== Pop all characters remaining in clist_dup up to and including
+                #== the terminating '^)' token
+                while clist_dup and _NEXT(clist_dup, 2) != "^)":
+                    clist_dup.pop(0)
+                # end while
+                if _NEXT(clist_dup, 2) == "^)":
+                    clist_dup.pop(0) ; clist_dup.pop(0)
+                # end if
+                #== Restore the args that were left before the failed iteration
+                args[:] = args_before
         # end for
-        clist[:] = clist2
+        clist[:] = clist_dup
+        
     else:
+        #== This is an iter block with an iter count of 0; parse the contents
+        #== of the iter block and then just discard it (i.e., don't add
+        #== anything to the return string)
         _parse_begin(clist, args)
     # end if
-    return s
+    
+    return result_string
 
-_REPEATABLE_CHARS = {'/':"\n", '-':"\t", '|':chr(12), 'x':" ", '^':"^"}
+_WIDTHFIELD_CHARS = "0123456789.v"
+_REPEATABLE_CHARS = {'/':"\n", '|':chr(12), 'x':" ", '^':"^"}
+
+def _parse_width_token(clist, args):
+    if _NEXT(clist) == "v":
+        clist.pop(0)
+        return int(args.pop(0))
+    elif _NEXT(clist).isdigit():
+        return _parse_number(clist)
+    else:
+        return None
 
 def _parse_edit_token(string_so_far, clist, args, N=None, D=None):
 
     c = clist[0]
     
-    if c.isdigit() or c == ".":
-        N = _parse_number(clist)
-        if clist and clist[0] == ".":
+    #== Field width/repeat count: ^N, ^N.D, ^N., ^.D, ^v, ^v.v, ^v., ^N.v, ^v.D
+    if c in _WIDTHFIELD_CHARS:
+        #== Process leading 'v' or number
+        N = _parse_width_token(clist, args)
+        
+        #== Process '.' and subsequent token
+        if _NEXT(clist) == ".":
             clist.pop(0)
-            D = _parse_number(clist)
+            #== Process 'v' or number following the '.'
+            D = _parse_width_token(clist, args)
         # end if
+        
+        #== Ignore (discard) '^.'
+        if N is None and D is None:
+            return ""
+            
         return _parse_edit_token(string_so_far, clist, args, N, D)
         
-    elif len(clist) > 2 and clist[:3] == "v.v":
-        N = int(args.pop(0))
-        D = int(args.pop(0))
-        clist = clist[3:]
-        return _parse_edit_token(string_so_far, clist, args, N, D)
-        
-    elif c == "v":
-        if N is None:
-            N = int(args.pop(0))
-        else:
-            D = int(args.pop(0))
-        # end if
-        clist.pop(0)
-        return _parse_edit_token(string_so_far, clist, args, N, D)
-        
+    #== Repeatable chars: ^x, ^/, ^|, ^^
     elif c in _REPEATABLE_CHARS:
+        assert (D is None)
         clist.pop(0)
         if N == 0:
             return ""
         # end if
         return _REPEATABLE_CHARS[c] * (N or 1)
         
+    #== Horizontal tab: ^-
+    elif c == "-":
+        assert (D is None)
+        clist.pop(0)
+        return _edit_hortab_token(string_so_far, N)
+        
+    #== Ascii string: ^a
     elif c == "a":
+        assert (D is None)
         clist.pop(0)
         return _edit_string_token(args.pop(0), N)
         
+    #== Integer: ^d, ^i
     elif c == "d" or c == "i":
+        assert (D is None)
         clist.pop(0)
         return _edit_integer_token(args.pop(0), N)
         
+    #== Float: ^f
     elif c == "f":
         clist.pop(0)
         return _edit_float_token(args.pop(0), N, D)
         
+    #== Scientific notation float: ^e
+    elif c == "e":
+        assert (D is None)
+        clist.pop(0)
+        return _edit_efloat_token(args.pop(0), N)
+        
+    #== Octal integer: ^o
     elif c == "o":
+        assert (D is None)
         clist.pop(0)
         return _edit_octal_token(args.pop(0), N)
         
+    #== Octal 'word': ^w
     elif c == "w":
+        assert (D is None)
         clist.pop(0)
         return _edit_octalword_token(args.pop(0), N)
         
+    #== Pointer: ^p
     elif c == "p":
+        assert (D is None)
         clist.pop(0)
         return _edit_pointer_token(args.pop(0), N)
         
+    #== Python repr(): ^r
     elif c == "r":
+        assert (D is None)
         clist.pop(0)
         return _edit_repr_token(args.pop(0), N)
         
+    #== Bitstring: ^b
     elif c == "b":
         clist.pop(0)
         return _edit_bitstring_token(args.pop(0), N, D)
         
+    #== Arg ignore: ^s
     elif c == "s":
+        assert (D is None)
         clist.pop(0)
         return _ignore_args(args, N)
         
+    #== Tab postion: ^t
     elif c == "t":
         clist.pop(0)
         return _edit_tabpos_token(string_so_far, N, D)
         
+    #== Case selection: ^[^]
     elif c == "[":
         #print "String so far:", repr(string_so_far)
+        assert (N is None and D is None)
         clist.pop(0)
         case_index = args.pop(0)
         return _parse_case_token(clist, case_index, args)
         
-    # elif c == "]":
-        # print "UNWINDING"
-        # return ""
-    # elif c == ";":
-        # print "NEXT"
-        # return ""
+    #== Case delimiter: ^;
+    elif c == ";":
+        assert (D is None)
+        clist.pop(0)
+        return "^;" * (N or 1)
         
+    #== Iteration: ^(^)
     elif c == "(":
+        assert (D is None)
         clist.pop(0)
         return _parse_iter_token(clist, args, N)
         
@@ -259,31 +369,25 @@ def _parse_edit_token(string_so_far, clist, args, N=None, D=None):
         return "^"
 
 def _parse_begin(clist, args):
-    s = ""
+    result_string = ""
     while clist:
-        if clist[0] == "^":
+        if _NEXT(clist) == "^":
             clist.pop(0)
             
-            if clist and clist[0] == "]":
-                return s
-            
-            elif clist and clist[0] == ";":
+            #== Terminate recursive call from parsing an iter block
+            if _NEXT(clist) == ")":
                 clist.pop(0)
-                return s
-
-            elif clist and clist[0] == ")":
-                clist.pop(0)
-                return s
+                return result_string
             # end if
             
-            x = _parse_edit_token(s, clist, args)
-            #print "TOK:", repr(x), "->", repr(s+x)
-            s += x
+            s = _parse_edit_token(result_string, clist, args)
+            #print "TOK:", repr(s), "->", repr(result_string + s)
+            result_string += s
         else:
-            s += clist.pop(0)
+            result_string += clist.pop(0)
         # end if
     # end while
-    return s
+    return result_string
     
 def _ioa_parser(fmt, args):
     #print repr(fmt), args

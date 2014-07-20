@@ -333,12 +333,11 @@ class PL1(object):
                 else:
                     raise Exception(pointer_name + " not found")
                 return BasedStructureFactory(globals_dict, struct_name, pointer_name)
-                
             
-        # def __repr__(self):
-            # attributes = ",\n  ".join([ "{0}: {1}".format(k, repr(v)) for k, v in self.__dict__.items() if k != "_frozen_" ])
-            # s = "<PL1.Structure\n  %s>" % (attributes)
-            # return s
+        def __repr__(self):
+            attributes = ",\n  ".join([ "{0}: {1}".format(k, repr(v)) for k, v in self.__dict__.items() if k != "_frozen_" ])
+            s = "<PL1.Structure\n  %s>" % (attributes)
+            return s
     
     class EnumValue(object):
         def __init__(self, enum_name, member_name, value):
@@ -528,8 +527,8 @@ class BasedStructure(object):
     def __setattr__(self, attrname, value):
         setattr(self.tracked_object.value, attrname, value)
     def __repr__(self):
-        # return repr(self.tracked_object.value)
-        return "%s tracking %s %s" % (object.__repr__(self), repr(self.__dict__['tracked_name']), repr(self.__dict__['tracked_object']))
+        return repr(self.tracked_object.value)
+        # return "%s tracking %s %s" % (object.__repr__(self), repr(self.__dict__['tracked_name']), repr(self.__dict__['tracked_object']))
     def __enter__(self):
         return self.tracked_object.value.__enter__()
     def __exit__(self, *args):
