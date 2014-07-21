@@ -11,6 +11,10 @@ class parameter(object):
     def initial_value(self):
         return self.value
         
+    @property
+    def local(self):
+        return self
+        
     #== __getattr__ and __setattr__ allow the stored value to be referred to
     #== by any name that is convenient for the programmer. One possible
     #== convention is to use 'ptr' for pointer values and 'val' for scalars.
@@ -115,6 +119,10 @@ class PL1(object):
             
             self.parm = parameter()
             self.parameter = self.parm
+            
+        @property
+        def local(self):
+            return self.toPython()
             
         def init(self, data):
             self.data = data
@@ -379,6 +387,10 @@ class PL1(object):
             # end if
             #== This allows dynamic sizing using Dim(Dynamic.attrname)
             self.dynamic_size_ref = refname
+            
+        @property
+        def local(self):
+            return self
             
         def init(self, value):
             self[:] = value

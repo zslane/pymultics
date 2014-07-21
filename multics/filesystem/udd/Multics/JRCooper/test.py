@@ -50,11 +50,11 @@ def test():
     # admin_info.star_coms[1] = "Foo"
     # call.ioa_("{0}", admin_info)
     
-    call.ioa_("Initial:\n{0}", my_info)
+    call.ioa_("Initial:\n^r", my_info)
     my_info_ptr.data = None
-    call.ioa_("After setting my_info_ptr to None:\n{0}", my_info)
+    call.ioa_("After setting my_info_ptr to None:\n^r", my_info)
     my_info_ptr.reset()
-    call.ioa_("After resetting my_info_ptr:\n{0}", my_info)
+    call.ioa_("After resetting my_info_ptr:\n^r", my_info)
     
     working_dir = get_wdir_()
     
@@ -63,23 +63,23 @@ def test():
     # print type(admin_info)
     # return
 
-    call.ioa_("working_dir = {0}", working_dir)
+    call.ioa_("working_dir = ^a", working_dir)
     call.hcs_.initiate(working_dir, "test.data", "", 0, 0, my_info_ptr, code)
     if code.val != 0 and my_info_ptr.seg == null():
-        call.ioa_("File test.data not found ({0}).\nCreating it.", code.val)
+        call.ioa_("File test.data not found (^r).\nCreating it.", code.val)
         call.hcs_.make_seg(working_dir, "test.data", "", 0, my_info_ptr, code)
         print type(my_info)
-        call.ioa_("code = {0}", code.val)
+        call.ioa_("code = ^r", code.val)
         call.ioa_("{0}", my_info)
         call.ioa_("Setting values...")
         my_info.x = 10
         my_info.y = 20.0
         my_info.z = '30'
-        call.ioa_("{0}", my_info)
+        call.ioa_("^r", my_info)
     else:
         call.ioa_("File test.data found.")
-        call.ioa_("{0}", my_info)
+        call.ioa_("^r", my_info)
         call.ioa_("Deleting it.")
         call.hcs_.delentry_seg(my_info_ptr.seg, code)
-        call.ioa_("code = {0}", code.val)
+        call.ioa_("code = ^r", code.val)
         
