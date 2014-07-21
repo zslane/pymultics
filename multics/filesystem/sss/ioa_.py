@@ -2,7 +2,10 @@ import re
 
 from multics.globals import *
 
-# def _NEXT(clist): return (clist and clist[0]) or ""
+_WIDTHFIELD_CHARS = "0123456789.v"
+_REPEATABLE_CHARS = {'/':"\n", '|':chr(12), 'x':" ", '^':"^"}
+_TABSIZE          = 10
+
 def _NEXT(clist, n=1): return "".join(clist[:n])
     
 def _flatten(alist):
@@ -16,6 +19,9 @@ def _flatten(alist):
     # end for
     return results
     
+def _baseN(num, b, numerals="0123456789ABCDEF"): # up to base-16 (hexidecimal)
+    return ((num == 0) and "0") or (_baseN(num // b, b).lstrip("0") + numerals[num % b])
+
 def _parse_number(clist):
     #== Return None if there is no leading digit to parse
     if not _NEXT(clist).isdigit():
@@ -64,11 +70,13 @@ def _edit_repr_token(r, N):
 def _edit_bitstring_token(b, N, D):
     N = N or 0
     D = D or 1
-    if D < 3:
+    if   D == 1: # base-2 (binary)
         return "%-*r" % (N, b)
-    elif D == 3:
+    elif D == 2: # base-4 (quarternary)
+        return "%-*s" % (N, str(_baseN(int(b), 4)))
+    elif D == 3: # base-8 (octal)
         return "%-*o" % (N, b)
-    else:
+    else:        # base-16 (hexideciaml)
         return "%-*X" % (N, b)
 
 def _ignore_args(args, N):
@@ -89,12 +97,13 @@ def _edit_hortab_token(string_so_far, N):
     result_string = string_so_far[string_so_far.rfind("\n") + 1:]
     if N is None: N = 1
     if N == 0: return ""
-    return " " * (N * 4)
+    s = " " * (_TABSIZE - (len(result_string) % _TABSIZE))
+    return s + (" " * ((N - 1) * _TABSIZE))
     
 def _edit_tabpos_token(string_so_far, N, D):
     result_string = string_so_far[string_so_far.rfind("\n") + 1:]
     # print "TAB:", repr(result_string), N
-    return " " * ((N or 10) - len(result_string) - 1)
+    return " " * ((N or _TABSIZE) - len(result_string) - 1)
     
 def _scan_case_block(clist):
     #== Scan the block-start token '^['
@@ -128,9 +137,7 @@ def _scan_case_token(clist, args):
         if re.match(r"\^(v|\d*);", "".join(clist)):
             clist.pop(0) # pop the '^'
             #== Expand the ^N;
-            x = list(_parse_edit_token(result_string, clist, args))
-            # print "Expanding:", x, "after", result_string
-            clist[0:0] = x
+            clist[0:0] = list(_parse_edit_token(result_string, clist, args))
             break
         elif s == "^[":
             result_string += _scan_case_block(clist)
@@ -146,7 +153,8 @@ def _scan_case_token(clist, args):
         clist.pop(0) # pop the '^'
         if _NEXT(clist) == ";":
             clist.pop(0) # pop the ';'
-        # else leave the ']' in clist
+        # else leave the ']' in clist so it'll be found
+        #  by the while loop in _parse_case_token
     
     return result_string
 
@@ -179,62 +187,72 @@ def _parse_case_token(clist, case_index, args):
     
     return ""
 
-def _parse_iter_token(clist, args, N):
-    result_string = ""
+def _parse_iter_by_args(clist, args):
+    #== This is an iter block without an iter count, e.g., ^(foo ...^).
+    #== We keep iterating until we exhaust all remaining args (unless
+    #== the contents of the iter block has no edit tokens that would
+    #== consume any args, in which case we only iterate once).
     clist_dup = clist[:]
+    result_string = ""
     
-    if N is None:
-        #== This is an iter block without an iter count, e.g., ^(foo ...^).
-        #== We keep iterating until we exhaust all remaining args (unless
-        #== the contents of the iter block has no edit tokens that would
-        #== consume any args, in which case we only iterate once).
-        while args:
-            clist_dup = clist[:]
-            len_before = len(args)
-            result_string += _parse_begin(clist_dup, args)
-            #== If parsing the contents of the iter block consumed no args,
-            #== then only perform one iteration
-            if len(args) == len_before:
-                break
-            # end if
-        # end while
-        clist[:] = clist_dup
-        
-    elif N:
-        #== This is an iter block with an iter count, e.g., ^3(foo ...^)
-        for i in range(N):
-            clist_dup = clist[:]
-            args_before = args[:]
-            try:
-                result_string += _parse_begin(clist_dup, args)
-                
-            except IndexError:
-                #== Ran out of args during iteration; discard that last iteration ==#
-                
-                #== Pop all characters remaining in clist_dup up to and including
-                #== the terminating '^)' token
-                while clist_dup and _NEXT(clist_dup, 2) != "^)":
-                    clist_dup.pop(0)
-                # end while
-                if _NEXT(clist_dup, 2) == "^)":
-                    clist_dup.pop(0) ; clist_dup.pop(0)
-                # end if
-                #== Restore the args that were left before the failed iteration
-                args[:] = args_before
-        # end for
-        clist[:] = clist_dup
-        
-    else:
-        #== This is an iter block with an iter count of 0; parse the contents
-        #== of the iter block and then just discard it (i.e., don't add
-        #== anything to the return string)
-        _parse_begin(clist, args)
-    # end if
+    while args:
+        clist_dup = clist[:]
+        len_before = len(args)
+        result_string += _parse_begin(clist_dup, args)
+        #== If parsing the contents of the iter block consumed no args,
+        #== then only perform one iteration
+        if len(args) == len_before:
+            break
+        # end if
+    # end while
     
+    clist[:] = clist_dup
     return result_string
 
-_WIDTHFIELD_CHARS = "0123456789.v"
-_REPEATABLE_CHARS = {'/':"\n", '|':chr(12), 'x':" ", '^':"^"}
+def _parse_iter_by_count(clist, args, N):
+    #== This is an iter block with an iter count, e.g., ^3(foo ...^)
+    clist_dup = clist[:]
+    result_string = ""
+    
+    for i in range(N):
+        clist_dup = clist[:]
+        args_before = args[:]
+        try:
+            result_string += _parse_begin(clist_dup, args)
+            
+        except IndexError:
+            #== Ran out of args during iteration; discard that last iteration ==#
+            
+            #== Pop all characters remaining in clist_dup up to and including
+            #== the terminating '^)' token
+            while clist_dup and _NEXT(clist_dup, 2) != "^)":
+                clist_dup.pop(0)
+            # end while
+            if _NEXT(clist_dup, 2) == "^)":
+                clist_dup.pop(0) ; clist_dup.pop(0)
+            # end if
+            #== Restore the args that were left before the failed iteration
+            args[:] = args_before
+        # end try
+    # end for
+    
+    clist[:] = clist_dup
+    return result_string
+
+def _parse_iter_and_discard(clist, args):
+    #== This is an iter block with an iter count of 0; parse the contents
+    #== of the iter block and then just discard it (i.e., return an empty
+    #== result string)
+    _parse_begin(clist, args)
+    return ""
+
+def _parse_iter_token(clist, args, N):
+    if N is None:
+        return _parse_iter_by_args(clist, args)
+    elif N > 0:
+        return _parse_iter_by_count(clist, args, N)
+    else:
+        return _parse_iter_and_discard(clist, args)
 
 def _parse_width_token(clist, args):
     if _NEXT(clist) == "v":

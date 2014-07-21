@@ -22,9 +22,9 @@ def ioa_test():
     call. ioa_(s4, s1)
     call. ioa_(s5, 3, 12, id(s5))
 
-    s6 = "^vxoct=^.3b hex=^.4b bin=^20.1b dec=^d other=^.99b"
+    s6 = "^vxoct=^.3b hex=^.4b qua=^.2b bin=^20.1b dec=^d other=^.99b"
     print "%s" % b2, repr(b2), b2
-    call. ioa_(s6, 6, b2, b2, b2, b2, b2)
+    call. ioa_(s6, 6, b2, b2, b2, b2, b2, b2)
     
     include.query_info
     input = parm()
