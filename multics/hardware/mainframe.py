@@ -28,6 +28,8 @@ class VirtualMulticsHardware(QtCore.QObject):
         self.__locks_mutex  = QtCore.QMutex()
         self.__locks        = {}
         
+        GlobalEnvironment.register_filesystem(self.__filesystem)
+        
         system_includes_path = os.path.join(self.filesystem.path2path(self.filesystem.system_library_standard), "includes")
         if system_includes_path not in sys.path:
             sys.path.append(system_includes_path)

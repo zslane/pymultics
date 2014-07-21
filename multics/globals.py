@@ -36,6 +36,8 @@ def alloc(objtype):
         return objtype()
     
 def addr(obj):
+    if type(obj) is PL1.Structure:
+        return obj
     return id(obj)
     
 #== Conditions represented by exception classes ==#
@@ -215,14 +217,17 @@ class GlobalEnvironment(object):
 
     supervisor = None
     hardware   = None
-    fs         = None
     linker     = None
+    fs         = None
     
+    @staticmethod
+    def register_filesystem(filesystem):
+        GlobalEnvironment.fs         = filesystem
+        
     @staticmethod
     def register_supervisor(supervisor):
         GlobalEnvironment.supervisor = supervisor
         GlobalEnvironment.hardware   = supervisor.hardware
-        GlobalEnvironment.fs         = supervisor.fs
         GlobalEnvironment.linker     = supervisor.dynamic_linker
         # global call
         # call = supervisor.dynamic_linker
@@ -232,7 +237,6 @@ class GlobalEnvironment(object):
     def deregister_supervisor():
         GlobalEnvironment.supervisor = None
         GlobalEnvironment.hardware   = None
-        GlobalEnvironment.fs         = None
         GlobalEnvironment.linker     = None
         # global call
         # call = None
@@ -363,6 +367,27 @@ class Injector(object):
         pass
         
     @staticmethod
+    def import_module(name):
+        import sys
+        try:
+            process = get_calling_process_()
+            search_paths = process.search_paths
+        except:
+            search_paths = []
+        # end try
+        search_paths.append(GlobalEnvironment.fs.system_library_standard + ">includes")
+        
+        for include_path in search_paths:
+            sys.path.append(GlobalEnvironment.fs.path2path(include_path))
+                
+        module = __import__(name, globals(), locals(), ())
+        
+        for include_path in search_paths:
+            sys.path.remove(GlobalEnvironment.fs.path2path(include_path))
+        
+        return module
+    
+    @staticmethod
     def inject_func(pframe, name, dynamic_linker):
         if pframe:
             fn = LinkageReference(name, dynamic_linker)
@@ -383,7 +408,8 @@ class Injector(object):
     @staticmethod
     def inject_incl(pframe, name):
         if pframe:
-            module = __import__(name, globals(), locals(), ())
+            # module = __import__(name, globals(), locals(), ())
+            module = Injector.import_module(name)
             for member_name in dir(module):
                 if re.match("__\w+__", member_name):
                     # print "Injector skipping", member_name

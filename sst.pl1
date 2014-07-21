@@ -1,0 +1,81 @@
+sst: procedure options (variable);
+
+          dcl     input                  char (100) varying init ("");
+          dcl     (x, y, z)              fixed bin init (0);
+          dcl     game_length            fixed bin init (0);
+          dcl     difficulty             fixed bin init (0);
+          
+          dcl     sst_rqt_$sst_rqt_      ext static fixed bin;
+          dcl     sst_data_$version_string ext char (10);
+          dcl     sst_data_$info_directory ext char (168);
+          
+          dcl     scip                   ptr init (null ());
+          dcl     USER_INPUT_IOCB        ptr init (null ());
+          dcl     PROMPT_MODE            bit (3) init ("011"b);
+          dcl     prompt_string          char (64) varying init ("^/Command > ");
+          dcl     INFO_PREFIX            char (32) init ("sst");
+          dcl     PRE_REQUEST_LINE       char (30) init ("pre_request_line");
+          dcl     POST_REQUEST_LINE      char (30) init ("post_request_line");
+          dcl     sst_$daemon            entry;
+          dcl     sst_$set_up_game       entry (ptr, fixed bin, fixed bin);
+          dcl     sst_$print_introduction entry (ptr, char (*));
+          
+          dcl     derive_lname_          entry return (char (*));
+          dcl     last_name              char (21) init ("");
+          
+          call cu_$arg_count (argn, code);
+          if (code ^= 0) then do;
+                    call com_err_ (code, MAIN);
+                    return;
+               end;
+          do x = 1 to argn;
+               call cu_$arg_ptr (x, argp, argl, code);
+               if (arg = "-short") | (arg = "-sh") then game_length = 1;
+               else if (arg = "-medium") | (arg = "-med") then game_length = 2;
+               else if (arg = "-long") | (arg = "-lg") then game_length = 3;
+               else if (arg = "-leutenant") | (arg = "-lt") then difficulty = 1;
+               else if (arg = "-sergeant") | (arg = "-sr") then difficulty = 2;
+               else if (arg = "-captain") | (arg = "-cp") then difficulty = 3;
+               else do;
+                         call com_err_ ((0), MAIN, "Usage: sst {-control_args}");
+                         return;
+                    end;
+          end;
+          
+          call ioa_ ("*** Starship Troopers ^a ***^/", sst_data_$version_string);
+          do while (game_length = 0);
+               call ioa_$nnl ("Do you wish to play a (s)hort, (m)edium, or (l)ong game? ");
+               call getline (input);
+               if (input = "s") | (input = "short") then game_length = 1;
+               else if (input = "m") | (input = "medium") then game_length = 2;
+               else if (input = "l") | (input = "long") then game_length = 3;
+          end;
+          
+          call ioa_ ();
+          
+          do while (difficulty = 0);
+               call ioa_$nnl ("Are you (l)eutenant, (s)ergeant, or (c)aptain level? ");
+               call getline (input);
+               if (input = "l") | (input = "leutenant") then difficulty = 1;
+               else if (input = "s") | (input = "sergeant") then difficulty = 2;
+               else if (input = "c") | (input = "captain") then difficulty = 3;
+          end;
+          
+          last_name = derive_lname_ ();
+          call sst_$set_up_game (addr (NODE), game_length, difficulty);
+          call sst_$print_introduction (addr (NODE), last_name);
+          call ssu_$create_invocation (MAIN, sst_data_$version_string, addr (NODE), addr (sst_rqt_$sst_rqt_), sst_data_$info_directory, scip, code);
+          call ssu_$set_prompt_mode (scip, PROMPT_MODE);
+          call ssu_$set_prompt (scip, prompt_string);
+          call ssu_$set_procedure (scip, PRE_REQUEST_LINE, sst_$daemon, code);
+          call ssu_$set_procedure (scip, POST_REQUEST_LINE, sst_$daemon, code);
+          call ssu_$set_info_prefix (scip, INFO_PREFIX);
+          call ssu_$listen (scip, USER_INPUT_IOCB, code);
+          call ssu_$destroy_invocation (scip);
+          
+%include sst_node;
+%include sst_macros;
+%include sst_constants;
+%include arg_processing;
+
+     end sst;

@@ -736,41 +736,49 @@ class DynamicLinker(QtCore.QObject):
         except SegmentFault:
             # print "...segment fault"
             self.__segfault_count += 1
-            if known_location:
-                search_paths = [ known_location ]
-            else:
-                try:
-                    process = get_calling_process_()
-                    search_paths = process.search_paths
-                except:
-                    search_paths = [ self.__filesystem.system_library_standard ]
-                # end try
-            # end if
+            # if known_location:
+                # search_paths = [ known_location ]
+            # else:
+                # try:
+                    # process = get_calling_process_()
+                    # search_paths = process.search_paths
+                # except:
+                    # search_paths = [ self.__filesystem.system_library_standard ]
+                # # end try
+            # # end if
             
-            #== Try to find the segment and add it to the KST
-            for multics_path in search_paths:
-                # print "...searching", multics_path
-                for ext in [".pyo", ".py"]:
-                    module_path = self.__filesystem.path2path(multics_path, segment_name + ext)
-                    # print module_path
-                    if self.__filesystem.file_exists(module_path):
-                        try:
-                            module = self._load_python_code(segment_name, module_path)
-                        except SyntaxError:
-                            raise
-                        except:
-                            #== Invalid python module...probably a syntax error...
-                            self.dump_traceback_()
-                            raise InvalidSegmentFault(segment_name)
+            # #== Try to find the segment and add it to the KST
+            # for multics_path in search_paths:
+                # # print "...searching", multics_path
+                # for ext in [".pyo", ".py"]:
+                    # module_path = self.__filesystem.path2path(multics_path, segment_name + ext)
+                    # # print module_path
+                    # if self.__filesystem.file_exists(module_path):
+                        # try:
+                            # module = self._load_python_code(segment_name, module_path)
+                        # except SyntaxError:
+                            # raise
+                        # except:
+                            # #== Invalid python module...probably a syntax error...
+                            # self.dump_traceback_()
+                            # raise InvalidSegmentFault(segment_name)
                             
-                        self.known_segment_table[segment_name] = SegmentDescriptor(self.__supervisor, segment_name, module_path, module)
-                        entry_point = self.known_segment_table[segment_name].segment
-                        # print "   found", entry_point
-                        return entry_point
-                    # end if
-                # end for
-            # end for
-            return None
+                        # self.known_segment_table[segment_name] = SegmentDescriptor(self.__supervisor, segment_name, module_path, module)
+                        # entry_point = self.known_segment_table[segment_name].segment
+                        # # print "   found", entry_point
+                        # return entry_point
+                    # # end if
+                # # end for
+            # # end for
+            # return None
+            module, module_path = self._find_module(segment_name, known_location)
+            if module:
+                self.known_segment_table[segment_name] = SegmentDescriptor(self.__supervisor, segment_name, module_path, module)
+                entry_point = self.known_segment_table[segment_name].segment
+                # print "   found", entry_point
+                return entry_point
+            else:
+                return None
             
     def unsnap(self, segment_name):
         self._unlink_segment(segment_name)
@@ -807,7 +815,42 @@ class DynamicLinker(QtCore.QObject):
             except KeyError:
                 # print "...raising SegmentFault"
                 raise SegmentFault(segment_name)
-    
+                
+    def _find_module(self, segment_name, known_location=None, additional_locations=[]): 
+        if known_location:
+            search_paths = [ known_location ]
+        else:
+            try:
+                process = get_calling_process_()
+                search_paths = process.search_paths
+            except:
+                search_paths = [ self.__filesystem.system_library_standard ]
+            # end try
+        # end if
+        search_paths.extend(additional_locations)
+        
+        #== Try to find the segment and add it to the KST
+        for multics_path in search_paths:
+            # print "...searching", multics_path
+            for ext in [".pyo", ".py"]:
+                module_path = self.__filesystem.path2path(multics_path, segment_name + ext)
+                # print module_path
+                if self.__filesystem.file_exists(module_path):
+                    try:
+                        module = self._load_python_code(segment_name, module_path)
+                        return module, module_path
+                    except SyntaxError:
+                        raise
+                    except:
+                        #== Invalid python module...probably a syntax error...
+                        self.dump_traceback_()
+                        raise InvalidSegmentFault(segment_name)
+                    # end try
+                # end if
+            # end for
+        # end for
+        return None, None
+
     def _load_python_code(self, module_name, module_path):
         #== Turn the module name into a unique namespace based on the process id
         process = get_calling_process_()
