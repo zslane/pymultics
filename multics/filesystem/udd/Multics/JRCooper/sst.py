@@ -19,7 +19,6 @@ def sst():
     game_length                  = fixed.bin . init (0) . local
     difficulty                   = fixed.bin . init (0) . local
     
-    # dcl     sst_rqt_$sst_rqt_      ext static fixed bin;
     dcl ( sst_rqt_               = entry )
     dcl ( sst_data_              = entry )
     
@@ -78,13 +77,21 @@ def sst():
     call. sst_.set_up_game (addr (NODE), game_length, difficulty)
     call. sst_.print_introduction (addr (NODE), last_name);
     call. ssu_.create_invocation (MAIN, sst_data_.version_string, addr (NODE), addr (sst_rqt_.sst_rqt_), sst_data_.info_directory, scip, code)
-    # call. ssu_.set_prompt_mode (scip, PROMPT_MODE)
-    # call. ssu_.set_prompt (scip, prompt_string)
-    # call. ssu_.set_procedure (scip, PRE_REQUEST_LINE, sst_.daemon, code)
-    # call. ssu_.set_procedure (scip, POST_REQUEST_LINE, sst_.daemon, code)
-    # call. ssu_.set_info_prefix (scip, INFO_PREFIX)
-    # call. ssu_.listen (scip, USER_INPUT_IOCB, code)
-    # call. ssu_.destroy_invocation (scip)
+    call. ssu_.set_prompt_mode (scip, PROMPT_MODE)
+    call. ssu_.set_prompt (scip, prompt_string)
+    call. ssu_.set_procedure (scip, PRE_REQUEST_LINE, sst_.daemon, code)
+    call. ssu_.set_procedure (scip, POST_REQUEST_LINE, sst_.daemon, code)
+    call. ssu_.set_info_prefix (scip, INFO_PREFIX)
+    # call. ioa_ ("^a ^a", scip.ptr.subsystem_name, scip.ptr.version_string)
+    print scip.ptr.info_ptr.dumps()
+    # call. ioa_ ("^r", scip.ptr.info_ptr)
+    # call. ioa_ ("^r", scip.ptr.request_table)
+    # call. ioa_ ("^a", scip.ptr.info_directory)
+    # call. ioa_ ("^a", scip.ptr.prompt_mode)
+    # call. ioa_ ("^a", scip.ptr.prompt_string)
+    # call. ioa_ ("^r", scip.ptr.procedures)
+    call. ssu_.listen (scip, USER_INPUT_IOCB, code)
+    call. ssu_.destroy_invocation (scip)
 
 #-- end def sst
 

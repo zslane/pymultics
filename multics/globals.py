@@ -36,9 +36,12 @@ def alloc(objtype):
         return objtype()
     
 def addr(obj):
-    if type(obj) is PL1.Structure:
+    if isinstance(obj, PL1.Structure):
         return obj
     return id(obj)
+    
+def mod(x, y):
+    return x % y
     
 #== Conditions represented by exception classes ==#
 
