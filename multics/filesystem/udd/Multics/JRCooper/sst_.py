@@ -43,7 +43,6 @@ class sst_(Subroutine):
         call. ioa_ ("land at Sector ^d - ^d, Mark ^d - ^d.  Good luck!", node.beacon.SX, node.beacon.SY, node.beacon.PX, node.beacon.PY)
         call. ioa_ ("^/*************************")
         
-    # @subsystem_request
     def daemon(self, scip):
         Node = ssu_.get_info_ptr (scip)
         

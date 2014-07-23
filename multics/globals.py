@@ -187,6 +187,9 @@ class CommandProcessor(Subroutine):
     def execute(self):
         raise LinkageError(self.__segment_name, "execute (command processor entry point)")
 
+class DataSegment(object):
+    pass
+    
 def print_stackframes():
     def _print_pframe(pframe, indent=""):
         if pframe:
@@ -394,6 +397,19 @@ class Injector(object):
             fn = LinkageReference(name, dynamic_linker)
             # print "Injecting", fn, "into", pframe.f_globals['__name__'], "as", name
             pframe.f_globals.update({name:fn})
+    
+    @staticmethod
+    def inject_data(pframe, name):
+        if pframe:
+            module = Injector.import_module(name)
+            for member_name in dir(module):
+                if member_name != name:
+                    # print "Injector skipping", member_name
+                    continue
+                # end if
+                member_object = getattr(module, member_name)
+                # print "Injecting", member_name, "into", pframe.f_globals['__name__']
+                pframe.f_globals.update({member_name:member_object})
         
     @staticmethod
     def inject_parm(pframe, name, initial_value=None):
@@ -486,6 +502,9 @@ class declare(object):
                 #== PL1.ProcSignature here allows methods inside Subroutine
                 #== objects to be called with regular function call syntax.
                 Injector.inject_func(pframe, fn_name, call)
+            elif type(dcl_type) is PL1.DataSegment:
+                #== Creates and injects a data segment
+                Injector.inject_data(pframe, fn_name)
             else:
                 # print "declaring", fn_name, dcl_type
                 #== Creates and injects a local variable

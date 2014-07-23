@@ -20,8 +20,8 @@ def sst():
     game_length                  = fixed.bin . init (0) . local
     difficulty                   = fixed.bin . init (0) . local
     
-    dcl ( sst_rqt_               = entry )
-    dcl ( sst_data_              = entry )
+    dcl ( sst_rqt_               = external_static )
+    dcl ( sst_data_              = external_static )
     
     scip                         = ptr . init (null ())
     USER_INPUT_IOCB              = ptr . init (null ())
@@ -83,15 +83,6 @@ def sst():
     call. ssu_.set_procedure (scip, PRE_REQUEST_LINE, sst_.daemon, code)
     call. ssu_.set_procedure (scip, POST_REQUEST_LINE, sst_.daemon, code)
     call. ssu_.set_info_prefix (scip, INFO_PREFIX)
-    # call. ioa_ ("^a ^a", scip.ptr.subsystem_name, scip.ptr.version_string)
-    # print scip.ptr.info_ptr.dumps()
-    # call. ioa_ ("^r", scip.ptr.info_ptr)
-    print scip.ptr.request_table
-    # call. ioa_ ("^r", scip.ptr.request_table)
-    # call. ioa_ ("^a", scip.ptr.info_directory)
-    # call. ioa_ ("^a", scip.ptr.prompt_mode)
-    # call. ioa_ ("^a", scip.ptr.prompt_string)
-    # call. ioa_ ("^r", scip.ptr.procedures)
     call. ssu_.listen (scip, USER_INPUT_IOCB, code)
     call. ssu_.destroy_invocation (scip)
 

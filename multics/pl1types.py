@@ -248,6 +248,9 @@ class PL1(object):
             s += " returns (%s)" % (", ".join(map(repr, self.returning)))
             return s
             
+    class DataSegment(object):
+        pass
+        
     class Structure(object):
         def __init__(self, **attrs):
             def toPythonList(x): return [ toType(elem) for elem in x ]
@@ -762,6 +765,7 @@ varying = PL1.Type(PL1.Varying, PL1.Varying, PL1.Varying)
 
 entry = PL1.ProcSignature()
 variable = PL1.Option.variable
+external_static = PL1.DataSegment()
 
 #== This is defined just so PL1.Structures can be pickled
 Structure = PL1.Structure
