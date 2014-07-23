@@ -1,37 +1,33 @@
 
 from multics.globals import *
         
-class subsystem_request_table(PL1.Structure):
-    def __init__(self):
-        PL1.Structure.__init__(self,
-            table_entries = {},
-        )
+include. ssu_request_table
 
-class request(PL1.Structure):
-    def __init__(self, long_name, request_entry, short_name, description, request_flags):
-        PL1.Structure.__init__(self,
-            long_name = long_name,
-            request_entry = request_entry,
-            short_name = short_name,
-            description = description,
-            request_flags = request_flags,
-        )
-        
-class flags(object):
-
-    allow_command = 1
-    
-include. sst_
+dcl (sst_ = entry)
 
 class sst_rqt_(Subroutine):
-
-    sst_rqt_ = subsystem_request_table()
     
     def __init__(self):
         super(sst_rqt_, self).__init__(self.__class__.__name__)
+    
+    sst_rqt_ = begin_table([
         
-        sst_rqt_.sst_rqt_.table_entries = {
-        
-            'scanner': request('scanner', sst_.scanner, "sc", "Scanner readout.", flags.allow_command),
-            
-        }
+        request   ( "scanner",
+                    sst_.scanner,
+                    "sc",
+                    "Scanner readout.",
+                    flags.allow_command ),
+
+        request   ( "chart",
+                    sst_.chart,
+                    "ch",
+                    "Planetary chart readout.",
+                    flags.allow_command ),
+
+        request   ( "quit",
+                    sst_.quit,
+                    "q",
+                    "Quit the game.",
+                    flags.allow_command ),
+                    
+    ]) # end_table sst_rqt_

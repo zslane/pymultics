@@ -1,3 +1,4 @@
+import string
 
 from multics.globals import *
 
@@ -83,8 +84,9 @@ def sst():
     call. ssu_.set_procedure (scip, POST_REQUEST_LINE, sst_.daemon, code)
     call. ssu_.set_info_prefix (scip, INFO_PREFIX)
     # call. ioa_ ("^a ^a", scip.ptr.subsystem_name, scip.ptr.version_string)
-    print scip.ptr.info_ptr.dumps()
+    # print scip.ptr.info_ptr.dumps()
     # call. ioa_ ("^r", scip.ptr.info_ptr)
+    print scip.ptr.request_table
     # call. ioa_ ("^r", scip.ptr.request_table)
     # call. ioa_ ("^a", scip.ptr.info_directory)
     # call. ioa_ ("^a", scip.ptr.prompt_mode)
@@ -98,25 +100,23 @@ def sst():
 def getline(input_var):
     include. query_info
     
-    MAIN = "starship_troopers"
-    
     query_info.version = query_info_version_5
     query_info.suppress_spacing = True
     query_info.suppress_name_sw = True
     # query_info.cp_escape_control = "10"b;
     
-    call.command_query_(query_info, input_var, MAIN)
+    call. command_query_ (query_info, input_var, MAIN)
     
 #-- end def getline
 
 def derive_lname_():
-    person = char (21) . parm . init("")
+    person = char (22) . parm . init("")
     project = char (9) . parm . init("")
-    acct = char (8) . parm . init ("")
+    acct = char (32) . parm . init ("")
     
     call. user_info_.whoami (person, project, acct)
-    for i, c in enumerate(list(person.val)):
-        if c in "abcdefghijklmnopqrstuvwxyz":
+    for i, c in enumerate(person.val):
+        if c in string.ascii_lowercase:
             return person.val[i - 1:]
     
 #-- end def derive_lname_

@@ -36,9 +36,7 @@ def alloc(objtype):
         return objtype()
     
 def addr(obj):
-    if isinstance(obj, PL1.Structure):
-        return obj
-    return id(obj)
+    return obj
     
 def mod(x, y):
     return x % y
@@ -462,6 +460,8 @@ class Injector(object):
 def null():
     return None
     
+subsystem_request = staticmethod
+
 class declare(object):
     #== We only want declare objects for their side effects during construction. It
     #== is expected that the instantiated object won't even be assigned to anything.
