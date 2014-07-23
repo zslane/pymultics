@@ -4,6 +4,8 @@ from multics.globals import *
 include. query_info
 include. ssu_request_table
 
+class ssu_abort_line(Exception): pass
+
 class ssu_(Subroutine):
     def __init__(self):
         super(ssu_, self).__init__(self.__class__.__name__)
@@ -12,7 +14,7 @@ class ssu_(Subroutine):
         sci_ptr.ptr                = subsystem_control_info()
         sci_ptr.ptr.subsystem_name = subsystem_name
         sci_ptr.ptr.version_string = version_string
-        sci_ptr.ptr.prompt_string  = subsystem_name
+        sci_ptr.ptr.prompt_string  = "^/%s:  " % (subsystem_name)
         sci_ptr.ptr.info_ptr       = info_ptr
         sci_ptr.ptr.request_table  = request_table_ptr
         sci_ptr.ptr.info_directory = info_directory
@@ -37,12 +39,14 @@ class ssu_(Subroutine):
         code    = fixed.bin (35) . parm . init (0)
         
         query_info.version = query_info_version_5
-        query_info.suppress_spacing = (sci_ptr.ptr.prompt_mode & bitstring(3, b'011') != 0)
-        query_info.suppress_name_sw = (sci_ptr.ptr.prompt_mode & bitstring(3, b'011') != 0)
+        query_info.suppress_spacing = True
+        query_info.suppress_name_sw = True
         
         while sci_ptr.ptr.exit_code == -1:
         
-            call. ioa_.nnl (sci_ptr.ptr.prompt_string)
+            if sci_ptr.ptr.prompt_mode & bitstring(3, b'010'):
+                call. ioa_.nnl (sci_ptr.ptr.prompt_string)
+            # end if
             call. command_query_ (query_info, command, sci_ptr.ptr.subsystem_name)
             
             pre_request_proc = sci_ptr.ptr.procedures.get("pre_request_line")
@@ -74,10 +78,9 @@ class ssu_(Subroutine):
     def arg_ptr(self, sci_ptr, arg_index, arg_ptr):
         try:
             arg_ptr.val = sci_ptr.arg_list[arg_index]
-            code.val = 0
         except:
             arg_ptr.val = ""
-            code.val = error_table_.noarg
+            self.abort_line(sci_ptr, error_table_.noarg)
             
     def execute_string(self, sci_ptr, command_string, code):
         command_string = command_string.strip()
@@ -87,24 +90,40 @@ class ssu_(Subroutine):
         # end if
         
         arg_list = command_string.split()
-        command_name = arg_list.pop(0)
-        sci_ptr.ptr.arg_list = arg_list
+        request_name = arg_list.pop(0)
         
         for request in sci_ptr.ptr.request_table.table_entries:
-            if ((command_name == request.long_name or command_name == request.short_name) and
+            if ((request_name == request.long_name or request_name == request.short_name) and
                 (request.request_flags == flags.allow_command)):
-                request.request_entry(sci_ptr, sci_ptr.ptr.info_ptr)
+                try:
+                    sci_ptr.ptr.request_name = request.long_name
+                    sci_ptr.ptr.arg_list = arg_list
+                    request.rq_procedure(sci_ptr, sci_ptr.ptr.info_ptr)
+                except ssu_abort_line:
+                    pass
+                # end try
                 code.val = 1
                 break
             # end if
         else:
             code.val = 0
             
-    def abort_line(self, sci_ptr, code, format_string, *args):
-        call. ioa_ (format_string, *args)
+    def print_message(self, sci_ptr, code, format_string="", *args):
+        user_message = parm("")
+        if format_string:
+            call. ioa_.rsnnl (format_string, user_message, *args)
+        call. ioa_ ("^/^a^[ (^a)^;^s^]: ^r ^a", sci_ptr.ptr.subsystem_name, sci_ptr.ptr.request_name != "", sci_ptr.ptr.request_name, code, user_message.val)
+    
+    def abort_line(self, sci_ptr, code, format_string="", *args):
+        if code != 0:
+            self.print_message(sci_ptr, code, format_string, *args)
+        raise ssu_abort_line
         
-    def abort_subsystem(self, sci_ptr, code):
+    def abort_subsystem(self, sci_ptr, code, format_string="", *args):
+        if code != 0:
+            self.print_message(sci_ptr, code, format_string, *args)
         sci_ptr.ptr.exit_code = code
+        raise ssu_abort_line
         
 #-- end class ssu_
 
@@ -116,9 +135,10 @@ class subsystem_control_info(PL1.Structure):
             info_ptr       = None,
             request_table  = None,
             info_directory = "",
-            prompt_mode    = b'0',
+            prompt_mode    = bitstring(3, b'010'),
             prompt_string  = "",
             procedures     = {},
+            request_name   = "",
             arg_list       = [],
             exit_code      = -1,
         )
