@@ -1,0 +1,28 @@
+/* BEGIN INCLUDE FILE sst_macros.incl.pl1 */
+
+     declare
+     
+             ioa_                   entry options (variable),
+             ioa_$nnl               entry options (variable),
+             ioa_$rsnnl             entry options (variable),
+             
+             com_err_               entry options (variable),
+             getline                entry options (variable),
+             yes_no                 entry options (variable),
+             
+             ssu_$create_invocation entry (char (*), char (*), ptr, ptr, char (*), ptr, fixed bin (35)),
+             ssu_$destroy_invocation entry (ptr),
+             ssu_$listen            entry (ptr, ptr, fixed bin (35)),
+             ssu_$set_prompt        entry (ptr, char (64) varying),
+             ssu_$set_prompt_mode   entry (ptr, bit (*)),
+             ssu_$abort_line        entry options (variable),
+             ssu_$abort_subsystem   entry options (variable),
+             ssu_$arg_count         entry (ptr, fixed bin),
+             ssu_$arg_ptr           entry (ptr, fixed bin, ptr, fixed bin (21)),
+             ssu_$set_procedure     entry (ptr, char (*), entry, fixed bin (35)),
+             ssu_$get_info_ptr      entry (ptr) returns (ptr),
+             ssu_$execute_string    entry (ptr, char (*), fixed bin (35)),
+             ssu_$set_info_prefix   entry (ptr, char (32)),
+             ssu_$print_message     entry options (variable);
+             
+/* END INCLUDE FILE sst_macros.incl.pl1 */

@@ -1,0 +1,119 @@
+/* BEGIN INCLUDE FILE sst_node.incl.pl1 */
+
+     declare
+             1 NODE                 aligned,
+             
+               2 rank               fixed bin init (0),
+               2 (SX, SY, PX, PY)   fixed bin init (0),
+               2 suit_pts           fixed bin init (50),
+               2 body_pts           fixed bin init (20),
+               2 jet_energy         fixed bin init (1000),
+               2 flamer_energy      fixed bin init (1000),
+               2 HE_bombN           fixed bin init (0),
+               2 nuke_bombN         fixed bin init (4),
+               2 time_left          fixed dec (5, 2) init (0),
+               2 encamped           bit (1) init ("0"b),
+               2 sitting_in_rad     bit (1) init ("0"b),
+               2 was_in_rad         bit (1) init ("0"b),
+            /* 2 secret_plans_found bit (1) init ("0"b), */
+               
+               2 beacon,
+                 3 (SX, SY, PX, PY) fixed bin init (0),
+                 3 landed           bit (1) init ("0"b),
+                 
+               2 supplyN            fixed bin init (0),
+               2 supply             (6),
+                 3 (SX, SY, PX, PY) fixed bin,
+                 3 uses_left        fixed bin,
+                 
+               2 equipment,
+                 3 snooper,
+                   4 working        bit (1) init ("1"b),
+                   4 repair_time    fixed dec (5, 2) init (0),
+                 3 scanner,
+                   4 working        bit (1) init ("1"b),
+                   4 repair_time    fixed dec (5, 2) init (0),
+                 3 jet_boosters,
+                   4 working        bit (1) init ("1"b),
+                   4 repair_time    fixed dec (5, 2) init (0),
+                 3 flamer,
+                   4 working        bit (1) init ("1"b),
+                   4 repair_time    fixed dec (5, 2) init (0),
+                 3 HE_launcher,
+                   4 working        bit (1) init ("1"b),
+                   4 repair_time    fixed dec (5, 2) init (0),
+                 3 nuke_launcher,
+                   4 working        bit (1) init ("1"b),
+                   4 repair_time    fixed dec (5, 2) init (0),
+                 3 listening_dev,
+                   4 working        bit (1) init ("1"b),
+                   4 repair_time    fixed dec (5, 2) init (0),
+                   
+               2 arachnidT          fixed bin init (0),
+               2 Arachnid           (60),
+                 3 (SX, SY, PX, PY) fixed bin,
+                 3 life_pts         fixed bin,
+                 
+               2 skinnyT            fixed bin init (0),
+               2 Skinny             (30),
+                 3 (SX, SY, PX, PY) fixed bin,
+                 3 life_pts         fixed bin,
+                 
+               2 heavy_beamT        fixed bin init (0),
+               2 Heavy_beam         (6),
+                 3 (SX, SY, PX, PY) fixed bin,
+                 3 life_pts         fixed bin,
+                 
+               2 missile_lT         fixed bin init (0),
+               2 Missile_l          (6),
+                 3 (SX, SY, PX, PY) fixed bin,
+                 3 life_pts,
+                 
+               2 breachN            fixed bin init (0),
+               2 breach             (25),
+                 3 (SX, SY, PX, PY) fixed bin,
+                 3 engineer         fixed bin,
+                 3 prisoners        fixed bin,
+                 
+               2 fortN              fixed bin init (0),
+               2 fort               (25),
+                 3 (SX, SY, PX, PY) fixed bin,
+                 3 guard            fixed bin,
+              /* secret_plans_here  bit (1), */
+               2 sector             (5, 5),
+                 3 arachnidT        fixed bin,
+                 3 skinnyT          fixed bin,
+                 3 radiation        char (1),
+                 3 supply           char (1),
+                 3 point            (10, 10) char (1),
+                 
+               2 chart              (5, 5),
+                 3 arachnidN        char (1),
+                 3 skinnyN          char (1),
+                 3 radiation        char (1),
+                 3 supply           char (1),
+                 
+               2 score,
+                 3 total            fixed bin init (0),
+                 3 arachnids_Xed    fixed bin init (0),
+                 3 skinnies_Xed     fixed bin init (0),
+                 3 heavy_beams_Xed  fixed bin init (0),
+                 3 missile_ls_Xed   fixed bin init (0),
+                 3 mountains_Xed    fixed bin init (0),
+                 3 supplies_Xed     fixed bin init (0),
+                 3 prisoners_rescued fixed bin init (0),
+                 3 death_penalty    fixed bin init (0),
+                 3 captured_penalty fixed bin init (0),
+                 3 success_ratio    fixed bin init (-1),
+                 3 rank_bonus       fixed bin init (0),
+                 3 skinny_prisoners fixed bin init (0),
+              /* 3 secret_plans     fixed bin init (0), */
+                 
+               2 nuke_bonus_score   fixed bin init (5000),
+               
+               2 distress,
+                 3 (SX, SY)         fixed bin init (0),
+                 3 notified         bit (1) init ("0"b),
+                 3 which_supply     fixed bin init (0);
+                 
+/* END INCLUDE FILE sst_node.incl.pl1 */

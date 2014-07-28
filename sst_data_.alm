@@ -1,0 +1,9 @@
+          segdef version_string
+          segdef info_directory
+
+version_string:
+     aci            /1.0/,10
+info_directory:
+     aci            />udd>sct>jrc>info/,168
+     
+          end
