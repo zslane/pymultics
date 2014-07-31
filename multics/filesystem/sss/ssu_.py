@@ -1,3 +1,4 @@
+import re
 
 from multics.globals import *
 
@@ -37,6 +38,7 @@ class ssu_(Subroutine):
     def listen(self, sci_ptr, iocb_ptr, code):
         command = char ('*') . parm . init ("")
         code    = fixed.bin (35) . parm . init (0)
+        commands = []
         
         query_info.version = query_info_version_5
         query_info.suppress_spacing = True
@@ -44,10 +46,19 @@ class ssu_(Subroutine):
         
         while sci_ptr.ptr.exit_code == -1:
         
-            if sci_ptr.ptr.prompt_mode & bitstring(3, b'010'):
-                call. ioa_.nnl (sci_ptr.ptr.prompt_string)
+            #== If there are no more commands queued up from a multi-command line
+            #== then get some commands from command_query_
+            if commands == []:
+                if sci_ptr.ptr.prompt_mode & bitstring(3, b'010'):
+                    call. ioa_.nnl (sci_ptr.ptr.prompt_string)
+                # end if
+                call. command_query_ (query_info, command, sci_ptr.ptr.subsystem_name)
+                #== Semi-colons separate multiple commands--create a command queue
+                commands = command.val.split(";")
             # end if
-            call. command_query_ (query_info, command, sci_ptr.ptr.subsystem_name)
+            
+            #== Get the next command in the queue and execute it
+            command.val = commands.pop(0).strip()
             
             pre_request_proc = sci_ptr.ptr.procedures.get("pre_request_line")
             if pre_request_proc:
@@ -73,15 +84,18 @@ class ssu_(Subroutine):
         return sci_ptr.info_ptr
         
     def arg_count(self, sci_ptr, arg_count):
-        arg_count.val = len(sci_ptr.arg_list)
+        arg_count.val = len(self._split(sci_ptr.ptr.args_string))
         
     def arg_ptr(self, sci_ptr, arg_index, arg_ptr):
         try:
-            arg_ptr.val = sci_ptr.arg_list[arg_index]
+            arg_ptr.val = self._split(sci_ptr.ptr.args_string)[arg_index]
         except:
-            arg_ptr.val = ""
+            arg_ptr.val = null()
             self.abort_line(sci_ptr, error_table_.noarg)
             
+    def _split(self, s, maxsplit=0):
+        return [p for p in re.split(r'(\s)|"(.*?)"', s, maxsplit=maxsplit) if p and p.strip()]
+    
     def execute_string(self, sci_ptr, command_string, code):
         command_string = command_string.strip()
         if command_string == "":
@@ -89,15 +103,14 @@ class ssu_(Subroutine):
             return
         # end if
         
-        arg_list = command_string.split()
-        request_name = arg_list.pop(0)
+        request_name, _, args_string = command_string.partition(" ")
         
         for request in sci_ptr.ptr.request_table.table_entries:
             if ((request_name == request.long_name or request_name == request.short_name) and
                 (request.request_flags == flags.allow_command)):
                 try:
                     sci_ptr.ptr.request_name = request.long_name
-                    sci_ptr.ptr.arg_list = arg_list
+                    sci_ptr.ptr.args_string = args_string.strip()
                     request.rq_procedure(sci_ptr, sci_ptr.ptr.info_ptr)
                 except ssu_abort_line:
                     pass
@@ -139,7 +152,7 @@ class subsystem_control_info(PL1.Structure):
             prompt_string  = "",
             procedures     = {},
             request_name   = "",
-            arg_list       = [],
+            args_string    = "",
             exit_code      = -1,
         )
         
