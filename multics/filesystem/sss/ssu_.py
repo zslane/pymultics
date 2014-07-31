@@ -49,9 +49,15 @@ class ssu_(Subroutine):
             #== If there are no more commands queued up from a multi-command line
             #== then get some commands from command_query_
             if commands == []:
+                pre_request_proc = sci_ptr.ptr.procedures.get("pre_request_line")
+                if pre_request_proc:
+                    pre_request_proc(sci_ptr)
+                # end if
+                
                 if sci_ptr.ptr.prompt_mode & bitstring(3, b'010'):
                     call. ioa_.nnl (sci_ptr.ptr.prompt_string)
                 # end if
+                
                 call. command_query_ (query_info, command, sci_ptr.ptr.subsystem_name)
                 #== Semi-colons separate multiple commands--create a command queue
                 commands = command.val.split(";")
@@ -60,22 +66,12 @@ class ssu_(Subroutine):
             #== Get the next command in the queue and execute it
             command.val = commands.pop(0).strip()
             
-            pre_request_proc = sci_ptr.ptr.procedures.get("pre_request_line")
-            if pre_request_proc:
-                pre_request_proc(sci_ptr)
-            # end if
-            
             self.execute_string(sci_ptr, command.val, code)
             if code.val == 0:
                 if command.val == "*":
                     sci_ptr.ptr.exit_code = 0
                 # end if
             # end for
-            
-            post_request_proc = sci_ptr.ptr.procedures.get("post_request_line")
-            if post_request_proc:
-                post_request_proc(sci_ptr)
-            # end if
         
     def destroy_invocation(self, sci_ptr):
         pass
@@ -109,9 +105,16 @@ class ssu_(Subroutine):
             if ((request_name == request.long_name or request_name == request.short_name) and
                 (request.request_flags == flags.allow_command)):
                 try:
+                
                     sci_ptr.ptr.request_name = request.long_name
                     sci_ptr.ptr.args_string = args_string.strip()
                     request.rq_procedure(sci_ptr, sci_ptr.ptr.info_ptr)
+            
+                    post_request_proc = sci_ptr.ptr.procedures.get("post_request_line")
+                    if post_request_proc:
+                        post_request_proc(sci_ptr)
+                    # end if
+                    
                 except ssu_abort_line:
                     pass
                 # end try
