@@ -3,7 +3,7 @@ import re
 from multics.globals import *
 
 include. query_info
-include. ssu_request_table
+include. ssu_request_macros
 
 class ssu_abort_line(Exception): pass
 
@@ -122,6 +122,7 @@ class ssu_(Subroutine):
                 break
             # end if
         else:
+            call. ioa_ ("Unrecognized request ^a", request_name)
             code.val = 0
             
     def print_message(self, sci_ptr, code, format_string="", *args):

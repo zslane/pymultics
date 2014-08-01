@@ -13,6 +13,7 @@ class request(object):
         
 class flags(object):
 
-    unimplemented = 0
-    allow_command = 1
-    
+    unimplemented  = 0
+    allow_command  = 1
+    dont_summarize = 2
+    dont_list      = 4

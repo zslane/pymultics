@@ -59,3 +59,7 @@ def ioa_test():
     call. ioa_("^2(^[JRCooper^[.^[sa^;SysAdmin^]^]^] ^)", [sw, sw2, which] * 2)
     call. ioa_("^[a^;b^;^;^;c^;d^2;^v;e^]", 9, 2)
     call. ioa_("^4(^d. ^a^/^)", 1, "foo", 2, "bar", 3, "baz", 4)
+    c = ["a", "b", "c", "d", "e"]
+    c += [""] * (len(c) % 2)
+    call. ioa_("^(^a^20t^a^/^)", c)
+    

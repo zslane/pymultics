@@ -475,8 +475,6 @@ class Injector(object):
         
 def null():
     return None
-    
-subsystem_request = staticmethod
 
 class declare(object):
     #== We only want declare objects for their side effects during construction. It
