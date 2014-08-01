@@ -18,6 +18,9 @@ def before(s, p):
 def after(s, p):
     return s.partition(p)[-1]
 
+def substr(s, n, m):
+    return s[n-1:n+m-1]
+    
 def verify(s, p):
     for i, c in enumerate(s):
         if not c in p:
@@ -40,6 +43,9 @@ def addr(obj):
     
 def mod(x, y):
     return x % y
+    
+def decimal(x):
+    return int(x)
     
 #== Conditions represented by exception classes ==#
 
@@ -142,6 +148,7 @@ error_table_ = PL1.Enum("error_table_",
     new_search_list = -17,
     action_not_performed = -18,
     noentry = -19,
+    badopt = -20,
 )
 
 class Subroutine(QtCore.QObject):

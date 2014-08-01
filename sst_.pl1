@@ -1,0 +1,261 @@
+sst_: procedure options (variable);
+
+          dcl     scip                  ptr parm;
+          dcl     nptr                  ptr parm;
+          dcl     Nptr                  ptr init (null ());
+          dcl     game_length           fixed bin parm;
+          dcl     rank                  fixed bin parm;
+          dcl     last_name             char (*) parm;
+          
+          dcl     1 node                aligned based (nptr) like NODE;
+          dcl     1 Node                aligned based (Nptr) like NODE;
+          
+          dcl     input                 char (100) varying init ("");
+          dcl     (x, y, z)             fixed bin init (0);
+          dcl     (a, b, c)             fixed bin init (0);
+          dcl     sst_data_$version_string ext char (10);
+          
+          dcl     argn                  fixed bin init (0);
+          dcl     argp                  ptr init (null ());
+          dcl     argl                  fixed bin (21) init (0);
+          dcl     arg                   char (argl) based (argp);
+          dcl     code                  fixed bin (35) init (0);
+          
+set_up_game: entry (nptr, game_length, rank);
+
+          dcl     it_was_not_placed      bit (1) init ("0"b);
+          
+          node.arachnidT = mod (clock (), (game_length * 10)) + game_length * 10;
+          node.skinnyT = mod (clodk (), (game_length * 5)) + game_length * 5;
+          node.sector (*, *).arachnidN = 0;
+          node.sector (*, *).skinnyN = 0;
+          node.sector (*, *).radiation = "0";
+          node.sector (*, *).supply = "0";
+          node.sector (*, *).point = ".";
+          node.chart (*, *).arachnidN = ".";
+          node.chart (*, *).skinnyN = ".";
+          node.chart (*, *).radiation = ".";
+          node.chart (*, *).supply = ".";
+          node.rank = rank;
+          node.time_left = trunc ((node.arachnidT + node.heavy_beamT) * ((4 - node.rank) * .25));
+          node.SX = mod (clock (), 5) + 1;
+          node.SY = mod (clock (), 5) + 1;
+          node.PX = mod (clock (), 10) + 1;
+          node.PY = mod (clock (), 10) + 1;
+          node.sector (node.SX, node.SY).point (node.PX, node.PY) = TROOPER;
+          node.HE_bombN = mod (clock (), 6) + 10;
+          node.supplyN = mod (clock (), (5 - rank)) + 2;
+          node.supply (*).uses_left = 0;
+          node.beacon.SX = mod (clock (), 5) + 1;
+          node.beacon.SY = mod (clock (), 5) + 1;
+          node.beacon.PX = mod (clock (), 10) + 1;
+          node.beacon.PY = mod (clock (), 10) + 1;
+          node.score.total = 0;
+          
+/* Set up the ARACHNIDS */
+
+          do x = 1 to node.arachnidT;
+               it_was_not_placed = "1"b;
+               do while (it_was_not_placed);
+                    y = mod (clock (), 5) + 1;
+                    z = mod (clock (), 5) + 1;
+                    if ((y ^= node.SX) | (z ^= node.SY)) & (node.sector (y, z).arachnidN < 9) then do;
+                              node.Arachnid (x).SX = y;
+                              node.Arachnid (x).SY = z;
+                              y = mod (clock (), 10) + 1;
+                              z = mod (clock (), 10) + 1;
+                              if (node.sector (node.Arachnid (x).SX, node.Arachnid (x).SY).point (y, z) = ".") then do;
+                                        node.Arachnid (x).PX = y;
+                                        node.Arachnid (x).PY = z;
+                                        node.Arachnid (x).life_pts = mod (clock (), rank * 100) + 100;
+                                        node.sector (node.Arachnid (x).SX, node.Arachnid (x).SY).point (node.Arachnid (x).PX, node.Arachnid (x).PY) = ARACHNID;
+                                        node.sector (node.Arachnid (x).SX, node.Arachnid (x).SY).arachnidN = node.sector (node.Arachnid (x).SX, node.Arachnid (x).SY).arachnidN + 1;
+                                        it_was_not_placed = "0"b;
+                                   end;
+                         end;
+               end;
+          end;
+          
+/* Set up the SKINNIES */
+
+          do x = 1 to node.skinnyT;
+               it_was_not_placed = "1"b;
+               do while (it_was_not_placed);
+                    y = mod (clock (), 5) + 1;
+                    z = mod (clock (), 5) + 1;
+                    if ((y ^= node.SX) | (z ^= node.SY)) & (node.sector (y, z).skinnyN < 9) then do;
+                              node.Skinny (x).SX = y;
+                              node.Skinny (x).SY = z;
+                              y = mod (clock (), 10) + 1;
+                              z = mod (clock (), 10) + 1;
+                              if (node.sector (node.Skinny (x).SX, node.Skinny (x).SY).point (y, z) = ".") then do;
+                                        node.Skinny (x).PX = y;
+                                        node.Skinny (x).PY = z;
+                                        node.Skinny (x).life_pts = mod (clock (), rank * 50) + 50;
+                                        node.sector (node.Skinny (x).SX, node.Skinny (x).SY).skinnyN = node.sector (node.Skinny (x).SX, node.Skinny (x).SY).skinnyN + 1;
+                                        node.sector (node.Skinny (x).SX, node.Skinny (x).SY).point (node.Skinny (x).PX, node.Skinny (x).PY) = SKINNY;
+                                        it_was_not_placed = "0"b;
+                                   end;
+                         end;
+               end;
+          end;
+          
+/* Set up the HEAVY BEAMS */
+
+          node.heavy_beamT = round ((node.arachnidT / 10), 0);
+          do x = 1 to node.heavy_beamT;
+               it_was_not_placed = "1"b;
+               do while (it_was_not_placed);
+                    y = mod (clock (), 5) + 1;
+                    z = mod (clock (), 5) + 1;
+                    if ((y ^= node.SX) | (z ^= node.SY)) & (node.sector (y, z).arachnidN < 9) then do;
+                              node.Heavy_beam (x).SX = y;
+                              node.Heavy_beam (x).SY = z;
+                              y = mod (clock (), 10) + 1;
+                              z = mod (clock (), 10) + 1;
+                              if (node.sector (node.Heavy_beam (x).SX, node.Heavy_beam (x).SY).point (y, z) = ".") then do;
+                                        node.Heavy_beam (x).PX = y;
+                                        node.Heavy_beam (x).PY = z;
+                                        node.Heavy_beam (x).life_pts = mod (clock (), rank * 200) + 200;
+                                        node.sector (node.Heavy_beam (x).SX, node.Heavy_beam (x).SY).point (node.Heavy_beam (x).PX, node.Heavy_beam (x).PY) = HEAVY_BEAM;
+                                        node.sector (node.Heavy_beam (x).SX, node.Heavy_beam (x).SY).arachnidN = node.sector (node.Heavy_beam (x).SX, node.Heavy_beam (x).SY).arachnidN + 1;
+                                        it_was_not_placed = "0"b;
+                                   end;
+                         end;
+               end;
+          end;
+
+/* Set up the MISSILE_LAUNCHERS */
+
+          node.missile_lT = round ((node.skinnyT / 5), 0);
+          do x = 1 to node.missile_lT;
+               it_was_not_placed = "1"b;
+               do while (it_was_not_placed);
+                    y = mod (clock (), 5) + 1;
+                    z = mod (clock (), 5) + 1;
+                    if ((y ^= node.SX) | (z ^= node.SY)) & (node.sector (y, z).skinnyN < 9) then do;
+                              node.Missile_l (x).SX = y;
+                              node.Missile_l (x).SY = z;
+                              y = mod (clock (), 10) + 1;
+                              z = mod (clock (), 10) + 1;
+                              if (node.sector (node.Missile_l (x).SX, node.Missile_l (x).SY).point (y, z) = ".") then do;
+                                        node.Missile_l (x).PX = y;
+                                        node.Missile_l (x).PY = z;
+                                        node.Missile_l (x).life_pts = mod (clock (), rank * 150) + 150;
+                                        node.sector (node.Missile_l (x).SX, node.Missile_l (x).SY).point (node.Missile_l (x).PX, node.Missile_l (x).PY) = MISSILE_L;
+                                        node.sector (node.Missile_l (x).SX, node.Missile_l (x).SY).skinnyN = node.sector (node.Missile_l (x).SX, node.Missile_l (x).SY).skinnyN + 1;
+                                        it_was_not_placed = "0"b;
+                                   end;
+                         end;
+               end;
+          end;
+
+/* Set up the MOUNTAINS */
+
+          do x = 1 to 5;
+               do y = 1 to 5;
+                    z = mod (clock (), 10);
+                    do a = 1 to z;
+                         it_was_not_placed = "1"b;
+                         do while (it_was_not_placed);
+                              b = mod (clock (), 10) + 1;
+                              c = mod (clock (), 10) + 1;
+                              if (node.sector (x, y).point (b, c) = ".") then do;
+                                        node.sector (x, y).point (b, c) = MOUNTAIN;
+                                        it_was_not_placed = "0"b;
+                                   end;
+                         end;
+                    end;
+               end;
+          end;
+          
+/* Set up the SUPPLY_SHIPS *
+
+          do x = 1 to node.supplyN;
+               it_was_not_placed = "1"b;
+               do while (it_was_not_placed);
+place_supply_ship:
+                    y = mod (clock (), 5) + 1;
+                    z = mod (clock (), 5) + 1;
+                    if ((y ^= node.SX) | (z ^= node.SY)) then do;
+                              do a = 1 to (x - 1);
+                                   if (y = node.supply (a).SX) & (z = node.supply (a).SY) then goto place_supply_ship;
+                              end;
+                              node.supply (x).SX = y;
+                              node.supply (x).SY = z;
+                              y = mod (clock (), 10) + 1;
+                              z = mod (clock (), 10) + 1;
+                              if (node.sector (node.supply (x).SX, node.supply (x).SY).point (y, z) = ".") then do;
+                                        node.supply (x).PX = y;
+                                        node.supply (x).PY = z;
+                                        node.supply (x).uses_left = game_length;
+                                        node.sector (node.supply (x).SX, node.supply (x).SY).point (node.supply (x).PX, node.supply (x).PY) = SUPPLY_SHIP;
+                                        node.sector (node.supply (x).SX, node.supply (x).SY).supply = "S";
+                                        node.chart (node.supply (x).SX, node.supply (x).SY).supply = "S";
+                                        it_was_not_placed = "0"b;
+                                   end;
+                         end;
+               end;
+          end;
+
+/* Set up the BREACHES */
+
+          do while (node.breachN = 0);
+               do x = 1 to 5;
+                    do y = 1 to 5;
+                         z = 0;
+                         if (node.sector (x, y).arachnidN > 0) then z = mod (clock (), 3) + 1;
+                         if (z = 1) then do;
+                                   it_was_not_placed = "1"b;
+                                   do while (it_was_not_placed);
+                                        b = mod (clock (), 10) + 1;
+                                        c = mod (clock (), 10) + 1;
+                                        if (node.sector (x, y).point (b, c) = ".") then do;
+                                                  node.breachN = node.breachN + 1;
+                                                  node.breach (node.breachN).SX = x;
+                                                  node.breach (node.breachN).SY = y;
+                                                  node.breach (node.breachN).PX = b;
+                                                  node.breach (node.breachN).PY = c;
+                                                  node.breach (node.breachN).engineer = mod (clock (), 250) + 250;
+                                                  node.breach (node.breachN).prisoners = max (0, mod (clock (), 5) - 3);
+                                                  node.sector (x, y).point (b, c) = BREACH;
+                                                  it_was_not_placed = "0"b;
+                                             end;
+                                   end;
+                              end;
+                    end;
+               end;
+          end;
+          
+/* Set up the FORTS */
+
+          do x = 1 to 5;
+               do y = 1 to 5;
+                    z = 0;
+                    if (x ^= node.SX) | (y ^= node.SY) then z = mod (clock (), 10) + 1;
+                    if (z = 1) then do;
+                              it_was_not_placed = "1"b;
+                              do while (it_was_not_placed);
+                                   b = mod (clock (), 10) + 1;
+                                   c = mod (clock (), 10) + 1;
+                                   if (node.sector (x, y).point (b, c) = ".") then do;
+                                             node.fortN = node.fortN + 1;
+                                             node.fort (node.fortN).SX = x;
+                                             node.fort (node.fortN).SY = y;
+                                             node.fort (node.fortN).PX = b;
+                                             node.fort (node.fortN).PY = c;
+                                             node.fort (node.fortN).guard = mod (clock (), 250) + 250;
+                                             a = mod (clock (), 10) + 1;
+                                             if (a = 1) & ^(node.secret_plans_found) then do;
+                                                       node.secret_plans_found = "1"b;
+                                                       node.fort (node.fortN).secret_plans_here = "1"b;
+                                                  end;
+                                             node.sector (x, y).point (b, c) = FORT;
+                                             it_was_not_placed = "0"b;
+                                        end;
+                              end;
+                         end;
+               end;
+          end;
+
+          return;
