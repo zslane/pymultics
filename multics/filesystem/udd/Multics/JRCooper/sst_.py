@@ -12,12 +12,22 @@ dcl ( sst_data_              = external_static )
 dcl ( argn                   = fixed.bin . parm )
 dcl ( argp                   = ptr )
 
+class goto_place_supply_ship(NonLocalGoto): pass
+
 class sst_(Subroutine):
 
     def __init__(self):
         super(sst_, self).__init__(self.__class__.__name__)
 
     def set_up_game(self, node, game_length, rank):
+        # These are fields that don't retain their initial values defined in sst_node_.py
+        node.suit_pts = 50
+        node.body_pts = 20
+        node.jet_energy = 1000
+        node.flamer_energy = 1000
+        node.nuke_bombN = 4
+        node.score.success_ratio = -1
+        
         node.arachnidT = mod (clock (), (game_length * 10)) + game_length * 10
         node.skinnyT = mod (clock (), (game_length * 5)) + game_length * 5
         for sx in range(5):
@@ -169,6 +179,99 @@ class sst_(Subroutine):
                         # end if
                     # end while
                 # end for
+            # end for
+        # end for
+          
+        # /* Set up the SUPPLY_SHIPS *
+        
+        for x in range(node.supplyN):
+            it_was_not_placed = True
+            while (it_was_not_placed):
+                try:
+                    y = mod (clock (), 5) + 1
+                    z = mod (clock (), 5) + 1
+                    if ((y != node.SX) or (z != node.SY)):
+                        for a in range(x):
+                        # do a = 1 to (x - 1);
+                            if (y == node.supply[a].SX) and (z == node.supply[a].SY): raise goto_place_supply_ship
+                        # end for
+                        node.supply[x].SX = y
+                        node.supply[x].SY = z
+                        y = mod (clock (), 10) + 1
+                        z = mod (clock (), 10) + 1
+                        if (node.sector[node.supply[x].SX - 1][node.supply[x].SY - 1].point[y - 1][z - 1] == "."):
+                            node.supply[x].PX = y
+                            node.supply[x].PY = z
+                            node.supply[x].uses_left = game_length
+                            node.sector[node.supply[x].SX - 1][node.supply[x].SY - 1].point[node.supply[x].PX - 1][node.supply[x].PY - 1] = SUPPLY_SHIP
+                            node.sector[node.supply[x].SX - 1][node.supply[x].SY - 1].supply = "S"
+                            node.chart[node.supply[x].SX - 1][node.supply[x].SY - 1].supply = "S"
+                            it_was_not_placed = False
+                        # end if
+                    # end if
+                except goto_place_supply_ship:
+                    pass
+                # end try
+            # end while
+        # end for
+
+        # /* Set up the BREACHES */
+
+        while (node.breachN == 0):
+            for x in range(5):
+                for y in range(5):
+                    z = 0
+                    if (node.sector[x][y].arachnidN > 0): z = mod (clock (), 3) + 1
+                    if (z == 1):
+                        it_was_not_placed = True
+                        while (it_was_not_placed):
+                            b = mod (clock (), 10) + 1
+                            c = mod (clock (), 10) + 1
+                            if (node.sector[x][y].point[b - 1][c - 1] == "."):
+                                node.breachN = node.breachN + 1
+                                node.breach[node.breachN - 1].SX = x
+                                node.breach[node.breachN - 1].SY = y
+                                node.breach[node.breachN - 1].PX = b
+                                node.breach[node.breachN - 1].PY = c
+                                node.breach[node.breachN - 1].engineer = mod (clock (), 250) + 250
+                                node.breach[node.breachN - 1].prisoners = max (0, mod (clock (), 5) - 3)
+                                node.sector[x][y].point[b - 1][c - 1] = BREACH
+                                it_was_not_placed = False
+                            # end if
+                        # end while
+                    # end if
+                # end for
+            # end for
+        # end while
+        
+        # /* Set up the FORTS */
+        
+        for x in range(5):
+            for y in range(5):
+                z = 0
+                if (x != node.SX - 1) or (y != node.SY - 1): z = mod (clock (), 10) + 1
+                if (z == 1):
+                    it_was_not_placed = True
+                    while (it_was_not_placed):
+                        b = mod (clock (), 10) + 1
+                        c = mod (clock (), 10) + 1
+                        if (node.sector[x][y].point[b - 1][c - 1] == "."):
+                            node.fortN = node.fortN + 1
+                            node.fort[node.fortN - 1].SX = x
+                            node.fort[node.fortN - 1].SY = y
+                            node.fort[node.fortN - 1].PX = b
+                            node.fort[node.fortN - 1].PY = c
+                            node.fort[node.fortN - 1].guard = mod (clock (), 250) + 250
+                            a = mod (clock (), 10) + 1
+                            # if (a == 1) and not node.secret_plans_found:
+                                # node.secret_plans_found = "1"b
+                                # node.fort[node.fortN - 1].secret_plans_here = "1"b
+                            # # end if
+                            node.sector[x][y].point[b - 1][c - 1] = FORT
+                            it_was_not_placed = False
+                        # end if
+                    # end while
+                # end if
             # end for
         # end for
         
