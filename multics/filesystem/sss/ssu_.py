@@ -77,7 +77,7 @@ class ssu_(Subroutine):
         pass
         
     def get_info_ptr(self, sci_ptr):
-        return sci_ptr.info_ptr
+        return sci_ptr.ptr.info_ptr
         
     def arg_count(self, sci_ptr, arg_count):
         arg_count.val = len(self._split(sci_ptr.ptr.args_string))

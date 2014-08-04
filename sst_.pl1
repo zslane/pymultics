@@ -259,3 +259,159 @@ place_supply_ship:
           end;
 
           return;
+
+print_introduction: entry (nptr, last_name);
+
+          call ioa_ ("^/*************************");
+          call ioa_ ("^/To: M.I. ^a ^a", RANK (node.rank), last_name);
+          call ioa_ ("Planetary Strike Mission");
+          call ioa_ ("Mission briefing:");
+          call ioa_ ("^10t^d Arachnids", node.arachnidT + node.heavy_beamT);
+          call ioa_ ("^10t?? Skinnies");
+          call ioa_$nnl ("^10t^a Supply ships:", node.supplyN);
+          do x = 1 to node.supplyN;
+               call ioa_$nll (" ^d - ^d^[,^]", node.supply (x).SX, node.supply (x).SY, (x ^= node.supplyN));
+          end;
+          call ioa_ ("^/Drop site: Sector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY);
+          call ioa_ ("You have ^.1f hours to complete your mission.  The retrieval beacon will", node.time_left);
+          call ioa_ ("land at Sector ^d - ^d, Mark ^d - ^d.  Good luck!", node.beacon.SX, node.beacon.SY, node.beacon.PX, node.beacon.PY);
+          call ioa_ ("^/*************************");
+          return;
+          
+daemon: entry (scip);
+
+          Nptr = ssu_$get_info_ptr (scip);
+          call update_chart (Nptr);
+          Node.score.total = calc_score (Nptr, "arachnids");
+          Node.score.total = Node.score.total + calc_score (Nptr, "skinnies");
+          Node.score.total = Node.score.total + calc_score (Nptr, "heavy_beams");
+          Node.score.total = Node.score.total + calc_score (Nptr, "missile_ls");
+          Node.score.total = Node.score.total + calc_score (Nptr, "mountains");
+          Node.score.total = Node.score.total + calc_score (Nptr, "supplies");
+          Node.score.total = Node.score.total + calc_score (Nptr, "prisoners");
+          if (Node.score.total >= Node.nuke_bonus_score) then do;
+                    call ioa_ ("^/***BONUS NUKE BOMB awarded -- Score: ^d", Node.score.total);
+                    Node.nuke_bonus_score = Node.nuke_bonus_score + 5000;
+                    Node.nuke_bombN = Node.nuke_bombN + 1;
+               end;
+          if (Node.time_left < 1.1) & ^(Node.landed) then do;
+                    call ioa_ ("^/\"...To the everlasting glory of the infantry, shines the name, shines the name^/name of Rodger Young!\"  Retrieval Beacon has landed at Sector ^d - ^d.", Node.beacon.SX, Node.beacon.SY);
+                    Node.time_left = 2.5;
+                    call ioa_ ("^/Retrieval time: ^.1f hrs.", Node.time_left);
+                    Node.sector (Node.beacon.SX, Node.beacon.SY).point (Node.beacon.PX, Node.beacon.PY) = BEACON;
+                    Node.beacon.landed = "1"b;
+               end;
+          if (Node.SX = Node.beacon.SX) & (Node.SY = Node.beacon.SY) & (Node.PX = Node.beacon.PX) & (Node.PY = Node.beacon.PY) & Node.beacon.landed then do;
+                    call ioa_ ("^/Retrieval successful!");
+                    Node.score.success_ratio = round (((Node.score.arachnids_Xed + Node.score.heavy_beams_Xed) / (Node.arachnidT + Node.heavy_beamT)) * 100, 0);
+                    if (Node.score.success_ratio > 50) then Node.score.rank_bonus = Node.rank * 100;
+                    Node.score.skinny_prisoners = (Node.skinnyT + Node.missile_lT) - (Node.score.skinnies_Xed + Node.missile_ls_Xed);
+                    call ioa_ ("^3x*************************");
+                    call ioa_ ("^/Your mission yielded a success ratio of ^d%", Node.score.success_ratio);
+                    if (Node.score.skinny_prionsers > 0) then call ioa_ ("The remaining ^d Skinnies surrender.", Node.score.skinny_prisoners);
+                    if (Node.score.success_ratio = 100) then call ioa_ ("You will be recommended for promotion.");
+                    call ioa_ ("Aecturnae gloriae peditum...");
+                    call ssu_$execute_string (scip, "score -all", code);
+                    call ioa_ ("^/*************************");
+                    call ssu_$abort_subsystem (scip, (0));
+               end;
+          else if (Node.time_left < .1) then do;
+                    call ioa_ ("^/Retrieval complete.");
+                    Node.score.captured_penalty = -500;
+                    call you_lose ("no_time");
+               end;
+          if ^(H_or_M_present (Node.distress.SX, Node.distress.SY, Nptr)) & Node.distress.notified then do;
+                    Node.distress.SX = 0;
+                    Node.distress.SY = 0;
+                    Node.distress.which_supply = 0;
+                    Node.distress.notified = "0"b;
+               end;
+          call attack_supply_ships (Nptr);
+          return;
+          
+scanner: entry (scip, nptr);
+
+          if ^(node.equipment.scanner.working) then do;
+                    call ioa_ ("^/Scanner is damaged.");
+                    return;
+               end;
+          call ioa_ ("^/SCANNER READOUT: Sector ^d - ^d^/", node.SX, node.SY);
+          do x = (node.SX - 1) to (node.SX + 1);
+               do y = (node.SY - 1) to (node.SY + 1);
+                    if (x < 1) | (x > 5) | (y < 1) | (y > 5) then call ioa_$nnl ("   ----");
+                    else do;
+                              call ioa_$nnl ("^3x^d^d^a^a", node.sector (x, y).arachnidN, node.sector (x, y).skinnyN, node.sector (x, y).radiation, node.sector (x, y).supply);
+                              node.chart (x, y).arachnidN = ltrim (char (node.sector (x, y).arachnidN));
+                              node.chart (x, y).skinnyN = ltrim (char (node.sector (x, y).skinnyN));
+                              node.chart (x, y).radiation = node.sector (x, y).radiation;
+                              node.chart (x, y).supply = node.sector (x, y).supply;
+                         end;
+               end;
+               call ioa_ ();
+          end;
+          return;
+
+chart: entry (scip, nptr);
+
+          call ioa_ ("^/PLANETARY CHART:");
+          call ioa_ ("^/     1      2      3      4      5");
+          call ioa_ ("    --------------------------------");
+          do x = 1 to 5;
+               call ioa_$nnl ("^d:  ", x);
+               do y = 1 to 5;
+                    call ioa_$nnl ("^a^a^a^a^3x", node.chart (x, y).arachnidN, node.chart (x, y).skinnyN, node.char (x, y).radiation, node.chart (x, y).supply);
+               end;
+               call ioa_ ();
+          end;
+          call ioa_ ("^/LOCUS PROXIMITY: Sector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY);
+          return;
+          
+snooper: entry (scip, nptr);
+
+          dcl     print_status           bit (1) init ("0"b);
+          
+          if ^(node.equipment.snooper.working) then do;
+                    call ioa_ ("^/Snooper is damaged.");
+                    return;
+               end;
+          call ssu_$arg_count (scip, argn);
+          do x = 1 to argn;
+               call ssu_$arg_ptr (scip, x, argp, argl);
+               if (arg = "-status") | (arg = "-st") then print_status = "1"b;
+               else if (substr (arg, 1, 1) = "-") then call ssu_$abort_line (scip, error_table_$badopt, "^a", arg);
+               else call ssu_$abort_line (scip, (0), "^/^5xUsage: snooper {-status}");
+          end;
+          
+          call ioa_ ("^/SECTOR ^d - ^d, MARK ^d - ^d", node.SX, node.SY, node.PX, node.PY);
+          call ioa_ ("^/    1 2 3 4 5 6 7 8 9 10");
+          do x = 1 to 10;
+               if (x < 10) then call ioa_$nnl (" ^d ", x);
+               else call ioa_$nnl ("10 ");
+               do y = 1 to 10;
+                    call ioa_$nnl (" ^a", node.sector (node.SX, node.SY).point (x, y));
+               end;
+               if print_status & (x > 1) then call snooper_status (x);
+               call ioa_ ();
+          end;
+          node.chart (node.SX, node.SY).arachnidN = ltrim (char (node.sector (node.SX, node.SY).arachnidN));
+          node.chart (node.SX, node.SY).skinnyN = ltrim (char (node.sector (node.SX, node.SY).skinnyN));
+          node.chart (node.SX, node.SY).radiation = node.sector (node.SX, node.SY).radiation;
+          node.chart (node.SX, node.SY).supply = node.sector (node.SX, node.SY).supply;
+          return;
+          
+snooper_status: procedure (line_no);
+
+          dcl     line_no          fixed bin parm;
+          
+          if (line_no = 2) then call ioa_$nnl ("^5xSuit condition:^25t^d pts.", node.suit_pts);
+          else if (line_no = 3) then call ioa_$nnl ("^5xBody condition:^25t^d pts.", node.body_pts);
+          else if (line_no = 4) then call ioa_$nnl ("^5xBooster energy:^25t^d units", node.jet_energy);
+          else if (line_no = 5) then call ioa_$nnl ("^5xFlamer energy:^25t^d units", node.flamer_energy);
+          else if (line_no = 6) then call ioa_$nnl ("^5xHE bombs left:^25t^d", node.HE_bombN);
+          else if (line_no = 7) then call ioa_$nnl ("^5xNuke bombs left:^25t^d", node.nuke_bombN);
+          else if (line_no = 8) then call ioa_$nnl ("^5xArachnids left:^25t^d", (node.arachnidT + node.heavy_beamT - node.score.arachnids_Xed - node.score.heavy_beams_Xed));
+          else if (line_no = 9) then call ioa_$nnl ("^5xTime left:^25t^.1f hrs.", node.time_left);
+          else return;
+          
+     end snooper_status;
+     

@@ -11,6 +11,7 @@ dcl ( sst_data_              = external_static )
 
 dcl ( argn                   = fixed.bin . parm )
 dcl ( argp                   = ptr )
+dcl ( code                   = fixed.bin (35) . parm . init (0) )
 
 class goto_place_supply_ship(NonLocalGoto): pass
 
@@ -26,6 +27,7 @@ class sst_(Subroutine):
         node.jet_energy = 1000
         node.flamer_energy = 1000
         node.nuke_bombN = 4
+        node.nuke_bonus_score = 5000
         node.score.success_ratio = -1
         
         node.arachnidT = mod (clock (), (game_length * 10)) + game_length * 10
@@ -293,6 +295,51 @@ class sst_(Subroutine):
         
     def daemon(self, scip):
         Node = ssu_.get_info_ptr (scip)
+        update_chart (Node)
+        Node.score.total = calc_score (Node, "arachnids")
+        Node.score.total = Node.score.total + calc_score (Node, "skinnies")
+        Node.score.total = Node.score.total + calc_score (Node, "heavy_beams")
+        Node.score.total = Node.score.total + calc_score (Node, "missile_ls")
+        Node.score.total = Node.score.total + calc_score (Node, "mountains")
+        Node.score.total = Node.score.total + calc_score (Node, "supplies")
+        Node.score.total = Node.score.total + calc_score (Node, "prisoners")
+        if (Node.score.total >= Node.nuke_bonus_score):
+            call. ioa_ ("^/***BONUS NUKE BOMB awarded -- Score: ^d", Node.score.total)
+            Node.nuke_bonus_score = Node.nuke_bonus_score + 5000
+            Node.nuke_bombN = Node.nuke_bombN + 1
+        # end if
+        if (Node.time_left < 1.1) and (not Node.beacon.landed):
+            call. ioa_ ("^/\"...To the everlasting glory of the infantry, shines the name, shines the name^/name of Rodger Young!\"  Retrieval Beacon has landed at Sector ^d - ^d.", Node.beacon.SX, Node.beacon.SY)
+            Node.time_left = 2.5
+            call. ioa_ ("^/Retrieval time: ^.1f hrs.", Node.time_left)
+            Node.sector[Node.beacon.SX - 1][Node.beacon.SY - 1].point[Node.beacon.PX - 1][Node.beacon.PY - 1] = BEACON
+            Node.beacon.landed = True
+        # end if
+        if (Node.SX == Node.beacon.SX) and (Node.SY == Node.beacon.SY) and (Node.PX == Node.beacon.PX) and (Node.PY == Node.beacon.PY) and Node.beacon.landed:
+            call. ioa_ ("^/Retrieval successful!")
+            Node.score.success_ratio = round (((Node.score.arachnids_Xed + Node.score.heavy_beams_Xed) / float(Node.arachnidT + Node.heavy_beamT)) * 100, 0)
+            if (Node.score.success_ratio > 50): Node.score.rank_bonus = Node.rank * 100
+            Node.score.skinny_prisoners = (Node.skinnyT + Node.missile_lT) - (Node.score.skinnies_Xed + Node.missile_ls_Xed)
+            call. ioa_ ("^3x*************************")
+            call. ioa_ ("^/Your mission yielded a success ratio of ^d%", Node.score.success_ratio)
+            if (Node.score.skinny_prionsers > 0): call. ioa_ ("The remaining ^d Skinnies surrender.", Node.score.skinny_prisoners)
+            if (Node.score.success_ratio == 100): call. ioa_ ("You will be recommended for promotion.")
+            call. ioa_ ("Aecturnae gloriae peditum...")
+            call. ssu_.execute_string (scip, "score -all", code)
+            call. ioa_ ("^/*************************")
+            call. ssu_.abort_subsystem (scip, (0))
+        elif (Node.time_left < .1):
+            call. ioa_ ("^/Retrieval complete.")
+            Node.score.captured_penalty = -500
+            you_lose ("no_time")
+        # end if
+        if (not H_or_M_present (Node.distress.SX, Node.distress.SY, Node)) and Node.distress.notified:
+            Node.distress.SX = 0
+            Node.distress.SY = 0
+            Node.distress.which_supply = 0
+            Node.distress.notified = False
+        # end if
+        attack_supply_ships (Node)
         
     def scanner(self, scip, node):
         if not node.equipment.scanner.working:
@@ -473,6 +520,15 @@ class sst_(Subroutine):
     def self_identify(self, scip, node):
         call. ioa_ ("^a ^a", MAIN, sst_data_.version_string)
         
+def update_chart(node):
+    pass
+    
+def you_lose (reason):
+    pass
+    
+def H_or_M_present (sx, sy, node):
+    return True
+    
 def calc_move_cost(sx1, sy1, px1, py1, sx2, sy2, px2, py2):
     return 0
     
@@ -490,4 +546,10 @@ def got_there_ok(node):
     
 def enemy_attack(node):
     pass
+    
+def attack_supply_ships(node):
+    pass
+    
+def calc_score(node, type):
+    return 0
     
