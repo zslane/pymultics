@@ -125,8 +125,9 @@ class PL1(object):
             return self.toPython()
             
         def init(self, data):
-            self.data = data
-            return self
+            t = PL1.Type(self.type, self.base, self.size, self.prec)
+            t.data = data
+            return t
             
         def initialize(self, data):
             return self.init(data)

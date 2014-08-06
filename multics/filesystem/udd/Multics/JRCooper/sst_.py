@@ -266,8 +266,8 @@ class sst_(Subroutine):
                             node.fort[node.fortN - 1].guard = mod (clock (), 250) + 250
                             a = mod (clock (), 10) + 1
                             # if (a == 1) and not node.secret_plans_found:
-                                # node.secret_plans_found = "1"b
-                                # node.fort[node.fortN - 1].secret_plans_here = "1"b
+                                # node.secret_plans_found = True
+                                # node.fort[node.fortN - 1].secret_plans_here = True
                             # # end if
                             node.sector[x][y].point[b - 1][c - 1] = FORT
                             it_was_not_placed = False
@@ -397,7 +397,7 @@ class sst_(Subroutine):
         call. ssu_.arg_count (scip, argn)
         for x in range(argn.val):
             call. ssu_.arg_ptr (scip, x, argp) ; arg = argp.val
-            if (arg == "-status") | (arg == "-st"): print_status = True
+            if (arg == "-status") or (arg == "-st"): print_status = True
             elif (substr (arg, 1, 1) == "-"): call. ssu_.abort_line (scip, error_table_.badopt, "^a", arg)
             else: call. ssu_.abort_line (scip, (0), "^/^5xUsage: snooper {-status}")
         # end for
@@ -419,9 +419,102 @@ class sst_(Subroutine):
         node.chart[node.SX - 1][node.SY - 1].supply = node.sector[node.SX - 1][node.SY - 1].supply
         
     def status(self, scip, node):
-        pass
-        
+
+        all_switch     = False
+        damage_switch  = False
+        general_status = False
+        damage_report  = False
+        I_want_to_see  = [False] * 23
+
+        call. ssu_.arg_count (scip, argn)
+        if (argn.val == 0):
+            general_status = True
+            I_want_to_see = [True] * 23
+        # end if
+        for x in range(argn.val):
+            call. ssu_.arg_ptr (scip, x, argp) ; arg = argp.val
+            if (arg == "-damage") or (arg == "-dmg"): damage_switch = True
+            elif (arg == "-all") or (arg == "-a"): all_switch = True
+            elif (substr (arg, 1, 1) == "-"): call. ssu_.abort_line (scip, (0), "^/^5xUsage: status {item} {-damage {item}} {-all}")
+            elif (not damage_switch):
+                if (arg == "locus") or (arg == "loc"): I_want_to_see[LOCUS - 1] = True
+                elif (arg == "suit"): I_want_to_see[SUIT - 1] = True
+                elif (arg == "body"): I_want_to_see[BODY - 1] = True
+                elif (arg == "boosters") or (arg == "jets") or (arg == "jet_boosters"): I_want_to_see[BOOSTER_ENERG - 1] = True
+                elif (arg == "flamer_rifle") or (arg == "flamer") or (arg == "rifle"): I_want_to_see[FLAMER_ENERGY - 1] = True
+                elif (arg == "he_bombs") or (arg == "he"): I_want_to_see[HE_BOMBN - 1] = True
+                elif (arg == "nuke_bombs") or (arg == "nukes"): I_want_to_see[NUKE_BOMBN - 1] = True
+                elif (arg == "arachnids") or (arg == "bugs"): I_want_to_see[BUGS_LEFT - 1] = True
+                elif (arg == "time"): I_want_to_see[TIME_LEFT - 1] = True
+                else: call. ssu_.abort_line (scip, (0), "^/^xNo status for ""^a"".", arg)
+                general_status = True
+            else:
+                if (arg == "scanner"): I_want_to_see[SCANNER - 1] = True
+                elif (arg == "snooper"): I_want_to_see[SNOOPER - 1] = True
+                elif (arg == "flamer_rifle") or (arg == "flamer") or (arg == "rifle"): I_want_to_see[FLAMER_RIFLE - 1] = True
+                elif (arg == "he_launcher") or (arg == "he"): I_want_to_see[HE_LAUNCHER - 1] = True
+                elif (arg == "nuke_launcher") or (arg == "nuker"): I_want_to_see[NUKE_LAUNCHER - 1] = True
+                elif (arg == "listening_device") or (arg == "ld"): I_want_to_see[LISTENING_DEV - 1] = True
+                elif (arg == "jet_boosters") or (arg == "boosters") or (arg == "jets"): I_want_to_see[JET_BOOSTERS - 1] = True
+                else: call. ssu_.abort_line (scip, (0), "^/^5xNo such device. ^a", arg)
+                damage_report = True
+            # end if
+        # end for
+        if all_switch:
+            general_status = True
+            damage_report = True
+            I_want_to_see = [True] * 23
+        # end if
+        if damage_switch and (not damage_report):
+            damage_report = True
+            for x in range(10, 16 + 1):
+                I_want_to_see[x - 1] = True
+            # end for
+        # end if
+        if general_status:
+            call. ioa_ ("^/Trooper status report:")
+            if I_want_to_see[LOCUS - 1]: call. ioa_ ("^3xLocus proximity:^25tSector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY)
+            if I_want_to_see[SUIT - 1]: call. ioa_ ("^3xSuit condition:^25t^d pts.", node.suit_pts)
+            if I_want_to_see[BODY - 1]: call. ioa_ ("^3xBody condition:^25t^d pts.", node.body_pts)
+            if I_want_to_see[BOOSTER_ENERGY - 1]: call. ioa_ ("^3xBooster energy:^25t^d units", node.jet_energy)
+            if I_want_to_see[FLAMER_ENERGY - 1]: call. ioa_ ("^3xFlamer energy:^25t^d units", node.flamer_energy)
+            if I_want_to_see[HE_BOMBN - 1]: call. ioa_ ("^3xHE bombs left:^25t^d", node.HE_bombN)
+            if I_want_to_see[NUKE_BOMBN - 1]: call. ioa_ ("^3xNuke bombs left:^25t^d", node.nuke_bombN)
+            if I_want_to_see[BUGS_LEFT - 1]: call. ioa_ ("^3xArachnids left:^25t^d", (node.arachnidT + node.heavy_beamT - node.score.arachnids_Xed - node.score.heavy_beams_Xed))
+            if I_want_to_see[TIME_LEFT - 1]: call. ioa_ ("^3xTime left:^25t^.1f hrs.", node.time_left)
+        # end if
+        if damage_report:
+            call. ioa_ ("^/Trooper damage report:")
+            if I_want_to_see[SCANNER - 1]:
+                call. ioa_ ("^3xScanner^25t^[WORKING^]^[DAMAGED^]", node.equipment.scanner.working, not node.equipment.scanner.working)
+                if (not node.equipment.scanner.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.scanner.repair_time, max (0, node.equipment.scanner.repair_time - 1))
+            # end if
+            if I_want_to_see[SNOOPER - 1]:
+                call. ioa_ ("^3xSnooper^25t^[WORKING^]^[DAMAGED^]", node.equipment.snooper.working, not node.equipment.snooper.working)
+                if (not node.equipment.snooper.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.snooper.repair_time, max (0, node.equipment.snooper.repair_time - 1))
+            # end if
+            if I_want_to_see[JET_BOOSTERS - 1]:
+                call. ioa_ ("^3xJet boosters^25t^[WORKING^]^[DAMAGED^]", node.equipment.jet_boosters.working, not node.equipment.jet_boosters.working)
+                if (not node.equipment.jet_boosters.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.jet_boosters.repair_time, max (0, node.equipment.jet_boosters.repair_time - 1))
+            # end if
+            if I_want_to_see[FLAMER_RIFLE - 1]:
+                call. ioa_ ("^3xFlamer rifle^25t^[WORKING^]^[DAMAGED^]", node.equipment.flamer.working, not node.equipment.flamer.working)
+                if (not node.equipment.flamer.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.flamer.repair_time, max (0, node.equipment.flamer.repair_time - 1))
+            # end if
+            if I_want_to_see[HE_LAUNCHER - 1]:
+                call. ioa_ ("^3xHE launcher^25t^[WORKING^]^[DAMAGED^]", node.equipment.HE_launcher.working, not node.equipment.HE_launcher.working)
+                if (not node.equipment.HE_launcher.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.HE_launcher.repair_time, max (0, node.equipment.HE_launcher.repair_time - 1))
+            # end if
+            if I_want_to_see[NUKE_LAUNCHER - 1]:
+                call. ioa_ ("^3xNuke launcher^25t^[WORKING^]^[DAMAGED^]", node.equipment.nuke_launcher.working, not node.equipment.nuke_launcher.working)
+                if (not node.equipment.nuke_launcher.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.nuke_launcher.repair_time, max (0, node.equipment.nuke_launcher.repair_time - 1))
+            # end if
+            if I_want_to_see[LISTENING_DEV - 1]:
+                call. ioa_ ("^3xListening dev^25t^[WORKING^]^[DAMAGED^]", node.equipment.listening_dev.working, not node.equipment.listening_dev.working)
+                if (not node.equipment.listening_dev.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.listening_dev.repair_time, max (0, node.equipment.listening_dev.repair_time - 1))
+                  
     def fly(self, scip, node):
+    
         target_SX      = fixed.bin . init (0) . local
         target_SY      = fixed.bin . init (0) . local
         target_PX      = fixed.bin . parm . init (0)
