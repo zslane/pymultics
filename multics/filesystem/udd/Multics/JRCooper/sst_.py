@@ -440,7 +440,7 @@ class sst_(Subroutine):
                 if (arg == "locus") or (arg == "loc"): I_want_to_see[LOCUS - 1] = True
                 elif (arg == "suit"): I_want_to_see[SUIT - 1] = True
                 elif (arg == "body"): I_want_to_see[BODY - 1] = True
-                elif (arg == "boosters") or (arg == "jets") or (arg == "jet_boosters"): I_want_to_see[BOOSTER_ENERG - 1] = True
+                elif (arg == "boosters") or (arg == "jets") or (arg == "jet_boosters"): I_want_to_see[BOOSTER_ENERGY - 1] = True
                 elif (arg == "flamer_rifle") or (arg == "flamer") or (arg == "rifle"): I_want_to_see[FLAMER_ENERGY - 1] = True
                 elif (arg == "he_bombs") or (arg == "he"): I_want_to_see[HE_BOMBN - 1] = True
                 elif (arg == "nuke_bombs") or (arg == "nukes"): I_want_to_see[NUKE_BOMBN - 1] = True
