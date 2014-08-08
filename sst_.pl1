@@ -576,3 +576,45 @@ fly: entry (scip, nptr);
           call enemy_attack (nptr);
           return;
           
+jump: entry (scip, nptr);
+
+          call ssu_$arg_count (scip, argn);
+          if (argn ^= 2) then call ssu_$abort_line (scip, (0), "^/^5xUsage: jump Mark_X, Mark_Y");
+          do x = 1 to 2;
+               call ssu_$arg_ptr (scip, x, argp, argl);
+               if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg);
+               if (x = 1) then target_PX = decimal (arg);
+               else target_PY = decimal (arg);
+          end;
+          if (target_PX = 0) | (target_PX > 10) | (target_PY = 0) | (target_PY > 10) then call ssu_$abort_line (scip, (0), "^/^5xJump not possible with given vectors.");
+          
+          if (node.PX = target_PX) & (node.PY = target_PY) then do;
+                    call ioa_ ("^/Mark ^d - ^d is already your current position.", target_PX, target_PY);
+                    return;
+               end;
+          if (node.suit_pts < 10) then do;
+                    call ioa_ ("^/Suit strength insufficient for jump to Mark ^d - ^d.", target_PX, target_PY);
+                    if (node.jet_energy < calc_move_cost (node.SX, node.SY, node.PX, node.PY, node.SX, node.SY, target_PX, target_PY)) then return;
+                    call ioa_ ("Using Jet booster power...");
+                    node.jet_energy = node.jet_energy - calc_move_cost (node.SX, node.SY, node.PX, node.PY, node.SX, node.SY, target_PX, target_PY);
+               end;
+          if (node.time_left < calc_move_time (node.SX, node.SY, node.PX, node.PY, node.SX, node.SY, target_PX, target_PY)) then do;
+                    call ioa_ ("^/Time left: ^.1f hrs., Jump time: ^.1f hrs.", node.time_left, calc_move_time (node.SX, node.SY, node.PX, node.PY, node.SX, node.SY, target_PX, target_PY));
+                    return;
+               end;
+          original_PX = node.PX;
+          original_PY = node.PY;
+          call move ("Jump", nptr, target_PX, target_PY);
+          node.PX = target_PX;
+          node.PY = target_PY;
+          node.time_left = node.time_left - calc_move_time (node.SX, node.SY, original_PX, original_PY, node.SX, node.SY, node.PX, node.PY);
+          node.sector (node.SX, node.SY).point (original_PX, original_PY) = ".";
+          if node.was_in_rad then do;
+                    node.sector (node.SX, node.SY).point (original_PX, original_PY) = RADIATION;
+                    if ^(node.sitting_in_rad) then node.was_in_rad = "0"b;
+               end;
+          if node.sitting_in_rad then node.was_in_rad = "1"b;
+          node.sector (node.SX, node.SY).point (node.PX, node.PY) = TROOPER;
+          call enemy_attack (nptr);
+          return;
+          

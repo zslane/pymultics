@@ -575,8 +575,45 @@ class sst_(Subroutine):
         enemy_attack (node)
         
     def jump(self, scip, node):
-        pass
-        
+        call. ssu_.arg_count (scip, argn)
+        if (argn.val != 2): call. ssu_.abort_line (scip, (0), "^/^5xUsage: jump Mark_X, Mark_Y")
+        for x in range(2):
+            call. ssu_.arg_ptr (scip, x, argp) ; arg = argp.val
+            if (verify (arg, "1234567890") != 0): call. ssu_.abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg)
+            if (x == 0): target_PX = decimal (arg)
+            else: target_PY = decimal (arg)
+        # end for
+        if (target_PX == 0) or (target_PX > 10) or (target_PY == 0) or (target_PY > 10): call. ssu_.abort_line (scip, (0), "^/^5xJump not possible with given vectors.")
+
+        if (node.PX == target_PX) and (node.PY == target_PY):
+            call. ioa_ ("^/Mark ^d - ^d is already your current position.", target_PX, target_PY)
+            return
+        # end if
+        if (node.suit_pts < 10):
+            call. ioa_ ("^/Suit strength insufficient for jump to Mark ^d - ^d.", target_PX, target_PY)
+            if (node.jet_energy < calc_move_cost (node.SX, node.SY, node.PX, node.PY, node.SX, node.SY, target_PX, target_PY)): return
+            call. ioa_ ("Using Jet booster power...")
+            node.jet_energy = node.jet_energy - calc_move_cost (node.SX, node.SY, node.PX, node.PY, node.SX, node.SY, target_PX, target_PY)
+        # end if
+        if (node.time_left < calc_move_time (node.SX, node.SY, node.PX, node.PY, node.SX, node.SY, target_PX, target_PY)):
+            call. ioa_ ("^/Time left: ^.1f hrs., Jump time: ^.1f hrs.", node.time_left, calc_move_time (node.SX, node.SY, node.PX, node.PY, node.SX, node.SY, target_PX, target_PY))
+            return
+        # end if
+        original_PX = node.PX
+        original_PY = node.PY
+        move ("Jump", node, target_PX, target_PY)
+        node.PX = target_PX
+        node.PY = target_PY
+        node.time_left = node.time_left - calc_move_time (node.SX, node.SY, original_PX, original_PY, node.SX, node.SY, node.PX, node.PY)
+        node.sector[node.SX - 1][node.SY - 1].point[original_PX - 1][original_PY - 1] = "."
+        if node.was_in_rad:
+            node.sector[node.SX - 1][node.SY - 1].point[original_PX - 1][original_PY - 1] = RADIATION
+            if (not node.sitting_in_rad): node.was_in_rad = False
+        # end if
+        if node.sitting_in_rad: node.was_in_rad = True
+        node.sector[node.SX - 1][node.SY - 1].point[node.PX - 1][node.PY - 1] = TROOPER
+        enemy_attack (node)
+    
     def flamer(self, scip, node):
         pass
         

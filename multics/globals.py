@@ -71,6 +71,27 @@ def on_quit(handler_function):
     finally:
         GlobalEnvironment.supervisor.deregister_condition_handler(BreakCondition, process)
 
+class ReleaseCondition(MulticsCondition):
+    def __init__(self):
+        super(ReleaseCondition, self).__init__()
+    @staticmethod
+    def name(): return "ReleaseCondition"
+    
+class InterruptCondition(MulticsCondition):
+    def __init__(self):
+        super(InterruptCondition, self).__init__()
+    @staticmethod
+    def name(): return "InterruptCondition"
+
+@contextlib.contextmanager
+def on_program_interrupt(handler_function):
+    process = get_calling_process_()
+    try:
+        GlobalEnvironment.supervisor.register_condition_handler(InterruptCondition, process, handler_function)
+        yield
+    finally:
+        GlobalEnvironment.supervisor.deregister_condition_handler(InterruptCondition, process)
+
 class ShutdownCondition(MulticsCondition):
     def __init__(self):
         super(ShutdownCondition, self).__init__()

@@ -735,7 +735,7 @@ class bitstring(object):
     def __int__(self):
         return reduce(lambda x, y: (x << 1) + y, self.__value)
         
-    def __bool__(self):
+    def __nonzero__(self):
         return any(self.__value)
     
     def __str__(self):

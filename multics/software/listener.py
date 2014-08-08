@@ -1,13 +1,22 @@
+import re
 import datetime
 
 from ..globals import *
 
 include.query_info
 
+NOMATCH  = 0
+RETURN   = 1
+CONTINUE = 2
+
+RESUME_EXECUTION = 0
+RELEASE_LEVEL    = 1
+
 class Listener(Subroutine):
 
     MESSAGE_TIMER_DURATION = 1.0
     
+
     def __init__(self, command_processor):
         super(Listener, self).__init__(self.__class__.__name__)
         
@@ -38,12 +47,7 @@ class Listener(Subroutine):
             call.ioa_(ready_message)
     
     def _main_loop(self):
-        # command_line = parm()
-        code         = parm()
-        # commands     = []
-        
-        # query_info.suppress_name_sw = True
-        # query_info.suppress_spacing = True
+        code = parm()
         
         self._initialize()
         
@@ -51,40 +55,9 @@ class Listener(Subroutine):
             call.cu_.cp("exec_com start_up new_proc interactive", code)
         # end if
         
-        # self.exit_code = 0
-        # while self.exit_code == 0:
-            # try:
-                # #== If there are no more commands queued up from a multi-command line
-                # #== then get some commands from command_query_
-                # if commands == []:
-                    # call.cu_.ready_proc()
-                    # call.command_query_(query_info, command_line, "listener")
-                    # #== Semi-colons separate multiple commands--create a command queue
-                    # commands = command_line.val.split(";")
-                # # end if
-                
-                # #== Get the next command in the queue and execute it
-                # command_line.val = commands.pop(0).strip()
-                # self.__command_history.append(command_line.val)
-                # call.cu_.cp(command_line.val, code)
-                # self.exit_code = code.val
-                
-            # except BreakCondition:
-                # call.hcs_.signal_break()
-            # except DisconnectCondition:
-                # self.exit_code = System.LOGOUT
-            # except ShutdownCondition:
-                # self.exit_code = System.LOGOUT
-            # except (SegmentFault, LinkageError, InvalidSegmentFault):
-                # call.dump_traceback_()
-            # except:
-                # #== FOR DEBUGGING THE SIMULATION
-                # call.dump_traceback_()
-            # # end try
-        # # end while
         self._enter_command_level()
         
-        # do any cleanup necessary at the CommandShell level
+        # do any cleanup necessary at the Listener level
         self._cleanup()
         
         return self.exit_code
@@ -116,7 +89,6 @@ class Listener(Subroutine):
         query_info.suppress_name_sw = True
         query_info.suppress_spacing = True
         
-        ### ! EXPERIMENTAL! ###
         with on_quit(self._push_command_level):
         
             self.exit_code = 0
@@ -134,9 +106,31 @@ class Listener(Subroutine):
                     #== Get the next command in the queue and execute it
                     command_line.val = commands.pop(0).strip()
                     
-                    ### ! EXPERIMENTAL! ###
-                    if self.__process.stack_level() > 1 and command_line.val in ["release", "rl"]:
-                        return 0
+                    #== Process special commands that only work at nested command level
+                    if self.__process.stack_level() > 1:
+                        #== The 'release' command
+                        flow, ret = self._release_command(command_line.val)
+                        if flow == CONTINUE:
+                            continue
+                        elif flow == RETURN:
+                            return ret
+                        # end if
+                        
+                        #== The 'start' command
+                        flow, ret = self._start_command(command_line.val)
+                        if flow == CONTINUE:
+                            continue
+                        elif flow == RETURN:
+                            return ret
+                        # end if
+                        
+                        #== The 'program_interrupt' command
+                        flow, ret = self._program_interrupt_command(command_line.val)
+                        if flow == CONTINUE:
+                            continue
+                        elif flow == RETURN:
+                            return ret
+                        # end if
                     # end if
                     
                     self.__command_history.append(command_line.val)
@@ -145,6 +139,15 @@ class Listener(Subroutine):
                     
                 except BreakCondition:
                     call.hcs_.signal_break()
+                except ReleaseCondition:
+                    if self.__process.stack_level() > self.release_to_level:
+                        return RELEASE_LEVEL
+                    # elif self.__process.stack_level() > 1:
+                        # return RESUME_EXECUTION
+                    else:
+                        pass
+                except InterruptCondition:
+                    call.ioa_("program_interrupt: There is no suspended invocation of a subystem that supports this command.")
                 except DisconnectCondition:
                     self.exit_code = System.LOGOUT
                 except ShutdownCondition:
@@ -165,6 +168,85 @@ class Listener(Subroutine):
         exit_code = self._enter_command_level()
         self.__process.pop_stack()
         print "Popping command level"
+        if exit_code == RELEASE_LEVEL:
+            raise ReleaseCondition
+    
+    def _match_command(self, cmd_line, cmd_list, arg_list):
+        components = re.split("\s+", cmd_line)
+        cmd = components and components.pop(0)
+        if cmd in cmd_list:
+            arg_list.args = components
+            return True
+        else:
+            return False
+    
+    def _release_command(self, cmd_line):
+        arg_list = parm()
+        if self._match_command(cmd_line, ["release", "rl"], arg_list):
+            if arg_list.args == []:
+                self.release_to_level = self.__process.stack_level() - 1
+                return (RETURN, RELEASE_LEVEL)
+            # end if
+            while arg_list.args:
+                arg = arg_list.args.pop(0)
+                if arg_list.args:
+                    call.ioa_("release: Too many arguments.")
+                    return (CONTINUE, 0)
+                # end if
+                
+                if arg in ["-help", "-h"]:
+                    call.ioa_("Usage: release (rl) {{#|-all|-a}}")
+                    return (CONTINUE, 0)
+                
+                if arg in ["-all", "-a"]:
+                    self.release_to_level = 1
+                    return (RETURN, RELEASE_LEVEL)
+                
+                if arg.isnumeric():
+                    levels = int(arg)
+                    self.release_to_level = self.__process.stack_level() - levels
+                    if levels < 1:
+                        call.ioa_("release: levels must be > 0 or \"-all\".")
+                        return (CONTINUE, 0)
+                    elif self.release_to_level < 1:
+                        call.ioa_("Can't release that many command levels.")
+                        return (CONTINUE, 0)
+                    else:
+                        return (RETURN, RELEASE_LEVEL)
+                    # end if
+                    
+                else:
+                    break
+                # end if
+            # end while
+            call.ioa_("Usage: release (rl) {{#|-all|-a}}")
+            return (CONTINUE, 0)
+        # end if
+        return (NOMATCH, 0)
+    
+    def _start_command(self, cmd_line):
+        arg_list = parm()
+        if self._match_command(cmd_line, ["start", "sr"], arg_list):
+            if arg_list.args == []:
+                return (RETURN, RESUME_EXECUTION)
+            else:
+                call.ioa_("start takes no arguments.")
+                return (CONTINUE, 0)
+            # end if
+        # end if
+        return (NOMATCH, 0)
+        
+    def _program_interrupt_command(self, cmd_line):
+        arg_list = parm()
+        if self._match_command(cmd_line, ["program_interrupt", "pi"], arg_list):
+            if arg_list.args == []:
+                raise InterruptCondition
+            else:
+                call.ioa_("^a takes no arguments.", cmd_line)
+                return (CONTINUE, 0)
+            # end if
+        # end if
+        return (NOMATCH, 0)
     
     def _process_ms_handler(self, message):
         if message['type'] == "shutdown_announcement":
