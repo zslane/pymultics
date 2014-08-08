@@ -18,6 +18,12 @@ def before(s, p):
 def after(s, p):
     return s.partition(p)[-1]
 
+def ltrim(s):
+    return s.lstrip()
+    
+def rtrim(s):
+    return s.rstrip()
+    
 def substr(s, n, m):
     return s[n-1:n+m-1]
     
@@ -47,6 +53,9 @@ def mod(x, y):
 def decimal(x):
     return int(x)
     
+def char_(x):
+    return str(x)
+    
 #== Conditions represented by exception classes ==#
 
 def continue_to_signal_(code):
@@ -71,12 +80,6 @@ def on_quit(handler_function):
     finally:
         GlobalEnvironment.supervisor.deregister_condition_handler(BreakCondition, process)
 
-class ReleaseCondition(MulticsCondition):
-    def __init__(self):
-        super(ReleaseCondition, self).__init__()
-    @staticmethod
-    def name(): return "ReleaseCondition"
-    
 class InterruptCondition(MulticsCondition):
     def __init__(self):
         super(InterruptCondition, self).__init__()
@@ -243,8 +246,6 @@ def print_stackframes():
     # # end while
     # return pframe
     
-# call = None
-
 class GlobalEnvironment(object):
 
     supervisor = None
@@ -261,8 +262,6 @@ class GlobalEnvironment(object):
         GlobalEnvironment.supervisor = supervisor
         GlobalEnvironment.hardware   = supervisor.hardware
         GlobalEnvironment.linker     = supervisor.dynamic_linker
-        # global call
-        # call = supervisor.dynamic_linker
         __builtin__.__dict__['call'] = supervisor.dynamic_linker
         
     @staticmethod
@@ -270,8 +269,6 @@ class GlobalEnvironment(object):
         GlobalEnvironment.supervisor = None
         GlobalEnvironment.hardware   = None
         GlobalEnvironment.linker     = None
-        # global call
-        # call = None
         __builtin__.__dict__['call'] = None
 
 def call_(entryname):
@@ -290,18 +287,18 @@ def call_(entryname):
         raise SegmentFault(procedure_name)
 
 def check_conditions_(ignore_break_signal=False):
-    if GlobalEnvironment.supervisor.hardware.io.terminal_closed():
+    process = get_calling_process_()
+    tty_channel = process.tty()
+    
+    if GlobalEnvironment.supervisor.hardware.io.terminal_closed(tty_channel):
         raise DisconnectCondition
     # end if
     if (not ignore_break_signal and
-        GlobalEnvironment.supervisor.hardware.io.break_received()):
+        GlobalEnvironment.supervisor.hardware.io.break_received(tty_channel)):
         
-        ### ! EXPERIMENTAL ! ###
-        process = get_calling_process_()
-        GlobalEnvironment.supervisor.llout("QUIT\n", process.tty())
+        GlobalEnvironment.supervisor.llout("QUIT\n", tty_channel)
         GlobalEnvironment.supervisor.invoke_condition_handler(BreakCondition, process)
         
-        # raise BreakCondition
     # end if
     if GlobalEnvironment.supervisor.shutting_down():
         raise ShutdownCondition
@@ -315,13 +312,16 @@ def check_conditions_(ignore_break_signal=False):
     
 @contextlib.contextmanager
 def do_loop(container, ignore_break_signal=False):
+    process = get_calling_process_()
+    tty_channel = process.tty()
+    
     # container.exit_code = 0
     try:
-        if GlobalEnvironment.supervisor.hardware.io.terminal_closed():
+        if GlobalEnvironment.supervisor.hardware.io.terminal_closed(tty_channel):
             container.exit_code = System.LOGOUT
         # end if
         if (not ignore_break_signal and
-            GlobalEnvironment.supervisor.hardware.io.break_received()):
+            GlobalEnvironment.supervisor.hardware.io.break_received(tty_channel)):
             print "Break signal detected by", container
             call.hcs_.signal_break()
         # end if
