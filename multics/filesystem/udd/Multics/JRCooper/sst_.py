@@ -22,13 +22,13 @@ class sst_(Subroutine):
 
     def set_up_game(self, node, game_length, rank):
         # These are fields that don't retain their initial values defined in sst_node_.py
-        node.suit_pts = 50
-        node.body_pts = 20
-        node.jet_energy = 1000
-        node.flamer_energy = 1000
-        node.nuke_bombN = 4
-        node.nuke_bonus_score = 5000
-        node.score.success_ratio = -1
+        # node.suit_pts = 50
+        # node.body_pts = 20
+        # node.jet_energy = 1000
+        # node.flamer_energy = 1000
+        # node.nuke_bombN = 4
+        # node.nuke_bonus_score = 5000
+        # node.score.success_ratio = -1
         
         node.arachnidT = mod (clock (), (game_length * 10)) + game_length * 10
         node.skinnyT = mod (clock (), (game_length * 5)) + game_length * 5
@@ -615,7 +615,75 @@ class sst_(Subroutine):
         enemy_attack (node)
     
     def flamer(self, scip, node):
-        pass
+        class goto_FLAME_THEM_BUGGERS(Exception): pass
+        
+        energy_tally    = fixed.bin . parm . init (0)
+        enemyN          = fixed.bin . init (0) . local
+        where_X         = Dim(50) (fixed.bin . init (0))
+        where_Y         = Dim(50) (fixed.bin . init (0))
+        allotted_energy = Dim(50) (fixed.bin . init (0))
+        type            = Dim(50) (char (10) . init (""))
+
+        if (not node.equipment.flamer.working):
+            call. ioa_ ("^/Flamer rifle is damaged.")
+            return
+        # end if
+        if (not enemies_present (node)):
+            call. ioa_ ("^/There are no enemies present.")
+            return
+        # end if
+        call. ioa_ ("^/Flamer energy remaining: ^d units^[^/^]", node.flamer_energy, (node.flamer_energy > 0))
+        try:
+            for x in range(10):
+                for y in range(10):
+                    if (node.flamer_energy == 0): raise goto_FLAME_THEM_BUGGERS
+                    if (node.sector[node.SX - 1][node.SY - 1].point[x][y] == ARACHNID):
+                        allot_flamer_energy ("Arachnid", x, y, energy_tally, node)
+                        enemyN = enemyN + 1
+                        where_X[enemyN - 1] = x
+                        where_Y[enemyN - 1] = y
+                        allotted_energy[enemyN - 1] = energy_tally.val
+                        type[enemyN - 1] = "Arachnid"
+                    elif (node.sector[node.SX - 1][node.SY - 1].point[x][y] == SKINNY):
+                        allot_flamer_energy ("Skinny", x, y, energy_tally, node)
+                        enemyN = enemyN + 1
+                        where_X[enemyN - 1] = x
+                        where_Y[enemyN - 1] = y
+                        allotted_energy[enemyN - 1] = energy_tally.val
+                        type[enemyN - 1] = "Skinny"
+                    elif (node.sector[node.SX - 1][node.SY - 1].point[x][y] == HEAVY_BEAM):
+                        allot_flamer_energy ("Heavy Beam", x, y, energy_tally, node)
+                        enemyN = enemyN + 1
+                        where_X[enemyN - 1] = x
+                        where_Y[enemyN - 1] = y
+                        allotted_energy[enemyN - 1] = energy_tally.val
+                        type[enemyN - 1] = "Heavy Beam"
+                    elif (node.sector[node.SX - 1][node.SY - 1].point[x][y] == MISSILE_L):
+                        allot_flamer_energy ("Missile-L", x, y, energy_tally, node)
+                        enemyN = enemyN + 1
+                        where_X[enemyN - 1] = x
+                        where_Y[enemyN - 1] = y
+                        allotted_energy[enemyN - 1] = energy_tally.val
+                        type[enemyN - 1] = "Missile-L"
+                    # end if
+                # end for
+            # end for
+            energy_tally.val = 0
+            for x in range(enemyN):
+                energy_tally.val = energy_tally.val + allotted_energy[x]
+            # end for
+            if (energy_tally.val == 0): return
+
+        except goto_FLAME_THEM_BUGGERS:
+            pass
+        # end try
+        
+        for x in range(enemyN):
+            if (x == 0): call. ioa_ ()
+            flame_that_sucker (type[x], where_X[x], where_Y[x], allotted_energy[x], node)
+        # end for
+        node.time_left = max (0, node.time_left - .1)
+        enemy_attack (node)
         
     def launch(self, scip, node):
         pass
@@ -674,6 +742,15 @@ def move(move_type, node, target_PX, target_PY):
 def got_there_ok(node):
     pass
     
+def enemies_present(node):
+    return True
+    
+def allot_flamer_energy(type, x, y, energy_tally, node):
+    pass
+    
+def flame_that_sucker(type, where_X, where_Y, allotted_energy, node):
+    pass
+
 def enemy_attack(node):
     pass
     
