@@ -685,13 +685,75 @@ class sst_(Subroutine):
         node.time_left = max (0, node.time_left - .1)
         enemy_attack (node)
         
+    def score(self, scip, node):
+        all_switch = False
+        I_want_to_see = [False] * 23
+        
+        call. ssu_.arg_count (scip, argn)
+        if (argn.val == 0):
+            call. ioa_ ("^/Your score:^10x^d", node.score.total)
+            return
+        # end if
+        for x in range(argn.val):
+            call. ssu_.arg_ptr (scip, x, argp) ; arg = argp.val
+            if (arg == "-all") or (arg == "-a"): all_switch = True
+            elif (substr (arg, 1, 1) == "-"): call. ssu_.abort_line (scip, error_table_.badopt, "^a", arg)
+            elif (arg == "arachnids") or (arg == "bugs"): I_want_to_see[ARACHNID_SCORE - 1] = True
+            elif (arg == "skinnies"): I_want_to_see[SKINNY_SCORE - 1] = True
+            elif (arg == "heavy_beams"): I_want_to_see[HEAVY_BEAM_SCORE - 1] = True
+            elif (arg == "missile_ls"): I_want_to_see[MISSILE_L_SCORE - 1] = True
+            elif (arg == "mountains") or (arg == "mts"): I_want_to_see[MOUNTAIN_SCORE - 1] = True
+            elif (arg == "supplies"): I_want_to_see[SUPPLY_SCORE - 1] = True
+            elif (arg == "prisoners"): I_want_to_see[PRISONER_SCORE - 1] = True
+            else: call. ssu_.abort_line (scip, (0), "^/^5xNo score of \"^a\".", arg)
+        # end for
+        if all_switch: I_want_to_see = [True] * 23
+        node.score.total = node.score.total + node.score.death_penalty + node.score.captured_penalty + node.score.skinny_prisoners
+        node.score.total = node.score.total + max (0, round (node.score.success_ratio * 20, 0))
+        if all_switch and (node.score.total == 0):
+            call. ioa_ ("^/Your score:^10x0")
+            return
+        # end if
+        call. ioa_ ("^[^/Your score:^]", all_switch)
+        if I_want_to_see[ARACHNID_SCORE - 1]:
+            if (node.score.arachnids_Xed > 0): call. ioa_ ("^3x^d Arachnid warriors^40t^d", node.score.arachnids_Xed, calc_score (node, "arachnids"))
+            elif (not all_switch): call. ioa_ ("No Arachnid warriors destroyed.")
+        # end if
+        if I_want_to_see[SKINNY_SCORE - 1]:
+            if (node.score.skinnies_Xed > 0): call. ioa_ ("^3x^d Skinny warriors^40t^d", node.score.skinnies_Xed, calc_score (node, "skinnies"))
+            elif (not all_switch): call. ioa_ ("No Skinny warriors destroyed.")
+        # end if
+        if all_switch and (node.score.skinny_prisoners > 0): call. ioa_ ("^3x^d Skinny prisoners^40t^d", node.score.skinny_prisoners, node.score.skinny_prisoners)
+        if I_want_to_see[HEAVY_BEAM_SCORE - 1]:
+            if (node.score.heavy_beams_Xed > 0): call. ioa_ ("^3x^d Heavy weapon beams^40t^d", node.score.heavy_beams_Xed, calc_score (node, "heavy_beams"))
+            elif (not all_switch): call. ioa_ ("No Heavy weapon beams destroyed.")
+        # end if
+        if I_want_to_see[MISSILE_L_SCORE - 1]:
+            if (node.score.missile_ls_Xed > 0): call. ioa_ ("^3x^d Missile launchers^40t^d", node.score.missile_ls_Xed, calc_score (node, "missile_ls"))
+            elif (not all_switch): call .ioa_ ("No Missile launchers destroyed.")
+        # end if
+        if I_want_to_see[PRISONER_SCORE - 1]:
+            if (node.score.prisoners_rescued > 0): call. ioa_ ("^3x^d Prisoners rescued^40t^d", node.score.prisoners_rescued, calc_score (node, "prisoners"))
+            elif (not all_switch): call. ioa_ ("No Arachnid warriors destroyed.")
+        # end if
+        if I_want_to_see[MOUNTAIN_SCORE - 1]:
+            if (node.score.mountains_Xed > 0): call. ioa_ ("^3x^d Mountains destroyed^40t^d", node.score.mountains_Xed, calc_score (node, "mountains"))
+            elif (not all_switch): call. ioa_ ("No Mountains destroyed.")
+        # end if
+        if I_want_to_see[SUPPLY_SCORE - 1]:
+            if (node.score.supplies_Xed > 0): call. ioa_ ("^3x^d supply ships destroyed^40t^d", node.score.supplies_Xed, calc_score (node, "supplies"))
+            elif (not all_switch): call. ioa_ ("No supply ships destroyed.")
+        # end if
+        if all_switch and (node.score.success_ratio > 0): call. ioa_ ("^3xMission success bonus^40t^d", round (node.score.success_ratio * 20, 0))
+        if all_switch and (node.score.rank_bonus > 0): call. ioa_ ("^3xRank bonus (^a level)^40t^d", RANK (node.rank), node.score.rank_bonus)
+        if all_switch and (node.score.death_penalty < 0): call. ioa_ ("^3xPenalty for getting killed^39t-1000")
+        if all_switch and (node.score.captured_penalty < 0): call. ioa_ ("^3xPenalty for getting captured^40t-500")
+        if all_switch: call. ioa_ ("^30t------^/Total:^40t^d", node.score.total)
+        
     def launch(self, scip, node):
         pass
         
     def signal_for_help(self, scip, node):
-        pass
-        
-    def score(self, scip, node):
         pass
         
     def repair(self, scip, node):
