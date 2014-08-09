@@ -29,6 +29,7 @@ class ssu_requests_(Subroutine):
                     call.ioa_()
         
     def execute(self, sci_ptr, info_ptr):
-        call.do(sci_ptr.ptr.args_string)
+        code = parm()
+        call.cu_.cp(sci_ptr.ptr.args_string, code)
         
 #-- end class ssu_requests_

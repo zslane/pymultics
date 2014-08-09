@@ -37,7 +37,6 @@ class ssu_(Subroutine):
         
     def listen(self, sci_ptr, iocb_ptr, code):
         command = char ('*') . parm . init ("")
-        code    = fixed.bin (35) . parm . init (0)
         commands = []
         
         query_info.version = query_info_version_5
