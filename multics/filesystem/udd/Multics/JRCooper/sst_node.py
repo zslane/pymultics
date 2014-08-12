@@ -28,7 +28,7 @@ NODE = PL1.Structure (
     ),
         
     supplyN         = fixed.bin . init (0),
-    supply          = Dim(6) (PL1.Structure(
+    supply          = Dim(6+1) (PL1.Structure(
         SX          = fixed.bin,
         SY          = fixed.bin,
         PX          = fixed.bin,
@@ -61,7 +61,7 @@ NODE = PL1.Structure (
     ),
         
     arachnidT       = fixed.bin . init (0),
-    Arachnid        = Dim(60) (PL1.Structure(
+    Arachnid        = Dim(60+1) (PL1.Structure(
         SX          = fixed.bin,
         SY          = fixed.bin,
         PX          = fixed.bin,
@@ -70,7 +70,7 @@ NODE = PL1.Structure (
     )),
     
     skinnyT         = fixed.bin . init (0),
-    Skinny          = Dim(30) (PL1.Structure(
+    Skinny          = Dim(30+1) (PL1.Structure(
         SX          = fixed.bin,
         SY          = fixed.bin,
         PX          = fixed.bin,
@@ -79,7 +79,7 @@ NODE = PL1.Structure (
     )),
     
     heavy_beamT     = fixed.bin . init (0),
-    Heavy_beam      = Dim(6) (PL1.Structure(
+    Heavy_beam      = Dim(6+1) (PL1.Structure(
         SX          = fixed.bin,
         SY          = fixed.bin,
         PX          = fixed.bin,
@@ -88,7 +88,7 @@ NODE = PL1.Structure (
     )),
     
     missile_lT      = fixed.bin . init (0),
-    Missile_l       = Dim(6) (PL1.Structure(
+    Missile_l       = Dim(6+1) (PL1.Structure(
         SX          = fixed.bin,
         SY          = fixed.bin,
         PX          = fixed.bin,
@@ -97,7 +97,7 @@ NODE = PL1.Structure (
     )),
     
     breachN         = fixed.bin . init (0),
-    breach          = Dim(25) (PL1.Structure(
+    breach          = Dim(25+1) (PL1.Structure(
         SX          = fixed.bin,
         SY          = fixed.bin,
         PX          = fixed.bin,
@@ -107,7 +107,7 @@ NODE = PL1.Structure (
     )),
     
     fortN           = fixed.bin . init (0),
-    fort            = Dim(60) (PL1.Structure(
+    fort            = Dim(60+1) (PL1.Structure(
         SX          = fixed.bin,
         SY          = fixed.bin,
         PX          = fixed.bin,
@@ -117,15 +117,15 @@ NODE = PL1.Structure (
         prixoner_Y  = fixed.bin . init (0),
     )),
     
-    sector          = Dim(5, 5) (PL1.Structure(
+    sector          = Dim(5+1, 5+1) (PL1.Structure(
         arachnidN   = fixed.bin,
         skinnyN     = fixed.bin,
         radiation   = char (1),
         supply      = char (1),
-        point       = Dim(10, 10) (char (1)),
+        point       = Dim(10+1, 10+1) (char (1)),
     )),
     
-    chart           = Dim(5, 5) (PL1.Structure(
+    chart           = Dim(5+1, 5+1) (PL1.Structure(
         arachnidN   = char (1),
         skinnyN     = char (1),
         radiation   = char (1),

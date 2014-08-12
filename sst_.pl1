@@ -437,7 +437,7 @@ status: entry (scip, nptr);
                          if (arg = "locus") | (arg = "loc") then I_want_to_see (LOCUS) = "1"b;
                          else if (arg = "suit") then I_want_to_see (SUIT) = "1"b;
                          else if (arg = "body") then I_want_to_see (BODY) = "1"b;
-                         else if (arg = "boosters") | (arg = "jets") | (arg = "jet_boosters") then I_want_to_see (BOOSTER_ENERG) = "1"b;
+                         else if (arg = "boosters") | (arg = "jets") | (arg = "jet_boosters") then I_want_to_see (BOOSTER_ENERGY) = "1"b;
                          else if (arg = "flamer_rifle") | (arg = "flamer") | (arg = "rifle") then I_want_to_see (FLAMER_ENERGY) = "1"b;
                          else if (arg = "he_bombs") | (arg = "he") then I_want_to_see (HE_BOMBN) = "1"b;
                          else if (arg = "nuke_bombs") | (arg = "nukes") then I_want_to_see (NUKE_BOMBN) = "1"b;

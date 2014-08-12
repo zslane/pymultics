@@ -56,6 +56,9 @@ def decimal(x):
 def char_(x):
     return str(x)
     
+def do_range(n, m):
+    return range(n, m + 1)
+    
 #== Conditions represented by exception classes ==#
 
 def continue_to_signal_(code):

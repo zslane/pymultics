@@ -32,14 +32,14 @@ class sst_(Subroutine):
         
         node.arachnidT = mod (clock (), (game_length * 10)) + game_length * 10
         node.skinnyT = mod (clock (), (game_length * 5)) + game_length * 5
-        for sx in range(5):
-            for sy in range(5):
+        for sx in do_range(1, 5):
+            for sy in do_range(1, 5):
                 node.sector[sx][sy].arachnidN = 0
                 node.sector[sx][sy].skinnyN = 0
                 node.sector[sx][sy].radiation = "0"
                 node.sector[sx][sy].supply = "0"
-                for px in range(10):
-                    for py in range(10):
+                for px in do_range(1, 10):
+                    for py in do_range(1, 10):
                         node.sector[sx][sy].point[px][py] = "."
                     # end for
                 # end for
@@ -55,10 +55,10 @@ class sst_(Subroutine):
         node.SY = mod (clock (), 5) + 1
         node.PX = mod (clock (), 10) + 1
         node.PY = mod (clock (), 10) + 1
-        node.sector[node.SX - 1][node.SY - 1].point[node.PX - 1][node.PY - 1] = TROOPER
+        node.sector[node.SX][node.SY].point[node.PX][node.PY] = TROOPER
         node.HE_bombN = mod (clock (), 6) + 10
         node.supplyN = mod (clock (), (5 - rank)) + 2
-        for i in range(6):
+        for i in do_range(1, 6):
             node.supply[i].uses_left = 0
         # end for
         node.beacon.SX = mod (clock (), 5) + 1
@@ -69,22 +69,22 @@ class sst_(Subroutine):
         
         # /* Set up the ARACHNIDS */
 
-        for x in range(node.arachnidT):
+        for x in do_range(1, node.arachnidT):
             it_was_not_placed = True
             while (it_was_not_placed):
                 y = mod (clock (), 5) + 1
                 z = mod (clock (), 5) + 1
-                if ((y != node.SX - 1) or (z != node.SY - 1)) and (node.sector[y - 1][z - 1].arachnidN < 9):
+                if ((y != node.SX) or (z != node.SY)) and (node.sector[y][z].arachnidN < 9):
                     node.Arachnid[x].SX = y
                     node.Arachnid[x].SY = z
                     y = mod (clock (), 10) + 1
                     z = mod (clock (), 10) + 1
-                    if (node.sector[node.Arachnid[x].SX - 1][node.Arachnid[x].SY - 1].point[y - 1][z - 1] == "."):
+                    if (node.sector[node.Arachnid[x].SX][node.Arachnid[x].SY].point[y][z] == "."):
                         node.Arachnid[x].PX = y
                         node.Arachnid[x].PY = z
                         node.Arachnid[x].life_pts = mod (clock (), rank * 100) + 100
-                        node.sector[node.Arachnid[x].SX - 1][node.Arachnid[x].SY - 1].point[node.Arachnid[x].PX - 1][node.Arachnid[x].PY - 1] = ARACHNID
-                        node.sector[node.Arachnid[x].SX - 1][node.Arachnid[x].SY - 1].arachnidN = node.sector[node.Arachnid[x].SX - 1][node.Arachnid[x].SY - 1].arachnidN + 1
+                        node.sector[node.Arachnid[x].SX][node.Arachnid[x].SY].point[node.Arachnid[x].PX][node.Arachnid[x].PY] = ARACHNID
+                        node.sector[node.Arachnid[x].SX][node.Arachnid[x].SY].arachnidN = node.sector[node.Arachnid[x].SX][node.Arachnid[x].SY].arachnidN + 1
                         it_was_not_placed = False
                     # end if
                 # end if
@@ -93,22 +93,22 @@ class sst_(Subroutine):
         
         # /* Set up the SKINNIES */
 
-        for x in range(node.skinnyT):
+        for x in do_range(1, node.skinnyT):
             it_was_not_placed = True
             while (it_was_not_placed):
                 y = mod (clock (), 5) + 1
                 z = mod (clock (), 5) + 1
-                if ((y != node.SX - 1) or (z != node.SY - 1)) and (node.sector[y - 1][z - 1].skinnyN < 9):
+                if ((y != node.SX) or (z != node.SY)) and (node.sector[y][z].skinnyN < 9):
                     node.Skinny[x].SX = y
                     node.Skinny[x].SY = z
                     y = mod (clock (), 10) + 1
                     z = mod (clock (), 10) + 1
-                    if (node.sector[node.Skinny[x].SX - 1][node.Skinny[x].SY - 1].point[y - 1][z - 1] == "."):
+                    if (node.sector[node.Skinny[x].SX][node.Skinny[x].SY].point[y][z] == "."):
                         node.Skinny[x].PX = y
                         node.Skinny[x].PY = z
                         node.Skinny[x].life_pts = mod (clock (), rank * 50) + 50
-                        node.sector[node.Skinny[x].SX - 1][node.Skinny[x].SY - 1].skinnyN = node.sector[node.Skinny[x].SX - 1][node.Skinny[x].SY - 1].skinnyN + 1
-                        node.sector[node.Skinny[x].SX - 1][node.Skinny[x].SY - 1].point[node.Skinny[x].PX - 1][node.Skinny[x].PY - 1] = SKINNY
+                        node.sector[node.Skinny[x].SX][node.Skinny[x].SY].skinnyN = node.sector[node.Skinny[x].SX][node.Skinny[x].SY].skinnyN + 1
+                        node.sector[node.Skinny[x].SX][node.Skinny[x].SY].point[node.Skinny[x].PX][node.Skinny[x].PY] = SKINNY
                         it_was_not_placed = False
                     # end if
                 # end if
@@ -118,22 +118,22 @@ class sst_(Subroutine):
         # /* Set up the HEAVY BEAMS */
 
         node.heavy_beamT = int (round ((node.arachnidT / 10.0), 0))
-        for x in range(node.heavy_beamT):
+        for x in do_range(1, node.heavy_beamT):
             it_was_not_placed = True
             while (it_was_not_placed):
                 y = mod (clock (), 5) + 1
                 z = mod (clock (), 5) + 1
-                if ((y != node.SX - 1) or (z != node.SY - 1)) and (node.sector[y - 1][z - 1].arachnidN < 9):
+                if ((y != node.SX) or (z != node.SY)) and (node.sector[y][z].arachnidN < 9):
                     node.Heavy_beam[x].SX = y
                     node.Heavy_beam[x].SY = z
                     y = mod (clock (), 10) + 1
                     z = mod (clock (), 10) + 1
-                    if (node.sector[node.Heavy_beam[x].SX - 1][node.Heavy_beam[x].SY - 1].point[y - 1][z - 1] == "."):
+                    if (node.sector[node.Heavy_beam[x].SX][node.Heavy_beam[x].SY].point[y][z] == "."):
                         node.Heavy_beam[x].PX = y
                         node.Heavy_beam[x].PY = z
                         node.Heavy_beam[x].life_pts = mod (clock (), rank * 200) + 200
-                        node.sector[node.Heavy_beam[x].SX - 1][node.Heavy_beam[x].SY - 1].point[node.Heavy_beam[x].PX - 1][node.Heavy_beam[x].PY - 1] = HEAVY_BEAM
-                        node.sector[node.Heavy_beam[x].SX - 1][node.Heavy_beam[x].SY - 1].arachnidN = node.sector[node.Heavy_beam[x].SX - 1][node.Heavy_beam[x].SY - 1].arachnidN + 1
+                        node.sector[node.Heavy_beam[x].SX][node.Heavy_beam[x].SY].point[node.Heavy_beam[x].PX][node.Heavy_beam[x].PY] = HEAVY_BEAM
+                        node.sector[node.Heavy_beam[x].SX][node.Heavy_beam[x].SY].arachnidN = node.sector[node.Heavy_beam[x].SX][node.Heavy_beam[x].SY].arachnidN + 1
                         it_was_not_placed = False
                     # end if
                 # end if
@@ -143,22 +143,22 @@ class sst_(Subroutine):
         # /* Set up the MISSILE_LAUNCHERS */
 
         node.missile_lT = int (round ((node.skinnyT / 5.0), 0))
-        for x in range(node.missile_lT):
+        for x in do_range(1, node.missile_lT):
             it_was_not_placed = True
             while (it_was_not_placed):
                 y = mod (clock (), 5) + 1
                 z = mod (clock (), 5) + 1
-                if ((y != node.SX - 1) or (z != node.SY - 1)) and (node.sector[y - 1][z - 1].skinnyN < 9):
+                if ((y != node.SX) or (z != node.SY)) and (node.sector[y][z].skinnyN < 9):
                     node.Missile_l[x].SX = y
                     node.Missile_l[x].SY = z
                     y = mod (clock (), 10) + 1
                     z = mod (clock (), 10) + 1
-                    if (node.sector[node.Missile_l[x].SX - 1][node.Missile_l[x].SY - 1].point[y - 1][z - 1] == "."):
+                    if (node.sector[node.Missile_l[x].SX][node.Missile_l[x].SY].point[y][z] == "."):
                         node.Missile_l[x].PX = y
                         node.Missile_l[x].PY = z
                         node.Missile_l[x].life_pts = mod (clock (), rank * 150) + 150
-                        node.sector[node.Missile_l[x].SX - 1][node.Missile_l[x].SY - 1].point[node.Missile_l[x].PX - 1][node.Missile_l[x].PY - 1] = MISSILE_L
-                        node.sector[node.Missile_l[x].SX - 1][node.Missile_l[x].SY - 1].skinnyN = node.sector[node.Missile_l[x].SX - 1][node.Missile_l[x].SY - 1].skinnyN + 1
+                        node.sector[node.Missile_l[x].SX][node.Missile_l[x].SY].point[node.Missile_l[x].PX][node.Missile_l[x].PY] = MISSILE_L
+                        node.sector[node.Missile_l[x].SX][node.Missile_l[x].SY].skinnyN = node.sector[node.Missile_l[x].SX][node.Missile_l[x].SY].skinnyN + 1
                         it_was_not_placed = False
                     # end if
                 # end if
@@ -167,16 +167,16 @@ class sst_(Subroutine):
 
         # /* Set up the MOUNTAINS */
 
-        for x in range(5):
-            for y in range(5):
+        for x in do_range(1, 5):
+            for y in do_range(1, 5):
                 z = mod (clock (), 10)
-                for a in range(z):
+                for a in do_range(1, z):
                     it_was_not_placed = True
                     while (it_was_not_placed):
                         b = mod (clock (), 10) + 1
                         c = mod (clock (), 10) + 1
-                        if (node.sector[x][y].point[b - 1][c - 1] == "."):
-                            node.sector[x][y].point[b - 1][c - 1] = MOUNTAIN
+                        if (node.sector[x][y].point[b][c] == "."):
+                            node.sector[x][y].point[b][c] = MOUNTAIN
                             it_was_not_placed = False
                         # end if
                     # end while
@@ -186,14 +186,14 @@ class sst_(Subroutine):
           
         # /* Set up the SUPPLY_SHIPS *
         
-        for x in range(node.supplyN):
+        for x in do_range(1, node.supplyN):
             it_was_not_placed = True
             while (it_was_not_placed):
                 try:
                     y = mod (clock (), 5) + 1
                     z = mod (clock (), 5) + 1
                     if ((y != node.SX) or (z != node.SY)):
-                        for a in range(x):
+                        for a in do_range(1, x):
                         # do a = 1 to (x - 1);
                             if (y == node.supply[a].SX) and (z == node.supply[a].SY): raise goto_place_supply_ship
                         # end for
@@ -201,13 +201,13 @@ class sst_(Subroutine):
                         node.supply[x].SY = z
                         y = mod (clock (), 10) + 1
                         z = mod (clock (), 10) + 1
-                        if (node.sector[node.supply[x].SX - 1][node.supply[x].SY - 1].point[y - 1][z - 1] == "."):
+                        if (node.sector[node.supply[x].SX][node.supply[x].SY].point[y][z] == "."):
                             node.supply[x].PX = y
                             node.supply[x].PY = z
                             node.supply[x].uses_left = game_length
-                            node.sector[node.supply[x].SX - 1][node.supply[x].SY - 1].point[node.supply[x].PX - 1][node.supply[x].PY - 1] = SUPPLY_SHIP
-                            node.sector[node.supply[x].SX - 1][node.supply[x].SY - 1].supply = "S"
-                            node.chart[node.supply[x].SX - 1][node.supply[x].SY - 1].supply = "S"
+                            node.sector[node.supply[x].SX][node.supply[x].SY].point[node.supply[x].PX][node.supply[x].PY] = SUPPLY_SHIP
+                            node.sector[node.supply[x].SX][node.supply[x].SY].supply = "S"
+                            node.chart[node.supply[x].SX][node.supply[x].SY].supply = "S"
                             it_was_not_placed = False
                         # end if
                     # end if
@@ -220,8 +220,8 @@ class sst_(Subroutine):
         # /* Set up the BREACHES */
 
         while (node.breachN == 0):
-            for x in range(5):
-                for y in range(5):
+            for x in do_range(1, 5):
+                for y in do_range(1, 5):
                     z = 0
                     if (node.sector[x][y].arachnidN > 0): z = mod (clock (), 3) + 1
                     if (z == 1):
@@ -229,15 +229,15 @@ class sst_(Subroutine):
                         while (it_was_not_placed):
                             b = mod (clock (), 10) + 1
                             c = mod (clock (), 10) + 1
-                            if (node.sector[x][y].point[b - 1][c - 1] == "."):
+                            if (node.sector[x][y].point[b][c] == "."):
                                 node.breachN = node.breachN + 1
-                                node.breach[node.breachN - 1].SX = x
-                                node.breach[node.breachN - 1].SY = y
-                                node.breach[node.breachN - 1].PX = b
-                                node.breach[node.breachN - 1].PY = c
-                                node.breach[node.breachN - 1].engineer = mod (clock (), 250) + 250
-                                node.breach[node.breachN - 1].prisoners = max (0, mod (clock (), 5) - 3)
-                                node.sector[x][y].point[b - 1][c - 1] = BREACH
+                                node.breach[node.breachN].SX = x
+                                node.breach[node.breachN].SY = y
+                                node.breach[node.breachN].PX = b
+                                node.breach[node.breachN].PY = c
+                                node.breach[node.breachN].engineer = mod (clock (), 250) + 250
+                                node.breach[node.breachN].prisoners = max (0, mod (clock (), 5) - 3)
+                                node.sector[x][y].point[b][c] = BREACH
                                 it_was_not_placed = False
                             # end if
                         # end while
@@ -248,28 +248,28 @@ class sst_(Subroutine):
         
         # /* Set up the FORTS */
         
-        for x in range(5):
-            for y in range(5):
+        for x in do_range(1, 5):
+            for y in do_range(1, 5):
                 z = 0
-                if (x != node.SX - 1) or (y != node.SY - 1): z = mod (clock (), 10) + 1
+                if (x != node.SX) or (y != node.SY): z = mod (clock (), 10) + 1
                 if (z == 1):
                     it_was_not_placed = True
                     while (it_was_not_placed):
                         b = mod (clock (), 10) + 1
                         c = mod (clock (), 10) + 1
-                        if (node.sector[x][y].point[b - 1][c - 1] == "."):
+                        if (node.sector[x][y].point[b][c] == "."):
                             node.fortN = node.fortN + 1
-                            node.fort[node.fortN - 1].SX = x
-                            node.fort[node.fortN - 1].SY = y
-                            node.fort[node.fortN - 1].PX = b
-                            node.fort[node.fortN - 1].PY = c
-                            node.fort[node.fortN - 1].guard = mod (clock (), 250) + 250
+                            node.fort[node.fortN].SX = x
+                            node.fort[node.fortN].SY = y
+                            node.fort[node.fortN].PX = b
+                            node.fort[node.fortN].PY = c
+                            node.fort[node.fortN].guard = mod (clock (), 250) + 250
                             a = mod (clock (), 10) + 1
                             # if (a == 1) and not node.secret_plans_found:
                                 # node.secret_plans_found = True
-                                # node.fort[node.fortN - 1].secret_plans_here = True
+                                # node.fort[node.fortN].secret_plans_here = True
                             # # end if
-                            node.sector[x][y].point[b - 1][c - 1] = FORT
+                            node.sector[x][y].point[b][c] = FORT
                             it_was_not_placed = False
                         # end if
                     # end while
@@ -279,14 +279,14 @@ class sst_(Subroutine):
         
     def print_introduction(self, node, last_name):
         call. ioa_ ("^/*************************")
-        call. ioa_ ("^/To: M.I. ^a ^a", RANK[node.rank - 1], last_name)
+        call. ioa_ ("^/To: M.I. ^a ^a", RANK[node.rank], last_name)
         call. ioa_ ("Planetary Strike Mission")
         call. ioa_ ("Mission briefing:")
         call. ioa_ ("^10t^d Arachnids", node.arachnidT + node.heavy_beamT)
         call. ioa_ ("^10t?? Skinnies")
         call. ioa_.nnl ("^10t^d Supply ships:", node.supplyN)
-        for x in range(node.supplyN):
-            call. ioa_.nnl (" ^d - ^d^[,^]", node.supply[x].SX, node.supply[x].SY, (x != node.supplyN - 1))
+        for x in do_range(1, node.supplyN):
+            call. ioa_.nnl (" ^d - ^d^[,^]", node.supply[x].SX, node.supply[x].SY, (x != node.supplyN))
         # end for
         call. ioa_ ("^/Drop site: Sector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY)
         call. ioa_ ("You have ^.1f hours to complete your mission.  The retrieval beacn will", node.time_left)
@@ -312,7 +312,7 @@ class sst_(Subroutine):
             call. ioa_ ("^/\"...To the everlasting glory of the infantry, shines the name, shines the name^/name of Rodger Young!\"  Retrieval Beacon has landed at Sector ^d - ^d.", Node.beacon.SX, Node.beacon.SY)
             Node.time_left = 2.5
             call. ioa_ ("^/Retrieval time: ^.1f hrs.", Node.time_left)
-            Node.sector[Node.beacon.SX - 1][Node.beacon.SY - 1].point[Node.beacon.PX - 1][Node.beacon.PY - 1] = BEACON
+            Node.sector[Node.beacon.SX][Node.beacon.SY].point[Node.beacon.PX][Node.beacon.PY] = BEACON
             Node.beacon.landed = True
         # end if
         if (Node.SX == Node.beacon.SX) and (Node.SY == Node.beacon.SY) and (Node.PX == Node.beacon.PX) and (Node.PY == Node.beacon.PY) and Node.beacon.landed:
@@ -347,15 +347,15 @@ class sst_(Subroutine):
             return
         # end if
         call. ioa_ ("^/SCANNER READOUT: Sector ^d - ^d^/", node.SX, node.SY)
-        for x in range(node.SX - 1, node.SX + 2):
-            for y in range(node.SY - 1, node.SY + 2):
+        for x in do_range(node.SX - 1, node.SX + 1):
+            for y in do_range(node.SY - 1, node.SY + 1):
                 if (x < 1) or (x > 5) or (y < 1) or (y > 5): call. ioa_.nnl ("   ----")
                 else:
-                    call. ioa_.nnl ("^3x^d^d^a^a", node.sector[x - 1][y - 1].arachnidN, node.sector[x - 1][y - 1].skinnyN, node.sector[x - 1][y - 1].radiation, node.sector[x - 1][y - 1].supply)
-                    node.chart[x - 1][y - 1].arachnidN = str(node.sector[x - 1][y - 1].arachnidN)
-                    node.chart[x - 1][y - 1].skinnyN = str(node.sector[x - 1][y - 1].skinnyN)
-                    node.chart[x - 1][y - 1].radiation = node.sector[x - 1][y - 1].radiation
-                    node.chart[x - 1][y - 1].supply = node.sector[x - 1][y - 1].supply
+                    call. ioa_.nnl ("^3x^d^d^a^a", node.sector[x][y].arachnidN, node.sector[x][y].skinnyN, node.sector[x][y].radiation, node.sector[x][y].supply)
+                    node.chart[x][y].arachnidN = str(node.sector[x][y].arachnidN)
+                    node.chart[x][y].skinnyN = str(node.sector[x][y].skinnyN)
+                    node.chart[x][y].radiation = node.sector[x][y].radiation
+                    node.chart[x][y].supply = node.sector[x][y].supply
                 # end if
             # end for
             call. ioa_ ()
@@ -365,9 +365,9 @@ class sst_(Subroutine):
         call. ioa_ ("^/PLANETARY CHART:")
         call. ioa_ ("^/     1      2      3      4      5")
         call. ioa_ ("    --------------------------------")
-        for x in range(5):
-            call. ioa_.nnl ("^d:  ", x + 1)
-            for y in range(5):
+        for x in do_range(1, 5):
+            call. ioa_.nnl ("^d:  ", x)
+            for y in do_range(1, 5):
                 call. ioa_.nnl ("^a^a^a^a^3x", node.chart[x][y].arachnidN, node.chart[x][y].skinnyN, node.chart[x][y].radiation, node.chart[x][y].supply)
             # end for
             call. ioa_ ()
@@ -404,19 +404,19 @@ class sst_(Subroutine):
         
         call. ioa_ ("^/SECTOR ^d - ^d, MARK ^d - ^d", node.SX, node.SY, node.PX, node.PY)
         call. ioa_ ("^/    1 2 3 4 5 6 7 8 9 10")
-        for x in range(10):
-            if (x < 9): call. ioa_.nnl (" ^d ", x + 1)
+        for x in do_range(1, 10):
+            if (x < 10): call. ioa_.nnl (" ^d ", x)
             else: call. ioa_.nnl ("10 ")
-            for y in range(10):
-                call. ioa_.nnl (" ^a", node.sector[node.SX - 1][node.SY - 1].point[x][y])
+            for y in do_range(1, 10):
+                call. ioa_.nnl (" ^a", node.sector[node.SX][node.SY].point[x][y])
             # end for
-            if print_status and (x > 0): snooper_status(x)
+            if print_status and (x > 1): snooper_status(x)
             call. ioa_ ()
         # end for
-        node.chart[node.SX - 1][node.SY - 1].arachnidN = str(node.sector[node.SX - 1][node.SY - 1].arachnidN)
-        node.chart[node.SX - 1][node.SY - 1].skinnyN = str(node.sector[node.SX - 1][node.SY - 1].skinnyN)
-        node.chart[node.SX - 1][node.SY - 1].radiation = node.sector[node.SX - 1][node.SY - 1].radiation
-        node.chart[node.SX - 1][node.SY - 1].supply = node.sector[node.SX - 1][node.SY - 1].supply
+        node.chart[node.SX][node.SY].arachnidN = str(node.sector[node.SX][node.SY].arachnidN)
+        node.chart[node.SX][node.SY].skinnyN = str(node.sector[node.SX][node.SY].skinnyN)
+        node.chart[node.SX][node.SY].radiation = node.sector[node.SX][node.SY].radiation
+        node.chart[node.SX][node.SY].supply = node.sector[node.SX][node.SY].supply
         
     def status(self, scip, node):
 
@@ -424,12 +424,12 @@ class sst_(Subroutine):
         damage_switch  = False
         general_status = False
         damage_report  = False
-        I_want_to_see  = [False] * 23
+        I_want_to_see  = [False] * (23+1)
 
         call. ssu_.arg_count (scip, argn)
         if (argn.val == 0):
             general_status = True
-            I_want_to_see = [True] * 23
+            I_want_to_see = [True] * (23+1)
         # end if
         for x in range(argn.val):
             call. ssu_.arg_ptr (scip, x, argp) ; arg = argp.val
@@ -437,25 +437,25 @@ class sst_(Subroutine):
             elif (arg == "-all") or (arg == "-a"): all_switch = True
             elif (substr (arg, 1, 1) == "-"): call. ssu_.abort_line (scip, (0), "^/^5xUsage: status {item} {-damage {item}} {-all}")
             elif (not damage_switch):
-                if (arg == "locus") or (arg == "loc"): I_want_to_see[LOCUS - 1] = True
-                elif (arg == "suit"): I_want_to_see[SUIT - 1] = True
-                elif (arg == "body"): I_want_to_see[BODY - 1] = True
-                elif (arg == "boosters") or (arg == "jets") or (arg == "jet_boosters"): I_want_to_see[BOOSTER_ENERGY - 1] = True
-                elif (arg == "flamer_rifle") or (arg == "flamer") or (arg == "rifle"): I_want_to_see[FLAMER_ENERGY - 1] = True
-                elif (arg == "he_bombs") or (arg == "he"): I_want_to_see[HE_BOMBN - 1] = True
-                elif (arg == "nuke_bombs") or (arg == "nukes"): I_want_to_see[NUKE_BOMBN - 1] = True
-                elif (arg == "arachnids") or (arg == "bugs"): I_want_to_see[BUGS_LEFT - 1] = True
-                elif (arg == "time"): I_want_to_see[TIME_LEFT - 1] = True
+                if (arg == "locus") or (arg == "loc"): I_want_to_see[LOCUS] = True
+                elif (arg == "suit"): I_want_to_see[SUIT] = True
+                elif (arg == "body"): I_want_to_see[BODY] = True
+                elif (arg == "boosters") or (arg == "jets") or (arg == "jet_boosters"): I_want_to_see[BOOSTER_ENERGY] = True
+                elif (arg == "flamer_rifle") or (arg == "flamer") or (arg == "rifle"): I_want_to_see[FLAMER_ENERGY] = True
+                elif (arg == "he_bombs") or (arg == "he"): I_want_to_see[HE_BOMBN] = True
+                elif (arg == "nuke_bombs") or (arg == "nukes"): I_want_to_see[NUKE_BOMBN] = True
+                elif (arg == "arachnids") or (arg == "bugs"): I_want_to_see[BUGS_LEFT] = True
+                elif (arg == "time"): I_want_to_see[TIME_LEFT] = True
                 else: call. ssu_.abort_line (scip, (0), "^/^xNo status for ""^a"".", arg)
                 general_status = True
             else:
-                if (arg == "scanner"): I_want_to_see[SCANNER - 1] = True
-                elif (arg == "snooper"): I_want_to_see[SNOOPER - 1] = True
-                elif (arg == "flamer_rifle") or (arg == "flamer") or (arg == "rifle"): I_want_to_see[FLAMER_RIFLE - 1] = True
-                elif (arg == "he_launcher") or (arg == "he"): I_want_to_see[HE_LAUNCHER - 1] = True
-                elif (arg == "nuke_launcher") or (arg == "nuker"): I_want_to_see[NUKE_LAUNCHER - 1] = True
-                elif (arg == "listening_device") or (arg == "ld"): I_want_to_see[LISTENING_DEV - 1] = True
-                elif (arg == "jet_boosters") or (arg == "boosters") or (arg == "jets"): I_want_to_see[JET_BOOSTERS - 1] = True
+                if (arg == "scanner"): I_want_to_see[SCANNER] = True
+                elif (arg == "snooper"): I_want_to_see[SNOOPER] = True
+                elif (arg == "flamer_rifle") or (arg == "flamer") or (arg == "rifle"): I_want_to_see[FLAMER_RIFLE] = True
+                elif (arg == "he_launcher") or (arg == "he"): I_want_to_see[HE_LAUNCHER] = True
+                elif (arg == "nuke_launcher") or (arg == "nuker"): I_want_to_see[NUKE_LAUNCHER] = True
+                elif (arg == "listening_device") or (arg == "ld"): I_want_to_see[LISTENING_DEV] = True
+                elif (arg == "jet_boosters") or (arg == "boosters") or (arg == "jets"): I_want_to_see[JET_BOOSTERS] = True
                 else: call. ssu_.abort_line (scip, (0), "^/^5xNo such device. ^a", arg)
                 damage_report = True
             # end if
@@ -463,53 +463,53 @@ class sst_(Subroutine):
         if all_switch:
             general_status = True
             damage_report = True
-            I_want_to_see = [True] * 23
+            I_want_to_see = [True] * (23+1)
         # end if
         if damage_switch and (not damage_report):
             damage_report = True
-            for x in range(10, 16 + 1):
-                I_want_to_see[x - 1] = True
+            for x in do_range(10, 16):
+                I_want_to_see[x] = True
             # end for
         # end if
         if general_status:
             call. ioa_ ("^/Trooper status report:")
-            if I_want_to_see[LOCUS - 1]: call. ioa_ ("^3xLocus proximity:^25tSector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY)
-            if I_want_to_see[SUIT - 1]: call. ioa_ ("^3xSuit condition:^25t^d pts.", node.suit_pts)
-            if I_want_to_see[BODY - 1]: call. ioa_ ("^3xBody condition:^25t^d pts.", node.body_pts)
-            if I_want_to_see[BOOSTER_ENERGY - 1]: call. ioa_ ("^3xBooster energy:^25t^d units", node.jet_energy)
-            if I_want_to_see[FLAMER_ENERGY - 1]: call. ioa_ ("^3xFlamer energy:^25t^d units", node.flamer_energy)
-            if I_want_to_see[HE_BOMBN - 1]: call. ioa_ ("^3xHE bombs left:^25t^d", node.HE_bombN)
-            if I_want_to_see[NUKE_BOMBN - 1]: call. ioa_ ("^3xNuke bombs left:^25t^d", node.nuke_bombN)
-            if I_want_to_see[BUGS_LEFT - 1]: call. ioa_ ("^3xArachnids left:^25t^d", (node.arachnidT + node.heavy_beamT - node.score.arachnids_Xed - node.score.heavy_beams_Xed))
-            if I_want_to_see[TIME_LEFT - 1]: call. ioa_ ("^3xTime left:^25t^.1f hrs.", node.time_left)
+            if I_want_to_see[LOCUS]: call. ioa_ ("^3xLocus proximity:^25tSector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY)
+            if I_want_to_see[SUIT]: call. ioa_ ("^3xSuit condition:^25t^d pts.", node.suit_pts)
+            if I_want_to_see[BODY]: call. ioa_ ("^3xBody condition:^25t^d pts.", node.body_pts)
+            if I_want_to_see[BOOSTER_ENERGY]: call. ioa_ ("^3xBooster energy:^25t^d units", node.jet_energy)
+            if I_want_to_see[FLAMER_ENERGY]: call. ioa_ ("^3xFlamer energy:^25t^d units", node.flamer_energy)
+            if I_want_to_see[HE_BOMBN]: call. ioa_ ("^3xHE bombs left:^25t^d", node.HE_bombN)
+            if I_want_to_see[NUKE_BOMBN]: call. ioa_ ("^3xNuke bombs left:^25t^d", node.nuke_bombN)
+            if I_want_to_see[BUGS_LEFT]: call. ioa_ ("^3xArachnids left:^25t^d", (node.arachnidT + node.heavy_beamT - node.score.arachnids_Xed - node.score.heavy_beams_Xed))
+            if I_want_to_see[TIME_LEFT]: call. ioa_ ("^3xTime left:^25t^.1f hrs.", node.time_left)
         # end if
         if damage_report:
             call. ioa_ ("^/Trooper damage report:")
-            if I_want_to_see[SCANNER - 1]:
+            if I_want_to_see[SCANNER]:
                 call. ioa_ ("^3xScanner^25t^[WORKING^]^[DAMAGED^]", node.equipment.scanner.working, not node.equipment.scanner.working)
                 if (not node.equipment.scanner.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.scanner.repair_time, max (0, node.equipment.scanner.repair_time - 1))
             # end if
-            if I_want_to_see[SNOOPER - 1]:
+            if I_want_to_see[SNOOPER]:
                 call. ioa_ ("^3xSnooper^25t^[WORKING^]^[DAMAGED^]", node.equipment.snooper.working, not node.equipment.snooper.working)
                 if (not node.equipment.snooper.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.snooper.repair_time, max (0, node.equipment.snooper.repair_time - 1))
             # end if
-            if I_want_to_see[JET_BOOSTERS - 1]:
+            if I_want_to_see[JET_BOOSTERS]:
                 call. ioa_ ("^3xJet boosters^25t^[WORKING^]^[DAMAGED^]", node.equipment.jet_boosters.working, not node.equipment.jet_boosters.working)
                 if (not node.equipment.jet_boosters.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.jet_boosters.repair_time, max (0, node.equipment.jet_boosters.repair_time - 1))
             # end if
-            if I_want_to_see[FLAMER_RIFLE - 1]:
+            if I_want_to_see[FLAMER_RIFLE]:
                 call. ioa_ ("^3xFlamer rifle^25t^[WORKING^]^[DAMAGED^]", node.equipment.flamer.working, not node.equipment.flamer.working)
                 if (not node.equipment.flamer.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.flamer.repair_time, max (0, node.equipment.flamer.repair_time - 1))
             # end if
-            if I_want_to_see[HE_LAUNCHER - 1]:
+            if I_want_to_see[HE_LAUNCHER]:
                 call. ioa_ ("^3xHE launcher^25t^[WORKING^]^[DAMAGED^]", node.equipment.HE_launcher.working, not node.equipment.HE_launcher.working)
                 if (not node.equipment.HE_launcher.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.HE_launcher.repair_time, max (0, node.equipment.HE_launcher.repair_time - 1))
             # end if
-            if I_want_to_see[NUKE_LAUNCHER - 1]:
+            if I_want_to_see[NUKE_LAUNCHER]:
                 call. ioa_ ("^3xNuke launcher^25t^[WORKING^]^[DAMAGED^]", node.equipment.nuke_launcher.working, not node.equipment.nuke_launcher.working)
                 if (not node.equipment.nuke_launcher.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.nuke_launcher.repair_time, max (0, node.equipment.nuke_launcher.repair_time - 1))
             # end if
-            if I_want_to_see[LISTENING_DEV - 1]:
+            if I_want_to_see[LISTENING_DEV]:
                 call. ioa_ ("^3xListening dev^25t^[WORKING^]^[DAMAGED^]", node.equipment.listening_dev.working, not node.equipment.listening_dev.working)
                 if (not node.equipment.listening_dev.working): call. ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.listening_dev.repair_time, max (0, node.equipment.listening_dev.repair_time - 1))
                   
@@ -564,13 +564,13 @@ class sst_(Subroutine):
         got_there_ok (node)
         node.jet_energy = node.jet_energy - calc_move_cost (original_SX, original_SY, original_PX, original_PY, node.SX, node.SY, node.PX, node.PY)
         node.time_left = node.time_left - calc_move_time (original_SX, original_SY, original_PX, original_PY, node.SX, node.SY, node.PX, node.PY)
-        node.sector[original_SX - 1][original_SY - 1].point[original_PX - 1][original_PY - 1] = "."
+        node.sector[original_SX][original_SY].point[original_PX][original_PY] = "."
         if node.was_in_rad:
-            node.sector[original_SX - 1][original_SY - 1].point[original_PX - 1][original_PY - 1] = RADIATION
+            node.sector[original_SX][original_SY].point[original_PX][original_PY] = RADIATION
             if not node.sitting_in_rad: node.was_in_rad = False
         # end if
         if node.sitting_in_rad: node.was_in_rad = True
-        node.sector[node.SX - 1][node.SY - 1].point[node.PX - 1][node.PY - 1] = TROOPER
+        node.sector[node.SX][node.SY].point[node.PX][node.PY] = TROOPER
         call. ioa_ ("^/***LOCUS PROXIMITY: Sector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY)
         enemy_attack (node)
         
@@ -605,13 +605,13 @@ class sst_(Subroutine):
         node.PX = target_PX
         node.PY = target_PY
         node.time_left = node.time_left - calc_move_time (node.SX, node.SY, original_PX, original_PY, node.SX, node.SY, node.PX, node.PY)
-        node.sector[node.SX - 1][node.SY - 1].point[original_PX - 1][original_PY - 1] = "."
+        node.sector[node.SX][node.SY].point[original_PX][original_PY] = "."
         if node.was_in_rad:
-            node.sector[node.SX - 1][node.SY - 1].point[original_PX - 1][original_PY - 1] = RADIATION
+            node.sector[node.SX][node.SY].point[original_PX][original_PY] = RADIATION
             if (not node.sitting_in_rad): node.was_in_rad = False
         # end if
         if node.sitting_in_rad: node.was_in_rad = True
-        node.sector[node.SX - 1][node.SY - 1].point[node.PX - 1][node.PY - 1] = TROOPER
+        node.sector[node.SX][node.SY].point[node.PX][node.PY] = TROOPER
         enemy_attack (node)
     
     def flamer(self, scip, node):
@@ -619,10 +619,10 @@ class sst_(Subroutine):
         
         energy_tally    = fixed.bin . parm . init (0)
         enemyN          = fixed.bin . init (0) . local
-        where_X         = Dim(50) (fixed.bin . init (0))
-        where_Y         = Dim(50) (fixed.bin . init (0))
-        allotted_energy = Dim(50) (fixed.bin . init (0))
-        type            = Dim(50) (char (10) . init (""))
+        where_X         = Dim(50+1) (fixed.bin . init (0))
+        where_Y         = Dim(50+1) (fixed.bin . init (0))
+        allotted_energy = Dim(50+1) (fixed.bin . init (0))
+        type            = Dim(50+1) (char (10) . init (""))
 
         if (not node.equipment.flamer.working):
             call. ioa_ ("^/Flamer rifle is damaged.")
@@ -634,42 +634,42 @@ class sst_(Subroutine):
         # end if
         call. ioa_ ("^/Flamer energy remaining: ^d units^[^/^]", node.flamer_energy, (node.flamer_energy > 0))
         try:
-            for x in range(10):
-                for y in range(10):
+            for x in do_range(1, 10):
+                for y in do_range(1, 10):
                     if (node.flamer_energy == 0): raise goto_FLAME_THEM_BUGGERS
-                    if (node.sector[node.SX - 1][node.SY - 1].point[x][y] == ARACHNID):
+                    if (node.sector[node.SX][node.SY].point[x][y] == ARACHNID):
                         allot_flamer_energy ("Arachnid", x, y, energy_tally, node)
                         enemyN = enemyN + 1
-                        where_X[enemyN - 1] = x
-                        where_Y[enemyN - 1] = y
-                        allotted_energy[enemyN - 1] = energy_tally.val
-                        type[enemyN - 1] = "Arachnid"
-                    elif (node.sector[node.SX - 1][node.SY - 1].point[x][y] == SKINNY):
+                        where_X[enemyN] = x
+                        where_Y[enemyN] = y
+                        allotted_energy[enemyN] = energy_tally.val
+                        type[enemyN] = "Arachnid"
+                    elif (node.sector[node.SX][node.SY].point[x][y] == SKINNY):
                         allot_flamer_energy ("Skinny", x, y, energy_tally, node)
                         enemyN = enemyN + 1
-                        where_X[enemyN - 1] = x
-                        where_Y[enemyN - 1] = y
-                        allotted_energy[enemyN - 1] = energy_tally.val
-                        type[enemyN - 1] = "Skinny"
-                    elif (node.sector[node.SX - 1][node.SY - 1].point[x][y] == HEAVY_BEAM):
+                        where_X[enemyN] = x
+                        where_Y[enemyN] = y
+                        allotted_energy[enemyN] = energy_tally.val
+                        type[enemyN] = "Skinny"
+                    elif (node.sector[node.SX][node.SY].point[x][y] == HEAVY_BEAM):
                         allot_flamer_energy ("Heavy Beam", x, y, energy_tally, node)
                         enemyN = enemyN + 1
-                        where_X[enemyN - 1] = x
-                        where_Y[enemyN - 1] = y
-                        allotted_energy[enemyN - 1] = energy_tally.val
-                        type[enemyN - 1] = "Heavy Beam"
-                    elif (node.sector[node.SX - 1][node.SY - 1].point[x][y] == MISSILE_L):
+                        where_X[enemyN] = x
+                        where_Y[enemyN] = y
+                        allotted_energy[enemyN] = energy_tally.val
+                        type[enemyN] = "Heavy Beam"
+                    elif (node.sector[node.SX][node.SY].point[x][y] == MISSILE_L):
                         allot_flamer_energy ("Missile-L", x, y, energy_tally, node)
                         enemyN = enemyN + 1
-                        where_X[enemyN - 1] = x
-                        where_Y[enemyN - 1] = y
-                        allotted_energy[enemyN - 1] = energy_tally.val
-                        type[enemyN - 1] = "Missile-L"
+                        where_X[enemyN] = x
+                        where_Y[enemyN] = y
+                        allotted_energy[enemyN] = energy_tally.val
+                        type[enemyN] = "Missile-L"
                     # end if
                 # end for
             # end for
             energy_tally.val = 0
-            for x in range(enemyN):
+            for x in do_range(1, enemyN):
                 energy_tally.val = energy_tally.val + allotted_energy[x]
             # end for
             if (energy_tally.val == 0): return
@@ -678,7 +678,7 @@ class sst_(Subroutine):
             pass
         # end try
         
-        for x in range(enemyN):
+        for x in do_range(1, enemyN):
             if (x == 0): call. ioa_ ()
             flame_that_sucker (type[x], where_X[x], where_Y[x], allotted_energy[x], node)
         # end for
@@ -687,7 +687,7 @@ class sst_(Subroutine):
         
     def score(self, scip, node):
         all_switch = False
-        I_want_to_see = [False] * 23
+        I_want_to_see = [False] * (23+1)
         
         call. ssu_.arg_count (scip, argn)
         if (argn.val == 0):
@@ -698,16 +698,16 @@ class sst_(Subroutine):
             call. ssu_.arg_ptr (scip, x, argp) ; arg = argp.val
             if (arg == "-all") or (arg == "-a"): all_switch = True
             elif (substr (arg, 1, 1) == "-"): call. ssu_.abort_line (scip, error_table_.badopt, "^a", arg)
-            elif (arg == "arachnids") or (arg == "bugs"): I_want_to_see[ARACHNID_SCORE - 1] = True
-            elif (arg == "skinnies"): I_want_to_see[SKINNY_SCORE - 1] = True
-            elif (arg == "heavy_beams"): I_want_to_see[HEAVY_BEAM_SCORE - 1] = True
-            elif (arg == "missile_ls"): I_want_to_see[MISSILE_L_SCORE - 1] = True
-            elif (arg == "mountains") or (arg == "mts"): I_want_to_see[MOUNTAIN_SCORE - 1] = True
-            elif (arg == "supplies"): I_want_to_see[SUPPLY_SCORE - 1] = True
-            elif (arg == "prisoners"): I_want_to_see[PRISONER_SCORE - 1] = True
+            elif (arg == "arachnids") or (arg == "bugs"): I_want_to_see[ARACHNID_SCORE] = True
+            elif (arg == "skinnies"): I_want_to_see[SKINNY_SCORE] = True
+            elif (arg == "heavy_beams"): I_want_to_see[HEAVY_BEAM_SCORE] = True
+            elif (arg == "missile_ls"): I_want_to_see[MISSILE_L_SCORE] = True
+            elif (arg == "mountains") or (arg == "mts"): I_want_to_see[MOUNTAIN_SCORE] = True
+            elif (arg == "supplies"): I_want_to_see[SUPPLY_SCORE] = True
+            elif (arg == "prisoners"): I_want_to_see[PRISONER_SCORE] = True
             else: call. ssu_.abort_line (scip, (0), "^/^5xNo score of \"^a\".", arg)
         # end for
-        if all_switch: I_want_to_see = [True] * 23
+        if all_switch: I_want_to_see = [True] * (23+1)
         node.score.total = node.score.total + node.score.death_penalty + node.score.captured_penalty + node.score.skinny_prisoners
         node.score.total = node.score.total + max (0, round (node.score.success_ratio * 20, 0))
         if all_switch and (node.score.total == 0):
@@ -715,32 +715,32 @@ class sst_(Subroutine):
             return
         # end if
         call. ioa_ ("^[^/Your score:^]", all_switch)
-        if I_want_to_see[ARACHNID_SCORE - 1]:
+        if I_want_to_see[ARACHNID_SCORE]:
             if (node.score.arachnids_Xed > 0): call. ioa_ ("^3x^d Arachnid warriors^40t^d", node.score.arachnids_Xed, calc_score (node, "arachnids"))
             elif (not all_switch): call. ioa_ ("No Arachnid warriors destroyed.")
         # end if
-        if I_want_to_see[SKINNY_SCORE - 1]:
+        if I_want_to_see[SKINNY_SCORE]:
             if (node.score.skinnies_Xed > 0): call. ioa_ ("^3x^d Skinny warriors^40t^d", node.score.skinnies_Xed, calc_score (node, "skinnies"))
             elif (not all_switch): call. ioa_ ("No Skinny warriors destroyed.")
         # end if
         if all_switch and (node.score.skinny_prisoners > 0): call. ioa_ ("^3x^d Skinny prisoners^40t^d", node.score.skinny_prisoners, node.score.skinny_prisoners)
-        if I_want_to_see[HEAVY_BEAM_SCORE - 1]:
+        if I_want_to_see[HEAVY_BEAM_SCORE]:
             if (node.score.heavy_beams_Xed > 0): call. ioa_ ("^3x^d Heavy weapon beams^40t^d", node.score.heavy_beams_Xed, calc_score (node, "heavy_beams"))
             elif (not all_switch): call. ioa_ ("No Heavy weapon beams destroyed.")
         # end if
-        if I_want_to_see[MISSILE_L_SCORE - 1]:
+        if I_want_to_see[MISSILE_L_SCORE]:
             if (node.score.missile_ls_Xed > 0): call. ioa_ ("^3x^d Missile launchers^40t^d", node.score.missile_ls_Xed, calc_score (node, "missile_ls"))
             elif (not all_switch): call .ioa_ ("No Missile launchers destroyed.")
         # end if
-        if I_want_to_see[PRISONER_SCORE - 1]:
+        if I_want_to_see[PRISONER_SCORE]:
             if (node.score.prisoners_rescued > 0): call. ioa_ ("^3x^d Prisoners rescued^40t^d", node.score.prisoners_rescued, calc_score (node, "prisoners"))
             elif (not all_switch): call. ioa_ ("No Arachnid warriors destroyed.")
         # end if
-        if I_want_to_see[MOUNTAIN_SCORE - 1]:
+        if I_want_to_see[MOUNTAIN_SCORE]:
             if (node.score.mountains_Xed > 0): call. ioa_ ("^3x^d Mountains destroyed^40t^d", node.score.mountains_Xed, calc_score (node, "mountains"))
             elif (not all_switch): call. ioa_ ("No Mountains destroyed.")
         # end if
-        if I_want_to_see[SUPPLY_SCORE - 1]:
+        if I_want_to_see[SUPPLY_SCORE]:
             if (node.score.supplies_Xed > 0): call. ioa_ ("^3x^d supply ships destroyed^40t^d", node.score.supplies_Xed, calc_score (node, "supplies"))
             elif (not all_switch): call. ioa_ ("No supply ships destroyed.")
         # end if

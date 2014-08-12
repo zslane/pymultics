@@ -4,7 +4,7 @@ from multics.globals import *
 declare (
 
     MAIN                   = char (20) . init ("starship_troopers"),
-    RANK                   = Dim(3) (char (10)) . init (["Leutenant", "Sergeant", "Captain"]),
+    RANK                   = Dim(3+1) (char (10)) . init (["", "Leutenant", "Sergeant", "Captain"]),
     
     LEUTENANT              = fixed.bin . init (1),
     SERGEANT               = fixed.bin . init (2),
