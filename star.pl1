@@ -2349,7 +2349,7 @@ robot_move: procedure;
                     open_sectors (2) = "Zork";
           else do;
                     open_sectors (1) = "Shadow";
-                    z = 1;
+                    x = 1;
                end;
           if x ^= 1 then x = mod (clock (), 2) + 1;
           call lock (universe.lock);

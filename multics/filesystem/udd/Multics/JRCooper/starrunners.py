@@ -59,20 +59,20 @@ def starrunners():
         
         universe             = PL1.Structure . based(univptr = "universe") (
             number           = fixed.bin,
-            pdir             = Dim(10) (char(32)),
-            user             = Dim(10) (char(21)),
-            unique_id        = Dim(10) (fixed.bin),
+            pdir             = Dim(10+1) (char(32)),
+            user             = Dim(10+1) (char(21)),
+            unique_id        = Dim(10+1) (fixed.bin),
             holes            = fixed.bin,
-            black_hole       = Dim(5) (char(8)),
+            black_hole       = Dim(5+1) (char(8)),
             password         = char(10),
-            robot            = Dim(20) (PL1.Structure(
+            robot            = Dim(20+1) (PL1.Structure(
                 name         = char(5),
                 energy       = fixed.bin,
                 condition    = char(7),
                 location     = char(8),
                 controller   = char(21)
             )),
-            notifications    = Dim(50) (PL1.Structure(
+            notifications    = Dim(50+1) (PL1.Structure(
                 person_id    = char(21),
                 project_id   = char(9)
             )),
@@ -113,9 +113,9 @@ def starrunners():
             black_hole       = char(8),
             psionics         = bit(1),
             psi_num          = fixed.bin,
-            psi_name         = Dim(10) (char(10)),
-            psi_type         = Dim(10) (char(14)),
-            psi_mes          = Dim(10) (char(8)),
+            psi_name         = Dim(10+1) (char(10)),
+            psi_type         = Dim(10+1) (char(14)),
+            psi_mes          = Dim(10+1) (char(8)),
             lock             = bit(36)
         ),
     )
@@ -148,14 +148,13 @@ def starrunners():
             return
         # end if
         for x in range(argn.val):
-            call.cu_.arg_ptr(x, argp, code)
-            arg = argp.val
+            call.cu_.arg_ptr(x, argp, code) ; arg = argp.val
             if arg == "-admin": enter_admin_loop = True
             elif arg == "-video": video_mode = True
             elif arg == "-list_players" or arg == "-lp": list_players = True
             elif arg == "-accept_notifications" or arg == "-ant": accept_notifications = True
             elif arg == "-refuse_notifications" or arg == "-rnt": accept_notifications = False
-            elif arg[0] == "-":
+            elif substr(arg, 1, 1) == "-":
                 call.ioa_("^a: Specified control argument is not accepted. ^a", MAIN, arg)
                 return
             # end if
@@ -211,8 +210,8 @@ def starrunners():
         
     # /* SET UP GAME ENVIRONMENT */
         call.ioa_("^/Starrunners ^a", version)
-        for x in range(admin_info.star_comn):
-            if person == admin_info.star_coms[x]: access = "yes"
+        for x in do_range(1, admin_info.star_comn):
+            if person == admin_info.star_coms[x-1]: access = "yes"
         # end for
         call.hcs_.initiate(dname, xname, "", 0, 0, univptr, code)
         # print univptr.ptr.dumps()
@@ -220,13 +219,13 @@ def starrunners():
             call.ioa_("^/I'm sorry, but the STARRUNNERS universe is closed.^/Please feel free to try later.  Thank you...")
             return
         # end if
-        if universe.number == 9:
+        if universe.number == 10:
             call.ioa_("^/I'm sorry, but the STARRUNNERS universe is filled to maximum capacity.^/Please feel free to try later.  Thank you...")
             return
         # end if
         
     # /* ACCEPT/REFUSE NOTIFICATIONS.  PUT/TAKE ON/FROM LIST */
-        for x in range(50):
+        for x in do_range(1, 50):
             if universe.notifications[x].person_id == person and universe.notifications[x].project_id == project:
                 if not accept_notifications:
                     with universe:
@@ -238,7 +237,7 @@ def starrunners():
             # end if
         # end for
         if not on_the_list and accept_notifications:
-            for x in range(50):
+            for x in do_range(1, 50):
                 if universe.notifications[x].person_id == "" and universe.notifications[x].project_id == "":
                     with universe:
                         universe.notifications[x].person_id = person
@@ -254,7 +253,7 @@ def starrunners():
     # /* IF -list_players CONTROL_ARG WAS SUPPLIED, LIST PLAYERS, NO GAME */
         if list_players:
             call.ioa_("^/List of players: ^[none^]^[^d^]", (universe.number == 0), (universe.number > 0), universe.number)
-            for x in range(universe.number):
+            for x in do_range(1, universe.number):
                 call.ioa_("^3x^a", universe.user[x])
             # end for
             return
@@ -285,7 +284,7 @@ def starrunners():
     # /* SET finish TO TURN OFF NOTIFICATIONS */
         def begin_block():
             with univptr.ptr:
-                for x in range(50):
+                for x in do_range(1, 50):
                     if universe.notifications[x].person_id == person and universe.notifications[x].project_id == project:
                         universe.notifications[x].person_id = ""
                         universe.notifications[x].project_id = ""
@@ -320,9 +319,9 @@ def starrunners():
                         lock(my.ship.lock)
                         with my.ship:
                             my.ship.user = my.ship.name = my.ship.type = my.ship.condition = my.ship.message = my.ship.fromname = my.ship.fromtype = my.ship.deathmes = my.ship.deadname = my.ship.deadtype = my.ship.tracname = my.ship.monitored_by = my.ship.monloc = ""
-                            my.ship.psi_name = [""] * 10
-                            my.ship.psi_type = [""] * 10
-                            my.ship.psi_mes = [""] * 10
+                            my.ship.psi_name = [""] * (10+1)
+                            my.ship.psi_type = [""] * (10+1)
+                            my.ship.psi_mes = [""] * (10+1)
                             my.ship.monname = my.ship.montype = "#"
                             my.ship.location = "PHASING"
                             my.ship.black_hole = "start"
@@ -333,20 +332,20 @@ def starrunners():
                         unlock(my.ship.lock)
                         
     # /* ADD HIM TO LIST OF PLAYERS IN THE STARRUNNERS UNIVERSE */
-                        if universe.number == 9:
+                        if universe.number == 10:
                             call.ioa_("I'm sorry, but the STARRUNNERS universe if filled to maximum capacity.^/Please feel free to try later.  Thank you...")
                             return
                         # end if
                         lock(universe.lock)
                         with universe:
                             universe.number = universe.number + 1
-                            universe.pdir[universe.number - 1] = pdir
-                            universe.unique_id[universe.number - 1] = my.ship.unique_id
-                            universe.user[universe.number - 1] = person
+                            universe.pdir[universe.number] = pdir
+                            universe.unique_id[universe.number] = my.ship.unique_id
+                            universe.user[universe.number] = person
                             if universe.number == 1:
                                 universe.holes = 0
-                                universe.black_hole = [""] * 5
-                                for i in range(20):
+                                universe.black_hole = [""] * (5+1)
+                                for i in do_range(1, 20):
                                     universe.robot[i].name = ""
                                     universe.robot[i].energy = 0
                                     universe.robot[i].location = ""
@@ -526,32 +525,32 @@ def starrunners():
     #-- end def ship_status
     
     def long_scan():
-        stars = [""] * 5
+        stars = [""] * (5+1)
         
         # print univptr.ptr.dumps()
         
-        if my.ship.location == "Romula": stars[0] = "o"
-        elif my.ship.location == "Vindicar": stars[1] = "o"
-        elif my.ship.location == "Telgar": stars[2] = "o"
-        elif my.ship.location == "Shadow": stars[3] = "o"
-        else: stars[4] = "o"
-        for x in range(universe.number):
+        if my.ship.location == "Romula": stars[1] = "o"
+        elif my.ship.location == "Vindicar": stars[2] = "o"
+        elif my.ship.location == "Telgar": stars[3] = "o"
+        elif my.ship.location == "Shadow": stars[4] = "o"
+        else: stars[5] = "o"
+        for x in do_range(1, universe.number):
             edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null() and edir != pdir:
                 if not enemy.ship.cloak_on:
                     if enemy.ship.type == "Star Commander":
-                        if enemy.ship.location == "Romula": stars[0] += "@"
-                        elif enemy.ship.location == "Vindicar": stars[1] += "@"
-                        elif enemy.ship.location == "Telgar": stars[2] += "@"
-                        elif enemy.ship.location == "Shadow": stars[3] += "@"
-                        else: stars[4] += "@"
+                        if enemy.ship.location == "Romula": stars[1] += "@"
+                        elif enemy.ship.location == "Vindicar": stars[2] += "@"
+                        elif enemy.ship.location == "Telgar": stars[3] += "@"
+                        elif enemy.ship.location == "Shadow": stars[4] += "@"
+                        else: stars[5] += "@"
                     else:
-                        if enemy.ship.location == "Romula": stars[0] += "*"
-                        elif enemy.ship.location == "Vindicar": stars[1] += "*"
-                        elif enemy.ship.location == "Telgar": stars[2] += "*"
-                        elif enemy.ship.location == "Shadow": stars[3] += "*"
-                        else: stars[4] += "*"
+                        if enemy.ship.location == "Romula": stars[1] += "*"
+                        elif enemy.ship.location == "Vindicar": stars[2] += "*"
+                        elif enemy.ship.location == "Telgar": stars[3] += "*"
+                        elif enemy.ship.location == "Shadow": stars[4] += "*"
+                        else: stars[5] += "*"
                     # end if
                 # end if
             # end if
@@ -559,34 +558,33 @@ def starrunners():
         call.ioa_("^/   ROMULA    VINDICAR     TELGAR    SHADOW      ZORK")
         call.ioa_("--------------------------------------------------------")
         call.ioa_("|          |          |          |          |          |")
-        # call.ioa_("|{0:<10}|{1:<10}|{2:<10}|{3:<10}|{4:<10}|", stars[0], stars[1], stars[2], stars[3], stars[4])
-        call.ioa_("|^a^12t|^a^23t|^a^34t|^a^45t|^a^56t|", stars[0], stars[1], stars[2], stars[3], stars[4])
+        call.ioa_("|^a^12t|^a^23t|^a^34t|^a^45t|^a^56t|", stars[1], stars[2], stars[3], stars[4], stars[5])
         call.ioa_("|          |          |          |          |          |")
         call.ioa_("--------------------------------------------------------")
     #-- end def long_scan
 
     def short_scan():
-        shipname   = [""] * 30
-        shiptype   = [""] * 30
-        docked     = [""] * 30
+        shipname   = [""] * (30+1)
+        shiptype   = [""] * (30+1)
+        docked     = [""] * (30+1)
         present    = fixed.bin . parm . init(0)
         # black_hole = False
         black_hole = bit(1) . init(b'0') ()
         
         call.ioa_("^/SECTOR: ^a", my.ship.location)
-        for x in range(5):
+        for x in do_range(1, 5):
             if universe.black_hole[x] == my.ship.location: black_hole = b'1'
         # end for
-        for x in range(universe.number):
+        for x in do_range(1, universe.number):
             edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null() and edir != pdir:
                 if not enemy.ship.cloak_on and enemy.ship.location == my.ship.location:
                     present.val = present.val + 1
-                    shipname[present.val - 1] = enemy.ship.name
-                    shiptype[present.val - 1] = enemy.ship.type
-                    if enemy.ship.condition == "DOCKING": docked[present.val - 1] = "(Docking)"
-                    elif enemy.ship.condition == "SHIELDS DOWN": docked[present.val - 1] = "(Shields Down)"
+                    shipname[present.val] = enemy.ship.name
+                    shiptype[present.val] = enemy.ship.type
+                    if enemy.ship.condition == "DOCKING": docked[present.val] = "(Docking)"
+                    elif enemy.ship.condition == "SHIELDS DOWN": docked[present.val] = "(Shields Down)"
                 # end if
             # end if
         # end for
@@ -597,13 +595,13 @@ def starrunners():
         # end if
         call.ioa_("*** SENSOR SCAN:")
         if black_hole == b'1': call.ioa_("(((BLACK HOLE)))")
-        for x in range(present.val):
+        for x in do_range(1, present.val):
             call.ioa_("   ^a ^a ^a", shiptype[x], shipname[x], docked[x])
         # end for
     #-- end def short_scan
     
     def move_ship():
-        open_sectors = [""] * 2
+        open_sectors = [""] * (2+1)
         how_many     = 1
         input        = parm("")
         
@@ -637,24 +635,24 @@ def starrunners():
         if my.ship.location == "Romula": open_sectors[0] = "Vindicar"
         elif my.ship.location == "Vindicar":
             how_many = 2
-            open_sectors[0] = "Romula"
-            open_sectors[1] = "Telgar"
+            open_sectors[1] = "Romula"
+            open_sectors[2] = "Telgar"
         elif my.ship.location == "Telgar":
             how_many = 2
-            open_sectors[0] = "Vindicar"
-            open_sectors[1] = "Shadow"
+            open_sectors[1] = "Vindicar"
+            open_sectors[2] = "Shadow"
         elif my.ship.location == "Shadow":
             how_many = 2
-            open_sectors[0] = "Telgar"
-            open_sectors[1] = "Zork"
-        else: open_sectors[0] = "Shadow"
+            open_sectors[1] = "Telgar"
+            open_sectors[2] = "Zork"
+        else: open_sectors[1] = "Shadow"
         while input.val == "":
-            if how_many == 1: call.ioa_("^/OPEN SECTOR is ^a, sir", open_sectors[0])
-            else: call.ioa_("^/OPEN SECTORS are ^a and ^a, sir", open_sectors[0], open_sectors[1])
+            if how_many == 1: call.ioa_("^/OPEN SECTOR is ^a, sir", open_sectors[1])
+            else: call.ioa_("^/OPEN SECTORS are ^a and ^a, sir", open_sectors[1], open_sectors[2])
             call.ioa_.nnl("NAVIGATION :> ")
             timed_input(input)
             if input.val == "": return
-            elif input.val == open_sectors[0] or input.val == open_sectors[1]:
+            elif input.val == open_sectors[1] or input.val == open_sectors[2]:
                 if input.val != "":
                     lock(my.ship.lock)
                     with my.ship:
@@ -931,7 +929,7 @@ def starrunners():
             call.ioa_("MESSAGE not sent, sir")
             return
         # end if
-        for x in range(universe.number):
+        for x in do_range(1, universe.number):
             edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null () and edir != pdir:
@@ -987,8 +985,8 @@ def starrunners():
             x      = 0
             damage = 0
         
-            for x in range(universe.number):
-                edir = universe.pdir[0]
+            for x in do_range(1, universe.number):
+                edir = universe.pdir[x]
                 call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
                 if enemy.ptr != null() and edir != pdir:
                     if enemy.ship.location == my.ship.location:
@@ -1320,7 +1318,7 @@ def starrunners():
                 call.ioa_.nnl("Deactivate? ")
                 timed_input(input)
                 if input.val == "yes" or input.val == "y":
-                    for x in range(universe.number):
+                    for x in do_range(1, universe.number):
                         edir = universe.pdir[x]
                         call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
                         if enemy.ptr != null() and edir != pdir and enemy.ship.name == my.ship.tracname:
@@ -1374,7 +1372,7 @@ def starrunners():
             call.ioa_.nnl("Deactivate? ")
             timed_input(input)
             if input.val == "yes" or input.val == "y":
-                for x in range(universe.number):
+                for x in do_range(1, universe.number):
                     edir = universe.pdir[x]
                     call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
                     if enemy.ptr != null() and edir != pdir:
@@ -1408,7 +1406,7 @@ def starrunners():
             call.ioa_("^/WE haven't got the energy to pull the ship, sir")
             return
         # end if
-        for x in range(universe.number):
+        for x in do_range(1, universe.number):
             edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null() and edir != pdir:
@@ -1448,7 +1446,7 @@ def starrunners():
             call.ioa_("TROJAN HORSE not sent, sir")
             return
         # end if
-        for x in range(universe.number):
+        for x in do_range(1, universe.number):
             edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null() and edir != pdir:
@@ -1489,7 +1487,7 @@ def starrunners():
     
     def list_all_players():
         call.ioa_("^/Starrunners: ^d^/", universe.number)
-        for x in range(universe.number):
+        for x in do_range(1, universe.number):
             edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null():
@@ -1505,7 +1503,7 @@ def starrunners():
         timed_input(input)
         if input.val == "": return
         shipfile = input.val
-        for x in range(universe.number):
+        for x in do_range(1, universe.number):
             edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null() and edir != pdir:
@@ -1530,7 +1528,7 @@ def starrunners():
         timed_input(input)
         if input.val == "": return
         probe_who = input.val
-        for x in range(universe.number):
+        for x in do_range(1, universe.number):
             edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null() and edir != pdir:
@@ -1548,23 +1546,23 @@ def starrunners():
     #-- end def probe
     
     def black_hole_report():
-        chart_mark = ["  "] * 5
+        chart_mark = ["  "] * (5+1)
         
-        for x in range(universe.holes):
-            if universe.black_hole[x] == "Romula": chart_mark[0] = "()"
-            elif universe.black_hole[x] == "Vindicar": chart_mark[1] = "()"
-            elif universe.black_hole[x] == "Telgar": chart_mark[2] = "()"
-            elif universe.black_hole[x] == "Shadow": chart_mark[3] = "()"
-            elif universe.black_hole[x] == "Zork": chart_mark[4] = "()"
+        for x in do_range(1, universe.holes):
+            if universe.black_hole[x] == "Romula": chart_mark[1] = "()"
+            elif universe.black_hole[x] == "Vindicar": chart_mark[2] = "()"
+            elif universe.black_hole[x] == "Telgar": chart_mark[3] = "()"
+            elif universe.black_hole[x] == "Shadow": chart_mark[4] = "()"
+            elif universe.black_hole[x] == "Zork": chart_mark[5] = "()"
         # end for
         call.ioa_("^/ROMULA  VINDICAR  TELGAR  SHADOW  ZORK")
         call.ioa_("------  --------  ------  ------  ----")
-        call.ioa_("  ^2a^7x^2a^7x^2a^6x^2a^5x^2a", chart_mark[0], chart_mark[1], chart_mark[2], chart_mark[3], chart_mark[4])
+        call.ioa_("  ^2a^7x^2a^7x^2a^6x^2a^5x^2a", chart_mark[1], chart_mark[2], chart_mark[3], chart_mark[4], chart_mark[5])
     #-- end def black_hole_report
 
     def robotship_report():
         call.ioa_("^/RobotShip Report:")
-        for x in range(20):
+        for x in do_range(1, 20):
             if universe.robot[x].location != "": call.ioa_("^3xRobotShip ^a (^a) ^a", universe.robot[x].name, universe.robot[x].location, universe.robot[x].condition)
         # end for
     #-- end def robotship_report
@@ -1595,16 +1593,16 @@ def starrunners():
             robot_release(my.ship.user)
             lock(universe.lock)
             with universe:
-                for x in range(universe.number):
+                for x in do_range(1, universe.number):
                     if universe.pdir[x] == pdir:
-                        for y in range(x, universe.number - 1):
+                        for y in do_range(x, universe.number):
                             universe.pdir[y] = universe.pdir[y + 1]
                             universe.user[y] = universe.user [y + 1]
                             universe.unique_id[y] = universe.unique_id[y + 1]
                         # end for
-                        universe.pdir[universe.number - 1] = ""
-                        universe.user[universe.number - 1] = ""
-                        universe.unique_id[universe.number - 1] = 0
+                        universe.pdir[universe.number] = ""
+                        universe.user[universe.number] = ""
+                        universe.unique_id[universe.number] = 0
                         universe.number = universe.number - 1
                     # end if
                 # end for
@@ -1618,8 +1616,8 @@ def starrunners():
 
         call.timer_manager_.reset_alarm_call(inform_routines)
         if input.val == "*": update_universe()
-        for x in range(universe.number):
-            edir = universe.pdir[0]
+        for x in do_range(1, universe.number):
+            edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null() and edir != pdir and enemy.ship.name != "" and enemy.ship.type != "" and (my.ship.type == "Starship" or my.ship.type == "Cruiser" or my.ship.type == "Destroyer" or (my.ship.type == "Star Commander" and my.ship.life_cur == 0)):
                 lock(enemy.ship.lock)
@@ -1653,8 +1651,8 @@ def starrunners():
     
     def inform_monitor(info):
         if my.ship.monitored_by == "": return
-        for x in range(universe.number):
-            edir = universe.pdir[0]
+        for x in do_range(universe.number):
+            edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null() and edir != pdir:
                 if enemy.ship.name == my.ship.monitored_by:
@@ -1672,19 +1670,19 @@ def starrunners():
     #-- end def inform_monitor
      
     def inform_psionics(old_loc, new_loc):
-        for x in range(universe.number):
-            edir = universe.pdir[0]
+        for x in do_range(1, universe.number):
+            edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null() and edir != pdir and enemy.ship.psionics:
                 if old_loc == enemy.ship.location or new_loc == enemy.ship.location or old_loc == "docking":
                     lock(enemy.ship.lock)
                     with enemy.ship:
                         enemy.ship.psi_num = y = enemy.ship.psi_num + 1
-                        enemy.ship.psi_name[y - 1] = my.ship.name
-                        enemy.ship.psi_type[y - 1] = my.ship.type
-                        if old_loc == enemy.ship.location: enemy.ship.psi_mes[y - 1] = "left"
-                        elif old_loc == "docking": enemy.ship.psi_mes[y - 1] = new_loc
-                        elif new_loc == enemy.ship.location: enemy.ship.psi_mes[y - 1] = "entered"
+                        enemy.ship.psi_name[y] = my.ship.name
+                        enemy.ship.psi_type[y] = my.ship.type
+                        if old_loc == enemy.ship.location: enemy.ship.psi_mes[y] = "left"
+                        elif old_loc == "docking": enemy.ship.psi_mes[y] = new_loc
+                        elif new_loc == enemy.ship.location: enemy.ship.psi_mes[y] = "entered"
                     # end with
                     unlock(enemy.ship.lock)
                 # end if
@@ -1844,17 +1842,17 @@ def starrunners():
     
     def psionics_check():
         if my.ship.psi_num > 0:
-            if my.ship.psi_mes[0] != "left" and my.ship.psi_mes[0] != "entered": call.ioa_("^/PSIONICS: The ^a ^a has just docked at ^a, sir", my.ship.psi_type[0], my.ship.psi_name[0], my.ship.psi_mes[0])
-            else: call.ioa_("^/PSIONICS: The ^a ^a has just ^a our sector, sir", my.ship.psi_type[0], my.ship.psi_name[0], my.ship.psi_mes[0])
-            for x in range(1, my.ship.psi_num):
+            if my.ship.psi_mes[1] != "left" and my.ship.psi_mes[1] != "entered": call.ioa_("^/PSIONICS: The ^a ^a has just docked at ^a, sir", my.ship.psi_type[1], my.ship.psi_name[1], my.ship.psi_mes[1])
+            else: call.ioa_("^/PSIONICS: The ^a ^a has just ^a our sector, sir", my.ship.psi_type[1], my.ship.psi_name[1], my.ship.psi_mes[1])
+            for x in do_range(2, my.ship.psi_num):
                 if my.ship.psi_mes[x] != "left" and my.ship.psi_mes[x] != "entered": call.ioa_("^10xThe ^a ^a has just docked at ^a, sir", my.ship.psi_type[x], my.ship.psi_name[x], my.ship.psi_mes[x])
                 else: call.ioa_("^10xThe ^a ^a has just ^a our sector, sir", my.ship.psi_type[x], my.ship.psi_name[x], my.ship.psi_mes[x])
             # end for
             lock(my.ship.lock)
             with my.ship:
-                my.ship.psi_name = [""] * 10
-                my.ship.psi_type = [""] * 10
-                my.ship.psi_mes = [""] * 10
+                my.ship.psi_name = [""] * (10+1)
+                my.ship.psi_type = [""] * (10+1)
+                my.ship.psi_mes = [""] * (10+1)
                 my.ship.psi_num = 0
             # end with
             unlock(my.ship.lock)
@@ -1892,7 +1890,7 @@ def starrunners():
         lock(my.ship.lock)
         my.ship.black_hole = ""
         unlock(my.ship.lock)
-        for x in range(universe.holes):
+        for x in do_range(1, universe.holes):
             if universe.black_hole[x] == my.ship.location: hole_here = True
         # end for
         if hole_here:
@@ -1905,7 +1903,7 @@ def starrunners():
             call.ioa_("^/*** YELLOW ALERT ***")
             call.ioa_("^/SENSORS indicate black holes are present in the following sectors:")
         # end if
-        for x in range(universe.holes):
+        for x in do_range(1, universe.holes):
             call.ioa_("   ^a", universe.black_hole[x])
         # end for
     #-- end def black_hole_init
@@ -1928,14 +1926,14 @@ def starrunners():
         x = (clock_() % 1000) + 1
         if x > 1: return
         new_hole = rand_location()
-        for x in range(universe.holes):
+        for x in do_range(1, universe.holes):
             if universe.black_hole[x] == new_hole: return
         # end for
         lock(universe.lock)
         universe.holes = universe.holes + 1
-        universe.black_hole[universe.holes - 1] = new_hole
+        universe.black_hole[universe.holes] = new_hole
         unlock(universe.lock)
-        for x in range(universe.holes):
+        for x in do_range(1, universe.holes):
             edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null ():
@@ -1965,7 +1963,7 @@ def starrunners():
     def suck_him_in():
         hole_here = False
         
-        for x in range(universe.holes):
+        for x in do_range(1, universe.holes):
             if universe.black_hole[x] == my.ship.location: hole_here = True
         # end if
         if not hole_here: return
@@ -1983,18 +1981,18 @@ def starrunners():
     # /***** ROBOT INTERNALS *****/
     
     def robot_sscan(present, shipname, shiptype, docked):
-        for x in range(20):
+        for x in do_range(1, 20):
             if my.ship.location == universe.robot[x].location:
                 present.val = present.val + 1
-                shipname[present.val - 1] = universe.robot[x].name
-                shiptype[present.val - 1] = "RobotShip"
-                if universe.robot[x].condition == "DOCKING": docked[present.val - 1] = "(Docking)"
+                shipname[present.val] = universe.robot[x].name
+                shiptype[present.val] = "RobotShip"
+                if universe.robot[x].condition == "DOCKING": docked[present.val] = "(Docking)"
             # end if
         # end for
     #-- end def robot_scan
     
     def robot_verify_target(verify_who, is_he_there):
-        for x in range(20):
+        for x in do_range(1, 20):
             if (my.ship.location == universe.robot[x].location) and (verify_who == universe.robot[x].name): is_he_there.val = True
         # end for
     #-- end def robot_verify_target
@@ -2034,7 +2032,7 @@ def starrunners():
     #-- end def robot_damage
     
     def robot_death(which_robot):
-        for x in range(universe.number):
+        for x in do_range(1, universe.number):
             edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null() and enemy.ship.name != "" and enemy.ship.type != "":
@@ -2056,7 +2054,7 @@ def starrunners():
     #-- end def robot_death
     
     def robot_release(control):
-        for x in range(20):
+        for x in do_range(1, 20):
             if universe.robot[x].controller == control:
                 lock(universe.lock)
                 with universe:
@@ -2073,15 +2071,15 @@ def starrunners():
     #-- end def target_is_a_robot
     
     def robot_index(which_robot):
-        for x in range(20):
+        for x in do_range(1, 20):
             if universe.robot[x].name == which_robot: return x
         # end for
-        return -1
+        return 0
     #-- end def robot_index
     
     def robot_num():
         count = 0
-        for x in range(20):
+        for x in do_range(1, 20):
             if universe.robot[x].controller != "none" and universe.robot[x].controller != "dead": count = count + 1
         # end for
         return count
@@ -2096,11 +2094,11 @@ def starrunners():
             
             x = (clock_() % max(robot_num() * 200, 1)) + 1
             if x > 1: return
-            for x in range(20):
+            for x in do_range(1, 20):
                 if universe.robot[x].controller == "none":
                     lock(universe.lock)
                     with universe:
-                        universe.robot[x].name = "R\\{0:03d}".format(x + 1)
+                        universe.robot[x].name = "R\\{0:03d}".format(x)
                         universe.robot[x].energy = 1000
                         universe.robot[x].location = rand_location()
                         universe.robot[x].controller = my.ship.user
@@ -2113,7 +2111,7 @@ def starrunners():
             if dead_count < 20: return
             lock(universe.lock)
             with universe:
-                for i in range(20):
+                for i in do_range(1, 20):
                     universe.robot[i].controller = "none"
                 # end for
             # end with
@@ -2121,7 +2119,7 @@ def starrunners():
         #-- end def rand_new_robot
         
         def take_free_robot():
-            for x in range(20):
+            for x in do_range(1, 20):
                 if universe.robot[x].controller == "free":
                     lock(universe.lock)
                     with universe:
@@ -2139,7 +2137,7 @@ def starrunners():
             
             def look_for_targets(action):
                 if universe.robot[robot_index(ROBOT)].condition == "DOCKING": return
-                for x in range(universe.number):
+                for x in do_range(1, universe.number):
                     edir = universe.pdir[x]
                     call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
                     if enemy.ptr != null() and enemy.ship.location == universe.robot[robot_index(ROBOT)].location:
@@ -2163,11 +2161,11 @@ def starrunners():
             
             def robot_fire():
                 count = 0
-                tptr  = [null()] * 10
+                tptr  = [null()] * (10+1)
                 hit   = parm(False)
                   
                 while True:
-                    for x in range(universe.number):
+                    for x in do_range(1, universe.number):
                         edir = universe.pdir[x]
                         call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
                         if enemy.ptr != null() and enemy.ship.location == universe.robot[robot_index(ROBOT)].location:
@@ -2232,29 +2230,29 @@ def starrunners():
             #-- end def robot_dock
          
             def robot_move():
-                open_sectors = [""] * 2
+                open_sectors = [""] * (2+1)
                 x            = 0
                 
                 if universe.robot[robot_index(ROBOT)].location == "Romula":
-                    open_sectors[0] = "Vindicar"
+                    open_sectors[1] = "Vindicar"
                     x = 1
                 elif universe.robot[robot_index(ROBOT)].location == "Vindicar":
-                    open_sectors[0] = "Romula"
-                    open_sectors[1] = "Telgar"
+                    open_sectors[1] = "Romula"
+                    open_sectors[2] = "Telgar"
                 elif universe.robot[robot_index(ROBOT)].location == "Telgar":
-                    open_sectors[0] = "Vindicar"
-                    open_sectors[1] = "Shadow"
+                    open_sectors[1] = "Vindicar"
+                    open_sectors[2] = "Shadow"
                 elif universe.robot[robot_index(ROBOT)].location == "Shadow":
-                    open_sectors[0] = "Telgar"
-                    open_sectors[1] = "Zork"
+                    open_sectors[1] = "Telgar"
+                    open_sectors[2] = "Zork"
                 else:
-                    open_sectors[0] = "Shadow"
+                    open_sectors[1] = "Shadow"
                     x = 1
                 # end if
                 if x != 1: x = (clock_() % 2) + 1
                 lock(universe.lock)
                 with universe:
-                    universe.robot[robot_index(ROBOT)].location = open_sectors[x - 1]
+                    universe.robot[robot_index(ROBOT)].location = open_sectors[x]
                 # end with
                 unlock(universe.lock)
             #-- end def robot_move
@@ -2267,12 +2265,12 @@ def starrunners():
                 PL1.read.file(msg_file).into(msg)
                 count = int(msg.val)
                 which = (clock_() % count) + 1
-                for x in range(which):
+                for x in do_range(1, which):
                     PL1.read.file(msg_file).into(msg)
                 # end if
                 PL1.close.file(msg_file)
                 which = (clock_() % universe.number) + 1
-                for x in range(which):
+                for x in do_range(1, which):
                     edir = universe.pdir[x]
                     call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
                     if enemy.ptr != null() and x == which - 1:
@@ -2291,7 +2289,7 @@ def starrunners():
                 x = (clock_() % 100000) + 1
                 if x > 1: return
             # end if
-            for x in range(20):
+            for x in do_range(1, 20):
                 if universe.robot[x].controller == my.ship.user:
                     ROBOT = universe.robot[x].name
                     look_for_targets(action)
@@ -2359,7 +2357,7 @@ def starrunners():
         unlock(my.ship.lock)
         
     # /* ELIMINATE GHOST SHIPS */
-        for x in range(universe.number):
+        for x in do_range(1, universe.number):
             edir = universe.pdir[x]
             call.hcs_.initiate(edir, ename, "", 0, 0, enemy, code)
             if enemy.ptr != null():
@@ -2367,13 +2365,13 @@ def starrunners():
                     if universe.user[x] == enemy.ship.user and universe.unique_id[x] != enemy.ship.unique_id:
                         lock(universe.lock)
                         with (universe):
-                            for z in range(y, universe.number - 1):
+                            for z in do_range(y, universe.number):
                                 universe.pdir[z] = universe.pdir[z + 1]
                                 universe.user[z] = universe.user[z + 1]
                                 universe.unique_id[z] = universe.unique_id[z + 1]
                             # end for
-                            universe.pdir[universe.number - 1] = ""
-                            universe.user[universe.number - 1] = ""
+                            universe.pdir[universe.number] = ""
+                            universe.user[universe.number] = ""
                             universe.number = universe.number - 1
                         # end with
                         unlock(universe.lock)
@@ -2412,7 +2410,7 @@ def starrunners():
         # send_mail_info.notify = False
         # send_mail_info.always_add = False
         # send_mail_info.never_add = False
-        for x in range(50):
+        for x in do_range(1, 50):
             if universe.notifications[x].person_id != "" and universe.notifications[x].project_id != "":
                 # call.send_mail_(universe.notifications[x].person_id.rstrip() + "." + universe.notifications[x].project_id.rstrip(), "I have just entered the Starrunners universe...", send_mail_info, 0)
                 call.do("send_message {0} {1}".format(universe.notifications[x].person_id.rstrip() + "." + universe.notifications[x].project_id.rstrip(), "I have just entered the Starrunners universe..."))
@@ -2438,15 +2436,15 @@ def starrunners():
         ALPHA_2  = "zafkpubglqvchmrwdinsxejoty"
         
         password = key_word
-        for x in range(3):
-            for y in range(len(password.rstrip())):
-                if y == len(password.rstrip()) - 1: idx = -1
+        for x in do_range(1, 3):
+            for y in do_range(1, length(rtrim(password))):
+                if y == length(rtrim(password)): idx = 0
                 else: idx = y
-                shift = ALPHA_1.index(password[idx + 1])
-                position = ALPHA_2.index(password[y])
+                shift = index(ALPHA_1, substr(password, idx + 1, 1))
+                position = index(ALPHA_2, substr(password, y, 1))
                 new_pos = shift + position
-                if new_pos >= 26: new_pos = new_pos - 26
-                new_pass = new_pass + ALPHA_2[new_pos]
+                if new_pos > 26: new_pos = new_pos - 26
+                new_pass = new_pass + substr(ALPHA_2, new_pos, 1)
             # end for
             password = new_pass
             new_pass = ""
@@ -2478,10 +2476,10 @@ def starrunners():
                 call.hcs_.make_seg(dname, xname, "", 0, univptr, code)
                 universe.number     = 0
                 universe.holes      = 0
-                universe.unique_id  = [0] * 10
-                universe.pdir       = [""] * 10
-                universe.user       = [""] * 10
-                universe.black_hole = [""] * 5
+                universe.unique_id  = [0] * (10+1)
+                universe.pdir       = [""] * (10+1)
+                universe.user       = [""] * (10+1)
+                universe.black_hole = [""] * (5+1)
                 universe.password   = ""
                 universe.lock       = univptr.ptr.lock_word()
             else:
@@ -2490,10 +2488,10 @@ def starrunners():
                 call.hcs_.make_seg(dname, xname, "", 0, univptr, code)
                 universe.number     = 0
                 universe.holes      = 0
-                universe.unique_id  = [0] * 10
-                universe.pdir       = [""] * 10
-                universe.user       = [""] * 10
-                universe.black_hole = [""] * 5
+                universe.unique_id  = [0] * (10+1)
+                universe.pdir       = [""] * (10+1)
+                universe.user       = [""] * (10+1)
+                universe.black_hole = [""] * (5+1)
                 universe.password   = ""
                 universe.lock       = univptr.ptr.lock_word()
             # end if
@@ -2585,17 +2583,17 @@ def starrunners():
             call.ioa_.nnl("^a (add_starcom): Person ID: ", MAIN)
             getline(input)
             if input.val == "": return
-            for x in range(admin_info.star_comn):
-                if admin_info.star_coms[x] == "":
+            for x in do_range(1, admin_info.star_comn):
+                if admin_info.star_coms[x-1] == "":
                     with admin_info:
-                        admin_info.star_coms[x] = input.val
+                        admin_info.star_coms[x-1] = input.val
                     # end with
                     return
                 # end if
             # end for
             with admin_info:
                 admin_info.star_comn += 1
-                admin_info.star_coms[admin_info.star_comn - 1] = input.val
+                admin_info.star_coms[admin_info.star_comn-1] = input.val
             # end with
         #-- end def add_star_commander
         
@@ -2606,15 +2604,15 @@ def starrunners():
                 return
             # end if
             call.ioa_("^/Current Star Commanders:")
-            for x in range(admin_info.star_comn):
-                if admin_info.star_coms[x] != "": call.ioa_("   ^a", admin_info.star_coms[x])
+            for x in do_range(1, admin_info.star_comn):
+                if admin_info.star_coms[x-1] != "": call.ioa_("   ^a", admin_info.star_coms[x])
             # end for
             call.ioa_.nnl("^a (remove_starcom): Person ID: ", MAIN)
             getline(input)
             if input.val == "": return
             with admin_info:
-                for x in range(admin_info.star_comn):
-                    if admin_info.star_coms[x] == input.val: admin_info.star_coms[x] = ""
+                for x in do_range(1, admin_info.star_comn):
+                    if admin_info.star_coms[x-1] == input.val: admin_info.star_coms[x] = ""
                 # end for
             # end with
         #-- end def remove_star_commander

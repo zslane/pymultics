@@ -33,6 +33,12 @@ def verify(s, p):
             return i + 1
     return 0
     
+def length(s):
+    return len(s)
+    
+def index(x, y, n=0):
+    return x.find(y, n) + 1
+    
 def vfile_(multics_path):
     return GlobalEnvironment.supervisor.fs.path2path(multics_path)
 
