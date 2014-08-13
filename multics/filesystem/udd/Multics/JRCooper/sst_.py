@@ -13,7 +13,7 @@ dcl ( argn                   = fixed.bin . parm )
 dcl ( argp                   = ptr )
 dcl ( code                   = fixed.bin (35) . parm . init (0) )
 
-class goto_place_supply_ship(NonLocalGoto): pass
+class goto_place_supply_ship(Exception): pass
 
 class sst_(Subroutine):
 
@@ -32,23 +32,23 @@ class sst_(Subroutine):
         
         node.arachnidT = mod (clock (), (game_length * 10)) + game_length * 10
         node.skinnyT = mod (clock (), (game_length * 5)) + game_length * 5
-        for sx in do_range(1, 5):
-            for sy in do_range(1, 5):
-                node.sector[sx][sy].arachnidN = 0
-                node.sector[sx][sy].skinnyN = 0
-                node.sector[sx][sy].radiation = "0"
-                node.sector[sx][sy].supply = "0"
-                for px in do_range(1, 10):
-                    for py in do_range(1, 10):
-                        node.sector[sx][sy].point[px][py] = "."
-                    # end for
-                # end for
-                node.chart[sx][sy].arachnidN = "."
-                node.chart[sx][sy].skinnyN = "."
-                node.chart[sx][sy].radiation = "."
-                node.chart[sx][sy].supply = "."
-            # end for
-        # end for
+        # for sx in do_range(1, 5):
+            # for sy in do_range(1, 5):
+                # node.sector[sx][sy].arachnidN = 0
+                # node.sector[sx][sy].skinnyN = 0
+                # node.sector[sx][sy].radiation = "0"
+                # node.sector[sx][sy].supply = "0"
+                # for px in do_range(1, 10):
+                    # for py in do_range(1, 10):
+                        # node.sector[sx][sy].point[px][py] = "."
+                    # # end for
+                # # end for
+                # node.chart[sx][sy].arachnidN = "."
+                # node.chart[sx][sy].skinnyN = "."
+                # node.chart[sx][sy].radiation = "."
+                # node.chart[sx][sy].supply = "."
+            # # end for
+        # # end for
         node.rank = rank
         node.time_left = ((node.arachnidT + node.heavy_beamT) + ((4 - node.rank) * .25))
         node.SX = mod (clock (), 5) + 1
@@ -189,6 +189,7 @@ class sst_(Subroutine):
         for x in do_range(1, node.supplyN):
             it_was_not_placed = True
             while (it_was_not_placed):
+        # place_supply_ship:
                 try:
                     y = mod (clock (), 5) + 1
                     z = mod (clock (), 5) + 1
@@ -352,8 +353,8 @@ class sst_(Subroutine):
                 if (x < 1) or (x > 5) or (y < 1) or (y > 5): call. ioa_.nnl ("   ----")
                 else:
                     call. ioa_.nnl ("^3x^d^d^a^a", node.sector[x][y].arachnidN, node.sector[x][y].skinnyN, node.sector[x][y].radiation, node.sector[x][y].supply)
-                    node.chart[x][y].arachnidN = str(node.sector[x][y].arachnidN)
-                    node.chart[x][y].skinnyN = str(node.sector[x][y].skinnyN)
+                    node.chart[x][y].arachnidN = ltrim (char_(node.sector[x][y].arachnidN))
+                    node.chart[x][y].skinnyN = ltrim (char_(node.sector[x][y].skinnyN))
                     node.chart[x][y].radiation = node.sector[x][y].radiation
                     node.chart[x][y].supply = node.sector[x][y].supply
                 # end if
@@ -377,14 +378,14 @@ class sst_(Subroutine):
     def snooper(self, scip, node):
         
         def snooper_status(line_no):
-            if (line_no == 1): call. ioa_.nnl ("^5xSuit condition:^25t^d pts.", node.suit_pts)
-            elif (line_no == 2): call. ioa_.nnl ("^5xBody condition:^25t^d pts.", node.body_pts)
-            elif (line_no == 3): call. ioa_.nnl ("^5xBooster energy:^25t^d units", node.jet_energy)
-            elif (line_no == 4): call. ioa_.nnl ("^5xFlamer energy:^25t^d units", node.flamer_energy)
-            elif (line_no == 5): call. ioa_.nnl ("^5xHE bombs left:^25t^d", node.HE_bombN)
-            elif (line_no == 6): call. ioa_.nnl ("^5xNuke bombs left:^25t^d", node.nuke_bombN)
-            elif (line_no == 7): call. ioa_.nnl ("^5xArachnids left:^25t^d", (node.arachnidT + node.heavy_beamT - node.score.arachnids_Xed - node.score.heavy_beams_Xed))
-            elif (line_no == 8): call. ioa_.nnl ("^5xTime left:^25t^.1f hrs.", node.time_left)
+            if (line_no == 2): call. ioa_.nnl ("^5xSuit condition:^25t^d pts.", node.suit_pts)
+            elif (line_no == 3): call. ioa_.nnl ("^5xBody condition:^25t^d pts.", node.body_pts)
+            elif (line_no == 4): call. ioa_.nnl ("^5xBooster energy:^25t^d units", node.jet_energy)
+            elif (line_no == 5): call. ioa_.nnl ("^5xFlamer energy:^25t^d units", node.flamer_energy)
+            elif (line_no == 6): call. ioa_.nnl ("^5xHE bombs left:^25t^d", node.HE_bombN)
+            elif (line_no == 7): call. ioa_.nnl ("^5xNuke bombs left:^25t^d", node.nuke_bombN)
+            elif (line_no == 8): call. ioa_.nnl ("^5xArachnids left:^25t^d", (node.arachnidT + node.heavy_beamT - node.score.arachnids_Xed - node.score.heavy_beams_Xed))
+            elif (line_no == 9): call. ioa_.nnl ("^5xTime left:^25t^.1f hrs.", node.time_left)
             else: return
         #-- end def snooper_status
         
@@ -679,7 +680,7 @@ class sst_(Subroutine):
         # end try
         
         for x in do_range(1, enemyN):
-            if (x == 0): call. ioa_ ()
+            if (x == 1): call. ioa_ ()
             flame_that_sucker (type[x], where_X[x], where_Y[x], allotted_energy[x], node)
         # end for
         node.time_left = max (0, node.time_left - .1)
@@ -745,7 +746,7 @@ class sst_(Subroutine):
             elif (not all_switch): call. ioa_ ("No supply ships destroyed.")
         # end if
         if all_switch and (node.score.success_ratio > 0): call. ioa_ ("^3xMission success bonus^40t^d", round (node.score.success_ratio * 20, 0))
-        if all_switch and (node.score.rank_bonus > 0): call. ioa_ ("^3xRank bonus (^a level)^40t^d", RANK (node.rank), node.score.rank_bonus)
+        if all_switch and (node.score.rank_bonus > 0): call. ioa_ ("^3xRank bonus (^a level)^40t^d", RANK[node.rank], node.score.rank_bonus)
         if all_switch and (node.score.death_penalty < 0): call. ioa_ ("^3xPenalty for getting killed^39t-1000")
         if all_switch and (node.score.captured_penalty < 0): call. ioa_ ("^3xPenalty for getting captured^40t-500")
         if all_switch: call. ioa_ ("^30t------^/Total:^40t^d", node.score.total)
@@ -808,9 +809,11 @@ def enemies_present(node):
     return True
     
 def allot_flamer_energy(type, x, y, energy_tally, node):
+    energy_tally.val = 10
     pass
     
 def flame_that_sucker(type, where_X, where_Y, allotted_energy, node):
+    call. ioa_ ("^a at Mark ^d - ^d (^d energy needed)", type, where_X, where_Y, allotted_energy)
     pass
 
 def enemy_attack(node):

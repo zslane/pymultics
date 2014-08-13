@@ -118,18 +118,18 @@ NODE = PL1.Structure (
     )),
     
     sector          = Dim(5+1, 5+1) (PL1.Structure(
-        arachnidN   = fixed.bin,
-        skinnyN     = fixed.bin,
-        radiation   = char (1),
-        supply      = char (1),
-        point       = Dim(10+1, 10+1) (char (1)),
+        arachnidN   = fixed.bin . init (0),
+        skinnyN     = fixed.bin . init (0),
+        radiation   = char (1) . init ("0"),
+        supply      = char (1) . init ("0"),
+        point       = Dim(10+1, 10+1) (char (1) . init (".")),
     )),
     
     chart           = Dim(5+1, 5+1) (PL1.Structure(
-        arachnidN   = char (1),
-        skinnyN     = char (1),
-        radiation   = char (1),
-        supply      = char (1),
+        arachnidN   = char (1) . init ("."),
+        skinnyN     = char (1) . init ("."),
+        radiation   = char (1) . init ("."),
+        supply      = char (1) . init ("."),
     )),
     
     score           = PL1.Structure(
