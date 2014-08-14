@@ -58,6 +58,7 @@ class Supervisor(QtCore.QObject):
         self.__shutdown_time_left        = -1
         self.__shutdown_message          = ""
         self.__shutdown_signal           = False
+        self.__referencing_dir           = ""
         
         self._load_site_config()
         
@@ -88,6 +89,12 @@ class Supervisor(QtCore.QObject):
     @property
     def stack(self):
         return self.__system_stack
+    @property
+    def referencing_dir(self):
+        return self.__referencing_dir
+    @referencing_dir.setter
+    def referencing_dir(self, dir):
+        self.__referencing_dir = dir
         
     def id(self):
         return 0
@@ -656,7 +663,9 @@ class DynamicLinker(QtCore.QObject):
                             self.__system_function_table[symbol] = SegmentDescriptor(self.__supervisor, symbol, module_path, module)
     
     def __getattr__(self, entry_point_name):
+        self.__supervisor.referencing_dir = os.path.dirname(inspect.currentframe().f_back.f_code.co_filename)
         entry_point = self.snap(entry_point_name)
+        self.__supervisor.referencing_dir = ""
         if entry_point:
             return entry_point
         else:

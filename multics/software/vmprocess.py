@@ -34,7 +34,7 @@ class ProcessWorker(QtCore.QObject):
         try:
             declare (resolve_path_symbol_ = entry . returns (char(168)))
             search_paths = self.stack.search_seg_ptr.paths['object'].paths
-            return [ resolve_path_symbol_(p.pathname) for p in search_paths ]
+            return filter(None, [ resolve_path_symbol_(p.pathname) for p in search_paths ])
         except:
             return [">sss", ">sss>commands"]
     

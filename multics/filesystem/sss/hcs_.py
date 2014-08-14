@@ -27,7 +27,9 @@ class hcs_(Subroutine):
             dir_name, entryname = GlobalEnvironment.fs.split_path(path)
             # print "get_entry_point: dir_name = '%s', entryname = '%s'" % (dir_name, entryname)
         # end if
+        GlobalEnvironment.supervisor.referencing_dir = os.path.dirname(inspect.currentframe().f_back.f_code.co_filename)
         segment.ptr = GlobalEnvironment.supervisor.dynamic_linker.snap(entryname, dir_name)
+        GlobalEnvironment.supervisor.referencing_dir = ""
         
     def terminate_name(self, segment_name, code):
         try:
