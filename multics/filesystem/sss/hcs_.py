@@ -27,7 +27,7 @@ class hcs_(Subroutine):
             dir_name, entryname = GlobalEnvironment.fs.split_path(path)
             # print "get_entry_point: dir_name = '%s', entryname = '%s'" % (dir_name, entryname)
         # end if
-        GlobalEnvironment.supervisor.referencing_dir = os.path.dirname(inspect.currentframe().f_back.f_code.co_filename)
+        GlobalEnvironment.supervisor.referencing_dir = GlobalEnvironment.fs.path2path(os.path.dirname(inspect.currentframe().f_back.f_code.co_filename))
         segment.ptr = GlobalEnvironment.supervisor.dynamic_linker.snap(entryname, dir_name)
         GlobalEnvironment.supervisor.referencing_dir = ""
         

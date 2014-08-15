@@ -9,6 +9,7 @@ SEARCH_PATH_SYMBOLS = [
     "-home_dir",
     "-process_dir",
     "-working_dir",
+    "-referencing_dir",
 ]
 
 class search_paths_(Subroutine):

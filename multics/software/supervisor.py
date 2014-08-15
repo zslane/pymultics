@@ -663,7 +663,7 @@ class DynamicLinker(QtCore.QObject):
                             self.__system_function_table[symbol] = SegmentDescriptor(self.__supervisor, symbol, module_path, module)
     
     def __getattr__(self, entry_point_name):
-        self.__supervisor.referencing_dir = os.path.dirname(inspect.currentframe().f_back.f_code.co_filename)
+        self.__supervisor.referencing_dir = self.__filesystem.path2path(os.path.dirname(inspect.currentframe().f_back.f_code.co_filename))
         entry_point = self.snap(entry_point_name)
         self.__supervisor.referencing_dir = ""
         if entry_point:

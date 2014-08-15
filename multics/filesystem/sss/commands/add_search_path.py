@@ -4,6 +4,13 @@ from multics.globals import *
 # from sl_info import *
 include.sl_info
 
+SEARCH_PATH_SYMBOLS = [
+    "-home_dir",
+    "-process_dir",
+    "-working_dir",
+    "-referencing_dir",
+]
+
 @system_privileged
 def add_search_path():
     sl_info_ptr = parm()
@@ -23,8 +30,10 @@ def add_search_path():
     
     sl_name = arg_list.args.pop(0)
     new_path = arg_list.args.pop(0)
-    call.sys_.get_abs_path(new_path, full_path)
-    new_path = full_path.val
+    if new_path not in SEARCH_PATH_SYMBOLS:
+        call.sys_.get_abs_path(new_path, full_path)
+        new_path = full_path.val
+    # end if
     
     call.search_paths_.get(sl_name, null(), sl_info_ptr, sl_info_version_1, code)
     if code.val == error_table_.no_search_list:
