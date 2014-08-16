@@ -39,8 +39,8 @@ class ProcessWorker(QtCore.QObject):
         # end if
         try:
             declare (resolve_path_symbol_ = entry . returns (char(168)))
-            search_paths = self.stack.search_seg_ptr.paths[sl_name].paths
-            return filter(None, [ resolve_path_symbol_(p.pathname, frame_id) for p in search_paths ])
+            search_paths = [ p.pathname for p in self.stack.search_seg_ptr.paths[sl_name].paths ]
+            return filter(None, [ resolve_path_symbol_(p, frame_id) for p in search_paths ])
         except:
             if sl_name == "include":
                 return [">sss>include"]
@@ -50,9 +50,12 @@ class ProcessWorker(QtCore.QObject):
     def search_rules(self, frame_id):
         try:
             declare (resolve_path_symbol_ = entry . returns (char(168)))
-            search_paths = self.stack.search_seg_ptr.paths['object'].paths
+            search_paths = [ p.pathname for p in self.stack.search_seg_ptr.paths['object'].paths ]
             # search_paths = self.__process_env.rnt.search_rules.paths['object'].paths
-            return filter(None, [ resolve_path_symbol_(p.pathname, frame_id) for p in search_paths ])
+            if GlobalEnvironment.supervisor.is_bound_archive(frame_id):
+                search_paths = ["-bound_archives"] + search_paths
+            # end if
+            return filter(None, [ resolve_path_symbol_(p, frame_id) for p in search_paths ])
         except:
             return [">sss", ">sss>commands"]
     

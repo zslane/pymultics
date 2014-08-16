@@ -34,6 +34,7 @@ def resolve_path_symbol_(path_symbol, frame_id=None):
         '-working_dir':     process.directory_stack[-1],
         '-process_dir':     process.dir(),
         '-referencing_dir': supervisor.get_referencing_dir(frame_id),
+        '-bound_archives':  supervisor.get_referencing_dir(frame_id),
     }
     return symbols.get(path_symbol, path_symbol)
     

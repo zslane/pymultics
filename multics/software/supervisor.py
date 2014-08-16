@@ -90,6 +90,8 @@ class Supervisor(QtCore.QObject):
     def stack(self):
         return self.__system_stack
         
+    #== REFERENCING DIR routines ==#
+    
     def get_referencing_dir(self, id):
         try:
             return self.__referencing_dir[id]
@@ -106,6 +108,13 @@ class Supervisor(QtCore.QObject):
             self.__referencing_dir[id] = ""
         except:
             pass
+            
+    def is_bound_archive(self, id):
+        try:
+            dir = self.__referencing_dir[id]
+            return ("pdd" in dir) and ("!bound_archives" in dir)
+        except:
+            return False
         
     def id(self):
         return 0
@@ -818,17 +827,19 @@ class DynamicLinker(QtCore.QObject):
         #== Try to find the segment and add it to the KST
         for multics_path in search_paths:
             # print "...searching", multics_path
-            for ext in [".pyo", ".py"]:
+            for ext in [".pyo", ".py", ""]: # <-- empty string at end for finding bound archives (which have no extension)
                 module_path = self.__filesystem.path2path(multics_path, segment_name + ext)
                 # print module_path
                 if self.__filesystem.file_exists(module_path):
+                    # module_path = self.__filesystem.unpack_bound_archive(segment_name, module_path)
+                    # print module_path
                     try:
                         module = self._load_python_code(segment_name, module_path)
                         return module, module_path
                     except SyntaxError:
                         raise
                     except:
-                        #== Invalid python module...probably a syntax error...
+                        #== Invalid python module, but not a syntax error...
                         self.dump_traceback_()
                         raise InvalidSegmentFault(segment_name)
                     # end try
@@ -836,7 +847,7 @@ class DynamicLinker(QtCore.QObject):
             # end for
         # end for
         return None, None
-
+    
     def _load_python_code(self, module_name, module_path):
         #== Turn the module name into a unique namespace based on the process id
         process = get_calling_process_()
