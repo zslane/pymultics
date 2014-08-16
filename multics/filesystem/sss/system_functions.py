@@ -27,13 +27,13 @@ def shutdown_started_():
     return supervisor.shutdown_started()
     
 @system_privileged
-def resolve_path_symbol_(path_symbol):
+def resolve_path_symbol_(path_symbol, frame_id=None):
     process = get_calling_process_()
     symbols = {
         '-home_dir':        process.pit().homedir,
         '-working_dir':     process.directory_stack[-1],
         '-process_dir':     process.dir(),
-        '-referencing_dir': supervisor.referencing_dir,
+        '-referencing_dir': supervisor.get_referencing_dir(frame_id),
     }
     return symbols.get(path_symbol, path_symbol)
     

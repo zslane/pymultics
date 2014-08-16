@@ -280,13 +280,25 @@ class GlobalEnvironment(object):
         GlobalEnvironment.linker     = None
         __builtin__.__dict__['call'] = None
 
+@contextlib.contextmanager
+def reference_frame(pframe):
+    try:
+        frame_id = 0
+        if GlobalEnvironment.supervisor and GlobalEnvironment.fs and ("filesystem" in pframe.f_code.co_filename):
+            frame_id = GlobalEnvironment.supervisor.set_referencing_dir(GlobalEnvironment.fs.path2path(os.path.dirname(pframe.f_code.co_filename)))
+        yield frame_id
+    finally:
+        if GlobalEnvironment.supervisor and frame_id:
+            GlobalEnvironment.supervisor.clear_referencing_dir(frame_id)
+
 def call_(entryname):
     """
     call_ is an alternate way to invoke the dynamic linker on an entry name.
     Ex: call_('hcs_$initiate') (dir_name, entryname, ...)
     """
     procedure_name, _, entry_name = entryname.partition("$")
-    subroutine = GlobalEnvironment.supervisor.dynamic_linker.snap(procedure_name)
+    with reference_frame(inspect.currentframe().f_back) as frame_id:
+        subroutine = GlobalEnvironment.supervisor.dynamic_linker.snap(procedure_name, frame_id=frame_id)
     if subroutine:
         if entry_name:
             return getattr(subroutine, entry_name)
@@ -379,14 +391,16 @@ class LinkageReference(object):
         self.name = name
         
     def __call__(self, *args, **kwargs):
-        entry_point = self.dynamic_linker.snap(self.name)
+        with reference_frame(inspect.currentframe().f_back) as frame_id:
+            entry_point = self.dynamic_linker.snap(self.name, frame_id=frame_id)
         if entry_point:
             return entry_point(*args, **kwargs)
         else:
             raise SegmentFault(self.name)
             
     def __getattr__(self, entry_point_name):
-        segment = self.dynamic_linker.snap(self.name)
+        with reference_frame(inspect.currentframe().f_back) as frame_id:
+            segment = self.dynamic_linker.snap(self.name, frame_id=frame_id)
         if segment:
             try:
                 return getattr(segment, entry_point_name)
@@ -408,11 +422,11 @@ class Injector(object):
         pass
         
     @staticmethod
-    def import_module(name):
+    def import_module(name, frame_id):
         import sys
         try:
             process = get_calling_process_()
-            search_paths = process.search_paths
+            search_paths = process.search_rules(frame_id)
         except:
             search_paths = []
         # end try
@@ -420,12 +434,12 @@ class Injector(object):
         
         for include_path in search_paths:
             sys.path.append(GlobalEnvironment.fs.path2path(include_path))
-                
+        
         module = __import__(name, globals(), locals(), ())
         
         for include_path in search_paths:
             sys.path.remove(GlobalEnvironment.fs.path2path(include_path))
-        
+            
         return module
     
     @staticmethod
@@ -438,7 +452,9 @@ class Injector(object):
     @staticmethod
     def inject_data(pframe, name):
         if pframe:
-            module = Injector.import_module(name)
+            with reference_frame(pframe) as frame_id:
+                module = Injector.import_module(name, frame_id)
+                
             for member_name in dir(module):
                 if member_name != name:
                     # print "Injector skipping", member_name
@@ -462,8 +478,9 @@ class Injector(object):
     @staticmethod
     def inject_incl(pframe, name):
         if pframe:
-            # module = __import__(name, globals(), locals(), ())
-            module = Injector.import_module(name)
+            with reference_frame(pframe) as frame_id:
+                module = Injector.import_module(name, frame_id)
+                
             for member_name in dir(module):
                 if re.match("__\w+__", member_name):
                     # print "Injector skipping", member_name

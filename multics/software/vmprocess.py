@@ -28,20 +28,34 @@ class ProcessWorker(QtCore.QObject):
     @property
     def stack(self):
         return self.__process_env.pds.process_stack[-1]
-        
-    @property
-    def search_paths(self):
-        try:
-            declare (resolve_path_symbol_ = entry . returns (char(168)))
-            search_paths = self.stack.search_seg_ptr.paths['object'].paths
-            return filter(None, [ resolve_path_symbol_(p.pathname) for p in search_paths ])
-        except:
-            return [">sss", ">sss>commands"]
     
     @property
     def directory_stack(self):
         return self.__process_env.rnt.working_dir
         
+    def search_paths(self, sl_name, frame_id):
+        if sl_name == "object":
+            return self.search_rules(frame_id)
+        # end if
+        try:
+            declare (resolve_path_symbol_ = entry . returns (char(168)))
+            search_paths = self.stack.search_seg_ptr.paths[sl_name].paths
+            return filter(None, [ resolve_path_symbol_(p.pathname, frame_id) for p in search_paths ])
+        except:
+            if sl_name == "include":
+                return [">sss>include"]
+            else:
+                return []
+        
+    def search_rules(self, frame_id):
+        try:
+            declare (resolve_path_symbol_ = entry . returns (char(168)))
+            search_paths = self.stack.search_seg_ptr.paths['object'].paths
+            # search_paths = self.__process_env.rnt.search_rules.paths['object'].paths
+            return filter(None, [ resolve_path_symbol_(p.pathname, frame_id) for p in search_paths ])
+        except:
+            return [">sss", ">sss>commands"]
+    
     def id(self):
         return self.__process_env.process_id
         
@@ -204,12 +218,14 @@ class ProcessThread(QtCore.QThread):
         return self.worker.stack
         
     @property
-    def search_paths(self):
-        return self.worker.search_paths
-        
-    @property
     def directory_stack(self):
         return self.worker.directory_stack
+        
+    def search_paths(self, sl_name, frame_id):
+        return self.worker.search_paths(sl_name, frame_id)
+        
+    def search_rules(self, frame_id):
+        return self.worker.search_rules(frame_id)
         
     def id(self):
         return self.worker.id()
@@ -300,16 +316,18 @@ class VirtualMulticsProcess(QtCore.QObject):
         return self.worker.stack
         
     @property
-    def search_paths(self):
-        return self.worker.search_paths
-        
-    @property
     def directory_stack(self):
         return self.worker.directory_stack
         
     @property
     def exit_code(self):
         return self.worker.exit_code
+        
+    def search_paths(self, sl_name, frame_id):
+        return self.worker.search_paths(sl_name, frame_id)
+        
+    def search_rules(self, frame_id):
+        return self.worker.search_rules(frame_id)
         
     def id(self):
         return self.worker.id()

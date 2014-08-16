@@ -36,6 +36,7 @@ class Supervisor(QtCore.QObject):
         
         self.__hardware                  = hardware
         self.__dynamic_linker            = DynamicLinker(self)
+        self.__referencing_dir           = {}
         
         GlobalEnvironment.register_supervisor(self)
         
@@ -58,7 +59,6 @@ class Supervisor(QtCore.QObject):
         self.__shutdown_time_left        = -1
         self.__shutdown_message          = ""
         self.__shutdown_signal           = False
-        self.__referencing_dir           = ""
         
         self._load_site_config()
         
@@ -89,12 +89,23 @@ class Supervisor(QtCore.QObject):
     @property
     def stack(self):
         return self.__system_stack
-    @property
-    def referencing_dir(self):
-        return self.__referencing_dir
-    @referencing_dir.setter
-    def referencing_dir(self, dir):
-        self.__referencing_dir = dir
+        
+    def get_referencing_dir(self, id):
+        try:
+            return self.__referencing_dir[id]
+        except:
+            return ""
+            
+    def set_referencing_dir(self, dir):
+        id = self.__hardware.clock.current_time()
+        self.__referencing_dir[id] = dir
+        return id
+        
+    def clear_referencing_dir(self, id):
+        try:
+            self.__referencing_dir[id] = ""
+        except:
+            pass
         
     def id(self):
         return 0
@@ -663,9 +674,10 @@ class DynamicLinker(QtCore.QObject):
                             self.__system_function_table[symbol] = SegmentDescriptor(self.__supervisor, symbol, module_path, module)
     
     def __getattr__(self, entry_point_name):
-        self.__supervisor.referencing_dir = self.__filesystem.path2path(os.path.dirname(inspect.currentframe().f_back.f_code.co_filename))
-        entry_point = self.snap(entry_point_name)
-        self.__supervisor.referencing_dir = ""
+        # self.__supervisor.referencing_dir = self.__filesystem.path2path(os.path.dirname(inspect.currentframe().f_back.f_code.co_filename))
+        with reference_frame(inspect.currentframe().f_back) as frame_id:
+            entry_point = self.snap(entry_point_name)
+        # self.__supervisor.referencing_dir = ""
         if entry_point:
             return entry_point
         else:
@@ -730,7 +742,7 @@ class DynamicLinker(QtCore.QObject):
             # print "...snap results:", segment_data_ptr
             return segment_data_ptr
         
-    def snap(self, segment_name, known_location=None):
+    def snap(self, segment_name, known_location=None, frame_id=None):
         #== Special case segment names: 'print', 'list'
         special_seg_names = {
             'print': "print_",
@@ -745,42 +757,7 @@ class DynamicLinker(QtCore.QObject):
         except SegmentFault:
             # print "...segment fault"
             self.__segfault_count += 1
-            # if known_location:
-                # search_paths = [ known_location ]
-            # else:
-                # try:
-                    # process = get_calling_process_()
-                    # search_paths = process.search_paths
-                # except:
-                    # search_paths = [ self.__filesystem.system_library_standard ]
-                # # end try
-            # # end if
-            
-            # #== Try to find the segment and add it to the KST
-            # for multics_path in search_paths:
-                # # print "...searching", multics_path
-                # for ext in [".pyo", ".py"]:
-                    # module_path = self.__filesystem.path2path(multics_path, segment_name + ext)
-                    # # print module_path
-                    # if self.__filesystem.file_exists(module_path):
-                        # try:
-                            # module = self._load_python_code(segment_name, module_path)
-                        # except SyntaxError:
-                            # raise
-                        # except:
-                            # #== Invalid python module...probably a syntax error...
-                            # self.dump_traceback_()
-                            # raise InvalidSegmentFault(segment_name)
-                            
-                        # self.known_segment_table[segment_name] = SegmentDescriptor(self.__supervisor, segment_name, module_path, module)
-                        # entry_point = self.known_segment_table[segment_name].segment
-                        # # print "   found", entry_point
-                        # return entry_point
-                    # # end if
-                # # end for
-            # # end for
-            # return None
-            module, module_path = self._find_module(segment_name, known_location)
+            module, module_path = self._find_module(segment_name, known_location, frame_id=frame_id)
             if module:
                 self.known_segment_table[segment_name] = SegmentDescriptor(self.__supervisor, segment_name, module_path, module)
                 entry_point = self.known_segment_table[segment_name].segment
@@ -825,13 +802,13 @@ class DynamicLinker(QtCore.QObject):
                 # print "...raising SegmentFault"
                 raise SegmentFault(segment_name)
                 
-    def _find_module(self, segment_name, known_location=None, additional_locations=[]): 
+    def _find_module(self, segment_name, known_location=None, additional_locations=[], frame_id=None): 
         if known_location:
             search_paths = [ known_location ]
         else:
             try:
                 process = get_calling_process_()
-                search_paths = process.search_paths
+                search_paths = process.search_rules(frame_id)
             except:
                 search_paths = [ self.__filesystem.system_library_standard ]
             # end try
