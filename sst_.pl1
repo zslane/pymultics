@@ -752,3 +752,234 @@ score: entry (scip, nptr);
           if all_switch then call ioa_ ("^30t------^/Total:^40t^d", node.score.total);
           return;
           
+launch: entry (scip, nptr);
+
+          dcl     burst                 fixed bin init (0);
+          dcl     BURST_MAX             fixed bin init (0);
+          dcl     weapon                char (5) init ("");
+          
+          call ssu_$arg_count (scip, argn);
+          if (argn = 0) then call ssu_$abort_line (scip, (0), "^/^5xUsage: launch weapon");
+          call ssu_$arg_ptr (scip, 1, argp, argl);
+          weapon = arg;
+          if (weapon = "he") then do;
+                    if ^(node.equipment.HE_launcher.working) then do;
+                              call ioa_ ("^/HE launcher is damaged.");
+                              return;
+                         end;
+                    if (argn > 1) then do;
+                              call ssu_$arg_ptr (scip, 2, argp, argl);
+                              if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5x#_of_bombs must be a positive integer. ^a", arg);
+                              BURST_MAX = decimal (arg);
+                              if (BURST_MAX > 3) then call ssu_$abort_line (scip, (0), "^/^5xMaximum of 3 HE bombs per burst.");
+                              else if (argn > (BURST_MAX * 2) + 2) then call ssu_$abort_line (scip, (0), "^/^5xToo many coordinates given.");
+                              do x = 2 to (BURST_MAX * 2) by 2;
+                                   do y = 1 to 2;
+                                        if (x + y > argn) & (y = 2) then call ssu_$abort_line (scip, (0), "^/^5xHE Usage: launch he {#_of_bombs} {target_coordinates}");
+                                        else if (x + y > argn) then goto get_bomb_targets;
+                                        call ssu_$arg_ptr (scip, x + y, argp, argl);
+                                        if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg);
+                                        else if (decimal (arg) = 0) | (decimal (arg) > 10) then call ssu_$abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg);
+                                        else if (y = 1) then do;
+                                                  burst = burst + 1;
+                                                  where_X (burst) = decimal (arg);
+                                             end;
+                                        else where_Y (burst) = decimal (arg);
+                                   end;
+                              end;
+                         end;
+                    else do;
+get_no_of_bombs:
+                              input = "NULL";
+                              call ioa_ ("^/HE bombs remaining: ^d", node.HE_bombN);
+                              if (node.HE_bombN = 0) then return;
+                              do while (verify (input, "1234567890") ^= 0);
+                                   call ioa_$nnl ("How many to launch? ");
+                                   call getline (input);
+                                   if (input = "") then input = "NULL";
+                              end;
+                              BURST_MAX = decimal (input);
+                              if (BURST_MAX = 0) then call ssu_$abort_line (scip, (0));
+                              else if (BURST_MAX > 3) then do;
+                                        call ioa_ ("Maximum of 3 HE bombs per burst.");
+                                        goto get_no_of_bombs;
+                                   end;
+                         end;
+get_bomb_targets:
+                    if (BURST_MAX > node.HE_bombN) then do;
+                              call ioa_ ("^/HE bombs remaining: ^d", node.HE_bombN);
+                              return;
+                         end;
+                    do x = (burst + 1) to BURST_MAX;
+                         if (x = burst + 1) then call ioa_ ();
+                         if (BURST_MAX = 1) then call get_target_for_bomb (where_X (x), where_Y (x), 0);
+                         else call get_target_for_bomb (where_X (x), where_Y (x), x);
+                    end;
+               end;
+          else if (weapon = "nuke") then do;
+                    if (argn ^= 1) & (argn ^= 3) then call ssu_$abort_line (scip, (0), "^/^5xNuke Usage: launch nuke {Target_X Target_Y}");
+                    if ^(node.equipment.nuke_launcher.working) then do;
+                              call ioa_ ("^/Nuke launcher is damaged.");
+                              return;
+                         end;
+                    if (argn = 3) then do;
+                              call ssu_$arg_ptr (scip, 2, argp, argl);
+                              if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg);
+                              where_X (1) = decimal (arg);
+                              call ssu_$arg_ptr (scip, 3, argp, argl);
+                              if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg);
+                              where_Y (1) = decimal (arg);
+                              BURST_MAX = 1;
+                         end;
+                    if (BURST_MAX = 0) then do;
+                              call ioa_ ("^/Nuke bombs remaining: ^d", node.nuke_bombN);
+                              if (node.nuke_bombN = 0) then return;
+                              else call ioa_ ();
+                              BURST_MAX = 1;
+                              call get_target_for_bomb (where_X (1), where_Y (1), 0);
+                         end;
+               end;
+          else call ssu_$abort_line (scip, (0), "^/^5xNo such launcher. ^a", weapon);
+          
+          do x = 1 to BURST_MAX;
+               call launch_it (weapon, where_X (x), where_Y (x), x, nptr);
+               if (weapon = "he") then node.HE_bombN = node.HE_bombN - 1;
+               else node.nuke_bombN = node.nuke_bombN - 1;
+          end;
+          call enemy_attack (nptr);
+          return;
+          
+repair: entry (scip, nptr);
+
+          dcl     device_idx             fixed bin init (0);
+          dcl     device                 (7) char (30) init ((7) (""));
+          dcl     (scanner_repair_sw,
+                  snooper_repair_sw,
+                  flamer_repair_sw,
+                  he_repair_sw,
+                  nuker_repair_sw,
+                  ld_repair_sw,
+                  jets_repair_sw)        bit (1) init ("0"b);
+                  
+          call ssu_$arg_count (scip, argn);
+          if (argn = 0) then call ssu_$abort_line (scip, (0), "^/^5xUsage: repair device");
+          do x = 1 to argn;
+               call ssu_$arg_ptr (scip, x, argp, argl);
+               if (arg = "scanner") & ^(scanner_repair_sw) then do;
+                         scanner_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "scanner";
+                    end;
+               else if (arg = "snooper") & ^(snooper_repair_sw) then do;
+                         snooper_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "snooper";
+                    end;
+               else if ((arg = "flamer_rifle") | (arg = "flamer")) & ^(flamer_repair_sw) then do;
+                         flamer_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "flamer_rifle";
+                    end;
+               else if ((arg = "he_launcher") | (arg = "he")) & ^(he_repair_sw) then do;
+                         he_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "he_launcher";
+                    end;
+               else if ((arg = "nuke_launcher") | (arg = "nuker")) & ^(nuker_repair_sw) then do;
+                         nuker_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "nuke_launcher";
+                    end;
+               else if ((arg = "listening_device") | (arg = "ld")) & ^(ld_repair_sw) then do;
+                         ld_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "listening_device";
+                    end;
+               else if ((arg = "jet_boosters") | (arg = "jets")) & ^(jets_repair_sw) then do;
+                         jets_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "jet_boosters";
+                    end;
+               else call ssu_$abort_line (scip, (0), "^/^5xNo such device. ^a", arg);
+          end;
+          do x = 1 to device_idx;
+               call repair_damage (device (x), nptr);
+          end;
+          return;
+          
+rest: entry (scip, nptr);
+
+          dcl     rest_time              fixed dec (5, 2) init (0);
+          dcl     number_suffix          (50) char (2) init (
+                                         "st", "nd", "rd", (17) ("th"),
+                                         "st", "nd", "rd", (7) ("th"),
+                                         "st", "nd", "rd", (7) ("th"),
+                                         "st", "nd", "rd", (7) ("th"));
+                                        
+          call ssu_$arg_count (scip, argn);
+          if (argn ^= 1) then call ssu_$abort_line (scip, (0), "^/^5xUsage: rest hours");
+          call ssu_$arg_ptr (scip, 1, argp, argl);
+          if (verify (arg, ".1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xRest time must be numeric. ^a", arg);
+          rest_time = convert_to_real ((arg));
+          if (rest_time > node.time_left) then do;
+                    call ioa_ ("^/Time left: ^.1f hrs., Rest time: ^.1f hrs.", node.time_left, rest_time);
+                    return;
+               end;
+          call ioa_ ("^/Rested.");
+          node.body_pts = min (20, node.body_pts + round (rest_time * 4, 0));
+          node.time_left = node.time_left - rest_time;
+          do x = 1 to (max (1, trunc (rest_time)));
+               if (trunc (rest_time) > 1) & enemies_present (nptr) then call ioa_ ("^/^d^a hour:", x, number_suffix (x));
+               call enemy_attack (nptr);
+          end;
+          return;
+          
+transfer: entry (scip, nptr);
+
+          dcl     transfer_energy        fixed bin init (0);
+          dcl     to_device              char (12) init ("");
+          dcl     true_xfer_energy       fixed bin init (0);
+          dcl     sst_$daemon            entry (ptr);
+          
+          call ssu_$arg_count (scip, argn);
+          if (argn ^= 2) then call ssu_$abort_line (scip, (0), "^/^5xUsage: transfer device energy_amount");
+          call ssu_$arg_ptr (scip, 1, argp, argl);
+          if (arg = "jet_boosters") | (arg = "jets") then to_device = "jet_boosters";
+          else if (arg = "flamer_rifle") | (arg = "flamer") then to_device = "flamer_rifle";
+          else call ssu_$abort_line (scip, (0), "^/^5xDevice must be either ""flamer"" or ""jets"".");
+          call ssu_$arg_ptr (scip, 2, argp, argl);
+          if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xEnergy_amount must be a positive integer. ^a", arg);
+          transfer_energy = decimal (arg);
+          if (to_device = "jet_boosters") & (transfer_energy > node.flamer_energy) then do;
+                    call ioa_ ("^/Flamer energy remaining: ^d units.  No transfer.", node.flamer_energy);
+                    return;
+               end;
+          else if (to_device = "flamer_rifle") & (transfer_energy > node.jet_energy) then do;
+                    call ioa_ ("^/Jet booster energy remaining: ^d units.  No transfer.", node.jet_energy);
+                    return;
+               end;
+          if (node.time_left < .2) then do;
+                    call ioa_ ("^/Time left: ^.1f hrs., Transfer time: 0.2 hrs.", node.time_left);
+                    return;
+               end;
+          if (to_device = "jet_boosters") then do;
+                    true_xfer_energy = min (transfer_energy, 1000 - node.jet_energy);
+                    call ioa_ ("^/^d units transferred to Jet boosters.", true_xfer_energy);
+                    if (true_xfer_energy < transfer_energy) then call ioa_ ("Flamer retains remaining ^d units.", transfer_energy - true_xfer_energy);
+                    node.jet_energy = node.jet_energy + true_xfer_energy;
+                    node.flamer_energy = node.flamer_energy - true_xfer_energy;
+                    call ioa_ ("^/Jet booster energy:  ^d units", node.jet_energy);
+                    call ioa_ ("Flamer rifle energy: ^d units", node.flamer_energy);
+               end;
+          else if (to_device = "flamer_rifle") then do;
+                    true_xfer_energy = min (transfer_energy, 1000 - node.flamer_energy);
+                    call ioa_ ("^/^d units transferred to Flamer rifle.", true_xfer_energy);
+                    if (true_xfer_energy < transfer_energy) then call ioa_ ("Jets retains remaining ^d units.", transfer_energy - true_xfer_energy);
+                    node.flamer_energy = node.flamer_energy + true_xfer_energy;
+                    node.jet_energy = node.jet_energy - true_xfer_energy;
+                    call ioa_ ("^/Flamer rifle energy: ^d units", node.flamer_energy);
+                    call ioa_ ("Jet booster energy:  ^d units", node.jet_energy);
+               end;
+          node.time_left = node.time_left - .2;
+          return;
+          

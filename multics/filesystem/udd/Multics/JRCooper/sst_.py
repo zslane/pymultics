@@ -14,6 +14,7 @@ dcl ( argp                   = ptr )
 dcl ( code                   = fixed.bin (35) . parm . init (0) )
 
 class goto_place_supply_ship(Exception): pass
+class goto_get_bomb_targets(Exception): pass
 
 class sst_(Subroutine):
 
@@ -752,16 +753,227 @@ class sst_(Subroutine):
         if all_switch: call. ioa_ ("^30t------^/Total:^40t^d", node.score.total)
         
     def launch(self, scip, node):
-        pass
+
+        burst           = fixed.bin . init (0) . local
+        BURST_MAX       = fixed.bin . init (0) . local
+        weapon          = char (5) . init ("") . local
+        input           = char ('*') . parm . init ("")
+        where_X         = Dim(3+1) (fixed.bin . init (0))
+        where_Y         = Dim(3+1) (fixed.bin . init (0))
         
-    def signal_for_help(self, scip, node):
-        pass
+        call. ssu_.arg_count (scip, argn)
+        if (argn.val == 0): call. ssu_.abort_line (scip, (0), "^/^5xUsage: launch weapon")
+        call. ssu_.arg_ptr (scip, 0, argp) ; arg = argp.val
+        weapon = arg
+        if (weapon == "he"):
+            try:
+                if (not node.equipment.HE_launcher.working):
+                    call. ioa_ ("^/HE launcher is damaged.")
+                    return
+                # end if
+                if (argn.val > 1):
+                    call. ssu_.arg_ptr (scip, 1, argp) ; arg = argp.val
+                    if (verify (arg, "1234567890") != 0): call. ssu_.abort_line (scip, (0), "^/^5x#_of_bombs must be a positive integer. ^a", arg)
+                    BURST_MAX = decimal (arg)
+                    if (BURST_MAX > 3): call. ssu_.abort_line (scip, (0), "^/^5xMaximum of 3 HE bombs per burst.")
+                    elif (argn.val > (BURST_MAX * 2) + 2): call. ssu_.abort_line (scip, (0), "^/^5xToo many coordinates given.")
+                    for x in do_range(2, BURST_MAX * 2, 2):
+                        for y in do_range(1, 2):
+                            if (x + y > argn.val) and (y == 2): call. ssu_.abort_line (scip, (0), "^/^5xHE Usage: launch he {#_of_bombs} {target_coordinates}")
+                            elif (x + y > argn.val): raise goto_get_bomb_targets
+                            call. ssu_.arg_ptr (scip, x + y - 1, argp) ; arg = argp.val
+                            if (verify (arg, "1234567890") != 0): call. ssu_.abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg)
+                            elif (decimal (arg) == 0) or (decimal (arg) > 10): call. ssu_.abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg)
+                            elif (y == 1):
+                                burst = burst + 1
+                                where_X[burst] = decimal (arg)
+                            else: where_Y[burst] = decimal (arg)
+                        # end for
+                    # end for
+                else:
+                    get_no_of_bombs = True
+                    while get_no_of_bombs:
+                        get_no_of_bombs = False
+# get_no_of_bombs:
+                        input.val = "NULL"
+                        call. ioa_ ("^/HE bombs remaining: ^d", node.HE_bombN)
+                        if (node.HE_bombN == 0): return
+                        while (verify (input.val, "1234567890") != 0):
+                            call. ioa_.nnl ("How many to launch? ")
+                            getline (input)
+                            if (input.val == ""): input.val = "NULL"
+                        # end while
+                        BURST_MAX = decimal (input.val)
+                        if (BURST_MAX == 0): call. ssu_.abort_line (scip, (0))
+                        elif (BURST_MAX > 3):
+                            call. ioa_ ("Maximum of 3 HE bombs per burst.")
+                            get_no_of_bombs = True # goto get_no_of_bombs
+                        # end if
+                    # end while
+                # end if
+            except goto_get_bomb_targets:
+                pass
+            # end try
+# get_bomb_targets:
+            if (BURST_MAX > node.HE_bombN):
+                call. ioa_ ("^/HE bombs remaining: ^d", node.HE_bombN)
+                return
+            # end if
+            for x in do_range(burst + 1, BURST_MAX):
+                if (x == burst + 1): call. ioa_ ()
+                if (BURST_MAX == 1): get_target_for_bomb (where_X[x], where_Y[x], 0)
+                else: get_target_for_bomb (where_X[x], where_Y[x], x)
+            # end for
+        
+        elif (weapon == "nuke"):
+            if (argn.val != 1) and (argn.val != 3): call. ssu_.abort_line (scip, (0), "^/^5xNuke Usage: launch nuke {Target_X Target_Y}")
+            if (not node.equipment.nuke_launcher.working):
+                call. ioa_ ("^/Nuke launcher is damaged.")
+                return
+            # end if
+            if (argn.val == 3):
+                call. ssu_.arg_ptr (scip, 1, argp) ; arg = argp.val
+                if (verify (arg, "1234567890") != 0): call. ssu_.abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg)
+                where_X[1] = decimal (arg)
+                call. ssu_.arg_ptr (scip, 2, argp) ; arg = argp.val
+                if (verify (arg, "1234567890") != 0): call. ssu_.abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg)
+                where_Y[1] = decimal (arg)
+                BURST_MAX = 1
+            # end if
+            if (BURST_MAX == 0):
+                call. ioa_ ("^/Nuke bombs remaining: ^d", node.nuke_bombN)
+                if (node.nuke_bombN == 0): return
+                else: call. ioa_ ()
+                BURST_MAX = 1
+                get_target_for_bomb (where_X[1], where_Y[1], 0)
+            # end if
+        
+        else: call. ssu_.abort_line (scip, (0), "^/^5xNo such launcher. ^a", weapon)
+        
+        for x in do_range(1, BURST_MAX):
+            launch_it (weapon, where_X[x], where_Y[x], x, node)
+            if (weapon == "he"): node.HE_bombN = node.HE_bombN - 1
+            else: node.nuke_bombN = node.nuke_bombN - 1
+        # end for
+        enemy_attack (node)
         
     def repair(self, scip, node):
-        pass
+
+        device_idx          = fixed.bin . init (0) . local
+        device              = Dim(7+1) (char (30) . init (""))
+        scanner_repair_sw   = bit (1) . init (b'0') . local
+        flamer_repair_sw    = bit (1) . init (b'0') . local
+        he_repair_sw        = bit (1) . init (b'0') . local
+        nuker_repair_sw     = bit (1) . init (b'0') . local
+        ld_repair_sw        = bit (1) . init (b'0') . local
+        jets_repair_sw      = bit (1) . init (b'0') . local
+        
+        call. ssu_.arg_count (scip, argn)
+        if (argn.val == 0): call. ssu_.abort_line (scip, (0), "^/^5xUsage: repair device")
+        for x in do_range(1, argn.val):
+            call. ssu_.arg_ptr (scip, x, argp) ; arg = argp.val
+            if (arg == "scanner") and (not scanner_repair_sw):
+                scanner_repair_sw = b'1'
+                device_idx = device_idx + 1
+                device[device_idx] = "scanner"
+            elif (arg == "snooper") and (not snooper_repair_sw):
+                snooper_repair_sw = b'1'
+                device_idx = device_idx + 1
+                device[device_idx] = "snooper"
+            elif ((arg == "flamer_rifle") or (arg == "flamer")) and (not flamer_repair_sw):
+                flamer_repair_sw = b'1'
+                device_idx = device_idx + 1
+                device[device_idx] = "flamer_rifle"
+            elif ((arg == "he_launcher") or (arg == "he")) and (not he_repair_sw):
+                he_repair_sw = b'1'
+                device_idx = device_idx + 1
+                device[device_idx] = "he_launcher"
+            elif ((arg == "nuke_launcher") or (arg == "nuker")) and (not nuker_repair_sw):
+                nuker_repair_sw = b'1'
+                device_idx = device_idx + 1
+                device[device_idx] = "nuke_launcher"
+            elif ((arg == "listening_device") or (arg == "ld")) and (not ld_repair_sw):
+                ld_repair_sw = b'1'
+                device_idx = device_idx + 1
+                device[device_idx] = "listening_device"
+            elif ((arg == "jet_boosters") or (arg == "jets")) and (not jets_repair_sw):
+                jets_repair_sw = b'1'
+                device_idx = device_idx + 1
+                device[device_idx] = "jet_boosters"
+            else: call. ssu_.abort_line (scip, (0), "^/^5xNo such device. ^a", arg)
+        # end for
+        for x in do_range(1, device_idx):
+            repair_damage (device[x], node)
+        # end for
         
     def rest(self, scip, node):
-        pass
+        rest_time       = fixed.dec (5, 2) . init (0) . local
+        number_suffix   = [ "st", "nd", "rd" ] + ["th"]*17 + \
+                          [ "st", "nd", "rd" ] + ["th"]*7  + \
+                          [ "st", "nd", "rd" ] + ["th"]*7  + \
+                          [ "st", "nd", "rd" ] + ["th"]*7
+        
+        call. ssu_.arg_count (scip, argn)
+        if (argn.val != 1): call. ssu_.abort_line (scip, (0), "^/^5xUsage: rest hours")
+        call. ssu_.arg_ptr (scip, 0, argp) ; arg = argp.val
+        if (verify (arg, ".1234567890") != 0): call. ssu_.abort_line (scip, (0), "^/^5xRest time must be numeric. ^a", arg)
+        rest_time = convert_to_real (arg)
+        if (rest_time > node.time_left):
+            call. ioa_ ("^/Time left: ^.1f hrs., Rest time: ^.1f hrs.", node.time_left, rest_time)
+            return
+        # end if
+        call. ioa_ ("^/Rested.")
+        node.body_pts = min (20, node.body_pts + round (rest_time * 4, 0))
+        node.time_left = node.time_left - rest_time
+        for x in do_range(1, max(1, trunc(rest_time))):
+            if (trunc (rest_time) > 1) and enemies_present (node): call. ioa_ ("^/^d^a hour:", x, number_suffix[x - 1])
+            enemy_attack (node)
+        # end for
+        
+    def transfer(self, scip, node):
+    
+        transfer_energy     = fixed.bin . init (0) . local
+        to_device           = char (12) . init ("") . local
+        true_xfer_energy    = fixed.bin . init (0) . local
+
+        call. ssu_.arg_count (scip, argn)
+        if (argn.val != 2): call. ssu_.abort_line (scip, (0), "^/^5xUsage: transfer device energy_amount")
+        call. ssu_.arg_ptr (scip, 0, argp) ; arg = argp.val
+        if (arg == "jet_boosters") or (arg == "jets"): to_device = "jet_boosters"
+        elif (arg == "flamer_rifle") or (arg == "flamer"): to_device = "flamer_rifle"
+        else: call. ssu_.abort_line (scip, (0), "^/^5xDevice must be either \"flamer\" or \"jets\".")
+        call. ssu_.arg_ptr (scip, 1, argp) ; arg = argp.val
+        if (verify (arg, "1234567890") != 0): call. ssu_.abort_line (scip, (0), "^/^5xEnergy_amount must be a positive integer. ^a", arg)
+        transfer_energy = decimal (arg)
+        if (to_device == "jet_boosters") and (transfer_energy > node.flamer_energy):
+            call. ioa_ ("^/Flamer energy remaining: ^d units.  No transfer.", node.flamer_energy)
+            return
+        elif (to_device == "flamer_rifle") and (transfer_energy > node.jet_energy):
+            call. ioa_ ("^/Jet booster energy remaining: ^d units.  No transfer.", node.jet_energy)
+            return
+        # end if
+        if (node.time_left < .2):
+            call. ioa_ ("^/Time left: ^.1f hrs., Transfer time: 0.2 hrs.", node.time_left)
+            return
+        # end if
+        if (to_device == "jet_boosters"):
+            true_xfer_energy = min (transfer_energy, 1000 - node.jet_energy)
+            call. ioa_ ("^/^d units transferred to Jet boosters.", true_xfer_energy)
+            if (true_xfer_energy < transfer_energy): call. ioa_ ("Flamer retains remaining ^d units.", transfer_energy - true_xfer_energy)
+            node.jet_energy = node.jet_energy + true_xfer_energy
+            node.flamer_energy = node.flamer_energy - true_xfer_energy
+            call. ioa_ ("^/Jet booster energy:  ^d units", node.jet_energy)
+            call. ioa_ ("Flamer rifle energy: ^d units", node.flamer_energy)
+        elif (to_device == "flamer_rifle"):
+            true_xfer_energy = min (transfer_energy, 1000 - node.flamer_energy)
+            call. ioa_ ("^/^d units transferred to Flamer rifle.", true_xfer_energy)
+            if (true_xfer_energy < transfer_energy): call. ioa_ ("Jets retains remaining ^d units.", transfer_energy - true_xfer_energy)
+            node.flamer_energy = node.flamer_energy + true_xfer_energy
+            node.jet_energy = node.jet_energy - true_xfer_energy
+            call. ioa_ ("^/Flamer rifle energy: ^d units", node.flamer_energy)
+            call. ioa_ ("Jet booster energy:  ^d units", node.jet_energy)
+        # end if
+        node.time_left = node.time_left - .2
         
     def rescue(self, scip, node):
         pass
@@ -772,7 +984,7 @@ class sst_(Subroutine):
     def listen(self, scip, node):
         pass
         
-    def transfer(self, scip, node):
+    def signal_for_help(self, scip, node):
         pass
         
     def quit(self, scip, node):
@@ -816,6 +1028,12 @@ def flame_that_sucker(type, where_X, where_Y, allotted_energy, node):
     call. ioa_ ("^a at Mark ^d - ^d (^d energy needed)", type, where_X, where_Y, allotted_energy)
     pass
 
+def launch_it(weapon, where_X, where_Y, x, node):
+    pass
+    
+def get_target_for_bomb(where_X, where_Y, x):
+    pass
+    
 def enemy_attack(node):
     pass
     
@@ -824,4 +1042,10 @@ def attack_supply_ships(node):
     
 def calc_score(node, type):
     return 0
+    
+def repair_damage(device, node):
+    pass
+    
+def convert_to_real(x):
+    return float_(x)
     

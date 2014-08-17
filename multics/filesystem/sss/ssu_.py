@@ -128,7 +128,7 @@ class ssu_(Subroutine):
         user_message = parm("")
         if format_string:
             call. ioa_.rsnnl (format_string, user_message, *args)
-        call. ioa_ ("^/^a^[ (^a)^;^s^]: ^[^r ^;^s^]^a", sci_ptr.ptr.subsystem_name, sci_ptr.ptr.request_name != "", sci_ptr.ptr.request_name, code != 0, code, user_message.val)
+            call. ioa_ ("^/^a^[ (^a)^;^s^]: ^[^r ^;^s^]^a", sci_ptr.ptr.subsystem_name, sci_ptr.ptr.request_name != "", sci_ptr.ptr.request_name, code != 0, code, user_message.val)
     
     def abort_line(self, sci_ptr, code, format_string="", *args):
         self.print_message(sci_ptr, code, format_string, *args)

@@ -5,6 +5,7 @@ import inspect
 import datetime
 import contextlib
 import __builtin__
+float_ = __builtin__.float
 
 from pl1types import *
 
@@ -59,11 +60,14 @@ def mod(x, y):
 def decimal(x):
     return int(x)
     
+def trunc(x):
+    return int(x)
+    
 def char_(x):
     return str(x)
     
-def do_range(n, m):
-    return range(n, m + 1)
+def do_range(n, m, step=1):
+    return range(n, m + 1, step)
     
 #== Conditions represented by exception classes ==#
 
