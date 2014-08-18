@@ -5,6 +5,7 @@ import imp
 import time
 import glob
 import shutil
+import zipfile
 import __builtin__
 import cPickle as pickle
 
@@ -498,6 +499,44 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         self._walk_and_match(self.FILESYSTEMROOT, part, parts, new_parts)
         new_path = ">".join(new_parts)
         return new_path
+    
+    def is_archive(self, path):
+        return zipfile.is_zipfile(self.native_path(path))
+        
+    def pack_archive(self, archive_path, component_paths, features):
+        archive = zipfile.ZipFile(self.native_path(archive_path), "w", zipfile.ZIP_STORED)
+        for component_path in component_paths:
+            component_path = self.native_path(component_path)
+            _, arcname = os.path.split(component_path)
+            archive.write(component_path, arcname, zipfile.ZIP_STORED)
+        # end for
+        archive.close()
+    
+    def unpack_bound_archive(self, segment_name, entryname, path):
+        if self.is_archive(path):
+            # print "Found bound archive", path
+            archive_name = os.path.basename(path)
+            process = get_calling_process_()
+            archive = zipfile.ZipFile(path, "r", zipfile.ZIP_STORED)
+            name_list = archive.namelist()
+            if (entryname + ".py") not in name_list:
+                # print entryname + ".py", "not found in archive"
+                archive.close()
+                return path
+            # end if
+            pdir = os.path.join(self.native_path(process.dir() + ">!bound_archives"), archive_name)
+            if not os.path.isdir(pdir):
+                os.makedirs(pdir)
+                
+            # print "Found", entryname + ".py", "in archive. Extracting contents to", pdir, "..."
+            archive.extractall(pdir)
+            archive.close()
+            
+            path = os.path.join(pdir, entryname + ".py")
+            # print "Returning", path
+            return path
+        else:
+            return path
     
     def segment_data_ptr(self, filepath, data_instance=None, force=False):
         filepath = self.native_path(filepath)

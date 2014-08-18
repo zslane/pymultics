@@ -39,8 +39,11 @@ def exec_com():
         call.user_info_.homedir(homedir)
         script_dirs.append(homedir.val)
     else:
+        dir_name = parm()
+        entryname = parm()
         call.sys_.get_abs_path(script_file, full_path)
-        script_dirs = [full_path.val]
+        call.sys_.split_path_(full_path.val, dir_name, entryname)
+        script_dirs = [dir_name.val]
     # end if
     
     for script_dir in script_dirs:

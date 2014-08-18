@@ -599,6 +599,8 @@ class SystemTimer(object):
             
 class SegmentDescriptor(QtCore.QObject):
     def __init__(self, supervisor, segment_name, path_to_segment, module_containing_segment):
+        segment_name = segment_name[segment_name.rfind('$')+1:]
+        
         self.name = segment_name
         self.path = path_to_segment
         self.fs = supervisor.fs
@@ -824,6 +826,10 @@ class DynamicLinker(QtCore.QObject):
         # end if
         search_paths.extend(additional_locations)
         
+        entryname = ""
+        if '$' in segment_name:
+            segment_name, _, entryname = segment_name.partition('$')
+            
         #== Try to find the segment and add it to the KST
         for multics_path in search_paths:
             # print "...searching", multics_path
@@ -831,7 +837,7 @@ class DynamicLinker(QtCore.QObject):
                 module_path = self.__filesystem.path2path(multics_path, segment_name + ext)
                 # print module_path
                 if self.__filesystem.file_exists(module_path):
-                    # module_path = self.__filesystem.unpack_bound_archive(segment_name, module_path)
+                    module_path = self.__filesystem.unpack_bound_archive(segment_name, entryname, module_path)
                     # print module_path
                     try:
                         module = self._load_python_code(segment_name, module_path)

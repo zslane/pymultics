@@ -25,6 +25,9 @@ class hcs_(Subroutine):
                 # end try
                 path = GlobalEnvironment.fs.merge_path(current_dir, segment_name)
             dir_name, entryname = GlobalEnvironment.fs.split_path(path)
+            if GlobalEnvironment.fs.is_archive(path):
+                _, segment_name = GlobalEnvironment.fs.split_path(segment_name)
+                entryname = entryname + '$' + segment_name
             # print "get_entry_point: dir_name = '%s', entryname = '%s'" % (dir_name, entryname)
         # end if
         with reference_frame(inspect.currentframe().f_back) as frame_id:
