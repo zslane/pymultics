@@ -687,7 +687,7 @@ class DynamicLinker(QtCore.QObject):
     def __getattr__(self, entry_point_name):
         # self.__supervisor.referencing_dir = self.__filesystem.path2path(os.path.dirname(inspect.currentframe().f_back.f_code.co_filename))
         with reference_frame(inspect.currentframe().f_back) as frame_id:
-            entry_point = self.snap(entry_point_name)
+            entry_point = self.snap(entry_point_name, frame_id=frame_id)
         # self.__supervisor.referencing_dir = ""
         if entry_point:
             return entry_point
