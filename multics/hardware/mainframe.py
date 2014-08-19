@@ -507,16 +507,15 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         archive = zipfile.ZipFile(self.native_path(archive_path), "w", zipfile.ZIP_STORED)
         for component_path in component_paths:
             component_path = self.native_path(component_path)
-            _, arcname = os.path.split(component_path)
+            arcname = os.path.basename(component_path)
             archive.write(component_path, arcname, zipfile.ZIP_STORED)
         # end for
         archive.close()
     
-    def unpack_bound_archive(self, segment_name, entryname, path):
+    def unpack_bound_archive(self, entryname, path):
         if self.is_archive(path):
             # print "Found bound archive", path
             archive_name = os.path.basename(path)
-            process = get_calling_process_()
             archive = zipfile.ZipFile(path, "r", zipfile.ZIP_STORED)
             name_list = archive.namelist()
             if (entryname + ".py") not in name_list:
@@ -524,17 +523,18 @@ class VirtualMulticsFileSystem(QtCore.QObject):
                 archive.close()
                 return path
             # end if
+            
+            process = get_calling_process_()
             pdir = os.path.join(self.native_path(process.dir() + ">!bound_archives"), archive_name)
             if not os.path.isdir(pdir):
                 os.makedirs(pdir)
+            # end if
                 
             # print "Found", entryname + ".py", "in archive. Extracting contents to", pdir, "..."
             archive.extractall(pdir)
             archive.close()
             
-            path = os.path.join(pdir, entryname + ".py")
-            # print "Returning", path
-            return path
+            return os.path.join(pdir, entryname + ".py")
         else:
             return path
     

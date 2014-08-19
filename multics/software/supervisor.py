@@ -826,10 +826,8 @@ class DynamicLinker(QtCore.QObject):
         # end if
         search_paths.extend(additional_locations)
         
-        entryname = ""
-        if '$' in segment_name:
-            segment_name, _, entryname = segment_name.partition('$')
-            
+        segment_name, _, entryname = segment_name.partition('$')
+        
         #== Try to find the segment and add it to the KST
         for multics_path in search_paths:
             # print "...searching", multics_path
@@ -837,7 +835,8 @@ class DynamicLinker(QtCore.QObject):
                 module_path = self.__filesystem.path2path(multics_path, segment_name + ext)
                 # print module_path
                 if self.__filesystem.file_exists(module_path):
-                    module_path = self.__filesystem.unpack_bound_archive(segment_name, entryname, module_path)
+                    #== If module_path isn't a bound archive, this is a NOP
+                    module_path = self.__filesystem.unpack_bound_archive(entryname, module_path)
                     # print module_path
                     try:
                         module = self._load_python_code(segment_name, module_path)
