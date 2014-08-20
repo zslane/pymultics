@@ -55,8 +55,8 @@ def list_():
             acl = ""
             if not segment_name.endswith(SPECIAL_EXTENSIONS):
                 call.hcs_.get_segment_length(dir_to_list.name, segment_name, seglen, code)
-                seglen.val = max(1, seglen.val / 1024)
-                acl = "rew"
+                seglen.val = (seglen.val // 1024) + (1 if seglen.val % 1024 else 0) #max(1, seglen.val / 1024)
+                acl = "rew" if segment_name.endswith((".py", ".pyo")) else "rw"
             # end if
             segment_lengths[segment_name] = seglen.val
             segment_acl[segment_name] = acl

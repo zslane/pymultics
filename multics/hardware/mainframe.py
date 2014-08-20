@@ -504,14 +504,23 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         return zipfile.is_zipfile(self.native_path(path))
         
     def pack_archive(self, archive_path, component_paths, features):
-        archive = zipfile.ZipFile(self.native_path(archive_path), "w", zipfile.ZIP_STORED)
-        for component_path in component_paths:
-            component_path = self.native_path(component_path)
-            arcname = os.path.basename(component_path)
-            archive.write(component_path, arcname, zipfile.ZIP_STORED)
-        # end for
-        archive.close()
+        Archive(self, archive_path).append(component_paths, features)
+        
+    def replace_in_archive(self, archive_path, component_paths, features):
+        Archive(self, archive_path).replace(component_paths, features)
+        
+    def update_archive(self, archive_path, component_paths, features):
+        Archive(self, archive_path).update(component_paths, features)
+        
+    def delete_from_archive(self, archive_path, component_paths, features):
+        Archive(self, archive_path).delete(component_paths, features)
     
+    def extract_from_archive(self, archive_path, component_paths, features):
+        Archive(self, archive_path).extract(component_paths, features)
+    
+    def get_archive_info(self, archive_path):
+        return Archive(self, archive_path).get_info()
+        
     def unpack_bound_archive(self, entryname, path):
         if self.is_archive(path):
             # print "Found bound archive", path
@@ -686,3 +695,233 @@ class HardwareLock(QtCore.QObject):
             self.semaphore.release()
             code.val = 0
             
+class Archive(object):
+
+    def __init__(self, fs, archive_path):
+        self.fs = fs
+        self.archive_path = archive_path
+        
+    def append(self, component_paths, features):
+        process = get_calling_process_()
+        current_dir = process.directory_stack[-1]
+        
+        if "c" in features:
+            self.archive_path = self.copy(current_dir)
+        # end if
+        
+        archive = zipfile.ZipFile(self.fs.native_path(self.archive_path), "a", zipfile.ZIP_STORED)
+        upd_data = self.get_upd_data(archive)
+        
+        for component_path in component_paths:
+            component_path = self.fs.native_path(component_path)
+            arcname = os.path.basename(component_path)
+            archive.write(component_path, arcname, zipfile.ZIP_STORED)
+            upd_data[arcname] = self._now_tuple()
+            if "d" in features:
+                self.fs.delete_file(component_path)
+            # end if
+        # end for
+        
+        self.put_upd_data(archive, upd_data)
+        archive.close()
+        
+    def update(self, component_paths, features):
+        process = get_calling_process_()
+        current_dir = process.directory_stack[-1]
+        
+        if "c" in features:
+            self.archive_path = self.copy(current_dir)
+        # end if
+        
+        old_archive_path = self.fs.native_path(self.archive_path)
+        tmp_archive_path = self.fs.native_path(self.archive_path) + "_TMP"
+        
+        old_archive = zipfile.ZipFile(old_archive_path, "r", zipfile.ZIP_STORED)
+        new_archive = zipfile.ZipFile(tmp_archive_path, "w", zipfile.ZIP_STORED)
+        
+        upd_data = self.get_upd_data(old_archive)
+        name_list = old_archive.namelist()
+        
+        if component_paths == []:
+            for name in name_list:
+                component_path = self.fs.merge_path(current_dir, name)
+                component_paths.append(component_path)
+            # end for
+        # end if
+        
+        components_to_update = {}
+        for component_path in component_paths:
+            _, component_name = self.fs.split_path(component_path)
+            components_to_update[component_name] = component_path
+        # end for
+        
+        for item in old_archive.infolist():
+            if item.filename in components_to_update:
+                arc_mod_date = datetime.datetime(*item.date_time)
+                component_path = components_to_update[item.filename]
+                file_mod_date, _ = self.fs.get_mod_data(component_path)
+                file_mod_date = datetime.datetime.fromtimestamp(long(file_mod_date))
+                if file_mod_date - arc_mod_date > datetime.timedelta(seconds=1):
+                    print "archive: updating component", item.filename
+                    new_archive.write(self.fs.native_path(component_path), item.filename, zipfile.ZIP_STORED)
+                    upd_data[item.filename] = self._now_tuple()
+                    if "d" in features:
+                        self.fs.delete_file(component_path)
+                    # end if
+                    continue
+                # end if
+            # end if
+            buffer = old_archive.read(item.filename)
+            new_archive.writestr(item, buffer)
+        # end for
+        
+        self.put_upd_data(new_archive, upd_data)
+        old_archive.close()
+        new_archive.close()
+        
+        self.fs.delete_file(old_archive_path)
+        os.rename(tmp_archive_path, old_archive_path)
+        
+    def replace(self, component_paths, features):
+        process = get_calling_process_()
+        current_dir = process.directory_stack[-1]
+        
+        if "c" in features:
+            self.archive_path = self.copy(current_dir)
+        # end if
+        
+        old_archive_path = self.fs.native_path(self.archive_path)
+        tmp_archive_path = self.fs.native_path(self.archive_path) + "_TMP"
+        
+        old_archive = zipfile.ZipFile(old_archive_path, "r", zipfile.ZIP_STORED)
+        new_archive = zipfile.ZipFile(tmp_archive_path, "w", zipfile.ZIP_STORED)
+        
+        upd_data = self.get_upd_data(old_archive)
+        name_list = old_archive.namelist()
+        
+        if component_paths == []:
+            for name in name_list:
+                component_path = self.fs.merge_path(current_dir, name)
+                component_paths.append(component_path)
+            # end for
+        # end if
+        
+        components_to_replace = {}
+        for component_path in component_paths:
+            _, component_name = self.fs.split_path(component_path)
+            components_to_replace[component_name] = component_path
+        # end for
+        
+        for item in old_archive.infolist():
+            if item.filename in components_to_replace:
+                component_path = components_to_replace[item.filename]
+                new_archive.write(self.fs.native_path(component_path), item.filename, zipfile.ZIP_STORED)
+                upd_data[item.filename] = self._now_tuple()
+                if "d" in features:
+                    self.fs.delete_file(component_path)
+                # end if
+            else:
+                buffer = old_archive.read(item.filename)
+                new_archive.writestr(item, buffer)
+            # end if
+        # end for
+        
+        self.put_upd_data(new_archive, upd_data)
+        old_archive.close()
+        new_archive.close()
+        
+        self.fs.delete_file(old_archive_path)
+        os.rename(tmp_archive_path, old_archive_path)
+    
+    def delete(self, component_paths, features):
+        process = get_calling_process_()
+        current_dir = process.directory_stack[-1]
+        
+        if "c" in features:
+            self.archive_path = self.copy(current_dir)
+        # end if
+        
+        old_archive_path = self.fs.native_path(self.archive_path)
+        tmp_archive_path = self.fs.native_path(self.archive_path) + "_TMP"
+        
+        component_to_delete = []
+        for component_path in component_paths:
+            _, component_name = self.fs.split_path(component_path)
+            component_to_delete.append(component_name)
+        # end for
+        
+        old_archive = zipfile.ZipFile(old_archive_path, "r", zipfile.ZIP_STORED)
+        new_archive = zipfile.ZipFile(tmp_archive_path, "w", zipfile.ZIP_STORED)
+        upd_data = self.get_upd_data(old_archive)
+        
+        for item in old_archive.infolist():
+            buffer = old_archive.read(item.filename)
+            if item.filename not in component_to_delete:
+                new_archive.writestr(item, buffer)
+            else:
+                upd_data.pop(item.filename, None)
+            # end if
+        # end for
+        
+        self.put_upd_data(new_archive, upd_data)
+        old_archive.close()
+        new_archive.close()
+        
+        self.fs.delete_file(old_archive_path)
+        os.rename(tmp_archive_path, old_archive_path)
+    
+    def extract(self, component_paths, features):
+        process = get_calling_process_()
+        current_dir = self.fs.native_path(process.directory_stack[-1])
+        
+        archive = zipfile.ZipFile(self.fs.native_path(self.archive_path), "r", zipfile.ZIP_STORED)
+        name_list = archive.namelist()
+        
+        #== Extract all components to the current directory
+        if component_paths == []:
+            for name in name_list:
+                archive.extract(name, current_dir)
+            # end for
+        # end if
+        
+        for component_path in component_paths:
+            dir_name, component_name = self.fs.split_path(component_path)
+            if component_name in name_list:
+                archive.extract(component_name, self.fs.native_path(dir_name))
+            # end if
+        # end for
+        
+        archive.close()
+    
+    def copy(self, dst_dir):
+        archive_path = self.fs.native_path(self.archive_path)
+        dst_dir = self.fs.native_path(dst_dir)
+        src_dir, archive_name = os.path.split(archive_path)
+        if src_dir != dst_dir:
+            shutil.copyfile(archive_path, os.path.join(dst_dir, archive_name))
+            archive_path = os.path.join(dst_dir, archive_name)
+        # end if
+        return self.fs.path2path(archive_path) # back to Multics path
+        
+    def get_info(self):
+        archive = zipfile.ZipFile(self.fs.native_path(self.archive_path), "r", zipfile.ZIP_STORED)
+        upd_data = self.get_upd_data(archive)
+        info_list = archive.infolist()
+        archive.close()
+        for info in info_list:
+            info.comment = tuple(upd_data.get(info.filename, info.date_time))
+        # end for
+        return info_list
+    
+    def _now_tuple(self):
+        dt = datetime.datetime.now()
+        return (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+        
+    def get_upd_data(self, archive):
+        import json
+        return json.loads(archive.comment or "{}")
+        
+    def put_upd_data(self, archive, upd_data):
+        import json
+        archive.comment = json.dumps(upd_data or {})
+        
