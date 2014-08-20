@@ -6,6 +6,7 @@ import datetime
 import contextlib
 import __builtin__
 float_ = __builtin__.float
+real = __builtin__.float
 
 from pl1types import *
 

@@ -22,6 +22,15 @@ class cu_(Subroutine):
         def __repr__(self):
             return "<context: '%s', '%s', %s>" % (self.program_name, self.argument_string, self.command_processor)
         
+    class arglist(object):
+        def __init__(self, arg_list_ptr=None):
+            self.argc = len(arg_list_ptr or [])
+            self.type = 1
+            self.desc = 0
+            self.aptr = arg_list_ptr
+        def __repr__(self):
+            return "<arglist (%d): %r>" % (self.argc, self.aptr)
+            
     def __init__(self):
         super(cu_, self).__init__(self.__class__.__name__)
         
@@ -45,71 +54,53 @@ class cu_(Subroutine):
     def split_(self, s, result):
         result.val = self._split(s)
         
-    # def _split_(self, s):
-        # UNIT_SEP = chr(31)
-        # inq = False
-        # s2 = ""
-        # for c in str(s):
-            # if c == '"':
-                # inq = not inq # toggle the 'in-quote' flag
-                # continue # eat the quotation mark
-            # elif c == ' ':
-                # if inq: c = UNIT_SEP
-            # # end if
-            # s2 += c
-        # # end for
-        # l = s2.split()
-        # return [ x.replace(UNIT_SEP, ' ') for x in l ]
-    
-    # def _poptoken(self, s):
-        # inq = False
-        # s2 = ""
-        # i = 0
-        # for c in str(s):
-            # i += 1
-            # if c == '"':
-                # inq = not inq
-                # continue
-            # elif c == ' ':
-                # if s2 == "":
-                    # continue
-                # elif not inq:
-                    # break
-            # s2 += c
-        # return (s2, s[i:])
-        
     def _split(self, s, maxsplit=0):
         return [p for p in re.split(r'(\s)|"(.*?)"', s, maxsplit=maxsplit) if p and p.strip()]
     
     def arg_count(self, arg_count, code=None):
         arg_count.val = len(self._split(self._current_context.argument_string))
-        if code:
+        if code is not None:
             code.val = 0
+        else:
+            return 0
         
     def arg_list(self, arg_list):
         arg_list.args = self._split(self._current_context.argument_string)
         
-    def arg_ptr(self, arg_no, arg, code):
+    def arg_list_ptr(self, arg_list=None):
+        """
+        cu_.arg_list_ptr can be called two different ways:
+        
+            call.cu_.arg_list_ptr (arg_list)
+        or
+            arg_list = cu_.arg_list_ptr()
+        """
+        arg_list_ptr = self._split(self._current_context.argument_string)
+        if arg_list is not None:
+            # arg_list.ptr = arg_list_ptr
+            arg_list.ptr = cu_.arglist(arg_list_ptr)
+        else:
+            return arg_list_ptr
+        
+    def arg_ptr(self, arg_no, arg, code=None):
         try:
             arg.str = self._split(self._current_context.argument_string)[arg_no]
-            code.val = 0
+            if code is not None:
+                code.val = 0
+            else:
+                return 0
         except KeyError:
             arg.str = null()
-            code.val = error_table_.noarg
+            if code is not None:
+                code.val = error_table_.noarg
+            else:
+                return error_table_.noarg
         
     def arg_string(self, before, result, starting_with=0):
         s = self._current_context.argument_string
         d = self._split(s, starting_with or -1)
         before.list = d[:starting_with]
         result.val = d[-1]
-        # return
-        # d = []
-        # for i in range(starting_with):
-            # discard, s = self._poptoken(s)
-            # d.append(discard)
-        # # end for
-        # before.list = d
-        # result.val = s.strip()
         
     def get_command_name(self, command, code):
         command.name = self._current_context.program_name
