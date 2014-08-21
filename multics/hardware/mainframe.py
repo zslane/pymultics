@@ -527,10 +527,11 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             archive_name = os.path.basename(path)
             archive = zipfile.ZipFile(path, "r", zipfile.ZIP_STORED)
             name_list = archive.namelist()
+            entryname = entryname or archive_name
             if (entryname + ".py") not in name_list:
                 # print entryname + ".py", "not found in archive"
                 archive.close()
-                return path
+                raise LinkageError(archive_name, entryname)
             # end if
             
             process = get_calling_process_()
