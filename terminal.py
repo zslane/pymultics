@@ -121,7 +121,7 @@ class TerminalIO(QtGui.QWidget):
         super(TerminalIO, self).__init__(parent)
         self.ME = self.__class__.__name__
         
-        if phosphor_color == "vintage": color = '#32ea90'
+        if phosphor_color == "vintage": color = '#32dd97'
         if phosphor_color == "green": color = "lightgreen"
         if phosphor_color == "amber": color = "gold"
         if phosphor_color == "white": color = "white"
@@ -317,7 +317,7 @@ class TerminalIO(QtGui.QWidget):
         self.port = port
         
     def set_phosphor_color(self, phosphor_color):
-        if phosphor_color == "vintage": color = '#32ea90'
+        if phosphor_color == "vintage": color = '#32dd97'
         if phosphor_color == "green": color = "lightgreen"
         if phosphor_color == "amber": color = "gold"
         if phosphor_color == "white": color = "white"

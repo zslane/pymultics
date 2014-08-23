@@ -338,6 +338,7 @@ void TerminalIO::reset()
 void TerminalIO::set_phosphor_color(const QString& phosphor_color)
 {
     char* color;
+    if (phosphor_color == "vintage") color = "#32dd97";
     if (phosphor_color == "green") color = "lightgreen";
     if (phosphor_color == "amber") color = "gold";
     if (phosphor_color == "white") color = "white";
@@ -422,19 +423,23 @@ void TerminalWindow::setup_menus()
     m_options_menu->addSeparator();
     m_reconnect_action = m_options_menu->addAction("Reconnect", m_io, SLOT(reconnect()));
 
+    m_set_phosphor_vintg = m_phosphor_color_menu->addAction("Vintage Green", this, SLOT(set_phosphor_color_vintg()));
     m_set_phosphor_green = m_phosphor_color_menu->addAction("Green", this, SLOT(set_phosphor_color_green()));
     m_set_phosphor_amber = m_phosphor_color_menu->addAction("Amber", this, SLOT(set_phosphor_color_amber()));
     m_set_phosphor_white = m_phosphor_color_menu->addAction("White", this, SLOT(set_phosphor_color_white()));
 
     m_phosphor_color_group = new QActionGroup(this);
+    m_phosphor_color_group->addAction(m_set_phosphor_vintg);
     m_phosphor_color_group->addAction(m_set_phosphor_green);
     m_phosphor_color_group->addAction(m_set_phosphor_amber);
     m_phosphor_color_group->addAction(m_set_phosphor_white);
 
+    m_set_phosphor_vintg->setCheckable(true);
     m_set_phosphor_green->setCheckable(true);
     m_set_phosphor_amber->setCheckable(true);
     m_set_phosphor_white->setCheckable(true);
 
+    m_set_phosphor_vintg->setChecked(m_settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "vintage");
     m_set_phosphor_green->setChecked(m_settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "green");
     m_set_phosphor_amber->setChecked(m_settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "amber");
     m_set_phosphor_white->setChecked(m_settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "white");
@@ -461,6 +466,11 @@ void TerminalWindow::startup()
     m_io->set_server_port(m_settings.value("port", DEFAULT_SERVER_PORT).toInt());
     m_io->set_phosphor_color(m_settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR).toString());
     m_io->startup();
+}
+
+void TerminalWindow::set_phosphor_color_vintg()
+{
+    set_phosphor_color("vintage");
 }
 
 void TerminalWindow::set_phosphor_color_green()

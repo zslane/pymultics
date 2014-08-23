@@ -162,6 +162,7 @@ protected:
     QAction*    m_set_port_action;
     QMenu*      m_phosphor_color_menu;
     QActionGroup* m_phosphor_color_group;
+    QAction*    m_set_phosphor_vintg;
     QAction*    m_set_phosphor_green;
     QAction*    m_set_phosphor_amber;
     QAction*    m_set_phosphor_white;
@@ -181,6 +182,7 @@ private slots:
 
     void startup();
 
+    void set_phosphor_color_vintg();
     void set_phosphor_color_green();
     void set_phosphor_color_amber();
     void set_phosphor_color_white();
