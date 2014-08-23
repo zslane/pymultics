@@ -983,3 +983,116 @@ transfer: entry (scip, nptr);
           node.time_left = node.time_left - .2;
           return;
           
+encamp: entry (scip, nptr);
+
+          if node.encamped then do;
+                    call ioa_ ("^/You are already encamped.");
+                    return;
+               end;
+          if (node.time_left < 1) then do;
+                    call ioa_ ("^/Time left: ^.1f hrs., Encampment time: 1.0 hrs.", node.time_left);
+                    return;
+               end;
+          do x = (node.PX - 1) to (node.PX + 1);
+               do y = (node.PY - 1) to (node.PY + 1);
+                    if (x > 0) & (x < 11) & (y > 0) & (y < 11) then do;
+                              if node.sector (node.SX, node.SY).point (x, y) = SUPPLY_SHIP then do;
+                                        call ioa_ ("^/Encamped.");
+                                        node.encamped = "1"b;
+                                        do z = 1 to node.supplyN;
+                                             if (node.supply (z).SX = node.SX) & (node.supply (z).SY = node.SY) & (node.supply (z).PX = x) & (node.supply (z).PY = y) then do;
+                                                       node.supply (z).uses_left = node.supply (z).uses_left - 1;
+                                                       if (node.supply (z).uses_left = 0) then do;
+                                                                 call ioa_ ("Supply ship exhausted -> returning to base.");
+                                                                 node.encamped = "0"b;
+                                                                 node.sector (node.SX, node.SY).point (x, y) = ".";
+                                                                 if (node.SX = node.distress.SX) & (node.SY = node.distress.SY) then do;
+                                                                           node.distress.SX = 0;
+                                                                           node.distress.SY = 0;
+                                                                      end;
+                                                                 node.sector (node.SX, node.SY).supply = "0";
+                                                            end;
+                                                  end;
+                                        end;
+                                        node.suit_pts = min (50, max (node.suit_pts * 2, node.suit_pts + 10));
+                                        node.jet_energy = min (1000, max (node.jet_energy * 2, node.jet_energy + 500));
+                                        node.flamer_energy = min (1000, max (node.flamer_energy * 2, node.flamer_energy + 500));
+                                        node.HE_bombN = min (10, max (node.HE_bombN * 2, node.HE_bombN + 5));
+                                        node.time_left = node.time_left - 1;
+                                        return;
+                                   end;
+                         end;
+               end;
+          end;
+          call ioa_ ("^/You are not adjacent to a supply ship.");
+          return;
+          
+rescue: entry (scip, nptr);
+
+          dcl     bdex                   fixed bin init (0);
+          
+          do x = (node.PX - 1) to (node.PX + 1);
+               do y = (node.PY - 1) to (node.PY + 1);
+                    if (node.sector (node.SX, node.SY).point (x, y) = BREACH) then do;
+                              do z = 1 to node.breachN;
+                                   if (node.breach (z).SX = node.SX) & (node.breach (z).SY = node.SY) & (node.breach (z).PX = x) & (node.breach (z).PY = y) then bdex = z;
+                              end;
+                         end;
+               end;
+          end;
+          if (bdex = 0) then do;
+                    call ioa_ ("^/You are not adjacent to a breach.");
+                    return;
+               end;
+          do while (node.breach (bdex).engineer > 0);
+               x = round (node.breach (bdex).engineer / 100, 0);
+               if (x > 0) then do;
+                         call ioa_$nnl ("^/***ENGINEER in breach:^33t");
+                         call damage_the_trooper (x, nptr);
+                    end;
+               else call ioa_ ();
+               x = mod (clock (), (1 + node.suit_pts + node.body_pts)) + 30;
+               call ioa_ ("***TROOPER attack^33t^d pts. to Engineer", x);
+               node.breach (bdex).engineer = max (0, node.breach (bdex).engineer - x);
+               if (node.breach (bdex).engineer = 0) then call ioa_ ("***ENGINEER in breach destroyed.");
+               else do;
+                         call ioa_$nnl ("^/Do you wish to continue the rescue? ");
+                         call yes_no (input);
+                         if (input = "no") | (input = "n") then do;
+                                   call enemy_attack (nptr);
+                                   return;
+                              end;
+                    end;
+               node.time_left = node.time_left - .1;
+               call sst_$daemon (scip);
+          end;
+          if (node.breach (bdex).prisoners = 1) then call ioa_ ("^/Prisoner rescued.");
+          else call ioa_ ("^/No prisoner here.");
+          node.score.prisoners_rescued = node.score.prisoners_rescued + node.breach (bdex).prisoners;
+          call enemy_attack (nptr);
+          return;
+          
+quit: entry (scip, nptr);
+
+          dcl     see_score                   bit (1) init ("0"b);
+          
+          call ssu_$arg_count (scip, argn);
+          do x = 1 to argn;
+               call ssu_$arg_ptr (scip, x, argp, argl);
+               if (arg = "-score") | (arg = "-sc") then see_score = "1"b;
+               else call ssu_$abort_line (scip, (0), "^/^5xUsage: quit {-score}");
+          end;
+          call ioa_$nnl ("^/Do you wish to quit? ");
+          call yes_no (input);
+          if (input = "y") | (input = "yes") then do;
+                    if see_score then call ssu_$execute_string (scip, "score -all", code);
+                    else call ssu_$execute_string (scip, "score", code);
+                    call ssu_$abort_subsystem (scip, (0));
+               end;
+          else if (input = "n") | (input = "no") then call ssu_$abort_line (scip, (0));
+          
+self_identify: entry (scip, nptr);
+
+          call ioa_ ("^a ^a", MAIN, sst_data_$version_string);
+          return;
+          

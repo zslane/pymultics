@@ -975,23 +975,118 @@ class sst_(Subroutine):
         # end if
         node.time_left = node.time_left - .2
         
-    def rescue(self, scip, node):
-        pass
-        
     def encamp(self, scip, node):
-        pass
+        if node.encamped:
+            call. ioa_ ("^/You are already encamped.")
+            return
+        # end if
+        if (node.time_left < 1):
+            call. ioa_ ("^/Time left: ^.1f hrs., Encampment time: 1.0 hrs.", node.time_left)
+            return
+        # end if
+        for x in do_range(node.PX - 1, node.PX + 1):
+            for y in do_range(node.PY - 1, node.PY + 1):
+                if (x > 0) and (x < 11) and (y > 0) and (y < 11):
+                    if node.sector[node.SX][node.SY].point[x][y] == SUPPLY_SHIP:
+                        call. ioa_ ("^/Encamped.")
+                        node.encamped = True
+                        for z in do_range(1, node.supplyN):
+                            if (node.supply[z].SX == node.SX) and (node.supply[z].SY == node.SY) and (node.supply[z].PX == x) and (node.supply[z].PY == y):
+                                node.supply[z].uses_left = node.supply[z].uses_left - 1
+                                if (node.supply[z].uses_left == 0):
+                                    call. ioa_ ("Supply ship exhausted -> returning to base.")
+                                    node.encamped = False
+                                    node.sector[node.SX][node.SY].point[x][y] = "."
+                                    if (node.SX == node.distress.SX) and (node.SY == node.distress.SY):
+                                        node.distress.SX = 0
+                                        node.distress.SY = 0
+                                    # end if
+                                    node.sector[node.SX][node.SY].supply = "0"
+                                # end if
+                            # end if
+                        # end for
+                        node.suit_pts = min (50, max (node.suit_pts * 2, node.suit_pts + 10))
+                        node.jet_energy = min (1000, max (node.jet_energy * 2, node.jet_energy + 500))
+                        node.flamer_energy = min (1000, max (node.flamer_energy * 2, node.flamer_energy + 500))
+                        node.HE_bombN = min (10, max (node.HE_bombN * 2, node.HE_bombN + 5))
+                        node.time_left = node.time_left - 1
+                        return
+                    # end if
+                # end if
+            # end for
+        # end for
+        call. ioa_ ("^/You are not adjacent to a supply ship.")
+        
+    def rescue(self, scip, node):
+        bdex  = fixed.bin . init (0) . local
+        input = parm("")
+        
+        for x in do_range(node.PX - 1, node.PX + 1):
+            for y in do_range(node.PY - 1, node.PY + 1):
+                if (node.sector[node.SX][node.SY].point[x][y] == BREACH):
+                    for z in do_range(1, node.breachN):
+                        if (node.breach[z].SX == node.SX) and (node.breach[z].SY == node.SY) and (node.breach[z].PX == x) and (node.breach[z].PY == y): bdex = z
+                    # end for
+                # end if
+            # end for
+        # end for
+        if (bdex == 0):
+            call. ioa_ ("^/You are not adjacent to a breach.")
+            return
+        # end if
+        while (node.breach[bdex].engineer > 0):
+            x = round (node.breach[bdex].engineer / 100, 0)
+            if (x > 0):
+                call. ioa_.nnl ("^/***ENGINEER in breach:^33t")
+                damage_the_trooper (x, node)
+            else: call. ioa_ ()
+            x = mod (clock (), (1 + node.suit_pts + node.body_pts)) + 30
+            call. ioa_ ("***TROOPER attack^33t^d pts. to Engineer", x)
+            node.breach[bdex].engineer = max (0, node.breach[bdex].engineer - x)
+            if (node.breach[bdex].engineer == 0): call. ioa_ ("***ENGINEER in breach destroyed.")
+            else:
+                call. ioa_.nnl ("^/Do you wish to continue the rescue? ")
+                yes_no (input)
+                if (input.val == "no") or (input.val == "n"):
+                    enemy_attack (node)
+                    return
+                # end if
+            # end if
+            node.time_left = node.time_left - .1
+            call. sst_.daemon (scip)
+        # end while
+        if (node.breach[bdex].prisoners == 1): call. ioa_ ("^/Prisoner rescued.")
+        else: call. ioa_ ("^/No prisoner here.")
+        node.score.prisoners_rescued = node.score.prisoners_rescued + node.breach[bdex].prisoners
+        enemy_attack (node)
+        
+    def quit(self, scip, node):
+        see_score = False
+        input     = parm("")
+
+        call. ssu_.arg_count (scip, argn)
+        for x in range(argn.val):
+            call. ssu_.arg_ptr (scip, x, argp) ; arg = argp.val
+            if (arg == "-score") or (arg == "-sc"): see_score = True
+            else: call. ssu_.abort_line (scip, (0), "^/^5xUsage: quit {-score}")
+        # end for
+        call. ioa_.nnl ("^/Do you wish to quit? ")
+        yes_no (input)
+        if (input.val == "y") or (input.val == "yes"):
+            if see_score: call. ssu_.execute_string (scip, "score -all", code)
+            else: call. ssu_.execute_string (scip, "score", code)
+            call. ssu_.abort_subsystem (scip, (0))
+        elif (input.val == "n") or (input.val == "no"): call. ssu_.abort_line (scip, (0))
+        call. ssu_.abort_subsystem (scip, (0))
+        
+    def self_identify(self, scip, node):
+        call. ioa_ ("^a ^a", MAIN, sst_data_.version_string)
         
     def listen(self, scip, node):
         pass
         
     def signal_for_help(self, scip, node):
         pass
-        
-    def quit(self, scip, node):
-        call. ssu_.abort_subsystem (scip, (0))
-        
-    def self_identify(self, scip, node):
-        call. ioa_ ("^a ^a", MAIN, sst_data_.version_string)
         
 def update_chart(node):
     pass
@@ -1039,11 +1134,17 @@ def enemy_attack(node):
     
 def attack_supply_ships(node):
     pass
+
+def damage_the_trooper(damage, node):
+    pass
     
 def calc_score(node, type):
     return 0
     
 def repair_damage(device, node):
+    pass
+    
+def yes_no(input):
     pass
     
 def convert_to_real(x):
