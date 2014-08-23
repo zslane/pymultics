@@ -9,7 +9,7 @@ N_VERT_LINES = 25
 
 DEFAULT_SERVER_NAME = "localhost"
 DEFAULT_SERVER_PORT = 6800
-DEFAULT_PHOSPHOR_COLOR = "green"
+DEFAULT_PHOSPHOR_COLOR = "vintage"
 
 CONTROL_CODE       = chr(17) # Device Control 1
 UNKNOWN_CODE       = chr(0)
@@ -89,7 +89,7 @@ class ScreenIO(QtGui.QTextEdit):
         fm = QtGui.QFontMetrics(font)
         
         self.setReadOnly(True)
-        self.setStyleSheet("QTextEdit { color: gold; background: black; border: 0px; }")
+        self.setStyleSheet("QTextEdit { color: lightgreen; background: black; border: 0px; }")
         self.setFont(font)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
@@ -121,6 +121,7 @@ class TerminalIO(QtGui.QWidget):
         super(TerminalIO, self).__init__(parent)
         self.ME = self.__class__.__name__
         
+        if phosphor_color == "vintage": color = '#32ea90'
         if phosphor_color == "green": color = "lightgreen"
         if phosphor_color == "amber": color = "gold"
         if phosphor_color == "white": color = "white"
@@ -316,6 +317,7 @@ class TerminalIO(QtGui.QWidget):
         self.port = port
         
     def set_phosphor_color(self, phosphor_color):
+        if phosphor_color == "vintage": color = '#32ea90'
         if phosphor_color == "green": color = "lightgreen"
         if phosphor_color == "amber": color = "gold"
         if phosphor_color == "white": color = "white"
@@ -406,19 +408,23 @@ class TerminalWindow(QtGui.QMainWindow):
         self.options_menu.addSeparator()
         self.reconnect_action = self.options_menu.addAction("Reconnect", self.io.reconnect)
         
+        self.set_phosphor_vintg = self.phosphor_color_menu.addAction("Vintage Green", lambda: self.set_phosphor_color("vintage"))
         self.set_phosphor_green = self.phosphor_color_menu.addAction("Green", lambda: self.set_phosphor_color("green"))
         self.set_phosphor_amber = self.phosphor_color_menu.addAction("Amber", lambda: self.set_phosphor_color("amber"))
         self.set_phosphor_white = self.phosphor_color_menu.addAction("White", lambda: self.set_phosphor_color("white"))
         
         self.phosphor_color_group = QtGui.QActionGroup(self)
+        self.phosphor_color_group.addAction(self.set_phosphor_vintg)
         self.phosphor_color_group.addAction(self.set_phosphor_green)
         self.phosphor_color_group.addAction(self.set_phosphor_amber)
         self.phosphor_color_group.addAction(self.set_phosphor_white)
         
+        self.set_phosphor_vintg.setCheckable(True)
         self.set_phosphor_green.setCheckable(True)
         self.set_phosphor_amber.setCheckable(True)
         self.set_phosphor_white.setCheckable(True)
         
+        self.set_phosphor_vintg.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "vintage")
         self.set_phosphor_green.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "green")
         self.set_phosphor_amber.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "amber")
         self.set_phosphor_white.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "white")
