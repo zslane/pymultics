@@ -1179,25 +1179,47 @@ def get_slope(from_X, from_Y, to_X, to_Y, slope_X, slope_Y):
     if (to_Y < from_Y): slope_Y.val = -1
     elif (to_Y > from_Y): slope_Y.val = 1
     else: slope_Y.val = 0
+
+def got_there_ok(node):
+    if (node.sector[node.SX][node.SY].point[node.PX][node.PY] == ".") or (node.sector[node.SX][node.SY].point[node.PX][node.PY] == BEACON): return
+    while (b'1'):
+        x = mod (clock (), 10) + 1
+        y = mod (clock (), 10) + 1
+        if (node.sector[node.SX][node.SY].point[x][y] == "."):
+            call. ioa_ ("^/***OBSTRUCTION at Sector ^d - ^d, Mark ^d - ^d.", node.SX, node.SY, node.PX, node.PY)
+            call. ioa_.nnl ("Calculating Emergency course change...")
+            node.PX = x
+            node.PY = y
+            return
+        # end if
+    # end while
     
-def update_chart(node):
-    pass
+def allot_flamer_energy(enemy, x, y, energy_tally, node):
+    input = parm("")
+    
+    while (b'1'):
+        call. ioa_.nnl ("> Units against ^a at Mark ^d - ^d: ", enemy, x, y)
+        getline (input)
+        if (input.val == ""): input.val = "NULL"
+        if (verify (input.val, "1234567890") != 0): energy_tally.val = energy_tally.val
+        else:
+            energy_tally.val = decimal (input.val)
+            if (energy_tally.val > node.flamer_energy): call. ioa_ ("^/^5tFlamer energy remaining: ^d units^/", node.flamer_energy)
+            else:
+                node.flamer_energy = node.flamer_energy - energy_tally.val
+                return
+            # end if
+        # end if
+    # end while
     
 def you_lose (reason):
     pass
     
 def H_or_M_present (sx, sy, node):
     return True
-
-def got_there_ok(node):
-    pass
     
 def enemies_present(node):
     return True
-    
-def allot_flamer_energy(type, x, y, energy_tally, node):
-    energy_tally.val = 10
-    pass
     
 def flame_that_sucker(type, where_X, where_Y, allotted_energy, node):
     call. ioa_ ("^a at Mark ^d - ^d (^d energy needed)", type, where_X, where_Y, allotted_energy)
@@ -1227,6 +1249,18 @@ def repair_damage(device, node):
 def yes_no(input):
     pass
     
+def update_chart(node):
+    pass
+    
 def convert_to_real(x):
     return float_(x)
     
+def getline(input_var):
+    include. query_info
+    query_info.version = query_info_version_5
+    query_info.suppress_spacing = True
+    query_info.suppress_name_sw = True
+    # query_info.cp_escape_control = "10"b;
+    
+    call. command_query_ (query_info, input_var, MAIN)
+#-- end def getline

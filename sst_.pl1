@@ -1217,3 +1217,45 @@ get_slope: procedure (from_X, from_Y, to_X, to_Y, slope_X, slope_Y);
           
      end get_slope;
      
+got_there_ok: procedure (nptr);
+
+          dcl     nptr              ptr parm;
+          
+          if (node.sector (node.SX, node.SY).point (node.PX, node.PY) = ".") | (node.sector (node.SX, node.SY).point (node.PX, node.PY) = BEACON) then return;
+          do while ("1"b);
+               x = mod (clock (), 10) + 1;
+               y = mod (clock (), 10) + 1;
+               if (node.sector (node.SX, node.SY).point (x, y) = ".") then do;
+                         call ioa_ ("^/***OBSTRUCTION at Sector ^d - ^d, Mark ^d - ^d.", node.SX, node.SY, node.PX, node.PY);
+                         call ioa_$nnl ("Calculating Emergency course change...");
+                         node.PX = x;
+                         node.PY = y;
+                         return;
+                    end;
+          end;
+          
+     end got_there_ok;
+     
+allot_flamer_energy: procedure (enemy, x, y, energy_tally, nptr);
+
+          dcl     enemy                  char (*) parm;
+          dcl     (x, y, energy_tally)   fixed bin parm;
+          dcl     nptr                   ptr parm;
+          
+          do while ("1"b);
+               call ioa_$nnl ("> Units against ^a at Mark ^d - ^d: ", enemy, x, y);
+               call getline (input);
+               if (input = "") then input = "NULL";
+               if (verify (input, "1234567890") ^= 0) then energy_tally = energy_tally;
+               else do;
+                         energy_tally = decimal (input);
+                         if (energy_tally > node.flamer_energy) then call ioa_ ("^/^5tFlamer energy remaining: ^d units^/", node.flamer_energy);
+                         else do;
+                                   node.flamer_energy = node.flamer_energy - energy_tally;
+                                   return;
+                              end;
+                    end;
+          end;
+          
+     end allot_flamer_energy;
+     
