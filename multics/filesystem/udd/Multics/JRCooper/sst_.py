@@ -1087,7 +1087,99 @@ class sst_(Subroutine):
         
     def signal_for_help(self, scip, node):
         pass
-        
+    
+def calc_move_cost(from_SX, from_SY, from_PX, from_PY, to_SX, to_SY, to_PX, to_PY):
+    energy_cost = fixed.bin . init (0) . local
+
+    energy_cost = abs (from_SX - to_SX) + abs (from_SY - to_SY)
+    energy_cost = round (energy_cost / 2.0, 0) * 100
+    energy_cost = round ((abs (from_PX - to_PX) + abs (from_PY - to_PY)) / 2.0, 0) * 10 + energy_cost
+    return (energy_cost)
+    
+def calc_move_time(from_SX, from_SY, from_PX, from_PY, to_SX, to_SY, to_PX, to_PY):
+    time_cost = fixed.dec (5, 2) . init (0) . local
+
+    time_cost = abs (from_SX - to_SX) + abs (from_SY - to_SY)
+    time_cost = round (time_cost / 4.0, 2)
+    time_cost = time_cost + round ((abs (from_PX - to_PX) + abs (from_PY - to_PY)) / 100.0, 2)
+    return (time_cost)
+
+def get_target_point(from_SX, from_SY, from_PX, from_PY, to_SX, to_SY, tp_X, tp_Y):
+    if (to_SX < from_SX):
+        tp_X.val = 1
+        if (to_SY < from_SY): tp_Y.val = 1
+        elif (to_SY == from_SY): tp_Y.val = from_PY
+        else: tp_Y.val = 10
+    elif (to_SX == from_SX):
+        tp_X.val = from_PX
+        if (to_SY < from_SY): tp_Y.val = 1
+        else: tp_Y.val = 10
+    else:
+        tp_X.val = 10
+        if (to_SY < from_SY): tp_Y.val = 1
+        elif (to_SY == from_SY): tp_Y.val = from_PY
+        else: tp_Y.val = 10
+    # end if
+    
+def move(type, node, to_PX, to_PY):
+    slope_X            = fixed.bin . parm . init (0)
+    slope_Y            = fixed.bin . parm . init (0)
+    original_PX        = fixed.bin . init (0) . local
+    original_PY        = fixed.bin . init (0) . local
+    new_X              = fixed.bin . init (0) . local
+    new_Y              = fixed.bin . init (0) . local
+    Point              = char (1) . init ("") . local
+    blank_line_printed = False
+    
+    node.encamped = False
+    original_PX = node.PX
+    original_PY = node.PY
+    while ((node.PX != to_PX) or (node.PY != to_PY)):
+        get_slope (node.PX, node.PY, to_PX, to_PY, slope_X, slope_Y)
+        new_X = node.PX + slope_X.val
+        new_Y = node.PY + slope_Y.val
+        if (node.sector[node.SX][node.SY].point[new_X][new_Y] == ".") or (node.sector[node.SX][node.SY].point[new_X][new_Y] == BEACON):
+            node.PX = new_X
+            node.PY = new_Y
+            node.sitting_in_rad = False
+        elif (node.sector[node.SX][node.SY].point[new_X][new_Y] == RADIATION):
+            if (not blank_line_printed):
+                call. ioa_ ()
+                blank_line_printed = True
+            # end if
+            call. ioa_.nnl ("***RADIATION at Mark ^d - d.  ", new_X, new_Y)
+            damage_the_trooper ((mode (clock (), 10) + 1), node)
+            node.PX = new_X
+            node.PY = new_Y
+            node.sitting_in_rad = True
+        else:
+            node.jet_energy = node.jet_energy - calc_move_cost (node.SX, node.SY, original_PX, original_PY, node.SX, node.SY, node.PX, node.PY)
+            node.jet_energy = max (0, node.jet_energy - 50)
+            Point = node.sector[node.SX][node.SY].point[new_X][new_Y]
+            if (Point == MOUNTAIN): call. ioa_ ("^/***MOUNTAIN at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type)
+            elif (Point == FORT): call. ioa_ ("^/***FORT at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type)
+            elif (Point == SUPPLY_SHIP): call. ioa_ ("^/***SUPPLY at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type)
+            elif (Point == BREACH): call. ioa_ ("^/***BREACH at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type)
+            elif (Point == ARACHNID): call. ioa_ ("^/***ARACHNID at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type)
+            elif (Point == SKINNY): call. ioa_ ("^/***SKINNY at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type)
+            elif (Point == HEAVY_BEAM): call. ioa_ ("^/***HEAVY BEAM at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type)
+            elif (Point == MISSILE_L): call. ioa_ ("^/***MISSILE-L at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type)
+            node.sector[node.SX][node.SY].point[original_PX][original_PY] = "."
+            node.sector[node.SX][node.SY].point[node.PX][node.PY] = TROOPER
+            call. ioa_ ("^/***LOCUS PROXIMITY: Sector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY)
+            enemy_attack (node)
+            call. ssu_.abort_line (scip, (0))
+        # end if
+    # end while
+     
+def get_slope(from_X, from_Y, to_X, to_Y, slope_X, slope_Y):
+    if (to_X < from_X): slope_X.val = -1
+    elif (to_X > from_X): slope_X.val = 1
+    else: slope_X.val = 0
+    if (to_Y < from_Y): slope_Y.val = -1
+    elif (to_Y > from_Y): slope_Y.val = 1
+    else: slope_Y.val = 0
+    
 def update_chart(node):
     pass
     
@@ -1096,18 +1188,6 @@ def you_lose (reason):
     
 def H_or_M_present (sx, sy, node):
     return True
-    
-def calc_move_cost(sx1, sy1, px1, py1, sx2, sy2, px2, py2):
-    return 0
-    
-def calc_move_time(sx1, sy1, px1, py1, sx2, sy2, px2, py2):
-    return 0
-
-def get_target_point(sx1, sy1, px1, py1, sx2, sy2, px2, py2):
-    pass
-    
-def move(move_type, node, target_PX, target_PY):
-    pass
 
 def got_there_ok(node):
     pass

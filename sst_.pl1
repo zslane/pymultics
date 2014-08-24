@@ -1096,3 +1096,124 @@ self_identify: entry (scip, nptr);
           call ioa_ ("^a ^a", MAIN, sst_data_$version_string);
           return;
           
+calc_move_cost: procedure (from_SX, from_SY, from_PX, from_PY, to_SX, to_SY, to_PX, to_PY) returns (fixed bin);
+
+          dcl     (from_SX, from_SY, from_PX, from_PY) fixed bin parm;
+          dcl     (to_SX, to_SY, to_PX, to_PY) fixed bin parm;
+          dcl     energy_cost            fixed bin init (0);
+          
+          energy_cost = abs (from_SX - to_SX) + abs (from_SY - to_SY);
+          energy_cost = round (energy_cost / 2, 0) * 100;
+          energy_cost = round ((abs (from_PX - to_PX) + abs (from_PY - to_PY)) / 2, 0) * 10 + energy_cost;
+          return (energy_cost);
+          
+     end calc_move_cost;
+     
+calc_move_time: procedure (from_SX, from_SY, from_PX, from_PY, to_SX, to_SY, to_PX, to_PY) returns (fixed dec (5, 2));
+
+          dcl     (from_SX, from_SY, from_PX, from_PY) fixed bin parm;
+          dcl     (to_SX, to_SY, to_PX, to_PY) fixed bin parm;
+          dcl     time_cost              fixed dec (5, 2) init (0);
+          
+          time_cost = abs (from_SX - to_SX) + abs (from_SY - to_SY);
+          time_cost = round (time_cost / 4, 2);
+          time_cost = time_cost + round ((abs (from_PX - to_PX) + abs (from_PY - to_PY)) / 100, 2);
+          return (time_cost);
+          
+     end calc_move_time;
+     
+get_target_point: procedure (from_SX, from_SY, from_PX, from_PY, to_SX, to_SY, tp_X, tp_Y);
+
+          dcl     (from_SX, from_SY, to_SX, to_SY) fixed bin parm;
+          dcl     (from_PX, from_PY, tp_X, tp_Y) fixed bin parm;
+          
+          if (to_SX < from_SX) then do;
+                    tp_X = 1;
+                    if (to_SY < from_SY) then tp_Y = 1;
+                    else if (to_SY = from_SY) then tp_Y = from_PY;
+                    else tp_Y = 10;
+               end;
+          else if (to_SX = from_SX) then do;
+                    tp_X = from_PX;
+                    if (to_SY < from_SY) then tp_Y = 1;
+                    else tp_Y = 10;
+               end;
+          else do;
+                    tp_X = 10;
+                    if (to_SY < from_SY) then tp_Y = 1;
+                    else if (to_SY = from_SY) then tp_Y = from_PY;
+                    else tp_Y = 10;
+               end;
+          
+     end get_target_point;
+     
+move: procedure (type, nptr, to_PX, to_PY);
+
+          dcl     type                   char (*) parm;
+          dcl     nptr                   ptr parm;
+          dcl     (to_PX, to_PY)         fixed bin parm;
+          dcl     (slope_X, slope_Y)     fixed bin init (0);
+          dcl     (original_PX, original_PY) fixed bin init (0);
+          dcl     (new_X, new_Y)         fixed bin init (0);
+          dcl     Point                  char (1) init ("");
+          dcl     blank_line_printed     bit (1) init ("0"b);
+          
+          node.encamped = "0"b;
+          original_PX = node.PX;
+          original_PY = node.PY;
+          do while ((node.PX ^= to_PX) | (node.PY ^= to_PY));
+               call get_slope (node.PX, node.PY, to_PX, to_PY, slope_X, slope_Y);
+               new_X = node.PX + slope_X;
+               new_Y = node.PY + slope_Y;
+               if (node.sector (node.SX, node.SY).point (new_X, new_Y) = ".") | (node.sector (node.SX, node.SY).point (new_X, new_Y) = BEACON) then do;
+                         node.PX = new_X;
+                         node.PY = new_Y;
+                         node.sitting_in_rad = "0"b;
+                    end;
+               else if (node.sector (node.SX, node.SY).point (new_X, new_Y) = RADIATION) then do;
+                         if ^(blank_line_printed) then do;
+                                   call ioa_ ();
+                                   blank_line_printed = "1"b;
+                              end;
+                         call ioa_$nnl ("***RADIATION at Mark ^d - d.  ", new_X, new_Y);
+                         call damage_the_trooper ((mode (clock (), 10) + 1), nptr);
+                         node.PX = new_X;
+                         node.PY = new_Y;
+                         node.sitting_in_rad = "1"b;
+                    end;
+               else do;
+                         node.jet_energy = node.jet_energy - calc_move_cost (node.SX, node.SY, original_PX, original_PY, node.SX, node.SY, node.PX, node.PY);
+                         node.jet_energy = max (0, node.jet_energy - 50);
+                         Point = node.sector (node.SX, node.SY).point (new_X, new_Y);
+                         if (Point = MOUNTAIN) then call ioa_ ("^/***MOUNTAIN at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = FORT) then call ioa_ ("^/***FORT at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = SUPPLY_SHIP) then call ioa_ ("^/***SUPPLY at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = BREACH) then call ioa_ ("^/***BREACH at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = ARACHNID) then call ioa_ ("^/***ARACHNID at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = SKINNY) then call ioa_ ("^/***SKINNY at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = HEAVY_BEAM) then call ioa_ ("^/***HEAVY BEAM at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = MISSILE_L) then call ioa_ ("^/***MISSILE-L at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         node.sector (node.SX, node.SY).point (original_PX, original_PY) = ".";
+                         node.sector (node.SX, node.SY).point (node.PX, node.PY) = TROOPER;
+                         call ioa_ ("^/***LOCUS PROXIMITY: Sector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY);
+                         call enemy_attack (nptr);
+                         call ssu_$abort_line (scip, (0));
+                    end;
+          end;
+          
+     end move;
+     
+get_slope: procedure (from_X, from_Y, to_X, to_Y, slope_X, slope_Y);
+
+          dcl     (from_X, from_Y, to_X, to_Y) fixed bin parm;
+          dcl     (slope_X, slope_Y)     fixed bin parm;
+          
+          if (to_X < from_X) then slope_X = -1;
+          else if (to_X > from_X) then slope_X = 1;
+          else slope_X = 0;
+          if (to_Y < from_Y) then slope_Y = -1;
+          else if (to_Y > from_Y) then slope_Y = 1;
+          else slope_Y = 0;
+          
+     end get_slope;
+     
