@@ -1,7 +1,6 @@
 
 from multics.globals import *
 
-# from sl_info import *
 include.sl_info
 
 SEARCH_PATH_SYMBOLS = [
@@ -11,7 +10,6 @@ SEARCH_PATH_SYMBOLS = [
     "-referencing_dir",
 ]
 
-@system_privileged
 def add_search_path():
     sl_info_ptr = parm()
     arg_list    = parm()

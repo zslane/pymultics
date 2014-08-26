@@ -85,7 +85,12 @@ class OpenFileOp(FileOp):
 class ReadFileOp(FileOp):
     def into(self, input_parm):
         if self.file_obj.type == "stream":
-            input_parm.value = self.file_obj.f.readline().strip()
+            # input_parm.value = self.file_obj.f.readline().strip()
+            s = self.file_obj.f.readline()
+            if s == "":
+                input_parm.value = None
+            else:
+                input_parm.value = s.strip()
         else:
             input_parm.value = self.file_obj.f.read()
         
