@@ -19,6 +19,10 @@ class ProcessOverseer(object):
         super(ProcessOverseer, self).__init__()
         
         self.__running_processes = []
+        self.__system_search_rules = {
+            '':        ["-referencing_dir", "-working_dir", ">sss", ">sss>commands"],
+            'default': ["-referencing_dir", "-working_dir", ">sss", ">sss>commands"],
+        }
         
     @property
     def running_processes(self):
@@ -59,6 +63,12 @@ class ProcessOverseer(object):
             return null()
         # end if
         
+        #== Load the system search rules
+        call.hcs_.initiate(GlobalEnvironment.fs.system_control_dir, "system_search_rules", "", 0, 0, segment, code)
+        if segment.ptr != null():
+            self.__system_search_rules = segment.ptr
+        # end if
+        
         #== Fill the process initialization table structure
         pit = pit_structure()
         pit.login_name   = login_info.person_id
@@ -95,6 +105,7 @@ class ProcessOverseer(object):
         pds = segment.ptr
         
         rnt = rnt_structure()
+        rnt.search_rules = self.__system_search_rules['default']
         
         #== Create the reference name table (RNT)
         call.hcs_.initiate(process_dir.val, "rnt", "", 0, 0, segment, code)

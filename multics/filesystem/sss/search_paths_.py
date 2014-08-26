@@ -20,7 +20,7 @@ class search_paths_(Subroutine):
         
     def _default_search_list(self):
         if self.__default_search_list is None:
-            paths_to_add = ["-working_dir", ">sss", ">sss>commands", "-home_dir"]
+            paths_to_add = [] #["-working_dir", ">sss", ">sss>commands", "-home_dir"]
             self.__default_search_list = alloc(sl_info_p)
             for i in range(len(paths_to_add)):
                 self.__default_search_list.num_paths += 1

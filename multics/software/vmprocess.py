@@ -4,6 +4,8 @@ from ..globals import *
 
 from PySide import QtCore, QtGui
 
+include.sl_info
+
 class ProcessWorker(QtCore.QObject):
 
     PROCESS_TIMER_DURATION = 1.0
@@ -40,6 +42,7 @@ class ProcessWorker(QtCore.QObject):
         try:
             declare (resolve_path_symbol_ = entry . returns (char(168)))
             search_paths = [ p.pathname for p in self.stack.search_seg_ptr.paths[sl_name].paths ]
+            assert search_paths != []
             return filter(None, [ resolve_path_symbol_(p, frame_id) for p in search_paths ])
         except:
             if sl_name == "include":
@@ -51,13 +54,13 @@ class ProcessWorker(QtCore.QObject):
         try:
             declare (resolve_path_symbol_ = entry . returns (char(168)))
             search_paths = [ p.pathname for p in self.stack.search_seg_ptr.paths['object'].paths ]
-            # search_paths = self.__process_env.rnt.search_rules.paths['object'].paths
+            assert search_paths != []
             if GlobalEnvironment.supervisor.is_bound_archive(frame_id):
                 search_paths = ["-bound_archives"] + search_paths
             # end if
             return filter(None, [ resolve_path_symbol_(p, frame_id) for p in search_paths ])
         except:
-            return [">sss", ">sss>commands"]
+            return filter(None, [ resolve_path_symbol_(p, frame_id) for p in self.rnt().search_rules ])
     
     def id(self):
         return self.__process_env.process_id
@@ -174,7 +177,13 @@ class ProcessWorker(QtCore.QObject):
         call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
         
         #== Create default search paths and store them in the process stack
-        call.search_paths_.set("object", null(), null(), code)
+        sl_info_ptr = parm()
+        sl_info_ptr.sl_info = alloc(sl_info_p) # make a fresh sl_info object
+        for rule in self.rnt().search_rules:
+            sl_info_ptr.sl_info.num_paths += 1
+            sl_info_ptr.sl_info.paths[sl_info_ptr.sl_info.num_paths - 1].pathname = rule
+        # end for
+        call.search_paths_.set("object", null(), sl_info_ptr, code)
         call.hcs_.initiate(self.dir(), "search_paths", "", 0, 0, search_seg, code)
         self.stack.search_seg_ptr = search_seg.ptr
     

@@ -1,0 +1,4 @@
+referencing_dir, default
+working_dir,     default
+>sss,            default, system_libraries
+>sss>commands,   default, system_libraries

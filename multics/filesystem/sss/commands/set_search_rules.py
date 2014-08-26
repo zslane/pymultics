@@ -22,7 +22,7 @@ def set_search_rules():
     rule_list   = []
     
     system_search_rules = _get_system_search_rules()
-    site_defined_keywords = system_search_rules.keys()
+    # site_defined_keywords = filter(None, system_search_rules.keys())
     
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) == 0:
@@ -51,30 +51,58 @@ def set_search_rules():
     # end if
     
     if rule_list == []:
-        max_rules = 21
-        PL1.open.file(rules_file).title(vfile_(full_path.val)).stream.input
-        while max_rules:
-            PL1.read.file(rules_file).into(rule)
-            if rule.val == null():
-                break
-            elif rule.val != "":
-                if rule.val in site_defined_keywords:
-                    keyword_rules = system_search_rules[rule.val]
-                    rule_list.extend(keyword_rules[:max_rules])
-                    max_rules = max(0, max_rules - len(keyword_rules))
-                else:
-                    rule_list.append(rule.val)
-                    max_rules -= 1
-                # end if
-            # end if
-        # end while
-        PL1.close.file(rules_file)
+        # max_rules = 21
+        # PL1.open.file(rules_file).title(vfile_(full_path.val)).stream.input
+        # while max_rules:
+            # PL1.read.file(rules_file).into(rule)
+            # if rule.val == null():
+                # break
+            # elif rule.val != "":
+                # if rule.val in site_defined_keywords:
+                    # keyword_rules = system_search_rules[rule.val]
+                    # rule_list.extend(keyword_rules[:max_rules])
+                    # max_rules = max(0, max_rules - len(keyword_rules))
+                # else:
+                    # rule_list.append(rule.val)
+                    # max_rules -= 1
+                # # end if
+            # # end if
+        # # end while
+        # PL1.close.file(rules_file)
+        rules_list = _read_rules_file(full_path.val, system_search_rules)
     # end if
     
     for rule in rule_list:
         _add_rule(rule, sl_info_ptr, code)
     
 ssr = set_search_rules
+
+def _read_rules_file(rules_path, system_search_rules):
+    rules_file  = PL1.File()
+    rule        = parm()
+    
+    site_defined_keywords = filter(None, system_search_rules.keys())
+    
+    rules_list = []
+    max_rules = 21
+    PL1.open.file(rules_file).title(vfile_(rules_path)).stream.input
+    while max_rules:
+        PL1.read.file(rules_file).into(rule)
+        if rule.val == null():
+            break
+        elif rule.val != "":
+            if rule.val in site_defined_keywords:
+                keyword_rules = system_search_rules[rule.val]
+                rule_list.extend(keyword_rules[:max_rules])
+                max_rules = max(0, max_rules - len(keyword_rules))
+            else:
+                rule_list.append(rule.val)
+                max_rules -= 1
+            # end if
+        # end if
+    # end while
+    PL1.close.file(rules_file)
+    return rules_list
 
 def _add_rule(rule, sl_info_ptr, code):
     if rule not in SEARCH_PATH_SYMBOLS:
@@ -93,23 +121,27 @@ def _add_rule(rule, sl_info_ptr, code):
         call.ioa_("Invalid path ^a", rule)
 
 def _get_system_search_rules():
-    rules_table = [
-        ("referencing_dir", "default"),
-        ("working_dir",     "default"),
-        (">sss",            "default", "system_libraries"),
-        (">sss>commands",   "default", "system_libraries"),
-    ]
+    process = get_calling_process_()
+    return process.rnt().search_rules
+
+    # rules_table = [
+        # ("referencing_dir", "default"),
+        # ("working_dir",     "default"),
+        # (">sss",            "default", "system_libraries"),
+        # (">sss>commands",   "default", "system_libraries"),
+    # ]
     
-    rules_dict = {}
-    for rule in rules_table:
-        path = rule[0]
-        site_defined_keywords = rule[1:]
-        for keyword in site_defined_keywords:
-            if keyword not in rules_dict:
-                rules_dict[keyword] = []
-            # end if
-            rules_dict[keyword].append(path)
-        # end for
-    # end for
-    return rules_dict
+    # rules_dict = {'':[]}
+    # for rule in rules_table:
+        # path = rule[0]
+        # rules_dict[''].append(path)
+        # site_defined_keywords = rule[1:]
+        # for keyword in site_defined_keywords:
+            # if keyword not in rules_dict:
+                # rules_dict[keyword] = []
+            # # end if
+            # rules_dict[keyword].append(path)
+        # # end for
+    # # end for
+    # return rules_dict
     
