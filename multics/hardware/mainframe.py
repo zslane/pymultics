@@ -530,6 +530,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             entryname = entryname or archive_name
             if (entryname + ".py") not in name_list:
                 # print entryname + ".py", "not found in archive"
+                # print name_list
                 archive.close()
                 raise LinkageError(archive_name, entryname)
             # end if
@@ -539,7 +540,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
             if not os.path.isdir(pdir):
                 os.makedirs(pdir)
             # end if
-                
+            
             # print "Found", entryname + ".py", "in archive. Extracting contents to", pdir, "..."
             archive.extractall(pdir)
             archive.close()

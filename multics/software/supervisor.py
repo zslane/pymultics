@@ -836,7 +836,7 @@ class DynamicLinker(QtCore.QObject):
                 # print module_path
                 if self.__filesystem.file_exists(module_path):
                     #== If module_path isn't a bound archive, this is a NOP
-                    module_path = self.__filesystem.unpack_bound_archive(entryname, module_path)
+                    module_path = self.__filesystem.unpack_bound_archive(entryname or segment_name, module_path)
                     # print module_path
                     try:
                         module = self._load_python_code(segment_name, module_path)

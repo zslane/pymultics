@@ -25,6 +25,8 @@ class hcs_(Subroutine):
                 # end try
                 path = GlobalEnvironment.fs.merge_path(current_dir, segment_name)
             dir_name, entryname = GlobalEnvironment.fs.split_path(path)
+            #== This is so we don't lose track of the actual name of the command the user typed
+            #== in the event it is embedded in a bound archive that is named something else
             if GlobalEnvironment.fs.is_archive(path):
                 _, segment_name = GlobalEnvironment.fs.split_path(segment_name)
                 entryname = entryname + '$' + segment_name
