@@ -736,7 +736,7 @@ class sst_(Subroutine):
         # end if
         if I_want_to_see[PRISONER_SCORE]:
             if (node.score.prisoners_rescued > 0): call. ioa_ ("^3x^d Prisoners rescued^40t^d", node.score.prisoners_rescued, calc_score (node, "prisoners"))
-            elif (not all_switch): call. ioa_ ("No Arachnid warriors destroyed.")
+            elif (not all_switch): call. ioa_ ("No Prisoners rescued.")
         # end if
         if I_want_to_see[MOUNTAIN_SCORE]:
             if (node.score.mountains_Xed > 0): call. ioa_ ("^3x^d Mountains destroyed^40t^d", node.score.mountains_Xed, calc_score (node, "mountains"))

@@ -735,7 +735,7 @@ score: entry (scip, nptr);
                end;
           if I_want_to_see (PRISONER_SCORE) then do;
                     if (node.score.prisoners_rescued > 0) then call ioa_ ("^3x^d Prisoners rescued^40t^d", node.score.prisoners_rescued, calc_score (nptr, "prisoners"));
-                    else if ^(all_switch) then call ioa_ ("No Arachnid warriors destroyed.");
+                    else if ^(all_switch) then call ioa_ ("No Prisoners rescued.");
                end;
           if I_want_to_see (MOUNTAIN_SCORE) then do;
                     if (node.score.mountains_Xed > 0) then call ioa_ ("^3x^d Mountains destroyed^40t^d", node.score.mountains_Xed, calc_score (nptr, "mountains"));
