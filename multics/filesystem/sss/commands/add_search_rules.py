@@ -42,13 +42,15 @@ def add_search_rules():
                 new_path = "-" + new_path
             # end if
             
-            if len(arg_list.args) > 1:
+            if arg_list.args and arg_list.args[0].startswith("-"):
+                if len(arg_list.args) == 1:
+                    _show_usage()
+                    return
+                
                 insert_where = _process_ctrl_arg(sl_info_ptr, arg_list.args)
                 if insert_where == -1:
+                    #== Error message printed by _process_ctrl_arg()
                     return
-            elif len(arg_list.args) == 1:
-                _show_usage()
-                return
             else:
                 insert_where = len(sl_info_ptr.sl_info.paths) # append to end by default
                 
