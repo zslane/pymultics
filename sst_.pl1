@@ -1406,3 +1406,144 @@ launch_it: procedure (weapon, tx, ty, bombNo, nptr);
           
      end launch_it;
      
+flame_that_sucker: procedure (enemy, x, y, energy_tally, nptr);
+
+          dcl     enemy                  char (*) parm;
+          dcl     nptr                   ptr parm;
+          dcl     (x, y, energy_tally)   fixed bin parm;
+          dcl     edex                   fixed bin init (0);
+          
+          if (energy_tally = 0) then return;
+          edex = index_enemy (node.SX, node.SY, x, y, nptr);
+          if (enemy = "Arachnid") then do;
+                    node.Arachnid (edex).life_pts = max (0, node.Arachnid (edex).life_pts - energy_tally);
+                    if (node.Arachnid (edex).life_pts > 0) then do;
+                              call ioa_ ("***ARACHNID at Mark ^d - ^d disrupted.", x, y);
+                              return;
+                         end;
+                    call ioa_ ("***ARACHNID at Mark ^d - ^d destroyed.", x, y);
+                    call mark_off_enemy (enemy, edex, nptr);
+               end;
+          else if (enemy = "Skinny") then do;
+                    node.Skinny (edex).life_pts = max (0, node.Skinny (edex).life_pts - energy_tally);
+                    if (node.Skinny (edex).life_pts > 0) then do;
+                              call ioa_ ("***SKINNY at Mark ^d - ^d disrupted.", x, y);
+                              return;
+                         end;
+                    call ioa_ ("***SKINNY at Mark ^d - ^d destroyed.", x, y);
+                    call mark_off_enemy (enemy, edex, nptr);
+               end;
+          else if (enemy = "Heavy Beam") then do;
+                    node.Heavy_beam (edex).life_pts = max (0, node.Heavy_beam (edex).life_pts - energy_tally);
+                    if (node.Heavy_beam (edex).life_pts > 0) then do;
+                              call ioa_ ("***HEAVY BEAM at Mark ^d - ^d disrupted.", x, y);
+                              return;
+                         end;
+                    call ioa_ ("***HEAVY BEAM at Mark ^d - ^d destroyed.", x, y);
+                    call mark_off_enemy (enemy, edex, nptr);
+               end;
+          else do;
+                    node.Missile_l (edex).life_pts = max (0, node.Missile_l (edex).life_pts - energy_tally);
+                    if (node.Missile_l (edex).life_pts > 0) then do;
+                              call ioa_ ("***MISSILE-L at Mark ^d - ^d disrupted.", x, y);
+                              return;
+                         end;
+                    call ioa_ ("***MISSILE-L at Mark ^d - ^d destroyed.", x, y);
+                    call mark_off_enemy (enemy, edex, nptr);
+               end;
+               
+     end flame_that_sucker;
+     
+index_enemy: procedure (sx, sy, px, py, nptr) returns (fixed bin);
+
+          dcl     (sx, sy, px, py)       fixed bin parm;
+          dcl     nptr                   ptr parm;
+          
+          do a = 1 to node.arachnidT;
+               if (node.Arachnid (a).SX = sx) & (node.Arachnid (a).SY = sy) & (node.Arachnid (a).PX = px) & (node.Arachnid (a).PY = py) then return (a);
+          end;
+          do a = 1 to node.skinnyT;
+               if (node.Skinny (a).SX = sx) & (node.Skinny (a).SY = sy) & (node.Skinny (a).PX = px) & (node.Skinny (a).PY = py) then return (a);
+          end;
+          do a = 1 to node.heavy_beamT;
+               if (node.Heavy_beam (a).SX = sx) & (node.Heavy_beam (a).SY = sy) & (node.Heavy_beam (a).PX = px) & (node.Heavy_beam (a).PY = py) then return (a);
+          end;
+          do a = 1 to node.missile_lT;
+               if (node.Missile_l (a).SX = sx) & (node.Missile_l (a).SY = sy) & (node.Missile_l (a).PX = px) & (node.Missile_l (a).PY = py) then return (a);
+          end;
+          return (0);
+          
+     end index_enemy;
+     
+enemies_present: procedure (nptr) returns (bit (1));
+
+          dcl     TRUE                   bit (1) init ("1"b);
+          dcl     FALSE                  bit (1) init ("0"b);
+          dcl     nptr                   ptr parm;
+          dcl     x                      fixed bin init (0);
+          
+          do x = 1 to node.arachnidT;
+               if (node.Arachnid (x).SX = node.SX) & (node.Arachnid (x).SY = node.SY) then return (TRUE);
+          end;
+          do x = 1 to node.skinnyT;
+               if (node.Skinny (x).SX = node.SX) & (node.Skinny (x).SY = node.SY) then return (TRUE);
+          end;
+          do x = 1 to node.heavy_beamT;
+               if (node.Heavy_beam (x).SX = node.SX) & (node.Heavy_beam (x).SY = node.SY) then return (TRUE);
+          end;
+          do x = 1 to node.missile_lT;
+               if (node.Missile_l (x).SX = node.SX) & (node.Missile_l (x).SY = node.SY) then return (TRUE);
+          end;
+          return (FALSE);
+          
+     end enemies_present;
+     
+mark_off_enemy: procedure (enemy, edex, nptr);
+
+          dcl     enemy                  char (*) parm;
+          dcl     edex                   fixed bin parm;
+          dcl     nptr                   ptr parm;
+          
+          if (enemy = "Arachnid") then do;
+                    node.sector (node.Arachnid (edex).SX, node.Arachnid (edex).SY).arachnidN = node.sector (node.Arachnid (edex).SX, node.Arachnid (edex).SY).arachnidN - 1;
+                    node.sector (node.Arachnid (edex).SX, node.Arachnid (edex).SY).point (node.Arachnid (edex).PX, node.Arachnid (edex).PY) = ".";
+                    node.Arachnid (edex).SX = 0;
+                    node.Arachnid (edex).SY = 0;
+                    node.Arachnid (edex).PX = 0;
+                    node.Arachnid (edex).PY = 0;
+                    node.score.arachnids_Xed = node.score.arachnids_Xed + 1;
+                    node.time_left = node.time_left + .4;
+               end;
+          else if (enemy = "Skinny") then do;
+                    node.sector (node.Skinny (edex).SX, node.Skinny (edex).SY).skinnyN = node.sector (node.Skinny (edex).SX, node.Skinny (edex).SY).skinnyN - 1;
+                    node.sector (node.Skinny (edex).SX, node.Skinny (edex).SY).point (node.Skinny (edex).PX, node.Skinny (edex).PY) = ".";
+                    node.Skinny (edex).SX = 0;
+                    node.Skinny (edex).SY = 0;
+                    node.Skinny (edex).PX = 0;
+                    node.Skinny (edex).PY = 0;
+                    node.score.skinnies_Xed = node.score.skinnies_Xed + 1;
+                    node.time_left = node.time_left + .2;
+               end;
+          else if (enemy = "Heavy Beam") then do;
+                    node.sector (node.Heavy_beam (edex).SX, node.Heavy_beam (edex).SY).arachnidN = node.sector (node.Heavy_beam (edex).SX, node.Heavy_beam (edex).SY).arachnidN - 1;
+                    node.sector (node.Heavy_beam (edex).SX, node.Heavy_beam (edex).SY).point (node.Heavy_beam (edex).PX, node.Heavy_beam (edex).PY) = ".";
+                    node.Heavy_beam (edex).SX = 0;
+                    node.Heavy_beam (edex).SY = 0;
+                    node.Heavy_beam (edex).PX = 0;
+                    node.Heavy_beam (edex).PY = 0;
+                    node.score.heavy_beams_Xed = node.score.heavy_beams_Xed + 1;
+                    node.time_left = node.time_left + .6;
+               end;
+          else do;
+                    node.sector (node.Missile_l (edex).SX, node.Missile_l (edex).SY).skinnyN = node.sector (node.Missile_l (edex).SX, node.Missile_l (edex).SY).skinnyN - 1;
+                    node.sector (node.Missile_l (edex).SX, node.Missile_l (edex).SY).point (node.Missile_l (edex).PX, node.Missile_l (edex).PY) = ".";
+                    node.Missile_l (edex).SX = 0;
+                    node.Missile_l (edex).SY = 0;
+                    node.Missile_l (edex).PX = 0;
+                    node.Missile_l (edex).PY = 0;
+                    node.score.missile_ls_Xed = node.score.missile_ls_Xed + 1;
+                    node.time_left = node.time_left + .5;
+               end;
+               
+     end mark_off_enemy;
+     

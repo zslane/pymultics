@@ -558,7 +558,7 @@ class sst_(Subroutine):
             return
         # end if
         get_target_point (node.SX, node.SY, node.PX, node.PY, target_SX, target_SY, target_PX, target_PY)
-        move ("Flight", node, target_PX.val, target_PY.val)
+        move (scip, "Flight", node, target_PX.val, target_PY.val)
         node.SX = target_SX
         node.SY = target_SY
         node.PX = real_target_PX
@@ -603,7 +603,7 @@ class sst_(Subroutine):
         # end if
         original_PX = node.PX
         original_PY = node.PY
-        move ("Jump", node, target_PX, target_PY)
+        move (scip, "Jump", node, target_PX, target_PY)
         node.PX = target_PX
         node.PY = target_PY
         node.time_left = node.time_left - calc_move_time (node.SX, node.SY, original_PX, original_PY, node.SX, node.SY, node.PX, node.PY)
@@ -1121,7 +1121,7 @@ def get_target_point(from_SX, from_SY, from_PX, from_PY, to_SX, to_SY, tp_X, tp_
         else: tp_Y.val = 10
     # end if
     
-def move(type, node, to_PX, to_PY):
+def move(scip, type, node, to_PX, to_PY):
     slope_X            = fixed.bin . parm . init (0)
     slope_Y            = fixed.bin . parm . init (0)
     original_PX        = fixed.bin . init (0) . local
@@ -1171,7 +1171,7 @@ def move(type, node, to_PX, to_PY):
             call. ssu_.abort_line (scip, (0))
         # end if
     # end while
-     
+    
 def get_slope(from_X, from_Y, to_X, to_Y, slope_X, slope_Y):
     if (to_X < from_X): slope_X.val = -1
     elif (to_X > from_X): slope_X.val = 1
@@ -1235,9 +1235,9 @@ def get_target_for_bomb(tx, ty, num):
         break
 
 def launch_it(weapon, tx, ty, bombNo, node):
-    slope_x = parm()
-    slope_y = parm()
-    output_count = 0
+    slope_x         = parm()
+    slope_y         = parm()
+    output_count    = 0
     x_is_fractional = False
     
     if (tx == node.PX) and (ty == node.PY):
@@ -1334,20 +1334,114 @@ def launch_it(weapon, tx, ty, bombNo, node):
             return
         elif (Point == ".") or (Point == BREACH) or (Point == BEACON) or (Point == FORT) or (Point == RADIATION): call. ioa_.nnl (", ")
         if (output_count == 6): call. ioa_.nnl ("^/^17x")
+    # end while
     
-def you_lose (reason):
-    pass
-    
-def H_or_M_present (sx, sy, node):
-    return True
+def flame_that_sucker(enemy, x, y, energy_tally, node):
+    if (energy_tally == 0): return
+    edex = index_enemy (node.SX, node.SY, x, y, node)
+    if (enemy == "Arachnid"):
+        node.Arachnid[edex].life_pts = max (0, node.Arachnid[edex].life_pts - energy_tally)
+        if (node.Arachnid[edex].life_pts > 0):
+            call. ioa_ ("***ARACHNID at Mark ^d - ^d disrupted.", x, y)
+            return
+        # end if
+        call. ioa_ ("***ARACHNID at Mark ^d - ^d destroyed.", x, y)
+        mark_off_enemy (enemy, edex, node)
+    elif (enemy == "Skinny"):
+        node.Skinny[edex].life_pts = max (0, node.Skinny[edex].life_pts - energy_tally)
+        if (node.Skinny[edex].life_pts > 0):
+            call. ioa_ ("***SKINNY at Mark ^d - ^d disrupted.", x, y)
+            return
+        # end if
+        call. ioa_ ("***SKINNY at Mark ^d - ^d destroyed.", x, y)
+        mark_off_enemy (enemy, edex, node)
+    elif (enemy == "Heavy Beam"):
+        node.Heavy_beam[edex].life_pts = max (0, node.Heavy_beam[edex].life_pts - energy_tally)
+        if (node.Heavy_beam[edex].life_pts > 0):
+            call. ioa_ ("***HEAVY BEAM at Mark ^d - ^d disrupted.", x, y)
+            return
+        # end if
+        call. ioa_ ("***HEAVY BEAM at Mark ^d - ^d destroyed.", x, y)
+        mark_off_enemy (enemy, edex, node)
+    else:
+        node.Missile_l[edex].life_pts = max (0, node.Missile_l[edex].life_pts - energy_tally)
+        if (node.Missile_l[edex].life_pts > 0):
+            call. ioa_ ("***MISSILE-L at Mark ^d - ^d disrupted.", x, y)
+            return
+        # end if
+        call. ioa_ ("***MISSILE-L at Mark ^d - ^d destroyed.", x, y)
+        mark_off_enemy (enemy, edex, node)
+    # end if
+
+def index_enemy(sx, sy, px, py, node):
+    for a in do_range(1, node.arachnidT):
+        if (node.Arachnid[a].SX == sx) and (node.Arachnid[a].SY == sy) and (node.Arachnid[a].PX == px) and (node.Arachnid[a].PY == py): return a
+    # end for
+    for a in do_range(1, node.skinnyT):
+        if (node.Skinny[a].SX == sx) and (node.Skinny[a].SY == sy) and (node.Skinny[a].PX == px) and (node.Skinny[a].PY == py): return a
+    # end for
+    for a in do_range(1, node.heavy_beamT):
+        if (node.Heavy_beam[a].SX == sx) and (node.Heavy_beam[a].SY == sy) and (node.Heavy_beam[a].PX == px) and (node.Heavy_beam[a].PY == py): return a
+    # end for
+    for a in do_range(1, node.missile_lT):
+        if (node.Missile_l[a].SX == sx) and (node.Missile_l[a].SY == sy) and (node.Missile_l[a].PX == px) and (node.Missile_l[a].PY == py): return a
+    # end for
+    return (0)
     
 def enemies_present(node):
-    return True
+    for x in do_range(1, node.arachnidT):
+        if (node.Arachnid[x].SX == node.SX) and (node.Arachnid[x].SY == node.SY): return (True)
+    # end for
+    for x in do_range(1, node.skinnyT):
+        if (node.Skinny[x].SX == node.SX) and (node.Skinny[x].SY == node.SY): return (True)
+    # end for
+    for x in do_range(1, node.heavy_beamT):
+        if (node.Heavy_beam[x].SX == node.SX) and (node.Heavy_beam[x].SY == node.SY): return (True)
+    # end for
+    for x in do_range(1, node.missile_lT):
+        if (node.Missile_l[x].SX == node.SX) and (node.Missile_l[x].SY == node.SY): return (True)
+    # end for
+    return (False)
     
-def flame_that_sucker(type, where_X, where_Y, allotted_energy, node):
-    call. ioa_ ("^a at Mark ^d - ^d (^d energy applied)", type, where_X, where_Y, allotted_energy)
-    pass
-    
+def mark_off_enemy(enemy, edex, node):
+    if (enemy == "Arachnid"):
+        node.sector[node.Arachnid[edex].SX][node.Arachnid[edex].SY].arachnidN = node.sector[node.Arachnid[edex].SX][node.Arachnid[edex].SY].arachnidN - 1
+        node.sector[node.Arachnid[edex].SX][node.Arachnid[edex].SY].point[node.Arachnid[edex].PX][node.Arachnid[edex].PY] = "."
+        node.Arachnid[edex].SX = 0
+        node.Arachnid[edex].SY = 0
+        node.Arachnid[edex].PX = 0
+        node.Arachnid[edex].PY = 0
+        node.score.arachnids_Xed = node.score.arachnids_Xed + 1
+        node.time_left = node.time_left + .4
+    elif (enemy == "Skinny"):
+        node.sector[node.Skinny[edex].SX][node.Skinny[edex].SY].skinnyN = node.sector[node.Skinny[edex].SX][node.Skinny[edex].SY].skinnyN - 1
+        node.sector[node.Skinny[edex].SX][node.Skinny[edex].SY].point[node.Skinny[edex].PX][node.Skinny[edex].PY] = "."
+        node.Skinny[edex].SX = 0
+        node.Skinny[edex].SY = 0
+        node.Skinny[edex].PX = 0
+        node.Skinny[edex].PY = 0
+        node.score.skinnies_Xed = node.score.skinnies_Xed + 1
+        node.time_left = node.time_left + .2
+    elif (enemy == "Heavy Beam"):
+        node.sector[node.Heavy_beam[edex].SX][node.Heavy_beam[edex].SY].arachnidN = node.sector[node.Heavy_beam[edex].SX][node.Heavy_beam[edex].SY].arachnidN - 1
+        node.sector[node.Heavy_beam[edex].SX][node.Heavy_beam[edex].SY].point[node.Heavy_beam[edex].PX][node.Heavy_beam[edex].PY] = "."
+        node.Heavy_beam[edex].SX = 0
+        node.Heavy_beam[edex].SY = 0
+        node.Heavy_beam[edex].PX = 0
+        node.Heavy_beam[edex].PY = 0
+        node.score.heavy_beams_Xed = node.score.heavy_beams_Xed + 1
+        node.time_left = node.time_left + .6
+    else:
+        node.sector[node.Missile_l[edex].SX][node.Missile_l[edex].SY].skinnyN = node.sector[node.Missile_l[edex].SX][node.Missile_l[edex].SY].skinnyN - 1
+        node.sector[node.Missile_l[edex].SX][node.Missile_l[edex].SY].point[node.Missile_l[edex].PX][node.Missile_l[edex].PY] = "."
+        node.Missile_l[edex].SX = 0
+        node.Missile_l[edex].SY = 0
+        node.Missile_l[edex].PX = 0
+        node.Missile_l[edex].PY = 0
+        node.score.missile_ls_Xed = node.score.missile_ls_Xed + 1
+        node.time_left = node.time_left + .5
+    # end if
+
 def enemy_attack(node):
     pass
     
@@ -1368,6 +1462,12 @@ def yes_no(input):
     
 def update_chart(node):
     pass
+    
+def you_lose (reason):
+    pass
+    
+def H_or_M_present (sx, sy, node):
+    return True
     
 def convert_to_real(x):
     return float_(x)
