@@ -56,7 +56,7 @@ def list_():
             if not segment_name.endswith(SPECIAL_EXTENSIONS):
                 call.hcs_.get_segment_length(dir_to_list.name, segment_name, seglen, code)
                 seglen.val = (seglen.val // 1024) + (1 if seglen.val % 1024 else 0) #max(1, seglen.val / 1024)
-                acl = "rew" if segment_name.endswith((".py", ".pyo")) else "rw"
+                acl = _get_acl(dir_to_list.name, segment_name)
             # end if
             segment_lengths[segment_name] = seglen.val
             segment_acl[segment_name] = acl
@@ -94,7 +94,18 @@ def list_():
         call.ioa_()
         
 #-- end def list_
-    
+
+def _get_acl(dir_name, segment_name):
+    if GlobalEnvironment.fs.is_archive(dir_name + ">" + segment_name) and not segment_name.endswith(".archive"):
+        #== Bound archives
+        return "re"
+    elif segment_name.endswith((".py", ".pyo")):
+        #== Python scripts
+        return "rew"
+    else:
+        #== Everything else
+        return "r w"
+        
 def _sift_add_names(name_list, file_list):
     add_names = defaultdict(list)
     for fname in file_list[:]:
