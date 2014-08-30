@@ -1442,8 +1442,84 @@ def mark_off_enemy(enemy, edex, node):
         node.time_left = node.time_left + .5
     # end if
 
+def chain_reaction(pos_x, pos_y, node):
+    EOEX        = [0] * (5+1)
+    EOEY        = [0] * (5+1)
+    cloud_range = 0
+    
+    if (pos_x - 1 > 0):
+        cloud_range = 1
+        EOEX[cloud_range] = pos_x - 1
+        EOEY[cloud_range] = pos_y
+    # end if
+    for x in do_range(pos_y - 1, pos_y + 1):
+        if (x > 0) and (x < 11):
+            cloud_range = cloud_range + 1
+            EOEX[cloud_range] = pos_x
+            EOEY[cloud_range] = x
+        # end if
+    # end for
+    if (pos_x + 1 < 11):
+        cloud_range = cloud_range + 1
+        EOEX[cloud_range] = pos_x + 1
+        EOEY[cloud_range] = pos_y
+    # end if
+    for x in do_range(1, cloud_range):
+        Point = node.sector[node.SX][node.SY].point[EOEX[x]][EOEY[x]]
+        if (Point == ARACHNID): flame_that_sucker ("Arachnid", EOEX[x], EOEY[x], 1000, node)
+        elif (Point == SKINNY): flame_that_sucker ("Skinny", EOEX[x], EOEY[x], 1000, node)
+        elif (Point == HEAVY_BEAM): flame_that_sucker ("Heavy Beam", EOEX[x], EOEY[x], 1000, node)
+        elif (Point == MISSILE_L): flame_that_sucker ("Missile-L", EOEX[x], EOEY[x], 1000, node)
+        elif (Point == MOUNTAIN):
+            call. ioa_ ("***MOUNTAIN at Mark ^d - ^d destroyed.", EOEX[x], EOEY[x])
+            node.score.mountains_Xed = node.score.mountains_Xed + 1
+        elif (Point == SUPPLY_SHIP):
+            call. ioa_ ("***SUPPLY SHIP at Mark ^d - ^d destroyed.", EOEX[x], EOEY[x])
+            node.score.supplies_Xed = node.score.supplies_Xed + 1
+        elif (Point == TROOPER):
+            call. ioa_.nnl ("***EXPLOSION at Mark ^d - ^d:^33t", EOEX[x], EOEY[x])
+            damage_the_trooper ((mod (clock (), 10) + 1), node)
+            node.was_in_rad = True
+            node.sitting_in_rad = True
+        # end if
+        if (Point != TROOPER): node.sector[node.SX][node.SY].point[EOEX[x]][EOEY[x]] = RADIATION
+    # end for
+    node.sector[node.SX][node.SY].radiation = "R"
+    
 def enemy_attack(node):
-    pass
+    blank_line_printed = False
+    
+    for x in do_range(1, 10):
+        for y in do_range(1, 10):
+            BLAST = 0
+            Point = node.sector[node.SX][node.SY].point[x][y]
+            if (Point == ARACHNID):
+                edex = index_enemy (node.SX, node.SY, x, y, node)
+                BLAST = round (node.Arachnid[edex].life_pts / 100, 0)
+                enemy = "ARACHNID"
+            elif (Point == SKINNY):
+                edex = index_enemy (node.SX, node.SY, x, y, node)
+                BLAST = round (node.Skinny[edex].life_pts / 100, 0)
+                enemy = "SKINNY"
+            elif (Point == HEAVY_BEAM):
+                edex = index_enemy (node.SX, node.SY, x, y, node)
+                BLAST = round (node.Heavy_beam[edex].life_pts / 100, 0)
+                enemy = "HEAVY BEAM"
+            elif (Point == MISSILE_L):
+                edex = index_enemy (node.SX, node.SY, x, y, node)
+                BLAST = round (node.Missile_l[edex].life_pts / 100, 0)
+                enemy = "MISSILE-L"
+            # end if
+            if (BLAST > 0):
+                if (not blank_line_printed):
+                    blank_line_printed = True
+                    call. ioa_ ()
+                # end if
+                call. ioa_.nnl ("***^a at Mark ^d - ^d:^33t", enemy, x, y)
+                damage_the_trooper (BLAST, node)
+            # end if
+        # end for
+    # end for
     
 def attack_supply_ships(node):
     pass

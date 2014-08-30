@@ -1547,3 +1547,100 @@ mark_off_enemy: procedure (enemy, edex, nptr);
                
      end mark_off_enemy;
      
+chain_reaction: procedure (pos_x, pos_y, nptr);
+
+          dcl     (pos_x, pos_y)         fixed bin parm;
+          dcl     nptr                   ptr parm;
+          dcl     (x, y)                 fixed bin init (0);
+          dcl     (EOEX, EOEY)           (5) fixed bin init ((5) (0));
+          dcl     cloud_range            fixed bin init (0);
+          dcl     Point                  char (1) init ("");
+          
+          if (pos_x - 1 > 0) then do;
+                    cloud_range = 1;
+                    EOEX (cloud_range) = pos_x - 1;
+                    EOEY (cloud_range) = pos_y;
+               end;
+          do x = (pos_y - 1) to (pos_y + 1);
+               if (x > 0) & (x < 11) then do;
+                         cloud_range = cloud_range + 1;
+                         EOEX (cloud_range) = pos_x;
+                         EOEY (cloud_range) = x;
+                    end;
+          end;
+          if (pos_x + 1 < 11) then do;
+                    cloud_range = cloud_range + 1;
+                    EOEX (cloud_range) = pos_x + 1;
+                    EOEY (cloud_range) = pos_y;
+               end;
+          do x = 1 to cloud_range;
+               Point = node.sector (node.SX, node.SY).point (EOEX (x), EOEY (x));
+               if (Point = ARACHNID) then call flame_that_sucker ("Arachnid", EOEX (x), EOEY (x), 1000, nptr);
+               else if (Point = SKINNY) then  call flame_that_sucker ("Skinny", EOEX (x), EOEY (x), 1000, nptr);
+               else if (Point = HEAVY_BEAM) then  call flame_that_sucker ("Heavy Beam", EOEX (x), EOEY (x), 1000, nptr);
+               else if (Point = MISSILE_L) then  call flame_that_sucker ("Missile-L", EOEX (x), EOEY (x), 1000, nptr);
+               else if (Point = MOUNTAIN) then do;
+                         call ioa_ ("***MOUNTAIN at Mark ^d - ^d destroyed.", EOEX (x), EOEY (x));
+                         node.score.mountains_Xed = node.score.mountains_Xed + 1;
+                    end;
+               else if (Point = SUPPLY_SHIP) then do;
+                         call ioa_ ("***SUPPLY SHIP at Mark ^d - ^d destroyed.", EOEX (x), EOEY (x));
+                         node.score.supplies_Xed = node.score.supplies_Xed + 1;
+                    end;
+               else if (Point = TROOPER) then do;
+                         call ioa_$nnl ("***EXPLOSION at Mark ^d - ^d:^33t", EOEX (x), EOEY (x));
+                         call damage_the_trooper ((mod (clock (), 10) + 1), nptr);
+                         node.was_in_rad = "1"b;
+                         node.sitting_in_rad = "1"b;
+                    end;
+               if (Point ^= TROOPER) then node.sector (node.SX, node.SY).point (EOEX (x), EOEY (x)) = RADIATION;
+          end;
+          node.sector (node.SX, node.SY).radiation = "R";
+          
+     end chain_reaction;
+     
+enemy_attack: procedure (nptr);
+
+          dcl     nptr                   ptr parm;
+          dcl     (x, y, z, edex, BLAST) fixed bin init (0);
+          dcl     Point                  char (1) init ("");
+          dcl     enemy                  char (20) init ("");
+          dcl     blank_line_printed     bit (1) init ("0"b);
+          
+          do x = 1 to 10;
+               do y = 1 to 10;
+                    BLAST = 0;
+                    Point = node.sector (node.SX, node.SY).point (x, y);
+                    if (Point = ARACHNID) then do;
+                              edex = index_enemy (node.SX, node.SY, x, y, nptr);
+                              BLAST = round (node.Arachnid (edex).life_pts / 100, 0);
+                              enemy = "ARACHNID";
+                         end;
+                    else if (Point = SKINNY) then do;
+                              edex = index_enemy (node.SX, node.SY, x, y, nptr);
+                              BLAST = round (node.Skinny (edex).life_pts / 100, 0);
+                              enemy = "SKINNY";
+                         end;
+                    else if (Point = HEAVY_BEAM) then do;
+                              edex = index_enemy (node.SX, node.SY, x, y, nptr);
+                              BLAST = round (node.Heavy_beam (edex).life_pts / 100, 0);
+                              enemy = "HEAVY BEAM";
+                         end;
+                    else if (Point = MISSILE_L) then do;
+                              edex = index_enemy (node.SX, node.SY, x, y, nptr);
+                              BLAST = round (node.Missile_l (edex).life_pts / 100, 0);
+                              enemy = "MISSILE-L";
+                         end;
+                    if (BLAST > 0) then do;
+                              if ^(blank_line_printed) then do;
+                                        blank_line_printed = "1"b;
+                                        call ioa_ ();
+                                   end;
+                              call ioa_$nnl ("***^a at Mark ^d - ^d:^33t", enemy, x, y);
+                              call damage_the_trooper (BLAST, nptr);
+                         end;
+               end;
+          end;
+          
+     end enemy_attack;
+     
