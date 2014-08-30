@@ -58,7 +58,7 @@ def archive():
     if not supervisor.fs.file_exists(archive_path) and (op in [LIST_TOC, UPDATE, DELETE, EXTRACT]):
         call.ioa_("archive ^a not found.", archive_name)
         return
-    elif not supervisor.fs.is_archive(archive_path):
+    elif supervisor.fs.file_exists(archive_path) and not supervisor.fs.is_archive(archive_path):
         call.ioa_("^a is not an archive segment.", archive_name)
         return
     elif (component_paths == []) and (op in [APPEND, DELETE]):
