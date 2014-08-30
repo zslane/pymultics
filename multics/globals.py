@@ -7,6 +7,7 @@ import contextlib
 import __builtin__
 float_ = __builtin__.float
 real = __builtin__.float
+round_ = __builtin__.round
 
 from pl1types import *
 
@@ -64,6 +65,12 @@ def decimal(x):
 def trunc(x):
     return int(x)
     
+def round(x, y):
+    if y == 0:
+        return int(round_(x, y))
+    else:
+        return round_(x, y)
+        
 def char_(x):
     return str(x)
     

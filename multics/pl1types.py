@@ -15,6 +15,9 @@ class parameter(object):
     def local(self):
         return self
         
+    def copy(self):
+        return parameter(self.value)
+        
     #== __getattr__ and __setattr__ allow the stored value to be referred to
     #== by any name that is convenient for the programmer. One possible
     #== convention is to use 'ptr' for pointer values and 'val' for scalars.

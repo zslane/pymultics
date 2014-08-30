@@ -758,8 +758,8 @@ class sst_(Subroutine):
         BURST_MAX       = fixed.bin . init (0) . local
         weapon          = char (5) . init ("") . local
         input           = char ('*') . parm . init ("")
-        where_X         = Dim(3+1) (fixed.bin . init (0))
-        where_Y         = Dim(3+1) (fixed.bin . init (0))
+        where_X         = Dim(3+1) (fixed.bin . parm . init (0))
+        where_Y         = Dim(3+1) (fixed.bin . parm . init (0))
         
         call. ssu_.arg_count (scip, argn)
         if (argn.val == 0): call. ssu_.abort_line (scip, (0), "^/^5xUsage: launch weapon")
@@ -786,8 +786,8 @@ class sst_(Subroutine):
                             elif (decimal (arg) == 0) or (decimal (arg) > 10): call. ssu_.abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg)
                             elif (y == 1):
                                 burst = burst + 1
-                                where_X[burst] = decimal (arg)
-                            else: where_Y[burst] = decimal (arg)
+                                where_X[burst].val = decimal (arg)
+                            else: where_Y[burst].val = decimal (arg)
                         # end for
                     # end for
                 else:
@@ -834,10 +834,10 @@ class sst_(Subroutine):
             if (argn.val == 3):
                 call. ssu_.arg_ptr (scip, 1, argp) ; arg = argp.val
                 if (verify (arg, "1234567890") != 0): call. ssu_.abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg)
-                where_X[1] = decimal (arg)
+                where_X[1].val = decimal (arg)
                 call. ssu_.arg_ptr (scip, 2, argp) ; arg = argp.val
                 if (verify (arg, "1234567890") != 0): call. ssu_.abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg)
-                where_Y[1] = decimal (arg)
+                where_Y[1].val = decimal (arg)
                 BURST_MAX = 1
             # end if
             if (BURST_MAX == 0):
@@ -851,7 +851,7 @@ class sst_(Subroutine):
         else: call. ssu_.abort_line (scip, (0), "^/^5xNo such launcher. ^a", weapon)
         
         for x in do_range(1, BURST_MAX):
-            launch_it (weapon, where_X[x], where_Y[x], x, node)
+            launch_it (weapon, where_X[x].val, where_Y[x].val, x, node)
             if (weapon == "he"): node.HE_bombN = node.HE_bombN - 1
             else: node.nuke_bombN = node.nuke_bombN - 1
         # end for
@@ -1212,6 +1212,129 @@ def allot_flamer_energy(enemy, x, y, energy_tally, node):
         # end if
     # end while
     
+def get_target_for_bomb(tx, ty, num):
+    input = parm("NULL")
+
+# ask_again:
+    while True:
+        while (verify (input.val, "1234567890 ") != 0 or index (input.val, " ") == 0):
+            call. ioa_.nnl ("Target for bomb^[ #^d^;^s^]: ", (num > 0), num)
+            getline (input)
+            if (input.val == ""): input.val = "NULL"
+        # end while
+        tx.val = decimal (before (input.val, " "))
+        if (length (rtrim (after (input.val, " "))) > 2):
+            input.val = "NULL"
+            # goto ask_again;
+            continue
+        # end if
+        ty.val = decimal (after (input.val, " "))
+        input.val = "NULL"
+        if (tx.val > 10) or (ty.val > 10): continue # goto ask_again;
+        elif (tx.val == 0) or (ty.val == 0): call. ssu_.abort (scip, (0))
+        break
+
+def launch_it(weapon, tx, ty, bombNo, node):
+    slope_x = parm()
+    slope_y = parm()
+    output_count = 0
+    x_is_fractional = False
+    
+    if (tx == node.PX) and (ty == node.PY):
+        call. ioa_ ("^/This is not a suicide mission, Trooper!")
+        call. ssu_.abort_line (scip, (0))
+    # end if
+    if (weapon == "he"): BLAST = 200
+    else: BLAST = 1000
+    pos_x = node.PX
+    pos_y = node.PY
+    if (mod (clock (), 2) + 1 == 1): drift_slope = .1
+    else: drift_slope = -.1
+    delta_x = tx - node.PX
+    delta_y = ty - node.PY
+    if (abs (delta_x) > abs (delta_y)):
+        numerator = delta_y
+        denominator = delta_x
+    else:
+        numerator = delta_x
+        denominator = delta_y
+    # end if
+    true_slope = round (numerator / real(denominator), 3)
+    if (abs (delta_x) < abs (delta_y)): x_is_fractional = True
+    if (tx < node.PX) and (ty < node.PY): true_slope = 0 - true_slope
+    elif (tx < node.PX) and (not x_is_fractional): true_slope = 0 - true_slope
+    elif (tx > node.PX) and (ty > node.PY): true_slope = true_slope
+    elif (tx > node.PX) and x_is_fractional: true_slope = 0 - true_slope
+    get_slope (node.PX, node.PY, tx, ty, slope_x, slope_y)
+    call. ioa_.nnl ("^/Launch path #^d:  ", bombNo)
+    while (b'1'):
+        output_count = output_count + 1
+        if x_is_fractional:
+            pos_x = pos_x + true_slope
+            pos_y = pos_y + slope_y.val
+        else:
+            pos_x = pos_x + slope_x.val
+            pos_y = pos_y + true_slope
+        # end if
+        x = mod (clock (), 5) + 1
+        if (x == 1):
+            if x_is_fractional: pos_x = pos_x + drift_slope
+            else: pos_y = pos_y + drift_slope
+        # end if
+        call. ioa_.nnl ("^.1f-^.1f", pos_x, pos_y)
+        Point = node.sector[node.SX][node.SY].point [(round (pos_x, 0))][(round (pos_y, 0))]
+        if (Point == ARACHNID):
+            call. ioa_ ()
+            flame_that_sucker ("Arachnid", (round (pos_x, 0)), (round (pos_y, 0)), BLAST, node)
+            if (weapon == "nuke"): chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), node)
+            return
+        elif (Point == SKINNY):
+            call. ioa_ ()
+            flame_that_sucker ("Skinny", (round (pos_x, 0)), (round (pos_y, 0)), BLAST, node)
+            if (weapon == "nuke"): chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), node)
+            return
+        elif (Point == HEAVY_BEAM):
+            call. ioa_ ()
+            flame_that_sucker ("Heavy Beam", (round (pos_x, 0)), (round (pos_y, 0)), BLAST, node)
+            if (weapon == "nuke"): chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), node)
+            return
+        elif (Point == MISSILE_L):
+            call. ioa_ ()
+            flame_that_sucker ("Missile-L", (round (pos_x, 0)), (round (pos_y, 0)), BLAST, node)
+            if (weapon == "nuke"): chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), node)
+            return
+        elif (Point == MOUNTAIN):
+            x = mod (clock (), 6) + 1
+            if (weapon == "nuke"): x = 2
+            if (x == 1): call. ioa_ ("^/***MOUNTAIN at Mark ^d - ^d unaffected.", (round (pos_x, 0)), (round (pos_y, 0)))
+            else:
+                call. ioa_ ("^/***MOUNTAIN at Mark ^d - ^d destroyed.", (round (pos_x, 0)), (round (pos_y, 0)))
+                node.sector[node.SX][node.SY].point [(round (pos_x, 0))][(round (pos_y, 0))] = "."
+                node.score.mountains_Xed = node.score.mountains_Xed + 1
+                if (weapon == "nuke"): chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), node)
+            # end if
+            return
+        elif (Point == SUPPLY_SHIP):
+            x = mod (clock (), 4) + 1
+            if (weapon == "nuke"): x = 1
+            if (x > 1): call. ioa_ ("^/***SUPPLY SHIP at Mark ^d - ^d unaffected", (round (pos_x, 0)), (round (pos_y, 0)))
+            else:
+                call. ioa_ ("^/***SUPPLY SHIP at Mark ^d - ^d destroyed", (round (pos_x, 0)), (round (pos_y, 0)))
+                node.sector[node.SX][node.SY].point [(round (pos_x, 0))][(round (pos_y, 0))] = "."
+                node.sector[node.SX][node.SY].supply = "0"
+# /* To be written later when dead supply ships become important:
+#                supply_is_dead (node.SX, node.SY, (round (pos_x, 0)), (round (pos_y, 0)))
+# */
+                node.score.supplies_Xed = node.score.supplies_Xed + 1
+                if (weapon == "nuke"): chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), node)
+            # end if
+            return
+        elif ((round (pos_x, 0)) == 1 and node.PX > 1) or ((round (pos_x, 0)) == 10 and node.PX < 10) or ((round (pos_y, 0)) == 1 and node.PY > 1) or ((round (pos_y, 0)) == 10 and node.PY < 10):
+            call. ioa_ ("^/***BOMB missed", pos_x, pos_y)
+            return
+        elif (Point == ".") or (Point == BREACH) or (Point == BEACON) or (Point == FORT) or (Point == RADIATION): call. ioa_.nnl (", ")
+        if (output_count == 6): call. ioa_.nnl ("^/^17x")
+    
 def you_lose (reason):
     pass
     
@@ -1222,13 +1345,7 @@ def enemies_present(node):
     return True
     
 def flame_that_sucker(type, where_X, where_Y, allotted_energy, node):
-    call. ioa_ ("^a at Mark ^d - ^d (^d energy needed)", type, where_X, where_Y, allotted_energy)
-    pass
-
-def launch_it(weapon, where_X, where_Y, x, node):
-    pass
-    
-def get_target_for_bomb(where_X, where_Y, x):
+    call. ioa_ ("^a at Mark ^d - ^d (^d energy applied)", type, where_X, where_Y, allotted_energy)
     pass
     
 def enemy_attack(node):

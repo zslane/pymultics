@@ -2,7 +2,6 @@ import re
 
 from multics.globals import *
 
-@system_privileged
 def get_system_search_rules():
     ALL_RULES = ''
     segment   = parm()
