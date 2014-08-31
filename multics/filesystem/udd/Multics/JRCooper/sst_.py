@@ -1533,9 +1533,6 @@ def calc_score(node, type):
 def repair_damage(device, node):
     pass
     
-def yes_no(input):
-    pass
-    
 def update_chart(node):
     pass
     
@@ -1547,6 +1544,14 @@ def H_or_M_present (sx, sy, node):
     
 def convert_to_real(x):
     return float_(x)
+    
+def yes_no(input):
+    while True:
+        getline (input)
+        if (input.val in ["yes", "y", "no", "n"]):
+            return
+        else:
+            call. ioa_.nnl ("^/Please answer \"yes\" or \"no\":  ")
     
 def getline(input_var):
     include. query_info
