@@ -1521,11 +1521,161 @@ def enemy_attack(node):
         # end for
     # end for
     
-def attack_supply_ships(node):
-    pass
+def attack_supply_ships(data):
+    
+    b = parm()
+    c = parm()
+    SDEX = [0] * (10+1)
+    HDEX = [0] * (10+1)
+    MDEX = [0] * (10+1)
+    x = y = z = 0
+    attacker = ""
+
+    if ((mod (clock (), 4) + 1) > 1): return
+    if (data.distress.SX == 0) and (data.distress.SY == 0):
+        for x in do_range(1, data.supplyN):
+            if (data.supply[x].uses_left > 0):
+                y = y + 1
+                SDEX[y] = x
+            # end if
+        # end for
+        if (y == 0): return
+        z = mod (clock (), y) + 1
+        sdex = SDEX[z]
+        data.distress.SX = data.supply[sdex].SX
+        data.distress.SY = data.supply[sdex].SY
+        data.distress.which_supply = sdex
+    # end if
+    if (not H_or_M_present (data.distress.SX, data.distress.SY, data)):
+        z = 0
+        for x in do_range(1, data.heavy_beamT):
+            if (data.heavy_beam[x].life_pts > 0):
+                z = z + 1
+                HDEX[z] = x
+            # end if
+        # end for
+        y = 0
+        for x in do_range(1, data.missile_lT):
+            if (data.Missile_l[x].life_pts > 0):
+                y = y + 1
+                MDEX[y] = x
+            # end if
+        # end for
+        if (y == 0) and (z == 0): return
+            
+    # FIND_A_NEW_ATTACKER:
+        while True:
+            if ((mode (clock (), 2) + 1) == 1):
+                if (z == 0): continue # goto FIND_A_NEW_ATTACKER;
+                a = mod (clock (), z) + 1
+                hdex = HDEX[a]
+                get_slope (data.Heavy_beam[hdex].SX, data.Heavy_beam[hdex].SY, data.distress.SX, data.distress.SY, b, c)
+                if (data.sector[(data.Heavy_beam[hdex].SX + b.val)][(data.Heavy_beam[hdex].SY + c.val)].arachnidN == 9): continue # goto FIND_A_NEW_ATTACKER
+                data.sector[data.Heavy_beam[hdex].SX][data.Heavy_beam[hdex].SY].arachnidN = data.sector[data.Heavy_beam[hdex].SX][data.Heavy_beam[hdex].SY].arachnidN - 1
+                data.sector[data.Heavy_beam[hdex].SX][data.Heavy_beam[hdex].SY].point[data.Heavy_beam[hdex].PX][data.Heavy_beam[hdex].PY] = "."
+                data.Heavy_beam[hdex].SX = data.Heavy_beam[hdex].SX + b.val
+                data.Heavy_beam[hdex].SY = data.Heavy_beam[hdex].SY + c.val
+                while (data.sector[data.Heavy_beam[hdex].SX][data.Heavy_beam[hdex].SY].point[data.Heavy_beam[hdex].PX][data.Heavy_beam[hdex].PY] != "."):
+                    x = mod (clock (), 10) + 1
+                    y = mod (clock (), 10) + 1
+                    data.Heavy_beam[hdex].PX = x
+                    data.Heavy_beam[hdex].PY = y
+                # end while
+                data.sector[data.Heavy_beam[hdex].SX][data.Heavy_beam[hdex].SY].arachnidN = data.sector[data.Heavy_beam[hdex].SX][data.Heavy_beam[hdex].SY].arachnidN + 1
+                data.sector[data.Heavy_beam[hdex].SX][data.Heavy_beam[hdex].SY].point[data.Heavy_beam[hdex].PX][data.Heavy_beam[hdex].PY] = HEAVY_BEAM
+            else:
+                if (y == 0): continue # goto FIND_A_NEW_ATTACKER;
+                a = mod (clock (), y) + 1
+                mdex = MDEX[a]
+                get_slope (data.Missile_l[mdex].SX, data.Missile_l[mdex].SY, data.distress.SX, data.distress.SY, b, c)
+                if (data.sector[(data.Missile_l[mdex].SX + b.val)][(data.Missile_l[mdex].SY + c.val)].skinnyN == 9): continue # goto FIND_A_NEW_ATTACKER
+                data.sector[data.Missile_l[mdex].SX][data.Missile_l[mdex].SY].skinnyN = data.sector[data.Missile_l[mdex].SX][data.Missile_l[mdex].SY].skinnyN - 1
+                data.sector[data.Missile_l[mdex].SX][data.Missile_l[mdex].SY].point[data.Missile_l[mdex].PX][data.Missile_l[mdex].PY] = "."
+                data.Missile_l[mdex].SX = data.Missile_l[mdex].SX + b.val
+                data.Missile_l[mdex].SY = data.Missile_l[mdex].SY + c.val
+                while (data.sector[data.Missile_l[mdex].SX][data.Missile_l[mdex].SY].point[data.Missile_l[mdex].PX][data.Missile_l[mdex].PY] != "."):
+                    x = mod (clock (), 10) + 1
+                    y = mod (clock (), 10) + 1
+                    data.Missile_l[mdex].PX = x
+                    data.Missile_l[mdex].PY = y
+                # end while
+                data.sector[data.Missile_l[mdex].SX][data.Missile_l[mdex].SY].skinnyN = data.sector[data.Missile_l[mdex].SX][data.Missile_l[mdex].SY].skinnyN + 1
+                data.sector[data.Missile_l[mdex].SX][data.Missile_l[mdex].SY].point[data.Missile_l[mdex].PX][data.Missile_l[mdex].PY] = MISSILE_L
+            # end if
+            return
+        # end while
+    # end if
+    if (not data.distress.notified):
+        for x in do_range(1, 10):
+            for y in do_range(1, 10):
+                if (data.sector[data.distress.SX][data.distress.SY].point[x][y] == MISSILE_L) and (attacker == ""): attacker = "Missile launcher"
+                elif (data.sector[data.distress.SX][data.distress.SY].point[x][y] == HEAVY_BEAM): attacker = "Heavy weapon beam"
+            # end for
+        # end for
+        call. ioa_ ("^/Distress signal from Supply ship at Sector ^d - ^d:^/^3x""Under attack by a ^a!""", data.distress.SX, data.distress.SY, attacker)
+        data.distress.notified = True
+        return
+    # end if
+    if (data.SX == data.distress.SX) and (data.SY == data.distress.SY): return
+    if ((mod (clock (), 20) + 1) == 1):
+        call. ioa_ ("^/Supply ship at Sector ^d - ^d has been destroyed.", data.distress.SX, data.distress.SY)
+        data.supply[data.distress.which_supply].uses_left = 0
+        data.sector[data.distress.SX][ data.distress.SY] = "0"
+        data.sector[data.distress.SX][data.distress.SY].point[data.supply[data.distress.which_supply].PX][data.supply[data.distress.which_supply].PY] = "."
+        data.distress.SX = 0
+        data.distress.SY = 0
+        data.distress.notified = False
+        data.distress.which_supply = 0
+    # end if
 
 def damage_the_trooper(damage, node):
-    pass
+    
+    critical_hit = False
+    device = parm()
+
+    z = mod (clock (), 25) + 1
+    if (z == 1): critical_hit = True
+# check_again:
+    while True:
+        if critical_hit:
+            z = mod (clock (), 3) + 1
+            if (z == 1):
+                damage_a_device (device, BLAST, node)
+                if (device.val == "none"): continue # goto check_again;
+                call. ioa_ ("^/^3t***CRITICAL HIT: ^a damaged", device.val)
+            else:
+                BLAST = BLAST * 2
+                suit_damage = min (node.suit_pts, BLAST)
+                BLAST = BLAST - suit_damage
+                body_damage = min (node.body_pts, BLAST)
+                node.suit_pts = node.suit_pts - suit_damage
+                node.body_pts = node.body_pts - body_damage
+                if (node.body_pts < 1):
+                    call. ioa_ ("DEATH BLOW")
+                    node.score.death_penalty = -1000
+                    you_lose ("death")
+                # end if
+                if (suit_damage > 0): call. ioa_ ("^/^5t***CRITICAL HIT:^33t^d pts. to SUIT", suit_damage)
+                if (suit_damage > 0) and (body_damage > 0): call. ioa_ ("^5t***SUIT DAMAGED:^33t^d pts. to BODY", body_damage)
+                elif (body_damage > 0): call. ioa_ ("^/^5t***CRITICAL HIT:^33t^d pts. to BODY", body_damage)
+            # end if
+        else:
+            suit_damage = min (node.suit_pts, BLAST)
+            BLAST = BLAST - suit_damage
+            body_damage = min (node.body_pts, BLAST)
+            node.suit_pts = node.suit_pts - suit_damage
+            node.body_pts = node.body_pts - body_damage
+            if (node.body_pts < 1):
+                call. ioa_ ("DEATH BLOW")
+                node.score.death_penalty = -1000
+                you_lose ("death")
+            # end if
+            if (suit_damage > 0): call. ioa_ ("^d pts. to SUIT", suit_damage)
+            if (suit_damage > 0) and (body_damage > 0): call. ioa_ ("^5t***SUIT DAMAGED:^33t^d pts. to BODY", body_damage)
+            elif (body_damage > 0): call. ioa_ ("^d pts. to BODY", body_damage)
+        # end if
+        break
+    # end while
     
 def calc_score(node, type):
     return 0
