@@ -749,7 +749,7 @@ score: entry (scip, nptr);
           if all_switch & (node.score.rank_bonus > 0) then call ioa_ ("^3xRank bonus (^a level)^40t^d", RANK (node.rank), node.score.rank_bonus);
           if all_switch & (node.score.death_penalty < 0) then call ioa_ ("^3xPenalty for getting killed^39t-1000");
           if all_switch & (node.score.captured_penalty < 0) then call ioa_ ("^3xPenalty for getting captured^40t-500");
-          if all_switch then call ioa_ ("^30t------^/Total:^40t^d", node.score.total);
+          if all_switch then call ioa_ ("^39t------^/Total:^40t^d", node.score.total);
           return;
           
 launch: entry (scip, nptr);
@@ -1176,7 +1176,7 @@ move: procedure (type, nptr, to_PX, to_PY);
                                    blank_line_printed = "1"b;
                               end;
                          call ioa_$nnl ("***RADIATION at Mark ^d - d.  ", new_X, new_Y);
-                         call damage_the_trooper ((mode (clock (), 10) + 1), nptr);
+                         call damage_the_trooper ((mod (clock (), 10) + 1), nptr);
                          node.PX = new_X;
                          node.PY = new_Y;
                          node.sitting_in_rad = "1"b;
@@ -1686,7 +1686,7 @@ attack_supply_ships: procedure (datap);
                     if (y = 0) & (z = 0) then return;
                     
 FIND_A_NEW_ATTACKER:
-                    if ((mode (clock (), 2) + 1) = 1) then do;
+                    if ((mod (clock (), 2) + 1) = 1) then do;
                               if (z = 0) then goto FIND_A_NEW_ATTACKER;
                               a = mod (clock (), z) + 1;
                               hdex = HDEX (a);
@@ -1741,7 +1741,7 @@ FIND_A_NEW_ATTACKER:
           if ((mod (clock (), 20) + 1) = 1) then do;
                     call ioa_ ("^/Supply ship at Sector ^d - ^d has been destroyed.", data.distress.SX, data.distress.SY);
                     data.supply (data.distress.which_supply).uses_left = 0;
-                    data.sector (data.distress.SX, data.distress.SY) = "0";
+                    data.sector (data.distress.SX, data.distress.SY).supply = "0";
                     data.sector (data.distress.SX, data.distress.SY).point (data.supply (data.distress.which_supply).PX, data.supply (data.distress.which_supply).PY) = ".";
                     data.distress.SX = 0;
                     data.distress.SY = 0;
@@ -1804,4 +1804,274 @@ check_again:
               end;
               
     end damage_the_trooper;
-    
+     
+damage_a_device: procedure (device, damage, nptr);
+
+          dcl     device                 char (*) parm;
+          dcl     damage                 fixed bin parm;
+          dcl     nptr                   ptr parm;
+          dcl     device_index           fixed bin init (0);
+          dcl     devices                (7) char (20) init ((7) (""));
+          dcl     x                      fixed bin init (0);
+          
+          device = "none";
+          if node.equipment.snooper.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "Snooper";
+               end;
+          if node.equipment.scanner.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "Scanner";
+               end;
+          if node.equipment.jet_boosters.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "Jet Boosters";
+               end;
+          if node.equipment.flamer.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "Flamer rifle";
+               end;
+          if node.equipment.HE_launcher.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "HE launcher";
+               end;
+          if node.equipment.nuke_launcher.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "Nuke launcher";
+               end;
+          if node.equipment.listening_dev.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "Listening device";
+               end;
+          if (device_index = 0) then return;
+          x = mod (clock (), device_index) + 1;
+          device = devices (x);
+          if (device = "Snooper") then do;
+                    node.equipment.snooper.working = "0"b;
+                    node.equipment.snooper.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+          else if (device = "Scanner") then do;
+                    node.equipment.scanner.working = "0"b;
+                    node.equipment.scanner.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+          else if (device = "Jet Boosters") then do;
+                    node.equipment.jet_boosters.working = "0"b;
+                    node.equipment.jet_boosters.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+          else if (device = "Flamer rifle") then do;
+                    node.equipment.flamer.working = "0"b;
+                    node.equipment.flamer.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+          else if (device = "HE launcher") then do;
+                    node.equipment.HE_launcher.working = "0"b;
+                    node.equipment.HE_launcher.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+          else if (device = "Nuke launcher") then do;
+                    node.equipment.nuke_launcher.working = "0"b;
+                    node.equipment.nuke_launcher.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+          else if (device = "Listening device") then do;
+                    node.equipment.listening_dev.working = "0"b;
+                    node.equipment.listening_dev.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+               
+     end damage_a_device;
+     
+repair_device: procedure (device, nptr);
+
+          dcl     device                 char (*) parm;
+          dcl     nptr                   ptr parm;
+          dcl     encamped_bonus         fixed bin init (0);
+          
+          if node.encamped then encamped_bonus = 1;
+          if (device = "scanner") then do;
+                    if node.equipment.scanner.working then do;
+                              call ioa_ ("^/Scanner is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.scanner.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.scanner.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.scanner.repair_time + encamped_bonus;
+                    call ioa_ ("^/Scanner repaired: ^.1f hrs. used.", node.equipment.scanner.repair_time - encamped_bonus);
+                    node.equipment.scanner.repair_time = 0;
+                    node.equipment.scanner.working = "1"b;
+               end;
+          else if (device = "snooper") then do;
+                    if node.equipment.snooper.working then do;
+                              call ioa_ ("^/Snooper is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.snooper.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.snooper.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.snooper.repair_time + encamped_bonus;
+                    call ioa_ ("^/Snooper repaired: ^.1f hrs. used.", node.equipment.snooper.repair_time - encamped_bonus);
+                    node.equipment.snooper.repair_time = 0;
+                    node.equipment.snooper.working = "1"b;
+               end;
+          else if (device = "flamer_rifle") then do;
+                    if node.equipment.flamer.working then do;
+                              call ioa_ ("^/Flamer rifle is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.flamer.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.flamer.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.flamer.repair_time + encamped_bonus;
+                    call ioa_ ("^/Flamer rifle repaired: ^.1f hrs. used.", node.equipment.flamer.repair_time - encamped_bonus);
+                    node.equipment.flamer.repair_time = 0;
+                    node.equipment.flamer.working = "1"b;
+               end;
+          else if (device = "he_launcher") then do;
+                    if node.equipment.HE_launcher.working then do;
+                              call ioa_ ("^/HE launcher is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.HE_launcher.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.HE_launcher.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.HE_launcher.repair_time + encamped_bonus;
+                    call ioa_ ("^/HE launcher repaired: ^.1f hrs. used.", node.equipment.HE_launcher.repair_time - encamped_bonus);
+                    node.equipment.HE_launcher.repair_time = 0;
+                    node.equipment.HE_launcher.working = "1"b;
+               end;
+          else if (device = "nuke_launcher") then do;
+                    if node.equipment.nuke_launcher.working then do;
+                              call ioa_ ("^/Nuke launcher is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.nuke_launcher.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.nuke_launcher.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.nuke_launcher.repair_time + encamped_bonus;
+                    call ioa_ ("^/Nuke launcher repaired: ^.1f hrs. used.", node.equipment.nuke_launcher.repair_time - encamped_bonus);
+                    node.equipment.nuke_launcher.repair_time = 0;
+                    node.equipment.nuke_launcher.working = "1"b;
+               end;
+          else if (device = "listening_device") then do;
+                    if node.equipment.listening_dev.working then do;
+                              call ioa_ ("^/Listening device is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.listening_dev.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.listening_dev.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.listening_dev.repair_time + encamped_bonus;
+                    call ioa_ ("^/Listening device repaired: ^.1f hrs. used.", node.equipment.listening_dev.repair_time - encamped_bonus);
+                    node.equipment.listening_dev.repair_time = 0;
+                    node.equipment.listening_dev.working = "1"b;
+               end;
+          else if (device = "jet_boosters") then do;
+                    if node.equipment.jet_boosters.working then do;
+                              call ioa_ ("^/Jet boosters is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.jet_boosters.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.jet_boosters.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.jet_boosters.repair_time + encamped_bonus;
+                    call ioa_ ("^/Jet boosters repaired: ^.1f hrs. used.", node.equipment.jet_boosters.repair_time - encamped_bonus);
+                    node.equipment.jet_boosters.repair_time = 0;
+                    node.equipment.jet_boosters.working = "1"b;
+               end;
+               
+     end repair_device;
+     
+update_chart: procedure (datap);
+
+          dcl     datap                  ptr parm;
+          dcl     1 data                 aligned based (datap) like NODE;
+          
+          do x = 1 to 5;
+               do y = 1 to 5;
+                    if (data.chart (x, y).arachnidN ^= ".") then do;
+                              data.chart (x, y).arachnidN = ltrim (char (data.sector (x, y).arachnidN));
+                              data.chart (x, y).skinnyN = ltrim (char (data.sector (x, y).skinnyN));
+                              data.chart (x, y).radiation = data.sector (x, y).radiation;
+                              data.chart (x, y).supply = data.sector (x, y).supply;
+                         end;
+               end;
+          end;
+          
+     end update_chart;
+     
+calc_score: procedure (datap, type) returns (fixed bin);
+
+          dcl     datap                  ptr parm;
+          dcl     1 data                 aligned based (datap) like NODE;
+          dcl     type                   char (*) parm;
+          
+          if (type = "arachnids") then return (data.score.arachnids_Xed * ARACHNID_SCORE_FACTOR);
+          else if (type = "skinnies") then return (data.score.skinnies_Xed * SKINNY_SCORE_FACTOR);
+          else if (type = "heavy_beams") then return (data.score.heavy_beams_Xed * HEAVY_BEAM_SCORE_FACTOR);
+          else if (type = "missile_ls") then return (data.score.missile_ls_Xed * MISSILE_L_SCORE_FACTOR);
+          else if (type = "mountains") then return (data.score.mountains_Xed * MOUNTAIN_SCORE_FACTOR);
+          else if (type = "supplies") then return (data.score.supplies_Xed * SUPPLY_SCORE_FACTOR);
+          else if (type = "prisoners") then return (data.score.prisoners_rescued * PRISONER_SCORE_FACTOR);
+          else return (0);
+          
+     end calc_score;
+     
+you_lose: procedure (reason);
+
+          dcl     reason                 char (*) parm;
+          
+          call ioa_ ("^3/*************************");
+          if (reason = "death") then do;
+                    call ioa_ ("^/You have been killed.  Secundis gloria mundi...");
+                    call ssu_$execute_string (scip, "score -all", code);
+               end;
+          else if (reason = "no_time") then do;
+                    call ioa_ ("^/The Retrieval Boat has abandoned you.  You are an Arachnid prisoner.^/Pray that the next Trooper rescues you before you die...");
+                    call ssu_$execute_string (scip, "score -all", code);
+               end;
+          call ioa_ ("^/*************************");
+          call ssu_$abort_subsystem (scip, (0));
+          
+     end you_lose;
+     
+convert_to_real: procedure (ascii_value) returns (fixed dec (5, 2));
+
+          dcl     ascii_value            char (*) parm;
+          dcl     real_value             fixed dec (5, 2) init (0);
+          dcl     integer                char (3) init ("");
+          dcl     fraction               char (3) init ("");
+          
+          integer = before (arg, ".");
+          fraction = after (arg, ".");
+          real_value = decimal (integer) * (decimal (fraction) / 10 ** (length (rtrim (fraction))));
+          return (real_value);
+          
+     end convert_to_real;
+     
+H_or_M_present: procedure (sx, sy, datap) returns (bit (1));
+
+          dcl     (sx, sy)               fixed bin parm;
+          dcl     datap                  ptr parm;
+          dcl     1 data                 aligned based (datap) like NODE;
+          dcl     (x, y, z)              fixed bin init (0);
+          
+          do x = 1 to data.heavy_beamT;
+               if (data.Heavy_beam (x).SX = sx) & (data.Heavy_beam (x).SY = sy) then return ("1"b);
+          end;
+          do x = 1 to data.missile_lT;
+               if (data.Missile_l (x).SX = sx) & (data.Missile_l (x).SY = sy) then return ("1"b);
+          end;
+          return ("0"b);
+          
+     end H_or_M_present;
+     
+%include sst_node;
+%include sst_macros;
+%include sst_constants;
+
+     end sst_;
+     

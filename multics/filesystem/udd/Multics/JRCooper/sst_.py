@@ -333,7 +333,7 @@ class sst_(Subroutine):
         elif (Node.time_left < .1):
             call. ioa_ ("^/Retrieval complete.")
             Node.score.captured_penalty = -500
-            you_lose ("no_time")
+            you_lose (scip, "no_time")
         # end if
         if (not H_or_M_present (Node.distress.SX, Node.distress.SY, Node)) and Node.distress.notified:
             Node.distress.SX = 0
@@ -574,7 +574,7 @@ class sst_(Subroutine):
         if node.sitting_in_rad: node.was_in_rad = True
         node.sector[node.SX][node.SY].point[node.PX][node.PY] = TROOPER
         call. ioa_ ("^/***LOCUS PROXIMITY: Sector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY)
-        enemy_attack (node)
+        enemy_attack (scip, node)
         
     def jump(self, scip, node):
         call. ssu_.arg_count (scip, argn)
@@ -614,7 +614,7 @@ class sst_(Subroutine):
         # end if
         if node.sitting_in_rad: node.was_in_rad = True
         node.sector[node.SX][node.SY].point[node.PX][node.PY] = TROOPER
-        enemy_attack (node)
+        enemy_attack (scip, node)
     
     def flamer(self, scip, node):
         class goto_FLAME_THEM_BUGGERS(Exception): pass
@@ -685,7 +685,7 @@ class sst_(Subroutine):
             flame_that_sucker (type[x], where_X[x], where_Y[x], allotted_energy[x], node)
         # end for
         node.time_left = max (0, node.time_left - .1)
-        enemy_attack (node)
+        enemy_attack (scip, node)
         
     def score(self, scip, node):
         all_switch = False
@@ -750,7 +750,7 @@ class sst_(Subroutine):
         if all_switch and (node.score.rank_bonus > 0): call. ioa_ ("^3xRank bonus (^a level)^40t^d", RANK[node.rank], node.score.rank_bonus)
         if all_switch and (node.score.death_penalty < 0): call. ioa_ ("^3xPenalty for getting killed^39t-1000")
         if all_switch and (node.score.captured_penalty < 0): call. ioa_ ("^3xPenalty for getting captured^40t-500")
-        if all_switch: call. ioa_ ("^30t------^/Total:^40t^d", node.score.total)
+        if all_switch: call. ioa_ ("^39t------^/Total:^40t^d", node.score.total)
         
     def launch(self, scip, node):
 
@@ -851,11 +851,11 @@ class sst_(Subroutine):
         else: call. ssu_.abort_line (scip, (0), "^/^5xNo such launcher. ^a", weapon)
         
         for x in do_range(1, BURST_MAX):
-            launch_it (weapon, where_X[x].val, where_Y[x].val, x, node)
+            launch_it (scip, weapon, where_X[x].val, where_Y[x].val, x, node)
             if (weapon == "he"): node.HE_bombN = node.HE_bombN - 1
             else: node.nuke_bombN = node.nuke_bombN - 1
         # end for
-        enemy_attack (node)
+        enemy_attack (scip, node)
         
     def repair(self, scip, node):
 
@@ -927,7 +927,7 @@ class sst_(Subroutine):
         node.time_left = node.time_left - rest_time
         for x in do_range(1, max(1, trunc(rest_time))):
             if (trunc (rest_time) > 1) and enemies_present (node): call. ioa_ ("^/^d^a hour:", x, number_suffix[x - 1])
-            enemy_attack (node)
+            enemy_attack (scip, node)
         # end for
         
     def transfer(self, scip, node):
@@ -1038,7 +1038,7 @@ class sst_(Subroutine):
             x = round (node.breach[bdex].engineer / 100, 0)
             if (x > 0):
                 call. ioa_.nnl ("^/***ENGINEER in breach:^33t")
-                damage_the_trooper (x, node)
+                damage_the_trooper (scip, x, node)
             else: call. ioa_ ()
             x = mod (clock (), (1 + node.suit_pts + node.body_pts)) + 30
             call. ioa_ ("***TROOPER attack^33t^d pts. to Engineer", x)
@@ -1048,7 +1048,7 @@ class sst_(Subroutine):
                 call. ioa_.nnl ("^/Do you wish to continue the rescue? ")
                 yes_no (input)
                 if (input.val == "no") or (input.val == "n"):
-                    enemy_attack (node)
+                    enemy_attack (scip, node)
                     return
                 # end if
             # end if
@@ -1058,7 +1058,7 @@ class sst_(Subroutine):
         if (node.breach[bdex].prisoners == 1): call. ioa_ ("^/Prisoner rescued.")
         else: call. ioa_ ("^/No prisoner here.")
         node.score.prisoners_rescued = node.score.prisoners_rescued + node.breach[bdex].prisoners
-        enemy_attack (node)
+        enemy_attack (scip, node)
         
     def quit(self, scip, node):
         see_score = False
@@ -1148,7 +1148,7 @@ def move(scip, type, node, to_PX, to_PY):
                 blank_line_printed = True
             # end if
             call. ioa_.nnl ("***RADIATION at Mark ^d - d.  ", new_X, new_Y)
-            damage_the_trooper ((mode (clock (), 10) + 1), node)
+            damage_the_trooper (scip, (mod (clock (), 10) + 1), node)
             node.PX = new_X
             node.PY = new_Y
             node.sitting_in_rad = True
@@ -1167,7 +1167,7 @@ def move(scip, type, node, to_PX, to_PY):
             node.sector[node.SX][node.SY].point[original_PX][original_PY] = "."
             node.sector[node.SX][node.SY].point[node.PX][node.PY] = TROOPER
             call. ioa_ ("^/***LOCUS PROXIMITY: Sector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY)
-            enemy_attack (node)
+            enemy_attack (scip, node)
             call. ssu_.abort_line (scip, (0))
         # end if
     # end while
@@ -1234,7 +1234,7 @@ def get_target_for_bomb(tx, ty, num):
         elif (tx.val == 0) or (ty.val == 0): call. ssu_.abort (scip, (0))
         break
 
-def launch_it(weapon, tx, ty, bombNo, node):
+def launch_it(scip, weapon, tx, ty, bombNo, node):
     slope_x         = parm()
     slope_y         = parm()
     output_count    = 0
@@ -1286,22 +1286,22 @@ def launch_it(weapon, tx, ty, bombNo, node):
         if (Point == ARACHNID):
             call. ioa_ ()
             flame_that_sucker ("Arachnid", (round (pos_x, 0)), (round (pos_y, 0)), BLAST, node)
-            if (weapon == "nuke"): chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), node)
+            if (weapon == "nuke"): chain_reaction (scip, (round (pos_x, 0)), (round (pos_y, 0)), node)
             return
         elif (Point == SKINNY):
             call. ioa_ ()
             flame_that_sucker ("Skinny", (round (pos_x, 0)), (round (pos_y, 0)), BLAST, node)
-            if (weapon == "nuke"): chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), node)
+            if (weapon == "nuke"): chain_reaction (scip, (round (pos_x, 0)), (round (pos_y, 0)), node)
             return
         elif (Point == HEAVY_BEAM):
             call. ioa_ ()
             flame_that_sucker ("Heavy Beam", (round (pos_x, 0)), (round (pos_y, 0)), BLAST, node)
-            if (weapon == "nuke"): chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), node)
+            if (weapon == "nuke"): chain_reaction (scip, (round (pos_x, 0)), (round (pos_y, 0)), node)
             return
         elif (Point == MISSILE_L):
             call. ioa_ ()
             flame_that_sucker ("Missile-L", (round (pos_x, 0)), (round (pos_y, 0)), BLAST, node)
-            if (weapon == "nuke"): chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), node)
+            if (weapon == "nuke"): chain_reaction (scip, (round (pos_x, 0)), (round (pos_y, 0)), node)
             return
         elif (Point == MOUNTAIN):
             x = mod (clock (), 6) + 1
@@ -1311,7 +1311,7 @@ def launch_it(weapon, tx, ty, bombNo, node):
                 call. ioa_ ("^/***MOUNTAIN at Mark ^d - ^d destroyed.", (round (pos_x, 0)), (round (pos_y, 0)))
                 node.sector[node.SX][node.SY].point [(round (pos_x, 0))][(round (pos_y, 0))] = "."
                 node.score.mountains_Xed = node.score.mountains_Xed + 1
-                if (weapon == "nuke"): chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), node)
+                if (weapon == "nuke"): chain_reaction (scip, (round (pos_x, 0)), (round (pos_y, 0)), node)
             # end if
             return
         elif (Point == SUPPLY_SHIP):
@@ -1326,7 +1326,7 @@ def launch_it(weapon, tx, ty, bombNo, node):
 #                supply_is_dead (node.SX, node.SY, (round (pos_x, 0)), (round (pos_y, 0)))
 # */
                 node.score.supplies_Xed = node.score.supplies_Xed + 1
-                if (weapon == "nuke"): chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), node)
+                if (weapon == "nuke"): chain_reaction (scip, (round (pos_x, 0)), (round (pos_y, 0)), node)
             # end if
             return
         elif ((round (pos_x, 0)) == 1 and node.PX > 1) or ((round (pos_x, 0)) == 10 and node.PX < 10) or ((round (pos_y, 0)) == 1 and node.PY > 1) or ((round (pos_y, 0)) == 10 and node.PY < 10):
@@ -1442,7 +1442,7 @@ def mark_off_enemy(enemy, edex, node):
         node.time_left = node.time_left + .5
     # end if
 
-def chain_reaction(pos_x, pos_y, node):
+def chain_reaction(scip, pos_x, pos_y, node):
     EOEX        = [0] * (5+1)
     EOEY        = [0] * (5+1)
     cloud_range = 0
@@ -1478,7 +1478,7 @@ def chain_reaction(pos_x, pos_y, node):
             node.score.supplies_Xed = node.score.supplies_Xed + 1
         elif (Point == TROOPER):
             call. ioa_.nnl ("***EXPLOSION at Mark ^d - ^d:^33t", EOEX[x], EOEY[x])
-            damage_the_trooper ((mod (clock (), 10) + 1), node)
+            damage_the_trooper (scip, (mod (clock (), 10) + 1), node)
             node.was_in_rad = True
             node.sitting_in_rad = True
         # end if
@@ -1486,7 +1486,7 @@ def chain_reaction(pos_x, pos_y, node):
     # end for
     node.sector[node.SX][node.SY].radiation = "R"
     
-def enemy_attack(node):
+def enemy_attack(scip, node):
     blank_line_printed = False
     
     for x in do_range(1, 10):
@@ -1516,7 +1516,7 @@ def enemy_attack(node):
                     call. ioa_ ()
                 # end if
                 call. ioa_.nnl ("***^a at Mark ^d - ^d:^33t", enemy, x, y)
-                damage_the_trooper (BLAST, node)
+                damage_the_trooper (scip, BLAST, node)
             # end if
         # end for
     # end for
@@ -1562,10 +1562,10 @@ def attack_supply_ships(data):
             # end if
         # end for
         if (y == 0) and (z == 0): return
-            
+        
     # FIND_A_NEW_ATTACKER:
         while True:
-            if ((mode (clock (), 2) + 1) == 1):
+            if ((mod (clock (), 2) + 1) == 1):
                 if (z == 0): continue # goto FIND_A_NEW_ATTACKER;
                 a = mod (clock (), z) + 1
                 hdex = HDEX[a]
@@ -1620,7 +1620,7 @@ def attack_supply_ships(data):
     if ((mod (clock (), 20) + 1) == 1):
         call. ioa_ ("^/Supply ship at Sector ^d - ^d has been destroyed.", data.distress.SX, data.distress.SY)
         data.supply[data.distress.which_supply].uses_left = 0
-        data.sector[data.distress.SX][ data.distress.SY] = "0"
+        data.sector[data.distress.SX][data.distress.SY].supply = "0"
         data.sector[data.distress.SX][data.distress.SY].point[data.supply[data.distress.which_supply].PX][data.supply[data.distress.which_supply].PY] = "."
         data.distress.SX = 0
         data.distress.SY = 0
@@ -1628,7 +1628,7 @@ def attack_supply_ships(data):
         data.distress.which_supply = 0
     # end if
 
-def damage_the_trooper(damage, node):
+def damage_the_trooper(scip, BLAST, node):
     
     critical_hit = False
     device = parm()
@@ -1653,7 +1653,7 @@ def damage_the_trooper(damage, node):
                 if (node.body_pts < 1):
                     call. ioa_ ("DEATH BLOW")
                     node.score.death_penalty = -1000
-                    you_lose ("death")
+                    you_lose (scip, "death")
                 # end if
                 if (suit_damage > 0): call. ioa_ ("^/^5t***CRITICAL HIT:^33t^d pts. to SUIT", suit_damage)
                 if (suit_damage > 0) and (body_damage > 0): call. ioa_ ("^5t***SUIT DAMAGED:^33t^d pts. to BODY", body_damage)
@@ -1668,7 +1668,7 @@ def damage_the_trooper(damage, node):
             if (node.body_pts < 1):
                 call. ioa_ ("DEATH BLOW")
                 node.score.death_penalty = -1000
-                you_lose ("death")
+                you_lose (scip, "death")
             # end if
             if (suit_damage > 0): call. ioa_ ("^d pts. to SUIT", suit_damage)
             if (suit_damage > 0) and (body_damage > 0): call. ioa_ ("^5t***SUIT DAMAGED:^33t^d pts. to BODY", body_damage)
@@ -1677,23 +1677,216 @@ def damage_the_trooper(damage, node):
         break
     # end while
     
-def calc_score(node, type):
-    return 0
+def damage_a_device(device, damage, node):
+    
+    device_index = 0
+    devices      = [""] * (7+1)
+
+    device.val = "none"
+    if node.equipment.snooper.working:
+        device_index = device_index + 1
+        devices[device_index] = "Snooper"
+    # end if
+    if node.equipment.scanner.working:
+        device_index = device_index + 1
+        devices[device_index] = "Scanner"
+    # end if
+    if node.equipment.jet_boosters.working:
+        device_index = device_index + 1
+        devices[device_index] = "Jet Boosters"
+    # end if
+    if node.equipment.flamer.working:
+        device_index = device_index + 1
+        devices[device_index] = "Flamer rifle"
+    # end if
+    if node.equipment.HE_launcher.working:
+        device_index = device_index + 1
+        devices[device_index] = "HE launcher"
+    # end if
+    if node.equipment.nuke_launcher.working:
+        device_index = device_index + 1
+        devices[device_index] = "Nuke launcher"
+    # end if
+    if node.equipment.listening_dev.working:
+        device_index = device_index + 1
+        devices[device_index] = "Listening device"
+    # end if
+    if (device_index == 0): return
+    x = mod (clock (), device_index) + 1
+    device.val = devices[x]
+    if (device.val == "Snooper"):
+        node.equipment.snooper.working = False
+        node.equipment.snooper.repair_time = max (1, (damage / 2.0) + (mod (clock (), 10) / 10.0))
+    # end if
+    elif (device.val == "Scanner"):
+        node.equipment.scanner.working = False
+        node.equipment.scanner.repair_time = max (1, (damage / 2.0) + (mod (clock (), 10) / 10.0))
+    # end if
+    elif (device.val == "Jet Boosters"):
+        node.equipment.jet_boosters.working = False
+        node.equipment.jet_boosters.repair_time = max (1, (damage / 2.0) + (mod (clock (), 10) / 10.0))
+    # end if
+    elif (device.val == "Flamer rifle"):
+        node.equipment.flamer.working = False
+        node.equipment.flamer.repair_time = max (1, (damage / 2.0) + (mod (clock (), 10) / 10.0))
+    # end if
+    elif (device.val == "HE launcher"):
+        node.equipment.HE_launcher.working = False
+        node.equipment.HE_launcher.repair_time = max (1, (damage / 2.0) + (mod (clock (), 10) / 10.0))
+    # end if
+    elif (device.val == "Nuke launcher"):
+        node.equipment.nuke_launcher.working = False
+        node.equipment.nuke_launcher.repair_time = max (1, (damage / 2.0) + (mod (clock (), 10) / 10.0))
+    # end if
+    elif (device.val == "Listening device"):
+        node.equipment.listening_dev.working = False
+        node.equipment.listening_dev.repair_time = max (1, (damage / 2.0) + (mod (clock (), 10) / 10.0))
+    # end if
     
 def repair_damage(device, node):
-    pass
+    encamped_bonus = 0
+
+    if node.encamped: encamped_bonus = 1
+    if (device == "scanner"):
+        if node.equipment.scanner.working:
+            call. ioa_ ("^/Scanner is not damaged.")
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        if (node.equipment.scanner.repair_time - encamped_bonus >= node.time_left):
+            call. ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.scanner.repair_time - encamped_bonus)
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        node.time_left = node.time_left - node.equipment.scanner.repair_time + encamped_bonus
+        call. ioa_ ("^/Scanner repaired: ^.1f hrs. used.", node.equipment.scanner.repair_time - encamped_bonus)
+        node.equipment.scanner.repair_time = 0
+        node.equipment.scanner.working = True
+    # end if
+    elif (device == "snooper"):
+        if node.equipment.snooper.working:
+            call. ioa_ ("^/Snooper is not damaged.")
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        if (node.equipment.snooper.repair_time - encamped_bonus >= node.time_left):
+            call. ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.snooper.repair_time - encamped_bonus)
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        node.time_left = node.time_left - node.equipment.snooper.repair_time + encamped_bonus
+        call. ioa_ ("^/Snooper repaired: ^.1f hrs. used.", node.equipment.snooper.repair_time - encamped_bonus)
+        node.equipment.snooper.repair_time = 0
+        node.equipment.snooper.working = True
+    # end if
+    elif (device == "flamer_rifle"):
+        if node.equipment.flamer.working:
+            call. ioa_ ("^/Flamer rifle is not damaged.")
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        if (node.equipment.flamer.repair_time - encamped_bonus >= node.time_left):
+            call. ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.flamer.repair_time - encamped_bonus)
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        node.time_left = node.time_left - node.equipment.flamer.repair_time + encamped_bonus
+        call. ioa_ ("^/Flamer rifle repaired: ^.1f hrs. used.", node.equipment.flamer.repair_time - encamped_bonus)
+        node.equipment.flamer.repair_time = 0
+        node.equipment.flamer.working = True
+    # end if
+    elif (device == "he_launcher"):
+        if node.equipment.HE_launcher.working:
+            call. ioa_ ("^/HE launcher is not damaged.")
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        if (node.equipment.HE_launcher.repair_time - encamped_bonus >= node.time_left):
+            call. ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.HE_launcher.repair_time - encamped_bonus)
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        node.time_left = node.time_left - node.equipment.HE_launcher.repair_time + encamped_bonus
+        call. ioa_ ("^/HE launcher repaired: ^.1f hrs. used.", node.equipment.HE_launcher.repair_time - encamped_bonus)
+        node.equipment.HE_launcher.repair_time = 0
+        node.equipment.HE_launcher.working = True
+    # end if
+    elif (device == "nuke_launcher"):
+        if node.equipment.nuke_launcher.working:
+            call. ioa_ ("^/Nuke launcher is not damaged.")
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        if (node.equipment.nuke_launcher.repair_time - encamped_bonus >= node.time_left):
+            call. ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.nuke_launcher.repair_time - encamped_bonus)
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        node.time_left = node.time_left - node.equipment.nuke_launcher.repair_time + encamped_bonus
+        call. ioa_ ("^/Nuke launcher repaired: ^.1f hrs. used.", node.equipment.nuke_launcher.repair_time - encamped_bonus)
+        node.equipment.nuke_launcher.repair_time = 0
+        node.equipment.nuke_launcher.working = True
+    # end if
+    elif (device == "listening_device"):
+        if node.equipment.listening_dev.working:
+            call. ioa_ ("^/Listening device is not damaged.")
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        if (node.equipment.listening_dev.repair_time - encamped_bonus >= node.time_left):
+            call. ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.listening_dev.repair_time - encamped_bonus)
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        node.time_left = node.time_left - node.equipment.listening_dev.repair_time + encamped_bonus
+        call. ioa_ ("^/Listening device repaired: ^.1f hrs. used.", node.equipment.listening_dev.repair_time - encamped_bonus)
+        node.equipment.listening_dev.repair_time = 0
+        node.equipment.listening_dev.working = True
+    # end if
+    elif (device == "jet_boosters"):
+        if node.equipment.jet_boosters.working:
+            call. ioa_ ("^/Jet boosters is not damaged.")
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        if (node.equipment.jet_boosters.repair_time - encamped_bonus >= node.time_left):
+            call. ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.jet_boosters.repair_time - encamped_bonus)
+            call. ssu_.abort_line (scip, (0))
+        # end if
+        node.time_left = node.time_left - node.equipment.jet_boosters.repair_time + encamped_bonus
+        call. ioa_ ("^/Jet boosters repaired: ^.1f hrs. used.", node.equipment.jet_boosters.repair_time - encamped_bonus)
+        node.equipment.jet_boosters.repair_time = 0
+        node.equipment.jet_boosters.working = True
+    # end if
     
-def update_chart(node):
-    pass
+def update_chart(data):
+    for x in do_range(1, 5):
+        for y in do_range(1, 5):
+            if (data.chart[x][y].arachnidN != "."):
+                data.chart[x][y].arachnidN = ltrim (char_(data.sector[x][y].arachnidN))
+                data.chart[x][y].skinnyN = ltrim (char_(data.sector[x][y].skinnyN))
+                data.chart[x][y].radiation = data.sector[x][y].radiation
+                data.chart[x][y].supply = data.sector[x][y].supply
+            # end if
+        # end for
+    # end for
     
-def you_lose (reason):
-    pass
+def calc_score(data, type):
+    if (type == "arachnids"): return (data.score.arachnids_Xed * ARACHNID_SCORE_FACTOR)
+    elif (type == "skinnies"): return (data.score.skinnies_Xed * SKINNY_SCORE_FACTOR)
+    elif (type == "heavy_beams"): return (data.score.heavy_beams_Xed * HEAVY_BEAM_SCORE_FACTOR)
+    elif (type == "missile_ls"): return (data.score.missile_ls_Xed * MISSILE_L_SCORE_FACTOR)
+    elif (type == "mountains"): return (data.score.mountains_Xed * MOUNTAIN_SCORE_FACTOR)
+    elif (type == "supplies"): return (data.score.supplies_Xed * SUPPLY_SCORE_FACTOR)
+    elif (type == "prisoners"): return (data.score.prisoners_rescued * PRISONER_SCORE_FACTOR)
+    else: return (0)
     
-def H_or_M_present (sx, sy, node):
-    return True
+def you_lose (scip, reason):
+    code = parm()
+    
+    call. ioa_ ("^3/*************************")
+    if (reason == "death"):
+        call. ioa_ ("^/You have been killed.  Secundis gloria mundi...")
+        call. ssu_.execute_string (scip, "score -all", code)
+    elif (reason == "no_time"):
+        call. ioa_ ("^/The Retrieval Boat has abandoned you.  You are an Arachnid prisoner.^/Pray that the next Trooper rescues you before you die...")
+        call. ssu_.execute_string (scip, "score -all", code)
+    # end if
+    call. ioa_ ("^/*************************")
+    call. ssu_.abort_subsystem (scip, (0))
     
 def convert_to_real(x):
     return float_(x)
+    
+def H_or_M_present (sx, sy, node):
+    return True
     
 def yes_no(input):
     while True:
