@@ -1,0 +1,358 @@
+STARSHIP TROOPERS PLANNING SHEET (sst.text) - 10/30/82
+
+Summary:
+
+          Starship Troopers is a game very similar to Star Trek in format
+and informational display.  The game is essentially this: you are a Mobile
+Infantryman on a mission to wreak havoc on an enemy planet where your adv-
+ersaries will be both the Arachnids and the Skinnies.  You are equiped with
+all sorts of weapons which range from Flamer rifles (used in close combat)
+to Nuclear bomb launchers (which are armed with only 4 bombs).  You are
+given a set amount of time at the end of which your retreival boat will
+come down to get you.  Points, extra time, and bonus ammo is awarded for
+killing warriors, weapons, and forts.  The enemy planet is divided into a
+5 x 5 grid (total of 25 sectors), with each Sector further sub-divided into
+a 10 x 10 grid (total of 100 points).  The only obstructions on the planet
+are enemy warriors, weapons, forts, and mountains.  Fire and movement may
+NOT pass through mountains.  Mountains may be destroyed (by Nukes or DAPs).
+The Arachnids have nuclear mines similar to your nuke bombs.  Any detonation
+of a nuke weapon (by you or the enemy) will cause the Point in question to
+be filled with radiation.  Should you pass through a radiation Point, you
+will take heavy damage.  Damage is primarily sustained by your armored
+Suit.  It has a number of "hit points".  When these are all gone, you are
+dead.  Occasionally, a Critical Hit will occur in which one of your pieces
+of equipment will be damaged (and rendered useless) OR your Suit will take
+heavy damage.  The primary ranged weapon of the Trooper is his H.E. launcher.
+It carries an unlimited number of H.E. bombs.  Jet boosters are a piece
+of equipment which allows you to move from one Sector to another at once.
+Distance is irrelevent.  Moving from Point to Point uses no paticular piece
+of equipment (as it is accomplished through jumping, not flying).
+
+Scanner chart (long range) notation:
+          3 1 R S
+          | | | |
+          | | | `----> 0 = No supply ship, S = Supply
+          | | `------> 0 = No radiation, R = Radiation
+          | `--------> # of Skinnies in sector
+          `----------> # of Arachnids in sector
+          
+(Four dots "...." in scanner notation denotes an unexplored sector)
+
+Snooper chart (short range) notation:
+          A = Arachnid warrior
+          H = Heavy weapon beam (Arachnid)
+          M = Missile launcher (Skinny)
+          S = Skinny warrior
+          T = Trooper (you)
+          
+          * = Breach
+          # = Radiation
+          @ = Fortress
+          ^ = Mountain
+          ! = R-Boat/Beacon
+          + = Supply ship
+          
+Equipment & vitals:
+          Jet boosters
+          Flamer rifle
+          Suit strength
+          Body strength
+          H.E. launcher
+          D.A.P. launcher (10-15 bombs)
+          Nuke launcher (4 nukes total)
+          
+Sample "scanner" output
+
+SECTOR 1 - 4 SCANNER READOUT:
+
+   1000   12R0   000S
+   0200   31RS   3300
+   0000   1100   00R0
+   
+Sample "chart" output:
+
+PLANETARY CHART:
+
+     1      2      3      4      5
+    --------------------------------
+1:  0200   0000   1100   31RS   ....
+2:  000S   0300   20R0   ....   ....
+3:  ....   ....   ....   ....   ....
+4:  ....   ...S   ....   ....   ....
+5:  ....   ....   ....   ...S   ....
+
+LOCUS PROXIMITY: Sector 1 - 4, Mark 9 - 3
+
+Sample "snooper" output:
+
+SECTOR 1 - 4, MARK 9 - 3
+
+    1 2 3 4 5 6 7 8 9 10
+ 1  . . . . . . . . . .
+ 2  . . ^ . . . . . . .
+ 3  . . . A . . . . ^ .
+ 4  H . * . . . . ^ . .
+ 5  . . A . . . ^ . . .
+ 6  . . . . . ^ . . . .
+ 7  . + . . . . . . # .
+ 8  . . . . . S . # # #
+ 9  . . T . . . . . # .
+10  . . . . . . . . . .
+
+(Detonation of nukes causes diamond shaped radiation areas to be formed with
+the target Point the center.  Above, Mark 8 - 9 was previously hit by either
+a nuke bomb, or a by a nuke demo.)
+
+Preliminary command list:
+          scanner
+          chart
+          snooper   -status,st
+          status {item}   -damage,dmg {item}   -all,a
+          fly {x_sector} {y_sector} {x_point} {y_point}
+          jump (x_point} {y_point}
+          launch {weapon}
+          quit
+          signal
+          score
+          repair {item}
+          rest {time}
+          ?
+          
+-------------------------------------------------------------------------------
+
+SUPPLEMENT #1 - 10/31/82
+
+Summary supplement:
+          Bonus ammo is awarded in Nuke bombs as your score gets higher.  The
+supply ship is a steady source of ammo of other types.  Suit strength can be
+regained, but Body strength can only be gained with the "rest" request.  Also,
+repairing equipment takes less time when "camped".  Supply ships can and will
+be destroyed by Heavy weapon beams and Missile launchers.  Terran prisoners
+can be rescued (and mega-points awarded) by typing the "rescue" request when:
+          a) You are adjacent to a Skinny fort.
+          b) You are in an Arachnid breach Point.
+If there are any prisoners, rescue is successful only after all enemies in
+the breach/fort are destroyed.  They must be carried to the retreival boat
+at the end of the game.  Once rescued, they do not affect the game in any
+way.
+
+Equipment supplement:
+          Listening device
+          
+Supplemental command list:
+          rescue
+          encamp
+          radiation {x_sector} {y_sector}
+          listen
+          
+Notes:
+          The "encamp" request camps you at a supply ship for reloading of
+ammo.  The "radiation" request will tell you what Points contain radiation
+when given the Sector index (X and Y coordinates).  The "listen" request
+will tell you if a given Point contains a nuke demo (there is only a 50%
+chance that you will be told if there actually is one present).  This uses
+the Listening device (a piece of equipment which can be damaged/repaired).
+
+-------------------------------------------------------------------------------
+
+SUPPLEMENT #2 - 11/01/82
+
+          This supplement is actually a planning sheet for all the output
+that the game will generate.  Comments will appear in brackets "[ ]" under
+the output in question.
+
+Game preliminaries:
+
+*** STARSHIP TROOPERS 1.0 ***
+
+Would you like a (s)hort, (m)edium, or (l)ong game?
+What rank do you wish to play?
+[Possible responses are (l)eutenant, (s)argeant, and (c)aptain.  These ranks
+are equivalent to easy, regular, and challenge stages of difficulty.]
+
+*************************
+To: M.I. Captain Cooper
+Planetary Strike Mission
+Mission briefing:
+          30 Arachnid warriors
+          ?? Skinny warriors
+           3 Supply ships
+Drop site: Sector 1 - 4, Mark 9 - 3
+You have 15.0 hours to complete your mission.  The retreival beacon will
+land at Sector 3 - 2, Mark 4 - 10.  Good luck!
+
+*************************
+
+Command > .
+starship_troopers 1.0
+
+Command > status -all
+
+Trooper status report:
+   Locus proximity: Sector 1 - 4, Mark 9 - 3
+   Suit condition:  35 pts.
+   Body condition:  20 pts.
+   Booster energy: 1000 units
+   Flamer energy:  350 units
+   HE bombs left:   6
+   Nuke bombs left: 3
+   Arachnids left:  18
+   Time left:       12.5 hrs.
+   
+Trooper damage report:
+   Scanner          WORKING
+   Snooper          WORKING
+   Jet boosters     WORKING
+   Flamer rifle     WORKING
+   HE launcher      WORKING
+   DAP launcher     DAMAGED
+          Repair time: 1.6 hrs. (0.6 hrs.)
+   Nuke launcher    WORKING
+   Listening dev    WORKING
+   
+Command > jump 5 5
+
+***LOCUS PROXIMITY: Sector 1 - 4, Mark 5 - 5
+***MOUNTAIN at Mark 6 - 6.  Jump discontinued.
+***RADIATION at Mark 9 - 8.  Damage sustained.
+***ARACHNID at Mark 5 - 3.  Combat initiated.
+***SKINNY at Mark 8 - 6.  Combat initiated.
+***HEAVY BEAM at Mark 4 - 1.  Combat initiated.
+***MISSILE-L at Mark 2 - 2.  Combat initiated.
+***BREACH at Mark 4 - 3.
+***FORT at Mark 7 - 10.
+***SUPPLY at Mark 5 - 5.
+Suit strength insufficient for jump to Mark 5 - 5.
+
+Command > fly 1 5 5 5
+
+[All output is the same as above for Jumping except:]
+Jet boosters do not have sufficient energy remaining for flight.
+
+Command > launch {he|dap|nuke}
+
+Target point: 5 3
+***ARACHNID at Mark 5 - 3 disrupted.
+***ARACHNID at Mark 5 - 3 destroyed.
+Launch course: 8-3, 7-3, 6-3, 5-3
+***MOUNTAIN at Mark 6 - 6 destroyed.
+***FORT at Mark 2 - 2 destroyed.
+***BREACH at Mark 4 - 3 destroyed.
+***SKINNY at Mark 8 - 6 disrupted.
+***SKINNY at Mark 8 - 6 destroyed.
+***HEAVY BEAM at Mark 4 - 1 disrupted.
+***HEAVY BEAM at Mark 4 - 1 destroyed.
+***MISSILE-L at Mark 7 - 6 disrupted.
+***MISSILE-L at Mark 7 - 6 destroyed.
+
+Command > quit
+
+Are you sure you want to quit now? yes
+
+Planetary Strike Mission: ABORTED
+[At this point you are back at command level.]
+
+Command > signal
+
+Retrieval Beacon has not landed yet.
+Retrieval Beacon receives signal-----
+          Dematerialization complete . . . . .
+          . . . . . Rematerialization complete
+[OR]
+          . . . . . Rematerialization failure!
+[At which point the game is over and you are dead.]
+
+Command > score
+
+Your score:
+   6 Arachnid warriors.........600
+   3 Skinny warriors............30
+   1 Heavy weapon beam.........500
+   2 Prisoners rescued........2000
+   4 Mountains destroyed......-200
+                             ------
+                              2930
+                              
+Command > rest 2.1
+
+Rested.
+Time left: 1.5 hrs., Rest time: 2.1 hrs.
+
+Command > rescue
+
+Rescue mission impossible from current position.
+0 Prisoners rescued.
+2 Prisoners rescued.
+Arachnids present.  Do you wish to continue the rescue?
+Skinnies present.  Do you wish to continue the rescue?
+[Continuing rescue at these points requires hand-to-hand-combat.]
+
+Command > encamp
+
+You are not adjacent to a supply ship.
+Encamped.
+Time left: .5 hrs., Encampment time: 1.0 hrs.
+
+Command > radiation 1 4
+
+No radiation present in Sector 1 - 4.
+Radiation report - Sector 1 - 4:
+   Radiation at Mark 7 - 9
+   Radiation at Mark 8 - 8
+   Radiation at Mark 8 - 9
+   Radiation at Mark 8 - 10
+   Radiation at Mark 9 - 9
+   
+Command > listen 4 3
+
+No nuclear demo at Mark 4 - 3.
+Nuclear demo detected at Mark 4 - 3.
+
+***ENEMY ATTACK: 3 pts. of damage sustained by Suit.
+***HEAVY BEAM at Mark 4 - 1: 12 pts. of damage sustained by Suit.
+***SUIT DAMAGED: 2 pts. of damage sustained by Body.
+***CRITICAL HIT: 22 pts. of damage sustained by Suit.
+***CRITICAL HIT: H.E. launcher damaged.
+
+[All hand-to-hand combat output is in this form:]
+***ENEMY ATTACK: 2 pts. of damage sustained by Suit.
+
+[Miscelaneous output:]
+Distress signal from Supply Ship at Sector 1 - 3:
+   Under attack by a Heavy weapon beam.  Destruction time: 2.2 hrs.
+   
+Distress signal from Supply Ship at Sector 1 - 3:
+   Under attack by a Missile launcher.  Destruction time: 3.5 hrs.
+   
+"--to the everlasting glory of the infantry, shines thename, shines the
+name of Rodger Young!"  Retrieval Beacon has landed at Sector 3 - 4.
+
+Retrieval Boat arrival: 0.3 hrs.
+Retrieval successful!
+
+***BONUS NUKE BOMB awarded -- Score: 5010
+
+SUPPLEMENT #3 - 11/06/82
+
+Flamer rifles will replace the old HE launcher and will have a number of
+energy units for its use.  The DAP launcher (and its bombs) will be
+replaced by the HE launcher (and an equivalent number of bombs).
+Jet boosters will now have a number of energy units which are expended
+when they are used during flight (the "fly" request).  They can be regained
+by camping at a supply ship.
+
+Supplementary requests:
+          flamer
+          
+Supplementary output:
+
+Command > flamer
+
+Flamer energy remaining: 860 units
+>Units against Arachnid at Mark 4 - 3: 150
+>Units against Skinny at Mark 3 - 9: 75
+>Units against Heavy beam at Mark 10 - 1: 0
+>Units against Missile-l at mark 1 - 1: 0
+
+***ARACHNID at Mark 4 - 3 destroyed.
+***SKINNY at Mark 3 - 9 disrupted.
