@@ -6,6 +6,17 @@ include. query_info
 include. ssu_request_macros
 
 class ssu_abort_line(Exception): pass
+class ssu_abort_subsystem(Exception): pass
+
+ssu_et_ = PL1.Enum("ssu_et_",
+
+    unrecognized_request = -1,
+    
+    null_request_line    = 1,
+    request_line_aborted = 2,
+    subsystem_aborted    = 3,
+    
+)
 
 class ssu_(Subroutine):
     def __init__(self):
@@ -36,6 +47,7 @@ class ssu_(Subroutine):
         pass
         
     def listen(self, sci_ptr, iocb_ptr, code):
+        RUNNING = fixed.bin . init (-1) . local
         command = char ('*') . parm . init ("")
         commands = []
         
@@ -43,15 +55,15 @@ class ssu_(Subroutine):
         query_info.suppress_spacing = True
         query_info.suppress_name_sw = True
         
-        while sci_ptr.ptr.exit_code == -1:
+        while sci_ptr.ptr.exit_code == RUNNING:
         
             #== If there are no more commands queued up from a multi-command line
             #== then get some commands from command_query_
             if commands == []:
                 pre_request_proc = sci_ptr.ptr.procedures.get("pre_request_line")
-                if pre_request_proc:
-                    pre_request_proc(sci_ptr)
-                # end if
+                self._execute_proc(pre_request_proc, sci_ptr)
+                if sci_ptr.ptr.exit_code != RUNNING:
+                    continue
                 
                 if sci_ptr.ptr.prompt_mode & bitstring(3, b'010'):
                     call. ioa_.nnl (sci_ptr.ptr.prompt_string)
@@ -66,11 +78,18 @@ class ssu_(Subroutine):
             command.val = commands.pop(0).strip()
             
             self.execute_string(sci_ptr, command.val, code)
-            if code.val == 0:
-                if command.val == "*":
-                    sci_ptr.ptr.exit_code = 0
-                # end if
-            # end for
+            
+            if sci_ptr.ptr.exit_code == RUNNING:
+            
+                if code.val == 0:
+                    post_request_proc = sci_ptr.ptr.procedures.get("post_request_line")
+                    self._execute_proc(post_request_proc, sci_ptr)
+                    if sci_ptr.ptr.exit_code != RUNNING:
+                        continue
+                        
+                elif code.val == ssu_et_.unrecognized_request:
+                    if command.val == "*":
+                        sci_ptr.ptr.exit_code = 0
         
     def destroy_invocation(self, sci_ptr):
         pass
@@ -91,10 +110,17 @@ class ssu_(Subroutine):
     def _split(self, s, maxsplit=0):
         return [p for p in re.split(r'(\s)|"(.*?)"', s, maxsplit=maxsplit) if p and p.strip()]
     
+    def _execute_proc(self, proc, sci_ptr):
+        if proc:
+            try:
+                proc(sci_ptr)
+            except (ssu_abort_line, ssu_abort_subsystem):
+                pass
+        
     def execute_string(self, sci_ptr, command_string, code):
         command_string = command_string.strip()
         if command_string == "":
-            code.val = 0
+            code.val = ssu_et_.null_request_line
             return
         # end if
         
@@ -108,21 +134,22 @@ class ssu_(Subroutine):
                     sci_ptr.ptr.request_name = request.long_name
                     sci_ptr.ptr.args_string = args_string.strip()
                     request.rq_procedure(sci_ptr, sci_ptr.ptr.info_ptr)
-            
-                    post_request_proc = sci_ptr.ptr.procedures.get("post_request_line")
-                    if post_request_proc:
-                        post_request_proc(sci_ptr)
-                    # end if
                     
                 except ssu_abort_line:
-                    pass
+                    code.val = ssu_et_.request_line_aborted
+                    return
+                    
+                except ssu_abort_subsystem:
+                    code.val = ssu_et_.subsystem_aborted
+                    return
                 # end try
-                code.val = 1
+                
+                code.val = 0
                 break
             # end if
         else:
             call. ioa_ ("Unrecognized request ^a", request_name)
-            code.val = 0
+            code.val = ssu_et_.unrecognized_request
             
     def print_message(self, sci_ptr, code, format_string="", *args):
         user_message = parm("")
@@ -137,8 +164,9 @@ class ssu_(Subroutine):
     def abort_subsystem(self, sci_ptr, code, format_string="", *args):
         if code != 0:
             self.print_message(sci_ptr, code, format_string, *args)
+        # end if
         sci_ptr.ptr.exit_code = code
-        raise ssu_abort_line
+        raise ssu_abort_subsystem
         
 #-- end class ssu_
 
