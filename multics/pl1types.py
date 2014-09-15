@@ -373,6 +373,9 @@ class PL1(object):
         def __ne__(self, rhs):
             return not self.__eq__(rhs)
             
+        def __int__(self):
+            return self.value
+            
         def __repr__(self):
             return self.__enum_name + "$" + self.__member_name
 

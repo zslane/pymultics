@@ -149,7 +149,7 @@ def add_user():
             # end if
             encrypted_password, pubkey = supervisor.encrypt_password(password)
         else:
-            call. ioa_ ("Unrecognized argument ^a", arg)
+            call. com_err_ (error_table_.badarg, MAIN, "^a", arg)
             return
         # end if
     # end while

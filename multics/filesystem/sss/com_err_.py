@@ -12,7 +12,12 @@ class com_err_(Subroutine):
             call.ioa_.rsnnl(control_string, user_message, *argl)
         else:
             user_message.val = ""
-        system_message = repr(code)
+            
+        try:
+            system_message = error_table_._messages[int(code)]
+        except:
+            system_message = ""
+            
         call.ioa_("^a: ^[ ^a ^;^s^]^a", caller, code != 0, system_message, user_message.val)
         
     def suppress_name(self, code, caller, control_string="", *argl):
@@ -21,7 +26,12 @@ class com_err_(Subroutine):
             call.ioa_.rsnnl(control_string, user_message, *argl)
         else:
             user_message.val = ""
-        system_message = repr(code)
+            
+        try:
+            system_message = error_table_._messages[int(code)]
+        except:
+            system_message = ""
+            
         call.ioa_("^[^a ^;^s^]^a", code != 0, system_message, user_message.val)
         
 #-- end class com_err_
