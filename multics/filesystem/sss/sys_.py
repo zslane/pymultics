@@ -119,10 +119,13 @@ class sys_(Subroutine):
         output.path = GlobalEnvironment.fs.merge_path(current_dir, name)
     
     def split_path_(self, full_path, dir_name, entryname):
-        rev_full_path = full_path[::-1]
-        e, _, d = rev_full_path.partition(">")
-        dir_name.val = d[::-1]
-        entryname.val = e[::-1]
+        # rev_full_path = full_path[::-1]
+        # e, _, d = rev_full_path.partition(">")
+        # dir_name.val = d[::-1]
+        # entryname.val = e[::-1]
+        dir_name.val, x, entryname.val = full_path.rpartition(">")
+        if not dir_name.val.startswith(x):
+            dir_name.val = x + dir_name.val
         
     def change_current_directory(self, dir_ref, code):
         if dir_ref.startswith(">"):
