@@ -119,14 +119,21 @@ class VirtualMulticsHardware(QtCore.QObject):
         
 class HardwareClock(QtCore.QObject):
 
+    epoch = time.clock()
+
     def __init__(self, wall_time):
         super(HardwareClock, self).__init__()
+        #== Figure out which time function to use as the system clock
+        if time.clock() == time.clock():
+            self.__clock_fn = time.time
+        else:
+            self.__clock_fn = time.clock
         
         self.__wall_time = wall_time
-        self.__clocktick = time.clock()
+        self.__clocktick = self.__clock_fn()
         
     def current_time(self):
-        dc = time.clock() - self.__clocktick
+        dc = self.__clock_fn() - self.__clocktick
         return self._asInt(self.__wall_time + dc)
         
     def _asInt(self, t):
