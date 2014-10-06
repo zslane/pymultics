@@ -310,13 +310,13 @@ class VirtualMulticsFileSystem(QtCore.QObject):
                 p += ">" + f
             # # end if
             p = self._resolve_path(p)
-            p = p.replace(">", "\\").lstrip("\\")
+            p = p.replace(">", os.sep).lstrip(os.sep)
             p = os.path.join(self.FILESYSTEMROOT, p)
-        elif "\\" in p:
+        elif os.sep in p:
             if f:
                 p = os.path.join(p, f)
             # end if
-            p = p.replace(self.FILESYSTEMROOT, "").replace("\\", ">")
+            p = p.replace(self.FILESYSTEMROOT, "").replace(os.sep, ">")
         return p
         
     def native_path(self, p):
