@@ -122,12 +122,16 @@ class HardwareClock(QtCore.QObject):
     epoch = time.clock()
 
     def __init__(self, wall_time):
+        t1 = time.clock()
         super(HardwareClock, self).__init__()
-        #== Figure out which time function to use as the system clock
-        if time.clock() == time.clock():
-            self.__clock_fn = time.time
+        t2 = time.clock()
+        #== Figure out which time function to use for the hardware clock
+        if abs(t1 - t2) < 1e-6: # <-- successive time.clock() calls too close in value
+            print "Hardware clock uses time.time() [{0.platform}]".format(sys)
+            self.__clock_fn = time.time # use time.time() instead
         else:
-            self.__clock_fn = time.clock
+            print "Hardware clock uses time.clock() [{0.platform}]".format(sys)
+            self.__clock_fn = time.clock # time.clock() should be fine
         
         self.__wall_time = wall_time
         self.__clocktick = self.__clock_fn()
