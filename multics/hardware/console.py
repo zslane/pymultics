@@ -72,7 +72,7 @@ class ConsoleIO(QtGui.QWidget):
     def __init__(self, parent=None):
         super(ConsoleIO, self).__init__(parent)
         
-        font = QtGui.QFont("Consolas", 8)
+        font = QtGui.QFont(*parent.config['font'])
         
         self.output = ScreenIO(font)
         self.output.setFixedSize(self._width(N_HORZ_CHARS), self._height(N_VERT_LINES))
@@ -182,6 +182,8 @@ class ConsoleWindow(QtGui.QMainWindow):
     def __init__(self, parent=None):
         super(ConsoleWindow, self).__init__(parent)
         
+        self.config = self.read_console_config()
+        
         self.mainframe_panel = MainframePanel()
         self.mainframe_panel.restart_button.clicked.connect(self.restart_system)
         
@@ -239,6 +241,11 @@ class ConsoleWindow(QtGui.QMainWindow):
 
             self.__multics = self.__hardware.boot_OS()
             self.__multics.start()
+    
+    def read_console_config(self):
+        with open(os.path.join(os.path.dirname(__file__), "console.config"), "r") as f:
+            config_text = f.read()
+        return eval(config_text)
     
     def timerEvent(self, event):
         self.heartbeat.emit()
