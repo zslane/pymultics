@@ -529,6 +529,7 @@ class Supervisor(QtCore.QObject):
         if not self.__whotab:
             call. hcs_.make_seg (self.fs.system_control_dir, "whotab", "", 0, segment(WhoTable()), code)
             self.__whotab = segment.ptr
+            self.__whotab.sysid = self.site_config['site_name']
         # end if
         print "WHOTAB:"
         print "-------"

@@ -2,10 +2,11 @@
 class WhoTable(object):
 
     def __init__(self):
+        self.sysid = ""
         self.entries = {}
         
     def __repr__(self):
-        return str(self.entries)
+        return "{0}: {1}".format(self.sysid, self.entries)
         
     def get_process_ids(self):
         return [ whotab_entry.process_id for whotab_entry in self.entries.values() ]
