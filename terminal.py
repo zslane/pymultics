@@ -395,6 +395,7 @@ class TerminalWindow(QtGui.QMainWindow):
         QtCore.QTimer.singleShot(0, self.startup)
         
     def setup_menus(self):
+        self.menuBar().setNativeMenuBar(False)
         self.menuBar().setStyleSheet(MENUBAR_STYLE_SHEET)
         
         self.options_menu = self.menuBar().addMenu("Options")
