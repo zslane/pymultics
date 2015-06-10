@@ -231,7 +231,6 @@ class GlassTTY(QtGui.QWidget):
         
         self.aa = aa
         self.opacity = DEFAULT_BRIGHTNESS
-        self.wincolor = QtGui.QColor(0, 0, 0)
         
         self.font = FontGlyphs(":/UiCrt2_Charset.bmp" if aa else ":/UiCrt2_Charset_noaa.bmp")
         self.font.createColoredGlyphs("vintage", QtGui.QColor(57, 255, 174)) #QtGui.QColor(50, 221, 151))
@@ -272,16 +271,18 @@ class GlassTTY(QtGui.QWidget):
         self.echoMode = mode
         
     def setPhosphorColor(self, phosphor_color):
+        self.fontcolor = self.font.glyphColor[phosphor_color]
+        self.wincolor = self.fontcolor.darker(1200)
+        
         try:
             self.glyphs = self.font.colored_glyphs[phosphor_color]
         except:
             self.glyphs = self.font.glyphs
             
-            fontcolor = self.font.glyphColor[phosphor_color]
-            pixel = QtGui.QPen(fontcolor)
+            pixel = QtGui.QPen(self.fontcolor)
             if self.aa:
-                dim = QtGui.QPen(fontcolor.darker(300)) # 400))
-                dimmer = QtGui.QPen(fontcolor.darker(600)) # 800))
+                dim = QtGui.QPen(self.fontcolor.darker(300)) # 400))
+                dimmer = QtGui.QPen(self.fontcolor.darker(600)) # 800))
             else:
                 dim = dimmer = QtGui.QPen(self.wincolor)
                 
@@ -465,14 +466,15 @@ class GlassTTY(QtGui.QWidget):
         s = cellx * self.font.cell_width + self.MARGIN
         y = celly * self.font.cell_height + self.MARGIN
         
+        mode = painter.compositionMode()
+        painter.setCompositionMode(QtGui.QPainter.CompositionMode_Lighten)
+        
         if isinstance(glyph, QtGui.QPixmap):
             #== If the glyph is a pixmap, then just blit it to the viewport
             painter.drawPixmap(s, y, glyph)
         else:
             #== Otherwise we draw the glyph ourselves pixel by pixel
             painter.fillRect(QtCore.QRect(s, y, self.font.cell_width, self.font.cell_height), self.wincolor)
-            mode = painter.compositionMode()
-            painter.setCompositionMode(QtGui.QPainter.CompositionMode_Lighten)
             for row in glyph:
                 x = s
                 for pixel in row:
@@ -482,7 +484,9 @@ class GlassTTY(QtGui.QWidget):
                 # end for
                 y += 2
             # end for
-            painter.setCompositionMode(mode)
+        # end if
+        
+        painter.setCompositionMode(mode)
         
     def _draw_pixel(self, painter, x, y):
         #== x and y are the coordinates of the upper-right corner of
