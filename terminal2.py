@@ -720,7 +720,7 @@ class TerminalWindow(QtGui.QMainWindow):
         
         self.palette = QtGui.QPalette()
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444))
-        self.palette.setColor(QtGui.QPalette.Text,       QtCore.Qt.black)
+        self.palette.setColor(QtGui.QPalette.WindowText, QtCore.Qt.black)
         
         self.status_label = QtGui.QLabel()
         self.status_label.setAutoFillBackground(True)

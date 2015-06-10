@@ -53,7 +53,7 @@ class DataPacket(object):
         
     @staticmethod
     def Out(data_code, payload=""):
-        if data_code[0] >= CONTROL_CODE: # control codes are all greater than ASCII value 127
+        if ord(data_code[0]) >= ord(CONTROL_CODE): # control codes are all greater than ASCII value 127
             # print "DataPacket.Out(CONTROL_CODE + chr(%d) + %s + END_CONTROL_CODE)" % (ord(data_code[0]), repr(payload))
             return QtCore.QByteArray(CONTROL_CODE + data_code + str(payload) + END_CONTROL_CODE)
         else:
@@ -173,7 +173,7 @@ class TerminalIO(QtGui.QWidget):
         
     def _width(self, nchars):
         fm = QtGui.QFontMetricsF(self.output.currentFont())
-        return int(round(fm.width("M") * nchars) + self.output.document().documentMargin() * 2)
+        return int(round(fm.width("W") * nchars + 0.5) + self.output.document().documentMargin() * 2)
         
     def _height(self, nlines):
         fm = QtGui.QFontMetrics(self.output.currentFont())
@@ -319,7 +319,7 @@ class TerminalIO(QtGui.QWidget):
         if phosphor_color == "vintage": color = '#32dd97'
         if phosphor_color == "green": color = "lightgreen"
         if phosphor_color == "amber": color = "gold"
-        if phosphor_color == "white": color = "white"
+        if phosphor_color == "white": color = "aliceblue"
         
         self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEET % (color))
         self.output.style().unpolish(self)
@@ -370,6 +370,7 @@ class TerminalWindow(QtGui.QMainWindow):
         
         self.palette = QtGui.QPalette()
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444))
+        self.palette.setColor(QtGui.QPalette.WindowText, QtCore.Qt.black)
         
         self.status_label = QtGui.QLabel()
         self.status_label.setAutoFillBackground(True)

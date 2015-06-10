@@ -92,6 +92,7 @@ class ConsoleIO(QtGui.QWidget):
         self.input.breakSignal.connect(self._process_break_signal)
         
         layout = QtGui.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(output_frame)
         layout.addWidget(self.input)
         
@@ -99,7 +100,7 @@ class ConsoleIO(QtGui.QWidget):
         
     def _width(self, nchars):
         fm = QtGui.QFontMetricsF(self.output.currentFont())
-        return int(round(fm.width("M") * nchars) + self.output.document().documentMargin() * 2)
+        return int(round(fm.width("W") * nchars + 0.5) + self.output.document().documentMargin() * 2)
         
     def _height(self, nlines):
         fm = QtGui.QFontMetrics(self.output.currentFont())
@@ -150,11 +151,14 @@ class MainframePanel(QtGui.QWidget):
     def __init__(self, parent=None):
         super(MainframePanel, self).__init__(parent)
         
+        pixmap = QtGui.QPixmap(os.path.join(os.path.dirname(__file__), "pymultics_panel.jpg"))
+        
         self.image_label = QtGui.QLabel()
-        self.image_label.setPixmap(QtGui.QPixmap(os.path.join(os.path.dirname(__file__), "pymultics_panel.jpg")))
+        self.image_label.setPixmap(pixmap)
         self.image_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.image_label.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
         self.image_label.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.image_label.setStyleSheet("QLabel { background: black; }")
+        #self.image_label.setStyleSheet("QLabel { background: #c4c4b4; }")
         
         self.restart_button = QtGui.QPushButton("Restart", self.image_label)
         self.restart_button.setStyleSheet("QPushButton { font: bold 7pt ; }")
@@ -162,7 +166,8 @@ class MainframePanel(QtGui.QWidget):
         self.restart_button.move(85, 181)
         self.restart_button.setEnabled(False)
         
-        main_layout = QtGui.QVBoxLayout()
+        main_layout = QtGui.QHBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.image_label)
         
         self.setLayout(main_layout)
@@ -191,8 +196,6 @@ class ConsoleWindow(QtGui.QMainWindow):
         self.shutdown.connect(self.on_shutdown)
         
         layout = QtGui.QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
         layout.addWidget(self.mainframe_panel)
         layout.addWidget(self.io)
         
@@ -221,6 +224,8 @@ class ConsoleWindow(QtGui.QMainWindow):
         QtCore.QTimer.singleShot(0, self.boot)
         
     def boot(self):
+        self.setFixedSize(self.size())
+        
         import sys
         self.__hardware = VirtualMulticsHardware(sys.argv)
         self.__hardware.attach_console(self)
