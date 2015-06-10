@@ -176,9 +176,9 @@ class AnsweringService(Subroutine):
             # end if
             
             if not login_options.get('brief'):
-                GlobalEnvironment.supervisor.llout("\n%s logged in %s from %s\n" % (login_info.user_id, login_info.time_login.ctime(), tty_name), tty_channel)
+                call.iox_.put_chars(tty_channel, "\n%s logged in %s from %s\n" % (login_info.user_id, login_info.time_login.ctime(), tty_name))
                 if last_login_time:
-                    GlobalEnvironment.supervisor.llout("Last login %s from %s\n" % (last_login_time.ctime(), last_login_from), tty_channel)
+                    call.iox_.put_chars(tty_channel, "Last login %s from %s\n" % (last_login_time.ctime(), last_login_from))
                 # end if
             print "%s logged in on %s from %s" % (login_info.user_id, login_info.time_login.ctime(), tty_name)
         # end if
@@ -198,7 +198,7 @@ class AnsweringService(Subroutine):
         self.process_overseer.destroy_process(process)
         
         if not logout_options.get('brief'):
-            GlobalEnvironment.supervisor.llout("%s logged out %s\n" % (user_id, datetime.datetime.now().ctime()), process.tty())
+            call.iox_.put_chars(process.tty(), "%s logged out %s\n" % (user_id, datetime.datetime.now().ctime()))
         print "%s logged out %s" % (user_id, datetime.datetime.now().ctime())
         
         #== Remove the entry in the whotab corresponding to this user
@@ -210,7 +210,7 @@ class AnsweringService(Subroutine):
         if tty_channel == SYSTEM_CONSOLE:
             GlobalEnvironment.supervisor.hardware.io.detach_console_process(process.id())
         elif not logout_options.get('hold'):
-            GlobalEnvironment.supervisor.llout("Disconnect\n", tty_channel)
+            call.iox_.put_chars(tty_channel, "Disconnect\n")
             GlobalEnvironment.supervisor.hardware.io.disconnect_tty(tty_channel)
         else:
             self.__pending_login_ttys.append(tty_channel)
@@ -261,7 +261,7 @@ class AnsweringService(Subroutine):
             # end with
             pprint(self.__whotab)
         else:
-            GlobalEnvironment.supervisor.llout("Error creating process!")
+            call.iox_.put_chars(SYSTEM_CONSOLE, "Error creating process!")
         # end if
     
     def _initialize(self):
@@ -344,7 +344,7 @@ class AnsweringService(Subroutine):
                 # end if
             # end for
         else:
-            GlobalEnvironment.supervisor.llout("Failed to install %s." % (pdt_file))
+            call.iox_.put_chars(SYSTEM_CONSOLE, "Failed to install %s." % (pdt_file))
                     
     def _create_new_home_dir(self, person_id, pnt_ptr, homedir):
         print "Creating user home directory " + homedir

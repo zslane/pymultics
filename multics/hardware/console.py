@@ -4,8 +4,6 @@ from mainframe import VirtualMulticsHardware
 
 from PySide import QtCore, QtGui
 
-from sysadmin import SysAdminWindow
-
 N_HORZ_CHARS = 80
 N_VERT_LINES = 25
 
@@ -109,7 +107,7 @@ class ConsoleIO(QtGui.QWidget):
         return fm.lineSpacing() * nlines
         
     def _process_input(self):
-        txt = self.input.text()
+        txt = self.input.text() + '\r'
         self.input.clear()
         self.textEntered.emit(txt)
         
@@ -201,6 +199,7 @@ class ConsoleWindow(QtGui.QMainWindow):
         central_widget = QtGui.QWidget()
         central_widget.setLayout(layout)
         
+        # from sysadmin import SysAdminWindow
         # sysadmin_widget = SysAdminWindow(self)
         
         # splitter = QtGui.QSplitter(QtCore.Qt.Horizontal)

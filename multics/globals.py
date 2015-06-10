@@ -305,26 +305,7 @@ def call_(entryname):
 def check_conditions_(ignore_break_signal=False):
     process = get_calling_process_()
     tty_channel = process.tty()
-    
-    if GlobalEnvironment.supervisor.hardware.io.terminal_closed(tty_channel):
-        raise DisconnectCondition
-    # end if
-    if (not ignore_break_signal and
-        GlobalEnvironment.supervisor.hardware.io.break_received(tty_channel)):
-        
-        GlobalEnvironment.supervisor.llout("QUIT\n", tty_channel)
-        GlobalEnvironment.supervisor.invoke_condition_handler(BreakCondition, process)
-        
-    # end if
-    if GlobalEnvironment.supervisor.shutting_down():
-        raise ShutdownCondition
-    # end if
-    if GlobalEnvironment.supervisor.condition_signalled():
-        condition_instance = GlobalEnvironment.supervisor.pop_condition()
-        raise condition_instance
-    # end if
-
-    QtCore.QCoreApplication.processEvents()
+    GlobalEnvironment.supervisor.check_conditions(tty_channel, process, ignore_break_signal)
     
 @contextlib.contextmanager
 def do_loop(container, ignore_break_signal=False):

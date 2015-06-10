@@ -11,16 +11,15 @@ DEFAULT_SERVER_NAME = "localhost"
 DEFAULT_SERVER_PORT = 6800
 DEFAULT_PHOSPHOR_COLOR = "vintage"
 
-CONTROL_CODE       = chr(17) # Device Control 1
 UNKNOWN_CODE       = chr(0)
-ECHO_NORMAL_CODE   = chr(1)
-ECHO_PASSWORD_CODE = chr(2)
-ASSIGN_PORT_CODE   = chr(26) # Substitute
-WHO_CODE           = chr(3)
-END_CONTROL_CODE   = chr(4)  # End of Transmission
-
-LINEFEED_CODE      = chr(10) # Linefeed
-BREAK_CODE         = chr(24) # Cancel
+CONTROL_CODE       = chr(128)
+ECHO_NORMAL_CODE   = chr(129)
+ECHO_PASSWORD_CODE = chr(130)
+ASSIGN_PORT_CODE   = chr(131)
+WHO_CODE           = chr(132)
+BREAK_CODE         = chr(133)
+LINEFEED_CODE      = chr(134)
+END_CONTROL_CODE   = chr(254)
 
 class DataPacket(object):
 
@@ -54,7 +53,7 @@ class DataPacket(object):
         
     @staticmethod
     def Out(data_code, payload=""):
-        if data_code[0] < chr(32) and data_code[0] != '\r': # control codes are all less than ASCII value 32
+        if data_code[0] >= CONTROL_CODE: # control codes are all greater than ASCII value 127
             # print "DataPacket.Out(CONTROL_CODE + chr(%d) + %s + END_CONTROL_CODE)" % (ord(data_code[0]), repr(payload))
             return QtCore.QByteArray(CONTROL_CODE + data_code + str(payload) + END_CONTROL_CODE)
         else:
@@ -245,7 +244,7 @@ class TerminalIO(QtGui.QWidget):
         
     @QtCore.Slot()
     def send_string(self):
-        s = self.input.text().strip() or "\r"
+        s = self.input.text().strip() + "\r"
         self.input.clear()
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
             # print self.ME, "sending:", repr(s)

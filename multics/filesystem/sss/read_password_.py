@@ -1,6 +1,8 @@
 
 from multics.globals import *
 
+include.iox_control
+
 from PySide import QtGui
 
 class read_password_(Subroutine):
@@ -9,19 +11,23 @@ class read_password_(Subroutine):
         
     def procedure(self, prompt, password):
         tty_channel = get_calling_process_().tty()
+        iox_control.echo_input_sw = False
+        iox_control.enable_signals_sw = True
+        iox_control.filter_chars = common_ctrl_chars
+        buffer = parm()
         try:
-            GlobalEnvironment.supervisor.llout("%s\n" % (prompt), tty_channel)
+            call.iox_.put_chars(tty_channel, "%s\n" % (prompt))
             
-            GlobalEnvironment.supervisor.set_input_mode(QtGui.QLineEdit.Password, tty_channel)
-            input = GlobalEnvironment.supervisor.llin(block=True, tty_channel=tty_channel)
-            GlobalEnvironment.supervisor.set_input_mode(QtGui.QLineEdit.Normal, tty_channel)
+            call.iox_.set_input_mode(tty_channel, QtGui.QLineEdit.Password)
+            call.iox_.wait_get_line(tty_channel, iox_control, buffer)
+            call.iox_.set_input_mode(tty_channel, QtGui.QLineEdit.Normal)
             
-            input = input.strip().replace("\t", " ")
+            input = buffer.val.strip().replace("\t", " ")
             if input == "": input = "*"
             password.val = input
             
         except:
-            GlobalEnvironment.supervisor.set_input_mode(QtGui.QLineEdit.Normal, tty_channel)
+            call.iox_.set_input_mode(tty_channel, QtGui.QLineEdit.Normal)
             raise
         # end try
         

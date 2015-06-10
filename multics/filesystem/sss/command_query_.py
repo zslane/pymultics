@@ -1,6 +1,7 @@
 
 from multics.globals import *
-from query_info import *
+
+include.iox_control
 
 class command_query_(Subroutine):
     def __init__(self):
@@ -10,6 +11,11 @@ class command_query_(Subroutine):
         self._do_query(info_ptr, answer, caller, control_string, *args, **kwargs)
         
     def _do_query(self, info_ptr, answer, caller, control_string="", *args, **kwargs):
+        tty_channel = get_calling_process_().tty()
+        iox_control.echo_input_sw = info_ptr.echo_answer_sw
+        iox_control.enable_signals_sw = True
+        iox_control.filter_chars = common_ctrl_chars
+        
         return_string = parm()
         call.ioa_.rsnnl(control_string, return_string, *args)
         question = return_string.val
@@ -24,10 +30,7 @@ class command_query_(Subroutine):
             if info_ptr.repeat_time >= 30:
                 call.timer_manager_.alarm_call(info_ptr.repeat_time, self._repeat_question, question)
                 
-            answer.val = self._get_input(block=True)
-            if info_ptr.echo_answer_sw:
-                call.ioa_(answer.val)
-            # end if
+            call.iox_.wait_get_line(tty_channel, iox_control, answer)
             
             call.timer_manager_.reset_alarm_call(self._repeat_question)
             
@@ -57,10 +60,6 @@ class command_query_(Subroutine):
         if not info_ptr.literal_sw:
             answer.val = answer.val.strip()
     
-    def _get_input(self, block=False):
-        tty_channel = get_calling_process_().tty()
-        return GlobalEnvironment.supervisor.llin(block, tty_channel)
-        
     def _repeat_question(self, question):
         call.ioa_.nnl(question)
         

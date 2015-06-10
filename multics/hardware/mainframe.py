@@ -160,7 +160,7 @@ class IOSubsystem(QtCore.QObject):
     
     def _receive_string(self, s):
         self.__linefeed = False
-        self.__input_buffer.append(s.strip())
+        self.__input_buffer.append(s)
         
     def _receive_linefeed(self):
         self.__linefeed = True

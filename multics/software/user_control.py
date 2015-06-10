@@ -5,7 +5,7 @@ from ..globals import *
 from PySide import QtCore, QtGui
 
 login_help_text = (
-"""    login, l [person_id] {{project_id}} {{-control_args}}
+"""    login, l [person_id] {project_id} {-control_args}
         -change_password, -cpw
         -home_dir [path], -h [path]
         -no_start_up, -ns
@@ -20,6 +20,9 @@ login_help_text +
     help, ?
 """
 )
+
+include.iox_control
+declare (iox_ = entry)
 
 class UserControl(object):
 
@@ -95,21 +98,26 @@ class UserControl(object):
             
     #== User I/O is directly through the hardware's I/O subsystem
     def _terminal_closed(self):
-        return self.hardware.io.terminal_closed(self.tty)
+        return iox_.terminal_closed(self.tty)
     def _linefeed_received(self):
-        return self.hardware.io.linefeed_received(self.tty)
+        return iox_.linefeed_received(self.tty)
     def _break_received(self):
-        return self.hardware.io.break_received(self.tty)
+        return iox_.break_received(self.tty)
     def _has_input(self):
-        return self.hardware.io.has_input(self.tty)
-    def _get_input(self):
-        return self.hardware.io.get_input(self.tty)
+        return iox_.has_input(self.tty)
+    def _get_input(self, echo=False):
+        iox_control.echo_input_sw = echo
+        iox_control.enable_signals_sw = False
+        iox_control.filter_chars = common_ctrl_chars
+        buffer = parm()
+        call.iox_.wait_get_line(self.tty, iox_control, buffer)
+        return buffer.val
     def _flush_input(self):
-        self.hardware.io.flush_input(self.tty)
+        call.iox_.flush_input(self.tty)
     def _set_input_mode(self, mode):
-        self.hardware.io.set_input_mode(mode, self.tty)
+        call.iox_.set_input_mode(self.tty, mode)
     def _put_output(self, s):
-        self.hardware.io.put_output(s, self.tty)
+        call.iox_.put_chars(self.tty, s)
         
     def _display_login_banner(self):
         load = len(os.listdir(GlobalEnvironment.fs.path2path(GlobalEnvironment.fs.process_dir_dir)))
@@ -145,8 +153,7 @@ class UserControl(object):
         code         = parm()
         
         if self._has_input():
-            command_line = self._get_input()
-            self._put_output(command_line + "\n") # Echo the user input
+            command_line = self._get_input(echo=True)
             if command_line:
                 call.cu_.set_command_string_(command_line)
                 call.cu_.get_command_name(command_name, code)
@@ -249,7 +256,7 @@ class UserControl(object):
                 return self._set_state(self.LOGIN_COMPLETE)
                 
             elif self.__max_attempts == 0: # too many password failures!
-                GlobalEnvironment.hardware.io.disconnect_tty(self.tty)
+                call.iox_.disconnect_tty(self.tty)
                 return self._set_state(self.DISCONNECTED)
                 
             else:

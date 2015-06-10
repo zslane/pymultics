@@ -261,55 +261,40 @@ class Supervisor(QtCore.QObject):
     def llout(self, s, tty_channel=None):
         self.__hardware.io.put_output(s, tty_channel)
         
-    def llin(self, block=False, tty_channel=None):
+    def llin(self, block=False, tty_channel=None, enable_signals=True):
         while not self.__hardware.io.has_input(tty_channel) and block:
-        
-            if self.__hardware.io.terminal_closed(tty_channel):
-                raise DisconnectCondition
-            # end if
-            if self.__hardware.io.break_received(tty_channel):
-                print "Break signal detected by " + get_calling_process_().objectName()
-                self.__hardware.io.put_output("QUIT\n", tty_channel)
-                self.invoke_condition_handler(BreakCondition, get_calling_process_()) ### ! EXPERIMENTAL ! ###
-                # raise BreakCondition
-            # end if
-            if self.shutting_down():
-                print "Shutdown signal detected by " + get_calling_process_().objectName()
-                raise ShutdownCondition
-            # end if
-            if self.condition_signalled():
-                condition_instance = self.pop_condition()
-                print type(condition_instance), "signal detected by " + get_calling_process_().objectName()
-                raise condition_instance
-            # end if
-            
-            QtCore.QCoreApplication.processEvents()
-            
+            self.check_conditions(tty_channel, enable_signals and get_calling_process_())
             self._msleep(self.IDLE_DELAY_TIME) # in milliseconds
         # end while
         
-        if self.__hardware.io.terminal_closed(tty_channel):
-            raise DisconnectCondition
-        # end if
-        if self.__hardware.io.break_received(tty_channel):
-            print "Break signal detected by " + get_calling_process_().objectName()
-            self.__hardware.io.put_output("QUIT\n", tty_channel)
-            self.invoke_condition_handler(BreakCondition, get_calling_process_()) ### ! EXPERIMENTAL ! ###
-            # raise BreakCondition
-        # end if
-        if self.shutting_down():
-            print "Shutdown signal detected by " + get_calling_process_().objectName()
-            raise ShutdownCondition
-        # end if
-        if self.condition_signalled():
-            condition_instance = self.pop_condition()
-            print type(condition_instance), "signal detected by " + get_calling_process_().objectName()
-            raise condition_instance
-        # end if
+        self.check_conditions(tty_channel, enable_signals and get_calling_process_())
         
         input = self.__hardware.io.get_input(tty_channel)
         return input
         
+    def check_conditions(self, tty_channel, process, ignore_break_signals=False):
+        if process:
+            if self.__hardware.io.terminal_closed(tty_channel):
+                raise DisconnectCondition
+            # end if
+            if not ignore_break_signals and self.__hardware.io.break_received(tty_channel):
+                print "Break signal detected by " + process.objectName()
+                self.__hardware.io.put_output("QUIT\n", tty_channel)
+                self.invoke_condition_handler(BreakCondition, process) ### ! EXPERIMENTAL ! ###
+                # raise BreakCondition
+            # end if
+            if self.shutting_down():
+                print "Shutdown signal detected by " + process.objectName()
+                raise ShutdownCondition
+            # end if
+            if self.condition_signalled():
+                condition_instance = self.pop_condition()
+                print type(condition_instance), "signal detected by " + process.objectName()
+                raise condition_instance
+            # end if
+        # end if
+        QtCore.QCoreApplication.processEvents()
+    
     def wait_for_linefeed(self, tty_channel=None):
         while not self.__hardware.io.linefeed_received(tty_channel):
             QtCore.QCoreApplication.processEvents()
@@ -649,12 +634,6 @@ class SegmentDescriptor(QtCore.QObject):
         
 class DynamicLinker(QtCore.QObject):
 
-    system_preloads = [
-        #== CRITICAL SYSTEM CLASSES NEEDED FOR BOOTING
-        "hcs_",
-        "sys_",
-    ]
-    
     def __init__(self, supervisor):
         super(DynamicLinker, self).__init__()
         
@@ -664,11 +643,22 @@ class DynamicLinker(QtCore.QObject):
         self.__system_segment_table = {}
         self.__segfault_count = 0
         
+        #== CRITICAL SYSTEM CLASSES NEEDED FOR BOOTING
+        self.__system_preloads = [
+            (self.__filesystem.system_library_standard, "iox_"),
+            (self.__filesystem.system_library_standard, "hcs_"),
+            (self.__filesystem.system_library_standard, "sys_"),
+        ]
+        
     def initialize(self):
         self._initialize_system_functions()
         print "SYSTEM FUNCTION TABLE:"
         print "----------------------"
         pprint(self.__system_function_table)
+        self._preload_critical_segments()
+        print "SYSTEM SEGMENT TABLE:"
+        print "---------------------"
+        pprint(self.__system_segment_table)
         
     def _initialize_system_functions(self):
         import types
@@ -685,6 +675,10 @@ class DynamicLinker(QtCore.QObject):
                             # print "...adding", symbol, obj
                             self.__system_function_table[symbol] = SegmentDescriptor(self.__supervisor, symbol, module_path, module)
     
+    def _preload_critical_segments(self):
+        for dir_name, segment_name in self.__system_preloads:
+            self.load(dir_name, segment_name)
+            
     def __getattr__(self, entry_point_name):
         # self.__supervisor.referencing_dir = self.__filesystem.path2path(os.path.dirname(inspect.currentframe().f_back.f_code.co_filename))
         with reference_frame(inspect.currentframe().f_back) as frame_id:
