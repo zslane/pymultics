@@ -5,16 +5,15 @@
 #include <QString>
 #include <QRegExp>
 
-const char CONTROL_CODE       = char(17); // Device Control 1
 const char UNKNOWN_CODE       = char(0);
-const char ECHO_NORMAL_CODE   = char(1);
-const char ECHO_PASSWORD_CODE = char(2);
-const char ASSIGN_PORT_CODE   = char(26); // Substitute
-const char WHO_CODE           = char(3);
-const char END_CONTROL_CODE   = char(4);  // End of Transmission
-
-const char LINEFEED_CODE      = char(10); // Linefeed
-const char BREAK_CODE         = char(24); // Cancel
+const char CONTROL_CODE       = char(128);
+const char ECHO_NORMAL_CODE   = char(129);
+const char ECHO_PASSWORD_CODE = char(130);
+const char ASSIGN_PORT_CODE   = char(131);
+const char WHO_CODE           = char(132);
+const char BREAK_CODE         = char(133);
+const char LINEFEED_CODE      = char(134);
+const char END_CONTROL_CODE   = char(254);
 
 class DataPacket
 {

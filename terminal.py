@@ -184,7 +184,7 @@ class TerminalIO(QtGui.QWidget):
     def socket_error(self, error):
         if error == QtNetwork.QAbstractSocket.SocketError.ConnectionRefusedError:
             self.setErrorStatus.emit("Host Server %s not Active" % (self.host))
-        else:
+        elif error != QtNetwork.QAbstractSocket.SocketError.RemoteHostClosedError:
             self.setErrorStatus.emit(self.socket.errorString())
             print self.ME, "socket_error:", error
         

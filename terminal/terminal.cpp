@@ -68,6 +68,7 @@ TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget
     ME("TerminalIO")
 {
     char* color;
+    if (phosphor_color == "vintage") color = "#32dd97";
     if (phosphor_color == "green") color = "lightgreen";
     if (phosphor_color == "amber") color = "gold";
     if (phosphor_color == "white") color = "white";
@@ -131,7 +132,7 @@ TerminalIO::~TerminalIO()
 int TerminalIO::_width(int nchars) const
 {
     QFontMetricsF fm(m_output->currentFont());
-    return int(round(fm.width('M') * nchars) + m_output->document()->documentMargin() * 2);
+    return int(round(fm.width('W') * nchars + 0.5) + m_output->document()->documentMargin() * 2);
 }
 
 int TerminalIO::_height(int nlines) const
@@ -143,7 +144,7 @@ int TerminalIO::_height(int nlines) const
 
 void TerminalIO::startup()
 {
-//    std::cout << "connectToHost " << m_host.toStdString() << " " << m_port << std::endl;
+    // std::cout << "connectToHost " << m_host.toStdString() << " " << m_port << std::endl;
     m_socket->connectToHost(m_host, m_port);
 }
 
@@ -153,7 +154,7 @@ void TerminalIO::socket_error(QAbstractSocket::SocketError error)
     {
         emit setErrorStatus(QString("Host Server %1 not Active").arg(m_host));
     }
-    else
+    else if (error != QAbstractSocket::RemoteHostClosedError)
     {
         emit setErrorStatus(m_socket->errorString());
         std::cout << ME << " socket_error: " << error << std::endl;
@@ -214,7 +215,7 @@ void TerminalIO::data_available()
             if (data_code == ASSIGN_PORT_CODE)
             {
                 m_com_port = payload.toInt();
-//                std::cout << ME << " disconnecting and reconnecting on port " << m_com_port << std::endl;
+                // std::cout << ME << " disconnecting and reconnecting on port " << m_com_port << std::endl;
                 m_socket->close();
             }
             else if (data_code == ECHO_NORMAL_CODE)
@@ -239,8 +240,7 @@ void TerminalIO::data_available()
 
 void TerminalIO::send_string()
 {
-    QString s = m_input->text().trimmed();
-    if (s.isEmpty()) s.append('\r');
+    QString s = m_input->text().trimmed(); s.append('\r');
     m_input->clear();
     if (m_socket->isValid() && (m_socket->state() == QAbstractSocket::ConnectedState))
     {
@@ -277,9 +277,9 @@ void TerminalIO::send_who_code()
 {
     if (m_socket->isValid() && (m_socket->state() == QAbstractSocket::ConnectedState))
     {
-//        std::cout << ME << " sending WHO CODE " << std::endl;
+        // std::cout << ME << " sending WHO CODE " << std::endl;
         int n = m_socket->write(DataPacket::Out(WHO_CODE, m_name.toStdString().c_str()));
-//        std::cout << ME << " " << n << " bytes sent " << std::endl;
+        // std::cout << ME << " " << n << " bytes sent " << std::endl;
         m_socket->flush();
     }
 }
