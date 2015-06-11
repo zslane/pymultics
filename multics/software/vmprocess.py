@@ -121,7 +121,17 @@ class ProcessWorker(QtCore.QObject):
         self.__process_env.pds.process_stack.append(self.stack.copy())
         
     def pop_stack(self):
-        self.__process_env.pds.process_stack.pop()
+        def copy_options_from(prev_stack, options_name):
+            if hasattr(prev_stack, options_name):
+                setattr(self.stack, options_name, getattr(prev_stack, options_name))
+                
+        prev_stack = self.__process_env.pds.process_stack.pop()
+        #== When we pop the stack, we need to keep any special stack options
+        #== (e.g., new_proc_options, logout_options) that may have been
+        #== established by the last command and need to persist as the
+        #== process stack unwinds.
+        copy_options_from(prev_stack, "new_proc_options")
+        copy_options_from(prev_stack, "logout_options")
     
     def stack_level(self):
         return len(self.__process_env.pds.process_stack)

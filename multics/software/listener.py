@@ -147,7 +147,7 @@ class Listener(Subroutine):
         exit_code = self._enter_command_level()
         self.__process.pop_stack()
         print "Popping command level"
-        if exit_code == RELEASE_LEVEL:
+        if exit_code in [RELEASE_LEVEL, System.NEW_PROCESS, System.LOGOUT]:
             raise ReleaseUnwind
     
     def _special_commands(self, cmd_line):
