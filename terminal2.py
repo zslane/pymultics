@@ -9,11 +9,12 @@ import terminal2_rc
 N_HORZ_CHARS = 80
 N_VERT_LINES = 25
 
-DEFAULT_SERVER_NAME = "localhost"
-DEFAULT_SERVER_PORT = 6800
+DEFAULT_SERVER_NAME    = "localhost"
+DEFAULT_SERVER_PORT    = 6800
 DEFAULT_PHOSPHOR_COLOR = "vintage"
-DEFAULT_BRIGHTNESS  = 1.0
-DEFAULT_AA_FLAG     = True
+DEFAULT_BRIGHTNESS     = 1.0
+DEFAULT_CURSOR_BLINK   = True
+DEFAULT_AA_FLAG        = True
 
 UNKNOWN_CODE       = chr(0)
 CONTROL_CODE       = chr(128)
@@ -24,6 +25,9 @@ WHO_CODE           = chr(132)
 BREAK_CODE         = chr(133)
 LINEFEED_CODE      = chr(134)
 END_CONTROL_CODE   = chr(254)
+
+BEL = chr(7)
+ESC = chr(27)
 
 class DataPacket(object):
 
@@ -204,8 +208,7 @@ class GlassTTY(QtGui.QWidget):
 
     lineFeed = QtCore.Signal()
     breakSignal = QtCore.Signal()
-    returnPressed = QtCore.Signal()
-    charTyped = QtCore.Signal(str)
+    xmitChars = QtCore.Signal(str)
     
     NCHARS = N_HORZ_CHARS
     NLINES = N_VERT_LINES
@@ -238,19 +241,23 @@ class GlassTTY(QtGui.QWidget):
         self.font.createColoredGlyphs("amber",   QtGui.QColor(255, 215, 0)) #QtGui.QColor("gold"))
         self.font.createColoredGlyphs("white",   QtGui.QColor(240, 248, 255)) #QtGui.QColor("aliceblue"))
         
-        self.setPhosphorColor(phosphor_color)
-        
         self.raster_lines = [ GlassTTY.RasterLine(self.NCHARS) for i in range(self.NLINES) ]
+        
         self.cursorx = 0
         self.cursory = 0
         self.cursor_blink = True
         self.cursor_visible = True
         self.cursor_glyph = self.CURSOR_BLOCK
+        self.cursor_line1 = QtCore.QLine(QtCore.QPoint(0, -1), QtCore.QPoint(8, -1))
+        self.cursor_line2 = QtCore.QLine(QtCore.QPoint(1, 0), QtCore.QPoint(9, 0))
+        self.cursor_pen = QtGui.QPen()
+        self.cursor_pen.setDashPattern([1, 1])
         
-        self.buffered = False
-        self.input_buffer = ""
         self.autoLF = True
         self.autoCR = True
+        self.control_code_state = 0
+        
+        self.setPhosphorColor(phosphor_color)
         
         self.setConnected(False)
         self.startTimer(500)
@@ -272,7 +279,8 @@ class GlassTTY(QtGui.QWidget):
         
     def setPhosphorColor(self, phosphor_color):
         self.fontcolor = self.font.glyphColor[phosphor_color]
-        self.wincolor = self.fontcolor.darker(1200)
+        self.wincolor = self.fontcolor.darker(1500)
+        self.cursor_pen.setColor(self.fontcolor)
         
         try:
             self.glyphs = self.font.colored_glyphs[phosphor_color]
@@ -308,6 +316,12 @@ class GlassTTY(QtGui.QWidget):
         Add a string of characters, one at a time, to the display raster matrix.
         """
         for c in text:
+            #== Process control code
+            if c == ESC or self.control_code_state:
+                if self.process_control_code(c):
+                    continue
+                    
+            #== CR/LF/backspace
             if ord(c) == self.font.ord_CR:
                 self.cursorx = 0
                 if self.autoLF:
@@ -318,6 +332,8 @@ class GlassTTY(QtGui.QWidget):
                     self.cursorx = 0
             elif ord(c) == self.font.ord_BS:
                 self.delCharacters(1)
+                
+            #== All other characters
             else:
                 self.raster_lines[self.cursory][self.cursorx] = c
                 self.cursorx += 1
@@ -326,6 +342,8 @@ class GlassTTY(QtGui.QWidget):
                     self.cursory += 1
                 # end if
             # end if
+            
+            #== Scroll display if necessary
             if self.cursory == self.NLINES:
                 line = self.raster_lines.pop(0)
                 self.raster_lines.append(line.cleared())
@@ -351,13 +369,18 @@ class GlassTTY(QtGui.QWidget):
     #==================================#
     
     def cursorPos(self):
-        return QtCore.QPoint(self.cursorx, self.cursory)
+        x = self.cursorx * self.font.cell_width + self.MARGIN
+        y = self.cursory * self.font.cell_height + self.MARGIN
+        return QtCore.QPoint(x, y)
         
     def cursorRect(self):
-        return QtCore.QRect(self.cursorx, self.cursory, self.font.cell_width, self.font.cell_height)
+        return QtCore.QRect(self.cursorPos(), QtCore.QSize(self.font.cell_width, self.font.cell_height))
     
     def setCursorStyle(self, style):
         self.cursor_glyph = style
+        
+    def setCursorBlink(self, blink):
+        self.cursor_blink = blink
         
     def showCursor(self):
         self.cursor_visible = True
@@ -366,69 +389,138 @@ class GlassTTY(QtGui.QWidget):
     def hideCursor(self):
         self.cursor_visible = False
         self._repaint_cursor()
-
+        
     def toggleCursor(self):
         self.cursor_visible = not self.cursor_visible
         self._repaint_cursor()
         
+    def moveCursor(self, dx, dy):
+        if self.cursor_visible:
+            #== Erase from old position
+            self.cursor_visible = False
+            self._repaint_cursor()
+            self.cursor_visible = True
+        #== Draw in new position
+        self.cursorx = min(self.NCHARS-1, max(0, self.cursorx + dx))
+        self.cursory = min(self.NLINES-1, max(0, self.cursory + dy))
+        self._repaint_cursor()
+        
     def _repaint_cursor(self):
-        self.update(self.cursorRect())
-        self.repaint()
+        self.repaint(self.cursorRect())
     
-    #================================#
-    #== KEYBOARD BUFFER MANAGEMENT ==#
-    #================================#
+    #==================================#
+    #==  CONTROL CODE STATE MACHINE  ==#
+    #==================================#
     
-    def add_to_input_buffer(self, c):
-        self.input_buffer += c
+    def process_control_code(self, c):
+        #== State machine for processing VT100 control codes
         
-    def delete_from_input_buffer(self, n):
-        self.input_buffer = self.input_buffer[:-n]
+        (CC_NONE,
+         CC_BEGIN,
+         CC_TYPE1,
+         CC_NUM1,
+        ) = range(4)
         
-    def text(self):
-        return self.input_buffer
+        if self.control_code_state == 0:
+            assert c == ESC
+            self.control_code_state = CC_BEGIN
+            return True
+        elif self.control_code_state == CC_BEGIN:
+            if c == '[':
+                self.control_code_state = CC_TYPE1
+                return True
+        elif self.control_code_state == CC_TYPE1:
+            if c.isdigit():
+                self._cc_n1 = c
+                self.control_code_state = CC_NUM1
+                return True
+            elif c == 'c':
+                # Respond with device code
+                self.send_control_code_response("[x0c")
+                self.control_code_state = 0
+                return True
+            elif c == 'A':
+                self.moveCursor(0, -1)
+                self.control_code_state = 0
+                return True
+            elif c == 'B':
+                self.moveCursor(0, 1)
+                self.control_code_state = 0
+                return True
+            elif c == 'C':
+                self.moveCursor(1, 0)
+                self.control_code_state = 0
+                return True
+            elif c == 'D':
+                self.moveCursor(-1, 0)
+                self.control_code_state = 0
+                return True
+        elif self.control_code_state == CC_NUM1:
+            if c.isdigit():
+                self._cc_n1 += c
+                return True
+            elif c == 'n':
+                request_code = int(self._cc_n1)
+                if request_code == 5:
+                    # Respond with device status
+                    self.send_control_code_response("[0n")
+                    self.control_code_state = 0
+                    return True
+                elif request_code == 6:
+                    # Respond with cursor position
+                    self.send_control_code_response("[%d;%dR"%(self.cursory, self.cursorx))
+                    self.control_code_state = 0
+                    return True
+                #end if
+            elif c == 'A':
+                count = int(self._cc_n1)
+                self.moveCursor(0, -count)
+                self.control_code_state = 0
+                return True
+            elif c == 'B':
+                count = int(self._cc_n1)
+                self.moveCursor(0, count)
+                self.control_code_state = 0
+                return True
+            elif c == 'C':
+                count = int(self._cc_n1)
+                self.moveCursor(count, 0)
+                self.control_code_state = 0
+                return True
+            elif c == 'D':
+                count = int(self._cc_n1)
+                self.moveCursor(-count, 0)
+                self.control_code_state = 0
+                return True
+                
+        self.control_code_state = 0
+        return False
         
-    def clear(self):
-        self.input_buffer = ""
+    def send_control_code_response(self, code):
+        self.xmitChars.emit(ESC + code)
         
     #===============================#
     #==     QT EVENT HANDLERS     ==#
     #===============================#
     
     def keyPressEvent(self, event):
+        #== NON-ASCII KEYSTROKE ==#
         if not event.text():
-            if event.key() == QtCore.Qt.Key_Down: # Linefeed key
-                # print "Send LINEFEED"
-                self.lineFeed.emit()
-            elif event.key() == QtCore.Qt.Key_Pause: # Break key
+            if event.key() == QtCore.Qt.Key_Pause: # Break key
                 # print "Send BREAK"
                 self.breakSignal.emit()
+            elif event.key() == QtCore.Qt.Key_Down: # Linefeed key
+                # print "Send LINEFEED"
+                self.lineFeed.emit()
                 
+        #== ASCII KEYSTROKE ==#
         for c in str(event.text()):
-            if self.buffered:
-                if ord(c) == self.font.ord_BS:
-                    self.delete_from_input_buffer(1)
-                    if self.echoMode == QtGui.QLineEdit.Normal:
-                        self.delCharacters(1)
-                    
-                elif ord(c) == self.font.ord_CR:
-                    if self.echoMode == QtGui.QLineEdit.Normal:
-                        self.delCharacters(len(self.input_buffer))
-                    self.returnPressed.emit()
-                    
-                elif chr(1) <= c < (' '):
-                    pass
-                    
-                elif (' ') <= c <= ('~'):
-                    self.add_to_input_buffer(c)
-                    if self.echoMode == QtGui.QLineEdit.Normal:
-                        self.addCharacters(c)
-            else:
-                # print "Send char: %r (%d)" % (c, ord(c))
-                self.charTyped.emit(c)
+            if c == BEL:
+                self.ring_bell()
                 
-        # print hex(event.key())
-    
+            # print "Send char: %r (%d)" % (c, ord(c))
+            self.xmitChars.emit(c)
+            
     def timerEvent(self, event):
         if not self.connected:
             self.hideCursor()
@@ -440,8 +532,12 @@ class GlassTTY(QtGui.QWidget):
         painter.fillRect(event.rect(), self.wincolor)
         painter.setOpacity(self.opacity)
         
+        char_under_cursor = ord(self.raster_lines[self.cursory][self.cursorx]) or self.font.ord_SP
+        
         #== If we aren't just repainting the cursor, then redraw all the characters on the screen
-        if event.rect() != self.cursorRect():
+        if event.rect() == self.cursorRect():
+            self._draw_glyph(painter, self.glyphs[char_under_cursor], self.cursorx, self.cursory)
+        else:
             cellx = celly = 0
             for line in self.raster_lines:
                 cellx = 0
@@ -450,7 +546,8 @@ class GlassTTY(QtGui.QWidget):
                         try:
                             self._draw_glyph(painter, self.glyphs[ord(c)], cellx, celly)
                         except:
-                            print repr(c), ord(c)
+                            print "Bad character code for display:", repr(c), ord(c)
+                        # end try
                     cellx += 1
                 # end for
                 celly += 1
@@ -458,16 +555,22 @@ class GlassTTY(QtGui.QWidget):
         # end if
         
         if self.cursor_visible:
-            self._draw_glyph(painter, self.glyphs[self.cursor_glyph], self.cursorx, self.cursory)
-        else:
-            self._draw_glyph(painter, self.glyphs[self.font.ord_SP], self.cursorx, self.cursory)
+            if self.cursor_glyph == self.CURSOR_BLOCK:
+                # painter.setCompositionMode(QtGui.QPainter.CompositionMode_Difference)     # solid
+                # painter.fillRect(self.cursorRect().adjusted(0, 1, 0, -3), self.fontcolor) # block
+                self._draw_glyph(painter, self.glyphs[0], self.cursorx, self.cursory) # glyph block
+            else:
+                # painter.fillRect(self.cursorRect().adjusted(0, self.font.cell_height-3, 0, -1), self.fontcolor) # solid line
+                p = self.cursorRect().bottomLeft() # dotted
+                painter.setPen(self.cursor_pen)    # line
+                painter.drawLines([self.cursor_line1.translated(p), self.cursor_line2.translated(p)]) # dotted line
         
-    def _draw_glyph(self, painter, glyph, cellx, celly):
+    def _draw_glyph(self, painter, glyph, cellx, celly, comp_mode=QtGui.QPainter.CompositionMode_Lighten):
         s = cellx * self.font.cell_width + self.MARGIN
         y = celly * self.font.cell_height + self.MARGIN
         
-        mode = painter.compositionMode()
-        painter.setCompositionMode(QtGui.QPainter.CompositionMode_Lighten)
+        old_mode = painter.compositionMode()
+        painter.setCompositionMode(comp_mode)
         
         if isinstance(glyph, QtGui.QPixmap):
             #== If the glyph is a pixmap, then just blit it to the viewport
@@ -486,7 +589,7 @@ class GlassTTY(QtGui.QWidget):
             # end for
         # end if
         
-        painter.setCompositionMode(mode)
+        painter.setCompositionMode(old_mode)
         
     def _draw_pixel(self, painter, x, y):
         #== x and y are the coordinates of the upper-right corner of
@@ -498,6 +601,9 @@ class GlassTTY(QtGui.QWidget):
             for dx in [-1, 0, +1]:
                 painter.setPen(pen.next())
                 painter.drawPoint(x + dx + 1, y + dy + 3)
+    
+    def ring_bell(self):
+        QtGui.QApplication.beep()
     
     def as_str(self):
         return "\n".join(filter(None, [ "".join(filter(None, line)) for line in self.raster_lines ]))
@@ -531,8 +637,7 @@ class TerminalIO(QtGui.QWidget):
         self.output = self.ttyio
         self.input = self.ttyio
         self.input.setEnabled(False)
-        self.input.charTyped.connect(self.send_char)
-        self.input.returnPressed.connect(self.send_string)
+        self.input.xmitChars.connect(self.send_chars)
         self.input.lineFeed.connect(self.send_linefeed)
         self.input.breakSignal.connect(self.send_break_signal)
         
@@ -607,24 +712,14 @@ class TerminalIO(QtGui.QWidget):
                 self.display(data_packet.extract_plain_data())
         
     @QtCore.Slot(str)
-    def send_char(self, c):
-        # print self.ME, "charTyped:", c
+    def send_chars(self, c):
+        # print self.ME, "xmitChars:", c
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
             # print self.ME, "sending:", repr(c)
             n = self.socket.write(DataPacket.Out(c))
             # print self.ME, n, "bytes sent"
             self.socket.flush()
         
-    @QtCore.Slot()
-    def send_string(self):
-        s = self.input.text().strip() + "\r"
-        self.input.clear()
-        if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
-            # print self.ME, "sending:", repr(s)
-            n = self.socket.write(DataPacket.Out(s))
-            # print self.ME, n, "bytes sent"
-            self.socket.flush()
-    
     @QtCore.Slot()
     def send_linefeed(self):
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
@@ -682,6 +777,12 @@ class TerminalIO(QtGui.QWidget):
         
     def set_brightness(self, brightness):
         self.ttyio.setBrightness(brightness)
+        
+    def set_cursor_style(self, style):
+        self.ttyio.setCursorStyle(style)
+        
+    def set_cursor_blink(self, flag):
+        self.ttyio.setCursorBlink(flag)
         
 #-- end class TerminalIO
 
@@ -762,6 +863,9 @@ class TerminalWindow(QtGui.QMainWindow):
         self.phosphor_color_menu = self.options_menu.addMenu("Phosphor Color")
         self.brightness_action = self.options_menu.addAction("Brightness...", self.set_brightness)
         self.options_menu.addSeparator()
+        self.cursor_style_menu = self.options_menu.addMenu("Cursor Style")
+        self.cursor_blink_action = self.options_menu.addAction("Cursor Blink", self.set_cursor_blink)
+        self.options_menu.addSeparator()
         self.reconnect_action = self.options_menu.addAction("Reconnect", self.io.reconnect)
         
         self.set_phosphor_vintg = self.phosphor_color_menu.addAction("Vintage Green", lambda: self.set_phosphor_color("vintage"))
@@ -780,10 +884,28 @@ class TerminalWindow(QtGui.QMainWindow):
         self.set_phosphor_amber.setCheckable(True)
         self.set_phosphor_white.setCheckable(True)
         
+        self.set_cursor_block = self.cursor_style_menu.addAction("Block", lambda: self.set_cursor_style(GlassTTY.CURSOR_BLOCK))
+        self.set_cursor_line = self.cursor_style_menu.addAction("Line", lambda: self.set_cursor_style(GlassTTY.CURSOR_LINE))
+        
+        self.cursor_style_group = QtGui.QActionGroup(self)
+        self.cursor_style_group.addAction(self.set_cursor_block)
+        self.cursor_style_group.addAction(self.set_cursor_line)
+        
+        self.set_cursor_block.setCheckable(True)
+        self.set_cursor_line.setCheckable(True)
+        
+        self.cursor_blink_action.setCheckable(True)
+        
         self.set_phosphor_vintg.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "vintage")
         self.set_phosphor_green.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "green")
         self.set_phosphor_amber.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "amber")
         self.set_phosphor_white.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "white")
+        
+        self.set_cursor_block.setChecked(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK) == GlassTTY.CURSOR_BLOCK)
+        self.set_cursor_line.setChecked(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK) == GlassTTY.CURSOR_LINE)
+        
+        self.cursor_blink_action.setChecked(bool(self.settings.value("cursor_blink", DEFAULT_CURSOR_BLINK)))
+        
         self.reconnect_action.setEnabled(False)
     
     def startup(self):
@@ -792,11 +914,17 @@ class TerminalWindow(QtGui.QMainWindow):
         self.io.set_server_port(self.settings.value("port", DEFAULT_SERVER_PORT))
         self.io.set_phosphor_color(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR))
         self.io.set_brightness(float(self.settings.value("brightness", DEFAULT_BRIGHTNESS)))
+        self.io.set_cursor_style(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK))
+        self.io.set_cursor_blink(bool(self.settings.value("cursor_blink", DEFAULT_CURSOR_BLINK)))
         self.io.startup()
         
     def set_phosphor_color(self, color):
         self.io.set_phosphor_color(color)
         self.settings.setValue("phosphor_color", color)
+        
+    def set_cursor_style(self, style):
+        self.io.set_cursor_style(style)
+        self.settings.setValue("cursor_style", style)
         
     def set_status(self, txt):
         self.statusBar().setPalette(self.palette)
@@ -867,6 +995,12 @@ class TerminalWindow(QtGui.QMainWindow):
         self.settings.setValue("brightness", value)
         self.io.set_brightness(value)
     
+    @QtCore.Slot()
+    def set_cursor_blink(self):
+        flag = self.cursor_blink_action.isChecked()
+        self.io.set_cursor_blink(flag)
+        self.settings.setValue("cursor_blink", int(flag))
+        
     def closeEvent(self, event):
         self.closed.emit()
         event.accept()

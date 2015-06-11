@@ -13,9 +13,18 @@ class iox_(Subroutine):
     def hardware(self):
         return GlobalEnvironment.hardware
         
+    @property
+    def supervisor(self):
+        return GlobalEnvironment.supervisor
+        
     def _fetchbyte(self, tty_channel, ioxctl):
+        process = None
+        if ioxctl.enable_signals_sw:
+            process = get_calling_process_()
+        self.supervisor.check_conditions(tty_channel, process)
+        
         if not self._buffer:
-            input_data = GlobalEnvironment.supervisor.llin(False, tty_channel, ioxctl.enable_signals_sw) or ""
+            input_data = self.hardware.io.get_input(tty_channel) or ""
             self._buffer = filter(lambda c: c not in ioxctl.filter_chars, list(input_data)) or [""]
         
         c = self._buffer.pop(0)
@@ -28,11 +37,9 @@ class iox_(Subroutine):
         buffer.val = self._fetchbyte(tty_channel, ioxctl)
     
     def wait_get_char(self, tty_channel, ioxctl, buffer):
-        c = ""
-        while not c:
-            c = self._fetchbyte(tty_channel, ioxctl)
-        # end while
-        buffer.val = c
+        buffer.val = ""
+        while not buffer.val:
+            buffer.val = self._fetchbyte(tty_channel, ioxctl)
         
     def inline_edit_(self, s):
         result = []
@@ -55,7 +62,6 @@ class iox_(Subroutine):
         buf = ""
         while self.has_input(tty_channel):
             c = self._fetchbyte(tty_channel, ioxctl)
-            # print repr(c), ord(c)
             if c == '\r':
                 buffer.val = self.inline_edit_(buf)
                 return
@@ -72,7 +78,6 @@ class iox_(Subroutine):
         buf = ""
         while True:
             c = self._fetchbyte(tty_channel, ioxctl)
-            # print repr(c), ord(c)
             if c == '\r':
                 buffer.val = self.inline_edit_(buf)
                 return

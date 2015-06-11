@@ -144,18 +144,18 @@ class Supervisor(QtCore.QObject):
         self.site_config['site_name'] = os.path.basename(os.path.dirname(self.fs.SYSTEMROOT))
     
     def _send_system_greeting(self):
-        self.__hardware.io.put_output("%s\n" % (self.__hardware.announce))
-        print                         "%s" % (self.__hardware.announce)
-        self.__hardware.io.put_output("Multics Supervisor %s started %s, %s\n" % (self.version, self.__startup_datetime.ctime(), self.site_config['site_name']))
-        print                         "Multics Supervisor %s started %s, %s\n" % (self.version, self.__startup_datetime.ctime(), self.site_config['site_name'])
+        self.send_to_console("%s\n" % (self.__hardware.announce))
+        print                "%s" % (self.__hardware.announce)
+        self.send_to_console("Multics Supervisor %s started %s, %s\n" % (self.version, self.__startup_datetime.ctime(), self.site_config['site_name']))
+        print                "Multics Supervisor %s started %s, %s\n" % (self.version, self.__startup_datetime.ctime(), self.site_config['site_name'])
         self.__hardware.io.set_console_title("pyMultics Virtual Mainframe (%s)" % (self.site_config['site_name']))
         
     def _send_system_farewell(self):
         import multiprocessing
-        self.__hardware.io.put_output("\n:Multics Supervisor shutdown %s:\n" % (self.__shutdown_datetime.ctime()))
-        print                         "\n:Multics Supervisor shutdown %s:" % (self.__shutdown_datetime.ctime())
-        self.__hardware.io.put_output(":Virtual Multics Hardware shutdown (%d cpus offline):\n" % (self.__hardware.num_cpus))
-        print                         ":Virtual Multics Hardware shutdown (%d cpus offline):" % (self.__hardware.num_cpus)
+        self.send_to_console("\n:Multics Supervisor shutdown %s:\n" % (self.__shutdown_datetime.ctime()))
+        print                "\n:Multics Supervisor shutdown %s:" % (self.__shutdown_datetime.ctime())
+        self.send_to_console(":Virtual Multics Hardware shutdown (%d cpus offline):\n" % (self.__hardware.num_cpus))
+        print                ":Virtual Multics Hardware shutdown (%d cpus offline):" % (self.__hardware.num_cpus)
         
     #== STARTUP/SHUTDOWN ==#
     
@@ -256,44 +256,13 @@ class Supervisor(QtCore.QObject):
         
     #== LOW-LEVEL I/O ==#
     
-    #== I/O sent to a 'null' TTY device go to the system console
-    
-    def llout(self, s, tty_channel=None):
+    #== I/O sent to a 'null' TTY device goes to the system console
+        
+    def send_to_tty(self, s, tty_channel=None):
         self.__hardware.io.put_output(s, tty_channel)
-        
-    def llin(self, block=False, tty_channel=None, enable_signals=True):
-        while not self.__hardware.io.has_input(tty_channel) and block:
-            self.check_conditions(tty_channel, enable_signals and get_calling_process_())
-            self._msleep(self.IDLE_DELAY_TIME) # in milliseconds
-        # end while
-        
-        self.check_conditions(tty_channel, enable_signals and get_calling_process_())
-        
-        input = self.__hardware.io.get_input(tty_channel)
-        return input
-        
-    def check_conditions(self, tty_channel, process, ignore_break_signals=False):
-        if process:
-            if self.__hardware.io.terminal_closed(tty_channel):
-                raise DisconnectCondition
-            # end if
-            if not ignore_break_signals and self.__hardware.io.break_received(tty_channel):
-                print "Break signal detected by " + process.objectName()
-                self.__hardware.io.put_output("QUIT\n", tty_channel)
-                self.invoke_condition_handler(BreakCondition, process) ### ! EXPERIMENTAL ! ###
-                # raise BreakCondition
-            # end if
-            if self.shutting_down():
-                print "Shutdown signal detected by " + process.objectName()
-                raise ShutdownCondition
-            # end if
-            if self.condition_signalled():
-                condition_instance = self.pop_condition()
-                print type(condition_instance), "signal detected by " + process.objectName()
-                raise condition_instance
-            # end if
-        # end if
-        QtCore.QCoreApplication.processEvents()
+    
+    def send_to_console(self, s):
+        self.send_to_tty(s)
     
     def wait_for_linefeed(self, tty_channel=None):
         while not self.__hardware.io.linefeed_received(tty_channel):
@@ -314,6 +283,8 @@ class Supervisor(QtCore.QObject):
     def set_input_mode(self, mode, tty_channel=None):
         self.__hardware.io.set_input_mode(mode, tty_channel)
         
+    #== SYSTEM TIMERS ==#
+    
     def make_timer(self, interval, callback, data=None):
         timer = SystemTimer(self, interval, callback, data)
         return timer
@@ -334,10 +305,33 @@ class Supervisor(QtCore.QObject):
             encrypted_password = rsa.encode(password, pubkey)
             return (encrypted_password, pubkey)
     
-    #== BREAK CONDITION HANDLING ==#
+    #== CONDITION HANDLING ==#
+    
+    def check_conditions(self, tty_channel, process, ignore_break_signals=False):
+        if process:
+            if self.__hardware.io.terminal_closed(tty_channel):
+                raise DisconnectCondition
+            # end if
+            if not ignore_break_signals and self.__hardware.io.break_received(tty_channel):
+                print "Break signal detected by " + process.objectName()
+                self.send_to_tty("QUIT\n", tty_channel)
+                self.invoke_condition_handler(BreakCondition, process) ### ! EXPERIMENTAL ! ###
+                # raise BreakCondition
+            # end if
+            if self.shutting_down():
+                print "Shutdown signal detected by " + process.objectName()
+                raise ShutdownCondition
+            # end if
+            if self.condition_signalled():
+                condition_instance = self.pop_condition()
+                print type(condition_instance), "signal detected by " + process.objectName()
+                raise condition_instance
+            # end if
+        # end if
+        QtCore.QCoreApplication.processEvents()
     
     def signal_break(self, tty_channel=None):
-        self.__hardware.io.put_output("QUIT\n", tty_channel)
+        self.send_to_tty("QUIT\n", tty_channel)
         
     def signal_condition(self, signalling_process, condition_instance):
         self.__signalled_conditions.append( (signalling_process, condition_instance) )
@@ -420,7 +414,7 @@ class Supervisor(QtCore.QObject):
             from   answering_service import AnsweringService
             initializer_daemon = self.__process_overseer.create_process(login_info, AnsweringService)
             if not initializer_daemon:
-                self.llout("Failed to create Initializer daemon process")
+                self.send_to_console("Failed to create Initializer daemon process")
             else:
                 initializer_daemon.start()
             # end if
@@ -437,7 +431,7 @@ class Supervisor(QtCore.QObject):
             from   messenger import Messenger
             messenger_daemon = self.__process_overseer.create_process(login_info, Messenger)
             if not messenger_daemon:
-                self.llout("Failed to create Messenger daemon process")
+                self.send_to_console("Failed to create Messenger daemon process")
             else:
                 messenger_daemon.start()
             # end if
@@ -694,7 +688,7 @@ class DynamicLinker(QtCore.QObject):
         import traceback
         traceback.print_exc()
         excmsg = traceback.format_exc().replace("{", "{{").replace("}", "}}")
-        self.__supervisor.llout(excmsg, get_calling_process_().tty())
+        self.__supervisor.send_to_tty(excmsg, get_calling_process_().tty())
         
     #== Called by hcs_ ==#
     
