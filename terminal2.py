@@ -423,80 +423,90 @@ class GlassTTY(QtGui.QWidget):
          CC_NUM1,
         ) = range(4)
         
-        if self.control_code_state == 0:
-            assert c == ESC
+        def start():
             self.control_code_state = CC_BEGIN
             return True
+        def next(state):
+            self.control_code_state = state
+            return True
+        def same():
+            return True
+        def done():
+            self.control_code_state = 0
+            return True
+        def failed():
+            self.control_code_state = 0
+            return False
+        
+        if self.control_code_state == 0:
+            assert c == ESC
+            return start()
         elif self.control_code_state == CC_BEGIN:
             if c == '[':
-                self.control_code_state = CC_TYPE1
-                return True
+                return next(CC_TYPE1)
+            # end if
         elif self.control_code_state == CC_TYPE1:
             if c.isdigit():
                 self._cc_n1 = c
-                self.control_code_state = CC_NUM1
-                return True
+                return next(CC_NUM1)
             elif c == 'c':
                 # Respond with device code
                 self.send_control_code_response("[x0c")
-                self.control_code_state = 0
-                return True
+                return done()
             elif c == 'A':
                 self.moveCursor(0, -1)
-                self.control_code_state = 0
-                return True
+                return done()
             elif c == 'B':
                 self.moveCursor(0, 1)
-                self.control_code_state = 0
-                return True
+                return done()
             elif c == 'C':
                 self.moveCursor(1, 0)
-                self.control_code_state = 0
-                return True
+                return done()
             elif c == 'D':
                 self.moveCursor(-1, 0)
-                self.control_code_state = 0
-                return True
+                return done()
+            # end if
         elif self.control_code_state == CC_NUM1:
             if c.isdigit():
                 self._cc_n1 += c
-                return True
+                return same()
             elif c == 'n':
                 request_code = int(self._cc_n1)
                 if request_code == 5:
-                    # Respond with device status
+                    # Respond with device status ok
                     self.send_control_code_response("[0n")
-                    self.control_code_state = 0
-                    return True
+                    return done()
                 elif request_code == 6:
                     # Respond with cursor position
                     self.send_control_code_response("[%d;%dR"%(self.cursory, self.cursorx))
-                    self.control_code_state = 0
-                    return True
+                    return done()
                 #end if
             elif c == 'A':
                 count = int(self._cc_n1)
                 self.moveCursor(0, -count)
-                self.control_code_state = 0
-                return True
+                return done()
             elif c == 'B':
                 count = int(self._cc_n1)
                 self.moveCursor(0, count)
-                self.control_code_state = 0
-                return True
+                return done()
             elif c == 'C':
                 count = int(self._cc_n1)
                 self.moveCursor(count, 0)
-                self.control_code_state = 0
-                return True
+                return done()
             elif c == 'D':
                 count = int(self._cc_n1)
                 self.moveCursor(-count, 0)
-                self.control_code_state = 0
-                return True
-                
-        self.control_code_state = 0
-        return False
+                return done()
+            # end if
+        # end if
+        
+        #== Special case: failed the code parse on new ESC char;
+        #== just begin control code parsing again from the start
+        if c == ESC:
+            return start()
+            
+        #== Otherwise stop parsing and process new char normally
+        return failed()
         
     def send_control_code_response(self, code):
         self.xmitChars.emit(ESC + code)
