@@ -3,33 +3,34 @@
 
 #include <cstdlib>
 #include <iostream>
-#include "QGlobal.h"
-#include "QApplication.h"
-#include "QWidget.h"
-#include "QString.h"
-#include "QByteArray.h"
-#include "QTcpSocket.h"
-#include "QHostInfo.h"
-#include "QTextEdit.h"
-#include "QTextCursor.h"
-#include "QLineEdit.h"
-#include "QLabel.h"
-#include "QFrame.h"
-#include "QStyle.h"
-#include "QMainWindow.h"
-#include "QScrollBar.h"
-#include "QPalette.h"
-#include "QPainter.h"
-#include "QTimer.h"
-#include "QEvent.h"
-#include "QBoxLayout.h"
-#include "QInputDialog.h"
-#include "QMenuBar.h"
-#include "QMenu.h"
-#include "QAction.h"
-#include "QActionGroup.h"
-#include "QSettings.h"
-#include "QStatusBar.h"
+#include "qglobal.h"
+#include <QApplication>
+#include <QWidget>
+#include <QString>
+#include <QByteArray>
+#include <QTcpSocket>
+#include <QHostInfo>
+#include <QTextEdit>
+#include <QTextCursor>
+#include <QLineEdit>
+#include <QLabel>
+#include <QFrame>
+#include <QStyle>
+#include <QMainWindow>
+#include <QScrollBar>
+#include <QPalette>
+#include <QPainter>
+#include <QTimer>
+#include <QEvent>
+#include <QBoxLayout>
+#include <QInputDialog>
+#include <QMenuBar>
+#include <QMenu>
+#include <QAction>
+#include <QActionGroup>
+#include <QSettings>
+#include <QStatusBar>
+#include <QKeyEvent>
 #include "data_packet.h"
 
 inline double round(double x) { return double(int(x + 0.5)); }
@@ -45,7 +46,7 @@ signals:
 
 public:
 
-    KeyboardIO::KeyboardIO(QWidget* parent = 0);
+    KeyboardIO(QWidget* parent = 0);
 
 protected:
 
@@ -63,7 +64,7 @@ private:
 
 public:
 
-    ScreenIO::ScreenIO(const QFont& font, QWidget* parent = 0);
+    ScreenIO(const QFont& font, QWidget* parent = 0);
 
     void setConnected(bool flag);
 
@@ -99,9 +100,9 @@ protected:
 
 public:
 
-    TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent = 0);
+    TerminalIO(const QString& phosphor_color, QWidget* parent = 0);
 
-    TerminalIO::~TerminalIO();
+    ~TerminalIO();
 
 protected:
 
@@ -170,7 +171,7 @@ protected:
 
 public:
 
-    TerminalWindow::TerminalWindow(QWidget* parent = 0);
+    TerminalWindow(QWidget* parent = 0);
 
 private:
 

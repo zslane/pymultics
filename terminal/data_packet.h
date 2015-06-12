@@ -23,11 +23,11 @@ protected:
 
 public:
 
-    DataPacket::DataPacket();
-    DataPacket::DataPacket(const QByteArray& byte_array);
-    DataPacket::DataPacket(const DataPacket& data_packet);
+    DataPacket();
+    DataPacket(const QByteArray& byte_array);
+    DataPacket(const DataPacket& data_packet);
 
-    DataPacket::~DataPacket();
+    ~DataPacket();
 
     bool is_empty() const;
     bool is_control_seq() const;
