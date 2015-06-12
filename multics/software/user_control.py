@@ -102,12 +102,9 @@ class UserControl(object):
     def _linefeed_received(self):
         LF = chr(10)
         buffer = parm()
-        peek = call.iox_.peek_char(self.tty, buffer)
+        call.iox_.peek_char(self.tty, buffer)
         if buffer.val == LF:
-            iox_control.echo_input_sw = False
-            iox_control.enable_signals_sw = False
-            iox_control.filter_chars = []
-            iox_.get_char(self.tty, iox_control, buffer)
+            self._flush_input()
         return buffer.val == LF
     def _break_received(self):
         return iox_.break_received(self.tty)
@@ -149,6 +146,10 @@ class UserControl(object):
             return self._go_to_login()
             
         elif self._break_received() or self._has_input():
+            #== Race condition: check for linefeed again
+            if self._linefeed_received():
+                return self._go_to_login()
+            
             #== Ignore BREAK signals and all other keyboard input
             self._flush_input()
             return self._set_state(self.WAITING_FOR_LINEFEED)

@@ -30,6 +30,10 @@ class ProcessWorker(QtCore.QObject):
     @property
     def stack(self):
         return self.__process_env.pds.process_stack[-1]
+        
+    @property
+    def root_stack(self):
+        return self.__process_env.pds.process_stack[0]
     
     @property
     def directory_stack(self):
@@ -121,17 +125,7 @@ class ProcessWorker(QtCore.QObject):
         self.__process_env.pds.process_stack.append(self.stack.copy())
         
     def pop_stack(self):
-        def copy_options_from(prev_stack, options_name):
-            if hasattr(prev_stack, options_name):
-                setattr(self.stack, options_name, getattr(prev_stack, options_name))
-                
-        prev_stack = self.__process_env.pds.process_stack.pop()
-        #== When we pop the stack, we need to keep any special stack options
-        #== (e.g., new_proc_options, logout_options) that may have been
-        #== established by the last command and need to persist as the
-        #== process stack unwinds.
-        copy_options_from(prev_stack, "new_proc_options")
-        copy_options_from(prev_stack, "logout_options")
+        self.__process_env.pds.process_stack.pop()
     
     def stack_level(self):
         return len(self.__process_env.pds.process_stack)
@@ -240,6 +234,10 @@ class ProcessThread(QtCore.QThread):
         return self.worker.stack
         
     @property
+    def root_stack(self):
+        return self.worker.root_stack
+        
+    @property
     def directory_stack(self):
         return self.worker.directory_stack
         
@@ -337,6 +335,10 @@ class VirtualMulticsProcess(QtCore.QObject):
     def stack(self):
         return self.worker.stack
         
+    @property
+    def root_stack(self):
+        return self.worker.root_stack
+    
     @property
     def directory_stack(self):
         return self.worker.directory_stack
