@@ -14,13 +14,17 @@ LF  = chr(10)
 CR  = chr(13)
 ESC = chr(27)
 
+TEXTIO_STYLE_SHEET = "QTextEdit, QLineEdit { color: %s; background: %s; border: 0px; }"
+
 class KeyboardIO(QtGui.QLineEdit):
 
     lineFeed = QtCore.Signal()
     breakSignal = QtCore.Signal()
     
-    def __init__(self, parent=None):
+    def __init__(self, font, color="white", bkgdcolor="black", parent=None):
         super(KeyboardIO, self).__init__(parent)
+        self.setStyleSheet(TEXTIO_STYLE_SHEET % (color, bkgdcolor))
+        self.setFont(font)
         
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Pause:
@@ -34,7 +38,7 @@ class KeyboardIO(QtGui.QLineEdit):
         
 class ScreenIO(QtGui.QTextEdit):
 
-    def __init__(self, font, parent=None):
+    def __init__(self, font, color="white", bkgdcolor="black", parent=None):
         super(ScreenIO, self).__init__(parent)
         
         self.bkgd = QtGui.QPixmap(os.path.join(os.path.dirname(__file__), "multics_watermark.png"))
@@ -42,7 +46,7 @@ class ScreenIO(QtGui.QTextEdit):
         fm = QtGui.QFontMetrics(font)
         
         self.setReadOnly(True)
-        self.setStyleSheet("QTextEdit { color: gold; background: black; border: 0px; }")
+        self.setStyleSheet(TEXTIO_STYLE_SHEET % (color, bkgdcolor))
         self.setFont(font)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
@@ -77,8 +81,9 @@ class ConsoleIO(QtGui.QWidget):
         super(ConsoleIO, self).__init__(parent)
         
         font = QtGui.QFont(*parent.config['font'])
+        color, bkgdcolor = self.get_text_colors(parent.config.get('phosphor_color', "white"))
         
-        self.output = ScreenIO(font)
+        self.output = ScreenIO(font, color, bkgdcolor)
         self.output.setFixedSize(self._width(N_HORZ_CHARS), self._height(N_VERT_LINES))
         
         output_layout = QtGui.QVBoxLayout()
@@ -87,12 +92,10 @@ class ConsoleIO(QtGui.QWidget):
         
         output_frame = QtGui.QFrame()
         output_frame.setFrameStyle(QtGui.QFrame.NoFrame)
-        output_frame.setStyleSheet("QFrame { background: black; }")
+        output_frame.setStyleSheet("QFrame { background: %s; }" % (bkgdcolor))
         output_frame.setLayout(output_layout)
         
-        self.input = KeyboardIO()
-        self.input.setStyleSheet("QLineEdit { color: gold; background: black; }" )
-        self.input.setFont(font)
+        self.input = KeyboardIO(font, color, bkgdcolor)
         self.input.returnPressed.connect(self.send_string)
         self.input.lineFeed.connect(self.send_linefeed)
         self.input.breakSignal.connect(self.send_break_signal)
@@ -112,6 +115,16 @@ class ConsoleIO(QtGui.QWidget):
         fm = QtGui.QFontMetrics(self.output.currentFont())
         self.output.verticalScrollBar().setSingleStep(fm.lineSpacing())
         return fm.lineSpacing() * nlines
+        
+    def get_text_colors(self, phosphor_color):
+        if phosphor_color == "vintage": color = '#32dd97'
+        elif phosphor_color == "green": color = "lightgreen"
+        elif phosphor_color == "amber": color = "gold"
+        elif phosphor_color == "white": color = "white"
+        
+        bkgdcolor = QtGui.QColor(color).darker(1500).name()
+        
+        return (color, bkgdcolor)
         
     def send_string(self):
         txt = self.input.text() + CR

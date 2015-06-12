@@ -1,0 +1,7 @@
+<RCC>
+    <qresource>
+        <file>terminal.png</file>
+        <file>UiCrt2_Charset.bmp</file>
+        <file>UiCrt2_Charset_noaa.bmp</file>
+    </qresource>
+</RCC>

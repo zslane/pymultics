@@ -7,13 +7,12 @@ const char* DEFAULT_SERVER_NAME = "localhost";
 const int   DEFAULT_SERVER_PORT = 6800;
 const char* DEFAULT_PHOSPHOR_COLOR = "green";
 
-const char* TEXT_EDIT_STYLE_SHEET = "QTextEdit { color: %s; background: #%06x; border: 0px; }";
-//QString TEXT_EDIT_STYLE_SHEET = "QTextEdit { color: %1; background: #%2; border: 0px; }";
-QString LINE_EDIT_STYLE_SHEET = "QLineEdit { color: %1; background: black; }";
+QString TEXTIO_STYLE_SHEET = "QTextEdit, QLineEdit { color: %1; background: %2; border: 0px; }";
 
 
 KeyboardIO::KeyboardIO(QWidget* parent) : QLineEdit(parent)
 {
+    setStyleSheet(TEXTIO_STYLE_SHEET.args("white", "black"));
 }
 
 void KeyboardIO::keyPressEvent(QKeyEvent* event)
@@ -38,7 +37,7 @@ ScreenIO::ScreenIO(const QFont& font, QWidget* parent) : QTextEdit(parent)
     QFontMetrics fm(font);
 
     setReadOnly(true);
-    setStyleSheet("QTextEdit { color: gold; background: black; border: 0px; }");
+    setStyleSheet(TEXTIO_STYLE_SHEET.args("white", "black"));
     setFont(font);
     setFocusPolicy(Qt::NoFocus);
     setWordWrapMode(QTextOption::WrapAnywhere);
@@ -68,11 +67,8 @@ void ScreenIO::paintEvent(QPaintEvent* event)
 TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget(parent),
     ME("TerminalIO")
 {
-    char* color;
-    if (phosphor_color == "vintage") color = "#32dd97";
-    if (phosphor_color == "green") color = "lightgreen";
-    if (phosphor_color == "amber") color = "gold";
-    if (phosphor_color == "white") color = "white";
+    QString color, bkgdcolor;
+    get_text_colors(phosphor_color, color, bkgdcolor);
 
     m_name = QHostInfo::localHostName();
     m_host = DEFAULT_SERVER_NAME;
@@ -96,7 +92,7 @@ TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget
     QFont font(FONT_NAME, FONT_SIZE);
     font.setStyleHint(QFont::TypeWriter);
 
-    m_output = new ScreenIO(font);
+    m_output = new ScreenIO(font, color, bkgdcolor);
     m_output->setFixedSize(_width(N_HORZ_CHARS), _height(N_VERT_LINES));
 
     QVBoxLayout* output_layout = new QVBoxLayout();
@@ -105,12 +101,10 @@ TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget
 
     QFrame* output_frame = new QFrame();
     output_frame->setFrameStyle(QFrame::NoFrame);
-    output_frame->setStyleSheet(QString("QFrame { background: black; }"));
+    output_frame->setStyleSheet(QString("QFrame { background: %1; }").args(bkgdcolor));
     output_frame->setLayout(output_layout);
 
-    m_input = new KeyboardIO();
-    m_input->setStyleSheet(LINE_EDIT_STYLE_SHEET.arg(color));
-    m_input->setFont(font);
+    m_input = new KeyboardIO(font, color, bkgdcolor);
     m_input->setEnabled(false);
     connect(m_input, SIGNAL(returnPressed()), this, SLOT(send_string()));
     connect(m_input, SIGNAL(lineFeed()), this, SLOT(send_linefeed()));
@@ -126,8 +120,6 @@ TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget
 TerminalIO::~TerminalIO()
 {
     delete m_socket;
-    // delete m_output;
-    // delete m_input;
 }
 
 int TerminalIO::_width(int nchars) const
@@ -141,6 +133,16 @@ int TerminalIO::_height(int nlines) const
     QFontMetrics fm(m_output->currentFont());
     m_output->verticalScrollBar()->setSingleStep(fm.lineSpacing());
     return (fm.lineSpacing() * nlines);
+}
+
+void TerminalIO::get_text_colors(const QString& phosphor_color, QString& color, QString& bkgdcolor) const
+{
+    if (phosphor_color == "vintage") color = "#32dd97";
+    if (phosphor_color == "green") color = "lightgreen";
+    if (phosphor_color == "amber") color = "gold";
+    if (phosphor_color == "white") color = "white";
+
+    bkgdcolor = QColor(color).darker(1500).name();
 }
 
 void TerminalIO::startup()
@@ -348,20 +350,15 @@ void TerminalIO::reset()
 
 void TerminalIO::set_phosphor_color(const QString& phosphor_color)
 {
-    char* color;
-    if (phosphor_color == "vintage") color = "#32dd97";
-    if (phosphor_color == "green") color = "lightgreen";
-    if (phosphor_color == "amber") color = "gold";
-    if (phosphor_color == "white") color = "white";
+    QString color, bkgdcolor;
+    get_text_colors(phosphor_color, color, bkgdcolor);
 
-    int bkgdcolor = QColor(color).darker(1500).rgb() & 0xffffff;
-
-    m_output->setStyleSheet(QString().sprintf(TEXT_EDIT_STYLE_SHEET, color, bkgdcolor));
+    m_output->setStyleSheet(TEXTIO_STYLE_SHEET.arg(color, bkgdcolor));
     m_output->style()->unpolish(this);
     m_output->style()->polish(this);
     m_output->update();
 
-    m_input->setStyleSheet(LINE_EDIT_STYLE_SHEET.arg(color));
+    m_input->setStyleSheet(TEXTIO_STYLE_SHEET.arg(color, bkgdcolor));
     m_input->style()->unpolish(this);
     m_input->style()->polish(this);
     m_input->update();

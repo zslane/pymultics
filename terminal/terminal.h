@@ -46,7 +46,7 @@ signals:
 
 public:
 
-    KeyboardIO(QWidget* parent = 0);
+    KeyboardIO(const QFont& font, const QString& color = "white", const QString& bkgdcolor = "black", QWidget* parent = 0);
 
 protected:
 
@@ -64,7 +64,7 @@ private:
 
 public:
 
-    ScreenIO(const QFont& font, QWidget* parent = 0);
+    ScreenIO(const QFont& font, const QString& color = "white", const QString& bkgdcolor = "black", QWidget* parent = 0);
 
     void setConnected(bool flag);
 
@@ -108,6 +108,7 @@ protected:
 
     int _width(int nchars) const;
     int _height(int nlines) const;
+    void get_text_colors(const QString& phosphor_color, QString& color, QString& bkgdcolor) const;
 
 public slots:
 

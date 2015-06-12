@@ -27,6 +27,8 @@ LF  = chr(10)
 CR  = chr(13)
 ESC = chr(27)
 
+TEXTIO_STYLE_SHEET = "QTextEdit, QLineEdit { color: %s; background: %s; border: 0px; }"
+
 class DataPacket(object):
 
     def __init__(self, byte_array):
@@ -73,8 +75,10 @@ class KeyboardIO(QtGui.QLineEdit):
     lineFeed = QtCore.Signal()
     breakSignal = QtCore.Signal()
     
-    def __init__(self, parent=None):
+    def __init__(self, font, color="white", bkgdcolor="black", parent=None):
         super(KeyboardIO, self).__init__(parent)
+        self.setStyleSheet(TEXTIO_STYLE_SHEET % (color, bkgdcolor))
+        self.setFont(font)
         
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Pause:
@@ -88,13 +92,13 @@ class KeyboardIO(QtGui.QLineEdit):
         
 class ScreenIO(QtGui.QTextEdit):
 
-    def __init__(self, font, parent=None):
+    def __init__(self, font, color="white", bkgdcolor="black", parent=None):
         super(ScreenIO, self).__init__(parent)
         
         fm = QtGui.QFontMetrics(font)
         
         self.setReadOnly(True)
-        self.setStyleSheet("QTextEdit { color: lightgreen; background: black; border: 0px; }")
+        self.setStyleSheet(TEXTIO_STYLE_SHEET % (color, bkgdcolor))
         self.setFont(font)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
@@ -119,17 +123,11 @@ class TerminalIO(QtGui.QWidget):
     setConnectStatus = QtCore.Signal(str)
     setErrorStatus = QtCore.Signal(str)
     
-    TEXT_EDIT_STYLE_SHEET = "QTextEdit { color: %s; background: #%s; border: 0px; }"
-    LINE_EDIT_STYLE_SHEET = "QLineEdit { color: %s; background: black; }"
-    
     def __init__(self, phosphor_color, parent=None):
         super(TerminalIO, self).__init__(parent)
         self.ME = self.__class__.__name__
         
-        if phosphor_color == "vintage": color = '#32dd97'
-        if phosphor_color == "green": color = "lightgreen"
-        if phosphor_color == "amber": color = "gold"
-        if phosphor_color == "white": color = "white"
+        color, bkgdcolor = self.get_text_colors(phosphor_color)
         
         self.name = QtNetwork.QHostInfo.localHostName()
         self.host = DEFAULT_SERVER_NAME
@@ -148,7 +146,7 @@ class TerminalIO(QtGui.QWidget):
         font = QtGui.QFont(FONT_NAME, FONT_SIZE)
         font.setStyleHint(QtGui.QFont.TypeWriter)
         
-        self.output = ScreenIO(font)
+        self.output = ScreenIO(font, color, bkgdcolor)
         self.output.setFixedSize(self._width(N_HORZ_CHARS), self._height(N_VERT_LINES))
         
         output_layout = QtGui.QVBoxLayout()
@@ -157,12 +155,10 @@ class TerminalIO(QtGui.QWidget):
         
         output_frame = QtGui.QFrame()
         output_frame.setFrameStyle(QtGui.QFrame.NoFrame)
-        output_frame.setStyleSheet("QFrame { background: black; }")
+        output_frame.setStyleSheet("QFrame { background: %s; }" % (bkgdcolor))
         output_frame.setLayout(output_layout)
         
-        self.input = KeyboardIO()
-        self.input.setStyleSheet(self.LINE_EDIT_STYLE_SHEET % (color))
-        self.input.setFont(font)
+        self.input = KeyboardIO(font, color, bkgdcolor)
         self.input.setEnabled(False)
         self.input.returnPressed.connect(self.send_string)
         self.input.lineFeed.connect(self.send_linefeed)
@@ -186,6 +182,16 @@ class TerminalIO(QtGui.QWidget):
         self.output.verticalScrollBar().setSingleStep(fm.lineSpacing())
         return fm.lineSpacing() * nlines
         
+    def get_text_colors(self, phosphor_color):
+        if phosphor_color == "vintage": color = '#32dd97'
+        elif phosphor_color == "green": color = "lightgreen"
+        elif phosphor_color == "amber": color = "gold"
+        elif phosphor_color == "white": color = "white"
+        
+        bkgdcolor = QtGui.QColor(color).darker(1500).name()
+        
+        return (color, bkgdcolor)
+    
     @QtCore.Slot("QAbstractSocket.SocketError")
     def socket_error(self, error):
         if error == QtNetwork.QAbstractSocket.SocketError.ConnectionRefusedError:
@@ -327,20 +333,14 @@ class TerminalIO(QtGui.QWidget):
         self.port = port
         
     def set_phosphor_color(self, phosphor_color):
-        if phosphor_color == "vintage": color = '#32dd97'
-        if phosphor_color == "green": color = "lightgreen"
-        if phosphor_color == "amber": color = "gold"
-        if phosphor_color == "white": color = "aliceblue"
+        color, bkgdcolor = self.get_text_colors(phosphor_color)
         
-        bkgdcolor = QtGui.QColor(color).darker(1500)
-        bkgdcolor = hex(bkgdcolor.rgb())[4:-1]
-        
-        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEET % (color, bkgdcolor))
+        self.output.setStyleSheet(TEXTIO_STYLE_SHEET % (color, bkgdcolor))
         self.output.style().unpolish(self)
         self.output.style().polish(self)
         self.output.update()
         
-        self.input.setStyleSheet(self.LINE_EDIT_STYLE_SHEET % (color))
+        self.input.setStyleSheet(TEXTIO_STYLE_SHEET % (color, bkgdcolor))
         self.input.style().unpolish(self)
         self.input.style().polish(self)
         self.input.update()
