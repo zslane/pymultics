@@ -204,7 +204,7 @@ void TerminalIO::connection_lost()
 
 void TerminalIO::data_available()
 {
-    DataPacket& data_packet = DataPacket::In(m_socket->readAll());
+    DataPacket data_packet = DataPacket::In(m_socket->readAll());
     while (!data_packet.is_empty())
     {
         if (data_packet.is_control_seq())
