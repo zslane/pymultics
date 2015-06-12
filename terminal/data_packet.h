@@ -12,8 +12,14 @@ const char ECHO_PASSWORD_CODE = char(130);
 const char ASSIGN_PORT_CODE   = char(131);
 const char WHO_CODE           = char(132);
 const char BREAK_CODE         = char(133);
-const char LINEFEED_CODE      = char(134);
 const char END_CONTROL_CODE   = char(254);
+
+const char BEL                = char(7);
+const char BS                 = char(8);
+const char TAB                = char(9);
+const char LF                 = char(10);
+const char CR                 = char(13);
+const char ESC                = char(27);
 
 class DataPacket
 {
