@@ -7,6 +7,13 @@ from PySide import QtCore, QtGui
 N_HORZ_CHARS = 80
 N_VERT_LINES = 25
 
+BEL = chr(7)
+BS  = chr(8)
+TAB = chr(9)
+LF  = chr(10)
+CR  = chr(13)
+ESC = chr(27)
+
 class KeyboardIO(QtGui.QLineEdit):
 
     lineFeed = QtCore.Signal()
@@ -64,7 +71,6 @@ class ScreenIO(QtGui.QTextEdit):
 class ConsoleIO(QtGui.QWidget):
     
     textEntered = QtCore.Signal(str)
-    lineFeed = QtCore.Signal()
     breakSignal = QtCore.Signal()
     
     def __init__(self, parent=None):
@@ -87,9 +93,9 @@ class ConsoleIO(QtGui.QWidget):
         self.input = KeyboardIO()
         self.input.setStyleSheet("QLineEdit { color: gold; background: black; }" )
         self.input.setFont(font)
-        self.input.returnPressed.connect(self._process_input)
-        self.input.lineFeed.connect(self._process_line_feed)
-        self.input.breakSignal.connect(self._process_break_signal)
+        self.input.returnPressed.connect(self.send_string)
+        self.input.lineFeed.connect(self.send_linefeed)
+        self.input.breakSignal.connect(self.send_break_signal)
         
         layout = QtGui.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -107,16 +113,20 @@ class ConsoleIO(QtGui.QWidget):
         self.output.verticalScrollBar().setSingleStep(fm.lineSpacing())
         return fm.lineSpacing() * nlines
         
-    def _process_input(self):
-        txt = self.input.text() + '\r'
+    def send_string(self):
+        txt = self.input.text() + CR
         self.input.clear()
         self.textEntered.emit(txt)
         
-    def _process_line_feed(self):
-        if not self.input.text():
-            self.lineFeed.emit()
+    def send_linefeed(self):
+        #== If there are other characters in the input buffer, treat the LF as a CR
+        #== and send the whole string out.
+        if self.input.text():
+            self.send_string()
+        else:
+            self.textEntered.emit(LF)
         
-    def _process_break_signal(self):
+    def send_break_signal(self):
         self.input.clear()
         self.breakSignal.emit()
         

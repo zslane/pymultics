@@ -100,7 +100,15 @@ class UserControl(object):
     def _terminal_closed(self):
         return iox_.terminal_closed(self.tty)
     def _linefeed_received(self):
-        return iox_.linefeed_received(self.tty)
+        LF = chr(10)
+        buffer = parm()
+        peek = call.iox_.peek_char(self.tty, buffer)
+        if buffer.val == LF:
+            iox_control.echo_input_sw = False
+            iox_control.enable_signals_sw = False
+            iox_control.filter_chars = []
+            iox_.get_char(self.tty, iox_control, buffer)
+        return buffer.val == LF
     def _break_received(self):
         return iox_.break_received(self.tty)
     def _has_input(self):

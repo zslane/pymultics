@@ -41,6 +41,9 @@ class iox_(Subroutine):
         while not buffer.val:
             buffer.val = self._fetchbyte(tty_channel, ioxctl)
         
+    def peek_char(self, tty_channel, buffer):
+        buffer.val = self.hardware.io.peek_input(tty_channel) or ""
+            
     def inline_edit_(self, s):
         result = []
         escape_next = False
@@ -62,7 +65,7 @@ class iox_(Subroutine):
         buf = ""
         while self.has_input(tty_channel):
             c = self._fetchbyte(tty_channel, ioxctl)
-            if c == '\r':
+            if c == '\r' or c == '\n':
                 buffer.val = self.inline_edit_(buf)
                 return
             elif c == BACKSPACE:
@@ -78,7 +81,7 @@ class iox_(Subroutine):
         buf = ""
         while True:
             c = self._fetchbyte(tty_channel, ioxctl)
-            if c == '\r':
+            if c == '\r' or c == '\n':
                 buffer.val = self.inline_edit_(buf)
                 return
             elif c == BACKSPACE:
@@ -91,9 +94,6 @@ class iox_(Subroutine):
         
     def terminal_closed(self, tty_channel):
         return self.hardware.io.terminal_closed(tty_channel)
-        
-    def linefeed_received(self, tty_channel):
-        return self.hardware.io.linefeed_received(tty_channel)
         
     def break_received(self, tty_channel):
         return self.hardware.io.break_received(tty_channel)

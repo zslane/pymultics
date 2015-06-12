@@ -7,7 +7,8 @@ const char* DEFAULT_SERVER_NAME = "localhost";
 const int   DEFAULT_SERVER_PORT = 6800;
 const char* DEFAULT_PHOSPHOR_COLOR = "green";
 
-QString TEXT_EDIT_STYLE_SHEET = "QTextEdit { color: %1; background: black; border: 0px; }";
+const char* TEXT_EDIT_STYLE_SHEET = "QTextEdit { color: %s; background: #%06x; border: 0px; }";
+//QString TEXT_EDIT_STYLE_SHEET = "QTextEdit { color: %1; background: #%2; border: 0px; }";
 QString LINE_EDIT_STYLE_SHEET = "QLineEdit { color: %1; background: black; }";
 
 
@@ -240,7 +241,7 @@ void TerminalIO::data_available()
 
 void TerminalIO::send_string()
 {
-    QString s = m_input->text().trimmed(); s.append('\r');
+    QString s = m_input->text().trimmed(); s.append(CR);
     m_input->clear();
     if (m_socket->isValid() && (m_socket->state() == QAbstractSocket::ConnectedState))
     {
@@ -255,10 +256,20 @@ void TerminalIO::send_linefeed()
 {
     if (m_socket->isValid() && (m_socket->state() == QAbstractSocket::ConnectedState))
     {
-//        std::cout << ME << " sending LINEFEED " << std::endl;
-        int n = m_socket->write(DataPacket::Out(LINEFEED_CODE));
-//        std::cout << ME << " " << n << " bytes sent " << std::endl;
-        m_socket->flush();
+        // If there are other characters in the input buffer, treat the LF as a CR
+        // and send the whole string out.
+        if (!m_input->text().isEmpty())
+        {
+            send_string();
+        }
+        // Otherwise send the LF out alone as a string.
+        else
+        {
+//            std::cout << ME << " sending LINEFEED " << std::endl;
+            int n = m_socket->write(DataPacket::Out(QString(LF)));
+//            std::cout << ME << " " << n << " bytes sent " << std::endl;
+            m_socket->flush();
+        }
     }
 }
 
@@ -343,7 +354,9 @@ void TerminalIO::set_phosphor_color(const QString& phosphor_color)
     if (phosphor_color == "amber") color = "gold";
     if (phosphor_color == "white") color = "white";
 
-    m_output->setStyleSheet(TEXT_EDIT_STYLE_SHEET.arg(color));
+    int bkgdcolor = QColor(color).darker(1500).rgb() & 0xffffff;
+
+    m_output->setStyleSheet(QString().sprintf(TEXT_EDIT_STYLE_SHEET, color, bkgdcolor));
     m_output->style()->unpolish(this);
     m_output->style()->polish(this);
     m_output->update();

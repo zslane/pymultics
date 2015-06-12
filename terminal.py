@@ -18,8 +18,14 @@ ECHO_PASSWORD_CODE = chr(130)
 ASSIGN_PORT_CODE   = chr(131)
 WHO_CODE           = chr(132)
 BREAK_CODE         = chr(133)
-LINEFEED_CODE      = chr(134)
 END_CONTROL_CODE   = chr(254)
+
+BEL = chr(7)
+BS  = chr(8)
+TAB = chr(9)
+LF  = chr(10)
+CR  = chr(13)
+ESC = chr(27)
 
 class DataPacket(object):
 
@@ -113,7 +119,7 @@ class TerminalIO(QtGui.QWidget):
     setConnectStatus = QtCore.Signal(str)
     setErrorStatus = QtCore.Signal(str)
     
-    TEXT_EDIT_STYLE_SHEET = "QTextEdit { color: %s; background: black; border: 0px; }"
+    TEXT_EDIT_STYLE_SHEET = "QTextEdit { color: %s; background: #%s; border: 0px; }"
     LINE_EDIT_STYLE_SHEET = "QLineEdit { color: %s; background: black; }"
     
     def __init__(self, phosphor_color, parent=None):
@@ -244,7 +250,7 @@ class TerminalIO(QtGui.QWidget):
         
     @QtCore.Slot()
     def send_string(self):
-        s = self.input.text().strip() + "\r"
+        s = self.input.text().strip() + CR
         self.input.clear()
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
             # print self.ME, "sending:", repr(s)
@@ -255,10 +261,15 @@ class TerminalIO(QtGui.QWidget):
     @QtCore.Slot()
     def send_linefeed(self):
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
-            # print self.ME, "sending LINEFEED"
-            n = self.socket.write(DataPacket.Out(LINEFEED_CODE))
-            # print self.ME, n, "bytes sent"
-            self.socket.flush()
+            #== If there are other characters in the input buffer, treat the LF as a CR
+            #== and send the whole string out.
+            if self.input.text():
+                self.send_string()
+            else:
+                # print self.ME, "sending LINEFEED"
+                n = self.socket.write(DataPacket.Out(LF))
+                # print self.ME, n, "bytes sent"
+                self.socket.flush()
             
     @QtCore.Slot()
     def send_break_signal(self):
@@ -321,7 +332,10 @@ class TerminalIO(QtGui.QWidget):
         if phosphor_color == "amber": color = "gold"
         if phosphor_color == "white": color = "aliceblue"
         
-        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEET % (color))
+        bkgdcolor = QtGui.QColor(color).darker(1500)
+        bkgdcolor = hex(bkgdcolor.rgb())[4:-1]
+        
+        self.output.setStyleSheet(self.TEXT_EDIT_STYLE_SHEET % (color, bkgdcolor))
         self.output.style().unpolish(self)
         self.output.style().polish(self)
         self.output.update()

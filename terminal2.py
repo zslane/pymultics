@@ -23,10 +23,13 @@ ECHO_PASSWORD_CODE = chr(130)
 ASSIGN_PORT_CODE   = chr(131)
 WHO_CODE           = chr(132)
 BREAK_CODE         = chr(133)
-LINEFEED_CODE      = chr(134)
 END_CONTROL_CODE   = chr(254)
 
 BEL = chr(7)
+BS  = chr(8)
+TAB = chr(9)
+LF  = chr(10)
+CR  = chr(13)
 ESC = chr(27)
 
 class DataPacket(object):
@@ -206,7 +209,6 @@ class FontGlyphs(object):
 
 class GlassTTY(QtGui.QWidget):
 
-    lineFeed = QtCore.Signal()
     breakSignal = QtCore.Signal()
     xmitChars = QtCore.Signal(str)
     
@@ -511,7 +513,7 @@ class GlassTTY(QtGui.QWidget):
                 self.breakSignal.emit()
             elif event.key() == QtCore.Qt.Key_Down: # Linefeed key
                 # print "Send LINEFEED"
-                self.lineFeed.emit()
+                self.xmitChars.emit(LF)
                 
         #== ASCII KEYSTROKE ==#
         for c in str(event.text()):
@@ -638,7 +640,6 @@ class TerminalIO(QtGui.QWidget):
         self.input = self.ttyio
         self.input.setEnabled(False)
         self.input.xmitChars.connect(self.send_chars)
-        self.input.lineFeed.connect(self.send_linefeed)
         self.input.breakSignal.connect(self.send_break_signal)
         
         layout = QtGui.QVBoxLayout()
@@ -720,14 +721,6 @@ class TerminalIO(QtGui.QWidget):
             # print self.ME, n, "bytes sent"
             self.socket.flush()
         
-    @QtCore.Slot()
-    def send_linefeed(self):
-        if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
-            # print self.ME, "sending LINEFEED"
-            n = self.socket.write(DataPacket.Out(LINEFEED_CODE))
-            # print self.ME, n, "bytes sent"
-            self.socket.flush()
-            
     @QtCore.Slot()
     def send_break_signal(self):
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:

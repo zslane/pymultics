@@ -264,25 +264,6 @@ class Supervisor(QtCore.QObject):
     def send_to_console(self, s):
         self.send_to_tty(s)
     
-    def wait_for_linefeed(self, tty_channel=None):
-        while not self.__hardware.io.linefeed_received(tty_channel):
-            QtCore.QCoreApplication.processEvents()
-            
-            if self.__hardware.io.terminal_closed(tty_channel):
-                raise DisconnectCondition
-            # end if
-            if self.shutting_down():
-                print "Shutdown signal detected by " + get_calling_process_().objectName()
-                raise ShutdownCondition
-            # end if
-            
-            self._msleep(self.IDLE_DELAY_TIME) # in milliseconds
-        # end while
-        self.__hardware.io.flush_input(tty_channel)
-        
-    def set_input_mode(self, mode, tty_channel=None):
-        self.__hardware.io.set_input_mode(mode, tty_channel)
-        
     #== SYSTEM TIMERS ==#
     
     def make_timer(self, interval, callback, data=None):

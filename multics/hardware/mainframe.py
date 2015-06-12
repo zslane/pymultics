@@ -153,20 +153,14 @@ class IOSubsystem(QtCore.QObject):
         super(IOSubsystem, self).__init__()
 
         self.__input_buffer = []
-        self.__linefeed = False
         self.__break_signal = False
         self.__console = None
         self.__terminal_process_id = 0
     
     def _receive_string(self, s):
-        self.__linefeed = False
         self.__input_buffer.append(s)
         
-    def _receive_linefeed(self):
-        self.__linefeed = True
-        
     def _receive_break(self):
-        self.__linefeed = False
         self.__break_signal = True
         
     def _power_down(self):
@@ -176,7 +170,6 @@ class IOSubsystem(QtCore.QObject):
         self.__console = console
         self.__console.heartbeat.connect(self.heartbeat)
         self.__console.io.textEntered.connect(self._receive_string)
-        self.__console.io.lineFeed.connect(self._receive_linefeed)
         self.__console.io.breakSignal.connect(self._receive_break)
         self.__console.closed.connect(self._power_down)
     
@@ -193,13 +186,6 @@ class IOSubsystem(QtCore.QObject):
     def set_console_title(self, title):
         self.__console.setWindowTitle(title)
     
-    def linefeed_received(self, tty_channel=None):
-        if tty_channel:
-            return tty_channel.linefeed_received()
-        else:
-            flag, self.__linefeed = self.__linefeed, False
-            return flag
-        
     def break_received(self, tty_channel=None):
         if tty_channel:
             return tty_channel.break_received()
@@ -228,13 +214,21 @@ class IOSubsystem(QtCore.QObject):
         except:
             return None
     
+    def peek_input(self, tty_channel=None):
+        try:
+            if tty_channel:
+                return tty_channel.peek_input()
+            else:
+                return self.__input_buffer[0]
+        except:
+            return None
+            
     def flush_input(self, tty_channel=None):
         if tty_channel:
             tty_channel.flush_input()
         else:
             self.__input_buffer = []
             self.__break_signal = False
-            self.__linefeed = False
         
     def set_input_mode(self, mode, tty_channel=None):
         if tty_channel:

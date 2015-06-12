@@ -11,7 +11,6 @@ ECHO_PASSWORD_CODE = chr(130)
 ASSIGN_PORT_CODE   = chr(131)
 WHO_CODE           = chr(132)
 BREAK_CODE         = chr(133)
-LINEFEED_CODE      = chr(134)
 END_CONTROL_CODE   = chr(254)
 
 class TTYChannel(QtCore.QObject):
@@ -21,7 +20,6 @@ class TTYChannel(QtCore.QObject):
         self.setObjectName("tty_channel_%d" % (socket.localPort()))
         
         self.__input_buffer = []
-        self.__linefeed = False
         self.__break_signal = False
         self.__closed_signal = False
         self.__origin_thread = QtCore.QThread.currentThread()
@@ -70,13 +68,8 @@ class TTYChannel(QtCore.QObject):
             if data_packet.is_control_seq():
                 data_code, payload = data_packet.extract_control_data()
                 
-                if data_code == LINEFEED_CODE:
-                    # print "tty", self.id, "received LINEFEED"
-                    self.__linefeed = True
-                    
-                elif data_code == BREAK_CODE:
+                if data_code == BREAK_CODE:
                     # print "tty", self.id, "received BREAK"
-                    self.__linefeed = False
                     self.__break_signal = True
                     
                 else:
@@ -86,7 +79,6 @@ class TTYChannel(QtCore.QObject):
             else:
                 s = data_packet.extract_plain_data()
                 # print "tty", self.id, "received", repr(s),
-                self.__linefeed = False
                 self.__input_buffer.append(s)
     
     @QtCore.Slot("QAbstractSocket.SocketError")
@@ -111,10 +103,6 @@ class TTYChannel(QtCore.QObject):
         self.__socket.moveToThread(thread)
         super(TTYChannel, self).moveToThread(thread)
     
-    def linefeed_received(self):
-        flag, self.__linefeed = self.__linefeed, False
-        return flag
-        
     def break_received(self):
         flag, self.__break_signal = self.__break_signal, False
         return flag
@@ -131,6 +119,12 @@ class TTYChannel(QtCore.QObject):
         except:
             return None
     
+    def peek_input(self):
+        try:
+            return self.__input_buffer[0]
+        except:
+            return None
+            
     def flush_input(self):
         if not self.terminal_closed():
             if self.__socket.bytesAvailable() > 0:
@@ -139,7 +133,6 @@ class TTYChannel(QtCore.QObject):
         # end if
         self.__input_buffer = []
         self.__break_signal = False
-        self.__linefeed = False
         
     def set_input_mode(self, mode):
         if not self.terminal_closed():
