@@ -173,7 +173,7 @@ class TerminalIO(QtGui.QWidget):
         
     def _width(self, nchars):
         fm = QtGui.QFontMetricsF(self.output.currentFont())
-        return int(round(fm.width("W") * nchars + 0.5) + self.output.document().documentMargin() * 2)
+        return int(round(fm.width("M") * nchars + 0.5) + self.output.document().documentMargin() * 2)
         
     def _height(self, nlines):
         fm = QtGui.QFontMetrics(self.output.currentFont())
@@ -387,6 +387,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.statusBar().setSizeGripEnabled(False)
         self.statusBar().setAutoFillBackground(True)
         self.statusBar().setPalette(self.palette)
+        self.statusBar().setStyleSheet("QStatusBar::item { border: 0px; }")
         self.statusBar().addPermanentWidget(status_frame, 1)
         
         self.setup_menus()
@@ -396,7 +397,6 @@ class TerminalWindow(QtGui.QMainWindow):
         QtCore.QTimer.singleShot(0, self.startup)
         
     def setup_menus(self):
-        self.menuBar().setNativeMenuBar(False)
         self.menuBar().setStyleSheet(MENUBAR_STYLE_SHEET)
         
         self.options_menu = self.menuBar().addMenu("Options")

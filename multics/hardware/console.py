@@ -100,7 +100,7 @@ class ConsoleIO(QtGui.QWidget):
         
     def _width(self, nchars):
         fm = QtGui.QFontMetricsF(self.output.currentFont())
-        return int(round(fm.width("W") * nchars + 0.5) + self.output.document().documentMargin() * 2)
+        return int(round(fm.width("M") * nchars + 0.5) + self.output.document().documentMargin() * 2)
         
     def _height(self, nlines):
         fm = QtGui.QFontMetrics(self.output.currentFont())

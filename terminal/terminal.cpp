@@ -132,7 +132,7 @@ TerminalIO::~TerminalIO()
 int TerminalIO::_width(int nchars) const
 {
     QFontMetricsF fm(m_output->currentFont());
-    return int(round(fm.width('W') * nchars + 0.5) + m_output->document()->documentMargin() * 2);
+    return int(round(fm.width('M') * nchars + 0.5) + m_output->document()->documentMargin() * 2);
 }
 
 int TerminalIO::_height(int nlines) const
@@ -384,6 +384,7 @@ TerminalWindow::TerminalWindow(QWidget* parent) : QMainWindow(parent),
     setStyleSheet("QLineEdit, QMainWindow { background: #444444; border: 1px solid #252525; }");
 
     m_palette.setColor(QPalette::Background, QColor(0x444444));
+    m_palette.setColor(QPalette::WindowText, QColor("black"));
 
     m_status_label = new QLabel();
     m_status_label->setAutoFillBackground(true);
@@ -400,6 +401,7 @@ TerminalWindow::TerminalWindow(QWidget* parent) : QMainWindow(parent),
     statusBar()->setSizeGripEnabled(false);
     statusBar()->setAutoFillBackground(true);
     statusBar()->setPalette(m_palette);
+    statusBar()->setStyleSheet("QStatusBar::item { border: 0px; }");
     statusBar()->addPermanentWidget(status_frame, 1);
 
     setup_menus();

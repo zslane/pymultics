@@ -842,6 +842,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.statusBar().setSizeGripEnabled(False)
         self.statusBar().setAutoFillBackground(True)
         self.statusBar().setPalette(self.palette)
+        self.statusBar().setStyleSheet("QStatusBar::item { border: 0px; }")
         self.statusBar().addPermanentWidget(status_frame, 1)
         
         self.setup_menus()
@@ -851,7 +852,6 @@ class TerminalWindow(QtGui.QMainWindow):
         QtCore.QTimer.singleShot(0, self.startup)
         
     def setup_menus(self):
-        self.menuBar().setNativeMenuBar(False)
         self.menuBar().setStyleSheet(MENUBAR_STYLE_SHEET)
         
         self.options_menu = self.menuBar().addMenu("Options")
