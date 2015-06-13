@@ -373,7 +373,8 @@ class GlassTTY(QtGui.QWidget):
         
     def setCursorBlink(self, blink):
         self.cursor_blink = blink
-        self.showCursor()
+        if self.connected:
+            self.showCursor()
         
     def showCursor(self):
         self.cursor_visible = True
@@ -632,6 +633,30 @@ class GlassTTY(QtGui.QWidget):
     
 #-- end class GlassTTY
 
+class TerminalEnclosure(QtGui.QFrame):
+
+    def __init__(self, ttyio, parent=None):
+        super(TerminalEnclosure, self).__init__(parent)
+        self.setFrameStyle(QtGui.QFrame.NoFrame)
+        self.ttyio = ttyio
+        self.image = QtGui.QImage(":/terminal_enclosure.png")
+        
+    def sizeHint(self):
+        return self.image.size()
+        
+    def paintEvent(self, event):
+        canvas = self.image.copy()
+        painter = QtGui.QPainter()
+        if painter.begin(canvas):
+            painter.setCompositionMode(QtGui.QPainter.CompositionMode_Lighten)
+            painter.fillRect(event.rect(), self.ttyio.wincolor)
+            painter.end()
+        if painter.begin(self):
+            painter.drawImage(0, 0, canvas)
+            painter.end()
+        
+#-- end class TerminalEnclosure
+
 class TerminalIO(QtGui.QWidget):
     
     setNormalStatus = QtCore.Signal(str)
@@ -656,6 +681,13 @@ class TerminalIO(QtGui.QWidget):
         
         self.ttyio = GlassTTY(phosphor_color)
         
+        self.enclosure = TerminalEnclosure(self.ttyio)
+        
+        tty_layout = QtGui.QHBoxLayout()
+        tty_layout.setContentsMargins(0, 0, 0, 0)
+        tty_layout.addWidget(self.ttyio, QtCore.Qt.AlignCenter)
+        self.enclosure.setLayout(tty_layout)
+        
         self.output = self.ttyio
         self.input = self.ttyio
         self.input.setEnabled(False)
@@ -663,7 +695,8 @@ class TerminalIO(QtGui.QWidget):
         self.input.breakSignal.connect(self.send_break_signal)
         
         layout = QtGui.QVBoxLayout()
-        layout.addWidget(self.ttyio)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.enclosure)
         
         self.setLayout(layout)
         
@@ -787,6 +820,7 @@ class TerminalIO(QtGui.QWidget):
         
     def set_phosphor_color(self, phosphor_color):
         self.ttyio.setPhosphorColor(phosphor_color)
+        self.update()
         
     def set_brightness(self, brightness):
         self.ttyio.setBrightness(brightness)
@@ -834,7 +868,8 @@ class TerminalWindow(QtGui.QMainWindow):
         self.setCentralWidget(self.io)
         self.setWindowTitle("pyMultics Virtual Terminal - {0}".format(self.io.name))
         self.setWindowIcon(QtGui.QIcon(":/terminal.png"))
-        self.setStyleSheet("QMainWindow { background: #444444; border: 1px solid #252525; }")
+        # self.setStyleSheet("QMainWindow { background: #444444; border: 1px solid #252525; }")
+        self.setStyleSheet("QMainWindow { background: transparent; border: 0px; }")
         
         self.palette = QtGui.QPalette()
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444))
@@ -922,7 +957,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.reconnect_action.setEnabled(False)
     
     def startup(self):
-        self.setFixedSize(self.size())
+        self.setFixedSize(self.size() + QtCore.QSize(0, self.statusBar().size().height()))
         self.io.set_server_name(self.settings.value("host", DEFAULT_SERVER_NAME))
         self.io.set_server_port(self.settings.value("port", DEFAULT_SERVER_PORT))
         self.io.set_phosphor_color(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR))
