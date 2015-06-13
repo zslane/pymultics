@@ -638,6 +638,7 @@ class TerminalEnclosure(QtGui.QFrame):
     def __init__(self, ttyio, parent=None):
         super(TerminalEnclosure, self).__init__(parent)
         self.setFrameStyle(QtGui.QFrame.NoFrame)
+        self.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
         self.ttyio = ttyio
         self.image = QtGui.QImage(":/terminal_enclosure.png")
         
@@ -957,7 +958,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.reconnect_action.setEnabled(False)
     
     def startup(self):
-        self.setFixedSize(self.size() + QtCore.QSize(0, self.statusBar().size().height()))
+        self.setFixedSize(self.size())
         self.io.set_server_name(self.settings.value("host", DEFAULT_SERVER_NAME))
         self.io.set_server_port(self.settings.value("port", DEFAULT_SERVER_PORT))
         self.io.set_phosphor_color(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR))
