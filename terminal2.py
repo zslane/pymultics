@@ -110,10 +110,13 @@ class FontGlyphs(object):
             self.colored_glyphs[name] = []
             for glyph in self.glyphs:
                 colored_glyph = glyph.copy()
-                painter = QtGui.QPainter(colored_glyph)
-                painter.setCompositionMode(QtGui.QPainter.CompositionMode_Multiply)
-                painter.fillRect(colored_glyph.rect(), color)
-                self.colored_glyphs[name].append(colored_glyph)
+                painter = QtGui.QPainter()
+                if painter.begin(colored_glyph):
+                    painter.setCompositionMode(QtGui.QPainter.CompositionMode_Multiply)
+                    painter.fillRect(colored_glyph.rect(), color)
+                    self.colored_glyphs[name].append(colored_glyph)
+                    painter.end()
+                # end if
             # end for
         except:
             pass
@@ -121,7 +124,8 @@ class FontGlyphs(object):
     def loadGlyphPixmaps(self, path):
         pixmap = QtGui.QPixmap(path)
         ncells = pixmap.width() // self.cell_width
-        return [ pixmap.copy(QtCore.QRect(x * self.cell_width, 0, self.cell_width, self.cell_height)) for x in range(ncells) ]
+        #== We ultimately create QImages so we can use the Multiply blending mode in createColoredGlyphs()
+        return [ pixmap.copy(QtCore.QRect(x * self.cell_width, 0, self.cell_width, self.cell_height)).toImage() for x in range(ncells) ]
         
     def loadGlyphData(self, path):
         with open(path) as f:
@@ -139,20 +143,6 @@ class FontGlyphs(object):
                     bytecodes.append(u)
                 else:
                     break
-                    
-            # xlat_entries = []
-            # while True:
-                # c = f.read(1)
-                # if c == "{":
-                    # break
-                    
-            # while True:
-                # bytecode = self._next_bytecode(f)
-                # if bytecode:
-                    # u = ast.literal_eval(bytecode)
-                    # xlat_entries.append(u)
-                # else:
-                    # break
                     
         # Each list of 8 bytecodes represents an 8x8 pixel matrix: 'A' = [ 0x10,0x28,0x44,0x82,0xAA,0x82,0x82 ]
         # Each list of 8 bytecodes must be converted to a list of bit-lists: 'A' = [ [0,0,0,1,0,0,0,0], ... ]
@@ -383,6 +373,7 @@ class GlassTTY(QtGui.QWidget):
         
     def setCursorBlink(self, blink):
         self.cursor_blink = blink
+        self.showCursor()
         
     def showCursor(self):
         self.cursor_visible = True
@@ -540,53 +531,76 @@ class GlassTTY(QtGui.QWidget):
             self.toggleCursor()
         
     def paintEvent(self, event):
-        painter = QtGui.QPainter(self)
-        painter.fillRect(event.rect(), self.wincolor)
-        painter.setOpacity(self.opacity)
+        #== Get a QImage of the widget's current pixel contents as our painting canvas
+        canvas = QtGui.QPixmap.grabWindow(self.winId()).toImage()
         
-        char_under_cursor = ord(self.raster_lines[self.cursory][self.cursorx]) or self.font.ord_SP
-        
-        #== If we aren't just repainting the cursor, then redraw all the characters on the screen
-        if event.rect() == self.cursorRect():
-            self._draw_glyph(painter, self.glyphs[char_under_cursor], self.cursorx, self.cursory)
-        else:
-            cellx = celly = 0
-            for line in self.raster_lines:
-                cellx = 0
-                for c in line:
-                    if ord(c):
-                        try:
-                            self._draw_glyph(painter, self.glyphs[ord(c)], cellx, celly)
-                        except:
-                            print "Bad character code for display:", repr(c), ord(c)
-                        # end try
-                    cellx += 1
-                # end for
-                celly += 1
-            # end for
-        # end if
-        
-        if self.cursor_visible:
-            if self.cursor_glyph == self.CURSOR_BLOCK:
-                # painter.setCompositionMode(QtGui.QPainter.CompositionMode_Difference)     # solid
-                # painter.fillRect(self.cursorRect().adjusted(0, 1, 0, -3), self.fontcolor) # block
-                self._draw_glyph(painter, self.glyphs[0], self.cursorx, self.cursory) # glyph block
+        #== We paint on this QImage object instead of directly on the widget. Doing so gives us
+        #== full access to all the Qt composition/blending modes.
+        painter = QtGui.QPainter()
+        if painter.begin(canvas):
+            painter.fillRect(event.rect(), self.wincolor)
+            
+            painter.save()
+            painter.setCompositionMode(QtGui.QPainter.CompositionMode_Lighten)
+            painter.setOpacity(self.opacity) # <-- this is how phosphor brightness is implemented
+            
+            char_under_cursor = ord(self.raster_lines[self.cursory][self.cursorx]) or self.font.ord_SP
+            
+            #== If we aren't just repainting the cursor, then redraw all the characters on the screen
+            if event.rect() == self.cursorRect():
+                self._draw_glyph(painter, self.glyphs[char_under_cursor], self.cursorx, self.cursory)
+                
             else:
-                # painter.fillRect(self.cursorRect().adjusted(0, self.font.cell_height-3, 0, -1), self.fontcolor) # solid line
-                p = self.cursorRect().bottomLeft() # dotted
-                painter.setPen(self.cursor_pen)    # line
-                painter.drawLines([self.cursor_line1.translated(p), self.cursor_line2.translated(p)]) # dotted line
+                cellx = celly = 0
+                for line in self.raster_lines:
+                    cellx = 0
+                    for c in line:
+                        if ord(c):
+                            try:
+                                self._draw_glyph(painter, self.glyphs[ord(c)], cellx, celly)
+                            except:
+                                print "Bad character code for display:", repr(c), ord(c)
+                            # end try
+                        cellx += 1
+                    # end for
+                    celly += 1
+                # end for
+            # end if
+            
+            if self.cursor_visible:
+                if self.cursor_glyph == self.CURSOR_BLOCK:
+                    # painter.setCompositionMode(QtGui.QPainter.CompositionMode_Difference)     # solid
+                    # painter.fillRect(self.cursorRect().adjusted(0, 1, 0, -3), self.fontcolor) # block
+                    self._draw_glyph(painter, self.glyphs[0], self.cursorx, self.cursory) # glyph block
+                else:
+                    # painter.fillRect(self.cursorRect().adjusted(0, self.font.cell_height-3, 0, -1), self.fontcolor) # solid line
+                    p = self.cursorRect().bottomLeft() # dotted
+                    painter.setPen(self.cursor_pen)    # line
+                    painter.drawLines([self.cursor_line1.translated(p), self.cursor_line2.translated(p)]) # dotted line
+                # end if
+            # end if
+            
+            painter.restore()
+            painter.end()
+        # endif
         
-    def _draw_glyph(self, painter, glyph, cellx, celly, comp_mode=QtGui.QPainter.CompositionMode_Lighten):
+        #== Now blit the painted image to the widget
+        if painter.begin(self):
+            painter.drawImage(0, 0, canvas)
+            painter.end()
+        
+    def _draw_glyph(self, painter, glyph, cellx, celly):
         s = cellx * self.font.cell_width + self.MARGIN
         y = celly * self.font.cell_height + self.MARGIN
         
-        old_mode = painter.compositionMode()
-        painter.setCompositionMode(comp_mode)
-        
         if isinstance(glyph, QtGui.QPixmap):
-            #== If the glyph is a pixmap, then just blit it to the viewport
+            #== If the glyph is a pixmap, then just blit it to the canvas
             painter.drawPixmap(s, y, glyph)
+            
+        elif isinstance(glyph, QtGui.QImage):
+            #== If the glyph is an image, then just blit it to the canvas
+            painter.drawImage(s, y, glyph)
+            
         else:
             #== Otherwise we draw the glyph ourselves pixel by pixel
             painter.fillRect(QtCore.QRect(s, y, self.font.cell_width, self.font.cell_height), self.wincolor)
@@ -598,10 +612,6 @@ class GlassTTY(QtGui.QWidget):
                     x += 1
                 # end for
                 y += 2
-            # end for
-        # end if
-        
-        painter.setCompositionMode(old_mode)
         
     def _draw_pixel(self, painter, x, y):
         #== x and y are the coordinates of the upper-right corner of
@@ -944,17 +954,17 @@ class TerminalWindow(QtGui.QMainWindow):
     
     @QtCore.Slot(str)
     def set_normal_status(self, txt):
-        self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444))
+        self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444)) # gray
         self.set_status(txt)
         
     @QtCore.Slot(str)
     def set_connect_status(self, txt):
-        self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x445e44))
+        self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x445e44)) # green
         self.set_status(txt)
         
     @QtCore.Slot(str)
     def set_error_status(self, txt):
-        self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x935353))
+        self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x935353)) # red
         self.set_status(txt)
     
     @QtCore.Slot()
