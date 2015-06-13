@@ -10,9 +10,10 @@ const char* DEFAULT_PHOSPHOR_COLOR = "green";
 QString TEXTIO_STYLE_SHEET = "QTextEdit, QLineEdit { color: %1; background: %2; border: 0px; }";
 
 
-KeyboardIO::KeyboardIO(QWidget* parent) : QLineEdit(parent)
+KeyboardIO::KeyboardIO(const QFont& font, const QString& color, const QString& bkgdcolor, QWidget* parent) : QLineEdit(parent)
 {
-    setStyleSheet(TEXTIO_STYLE_SHEET.args("white", "black"));
+    setStyleSheet(TEXTIO_STYLE_SHEET.arg(color, bkgdcolor));
+    setFont(font);
 }
 
 void KeyboardIO::keyPressEvent(QKeyEvent* event)
@@ -32,12 +33,12 @@ void KeyboardIO::keyPressEvent(QKeyEvent* event)
 }
 
 
-ScreenIO::ScreenIO(const QFont& font, QWidget* parent) : QTextEdit(parent)
+ScreenIO::ScreenIO(const QFont& font, const QString& color, const QString& bkgdcolor, QWidget* parent) : QTextEdit(parent)
 {
     QFontMetrics fm(font);
 
     setReadOnly(true);
-    setStyleSheet(TEXTIO_STYLE_SHEET.args("white", "black"));
+    setStyleSheet(TEXTIO_STYLE_SHEET.arg(color, bkgdcolor));
     setFont(font);
     setFocusPolicy(Qt::NoFocus);
     setWordWrapMode(QTextOption::WrapAnywhere);
@@ -101,7 +102,7 @@ TerminalIO::TerminalIO(const QString& phosphor_color, QWidget* parent) : QWidget
 
     QFrame* output_frame = new QFrame();
     output_frame->setFrameStyle(QFrame::NoFrame);
-    output_frame->setStyleSheet(QString("QFrame { background: %1; }").args(bkgdcolor));
+    output_frame->setStyleSheet(QString("QFrame { background: %1; }").arg(bkgdcolor));
     output_frame->setLayout(output_layout);
 
     m_input = new KeyboardIO(font, color, bkgdcolor);
