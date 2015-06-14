@@ -9,28 +9,62 @@ def CTRL(s):
     return chr(ord(s.upper()) - 64)
     
 def cc_test():
+    ESC_prefix = False
+    CTRLX_prefix = False
+    
     send_control_code("[c") # Query Device Code
     call. ioa_ (get_response('c').replace(ESC, "<ESC>"))
     send_control_code("[5n") # Query Device Status
     call. ioa_ (get_response('n').replace(ESC, "<ESC>"))
     send_control_code("[6n") # Query Cursor Position
     call. ioa_ (get_response('R').replace(ESC, "<ESC>"))
+    send_control_code("[3;5r")
 
-    call. ioa_ ("Entering single character input mode (use ESC or ^C to exit).")
+    call. ioa_ ("Entering single character input mode (use ^C to exit).")
     while True:
         c = wait_get_char()
         
-        if c in [ESC, CTRL('C')]:
+        if ESC_prefix:
+            ESC_prefix = False
+            if c == 'k':
+                send_control_code("[1K") # Erase (to) Start of Line
+            elif c == 'u':
+                send_control_code("[1J") # Erase Up
+            elif c == 'z':
+                send_control_code("D") # Scroll Down
+            else:
+                call. ioa_.nnl ("<ESC> " + c)
+                
+        elif CTRLX_prefix:
+            CTRLX_prefix = False
+            if c == 'k':
+                send_control_code("[2K") # Erase Line
+            elif c == 'u':
+                send_control_code("[2J") # Erase Screen
+            else:
+                call. ioa_.nnl ("^X-" + c)
+            
+        elif c == CTRL('C'):
             break
             
         elif c == CTRL('B'):
             send_control_code("[D") # Cursor Backward
         elif c == CTRL('F'):
             send_control_code("[C") # Cursor Forward
+        elif c == CTRL('K'):
+            send_control_code("[K") # Erase (to) End of Line
         elif c == CTRL('N'):
             send_control_code("[B") # Cursor Down
         elif c == CTRL('P'):
             send_control_code("[A") # Cursor Up
+        elif c == CTRL('Z'):
+            send_control_code("M") # Scroll Up
+        elif c == CTRL('U'):
+            send_control_code("[J") # Erase Down
+        elif c == CTRL('X'):
+            CTRLX_prefix = True
+        elif c == ESC:
+            ESC_prefix = True
         else:
             call. ioa_.nnl (c)
         

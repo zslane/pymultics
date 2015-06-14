@@ -17,7 +17,7 @@ class iox_(Subroutine):
     def supervisor(self):
         return GlobalEnvironment.supervisor
         
-    def _fetchbyte(self, tty_channel, ioxctl):
+    def _fetchbyte(self, tty_channel, ioxctl, ioxbuffer=None):
         process = None
         if ioxctl.enable_signals_sw:
             process = get_calling_process_()
@@ -29,7 +29,10 @@ class iox_(Subroutine):
         
         c = self._buffer.pop(0)
         if c and ioxctl.echo_input_sw:
-            self.put_chars(tty_channel, c)
+            if c == BACKSPACE and ioxbuffer == "":
+                pass
+            else:
+                self.put_chars(tty_channel, c)
             
         return c
         
@@ -64,7 +67,7 @@ class iox_(Subroutine):
     def get_line(self, tty_channel, ioxctl, buffer):
         buf = ""
         while self.has_input(tty_channel):
-            c = self._fetchbyte(tty_channel, ioxctl)
+            c = self._fetchbyte(tty_channel, ioxctl, buf)
             if c == '\r' or c == '\n':
                 buffer.val = self.inline_edit_(buf)
                 return
@@ -80,7 +83,7 @@ class iox_(Subroutine):
     def wait_get_line(self, tty_channel, ioxctl, buffer):
         buf = ""
         while True:
-            c = self._fetchbyte(tty_channel, ioxctl)
+            c = self._fetchbyte(tty_channel, ioxctl, buf)
             if c == '\r' or c == '\n':
                 buffer.val = self.inline_edit_(buf)
                 return

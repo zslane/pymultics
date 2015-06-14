@@ -217,6 +217,13 @@ class GlassTTY(QtGui.QWidget):
             for i in range(len(self)):
                 self[i] = chr(0)
             return self
+        def clear(self, start=0, end=-1):
+            if end == -1:
+                end = len(self)
+            if end < start:
+                start, end = end, start
+            self[start:end] = [ chr(0) for i in range(end - start) ]
+            
     #-- end class RasterLine
     
     def __init__(self, phosphor_color=DEFAULT_PHOSPHOR_COLOR, aa=DEFAULT_AA_FLAG, parent=None):
@@ -250,6 +257,7 @@ class GlassTTY(QtGui.QWidget):
         self.control_code_state = 0
         
         self.setPhosphorColor(phosphor_color)
+        self.resetScrollRange()
         
         self.setConnected(False)
         self.startTimer(500)
@@ -356,6 +364,46 @@ class GlassTTY(QtGui.QWidget):
         # end if
         self.update()
 
+    def resetScrollRange(self, first=1, last=NLINES):
+        self.scroll_first = first
+        self.scroll_last = last
+        
+    def scrollUp(self, n_lines=1):
+        for i in range(n_lines):
+            line = self.raster_lines.pop(self.scroll_first - 1)
+            self.raster_lines.insert(self.scroll_last - 1, line.cleared())
+        self.update()
+        
+    def scrollDown(self, n_lines=1):
+        for i in range(n_lines):
+            line = self.raster_lines.pop(self.scroll_last - 1)
+            self.raster_lines.insert(self.scroll_first - 1, line.cleared())
+        self.update()
+    
+    def eraseEndOfLine(self):
+        self.raster_lines[self.cursory].clear(self.cursorx)
+        
+    def eraseStartOfLine(self):
+        self.raster_lines[self.cursory].clear(0, self.cursorx + 1)
+    
+    def eraseLine(self):
+        self.raster_lines[self.cursory].clear()
+        
+    def eraseDown(self):
+        for line in self.raster_lines[self.cursory:self.NLINES]:
+            line.clear()
+            
+    def eraseUp(self):
+        for line in self.raster_lines[0:self.cursory + 1]:
+            line.clear()
+            
+    def eraseScreen(self):
+        # self.raster_lines = [ GlassTTY.RasterLine(self.NCHARS) for i in range(self.NLINES) ]
+        for line in self.raster_lines:
+            line.clear()
+        self.moveCursorTo(0, 0)
+        self.update()
+    
     #==================================#
     #==       CURSOR MANAGEMENT      ==#
     #==================================#
@@ -399,6 +447,17 @@ class GlassTTY(QtGui.QWidget):
         self.cursory = min(self.NLINES-1, max(0, self.cursory + dy))
         self._repaint_cursor()
         
+    def moveCursorTo(self, x, y):
+        if self.cursor_visible:
+            #== Erase from old position
+            self.cursor_visible = False
+            self._repaint_cursor()
+            self.cursor_visible = True
+        #== Draw in new position
+        self.cursorx = min(self.NCHARS-1, max(0, x))
+        self.cursory = min(self.NLINES-1, max(0, y))
+        self._repaint_cursor()
+        
     def _repaint_cursor(self):
         self.repaint(self.cursorRect())
     
@@ -413,7 +472,8 @@ class GlassTTY(QtGui.QWidget):
          CC_BEGIN,
          CC_TYPE1,
          CC_NUM1,
-        ) = range(4)
+         CC_NUM2,
+        ) = range(5)
         
         def start():
             self.control_code_state = CC_BEGIN
@@ -422,6 +482,7 @@ class GlassTTY(QtGui.QWidget):
             self.control_code_state = state
             return True
         def same():
+            #== Don't change state
             return True
         def done():
             self.control_code_state = 0
@@ -433,18 +494,23 @@ class GlassTTY(QtGui.QWidget):
         if self.control_code_state == 0:
             assert c == ESC
             return start()
+            
         elif self.control_code_state == CC_BEGIN:
+            self._cc_n1 = ""
             if c == '[':
                 return next(CC_TYPE1)
+            elif c == 'D':
+                self.scrollDown()
+                return done()
+            elif c == 'M':
+                self.scrollUp()
+                return done()
             # end if
+            
         elif self.control_code_state == CC_TYPE1:
             if c.isdigit():
                 self._cc_n1 = c
                 return next(CC_NUM1)
-            elif c == 'c':
-                # Respond with device code
-                self.send_control_code_response("[x0c")
-                return done()
             elif c == 'A':
                 self.moveCursor(0, -1)
                 return done()
@@ -454,14 +520,34 @@ class GlassTTY(QtGui.QWidget):
             elif c == 'C':
                 self.moveCursor(1, 0)
                 return done()
+            elif c == 'c':
+                # Respond with device code
+                self.send_control_code_response("[x0c")
+                return done()
             elif c == 'D':
                 self.moveCursor(-1, 0)
                 return done()
+            elif c == 'H' or c == 'f':
+                self.moveCursorTo(0, 0)
+                return done()
+            elif c == 'J':
+                self.eraseDown()
+                return done()
+            elif c == 'K':
+                self.eraseEndOfLine()
+                return done()
+            elif c == 'r' and not self._cc_n1:
+                self.resetScrollRange()
+                return done()
             # end if
+            
         elif self.control_code_state == CC_NUM1:
             if c.isdigit():
                 self._cc_n1 += c
                 return same()
+            elif c == ';':
+                self._cc_n2 = ""
+                return next(CC_NUM2)
             elif c == 'n':
                 request_code = int(self._cc_n1)
                 if request_code == 5:
@@ -470,7 +556,7 @@ class GlassTTY(QtGui.QWidget):
                     return done()
                 elif request_code == 6:
                     # Respond with cursor position
-                    self.send_control_code_response("[%d;%dR"%(self.cursory, self.cursorx))
+                    self.send_control_code_response("[%d;%dR"%(self.cursory + 1, self.cursorx + 1))
                     return done()
                 #end if
             elif c == 'A':
@@ -489,6 +575,42 @@ class GlassTTY(QtGui.QWidget):
                 count = int(self._cc_n1)
                 self.moveCursor(-count, 0)
                 return done()
+            elif c == 'J':
+                code = int(self._cc_n1)
+                if code == 1:
+                    self.eraseUp()
+                    return done()
+                elif code == 2:
+                    self.eraseScreen()
+                    return done()
+                # end if
+            elif c == 'K':
+                code = int(self._cc_n1)
+                if code == 1:
+                    self.eraseStartOfLine()
+                    return done()
+                elif code == 2:
+                    self.eraseLine()
+                    return done()
+                # end if
+            # end if
+            
+        elif self.control_code_state == CC_NUM2:
+            if c.isdigit():
+                self._cc_n2 += c
+                return same()
+            elif self._cc_n2:
+                if c == 'H' or c == 'f':
+                    row = int(self._cc_n1)
+                    col = int(self._cc_n2)
+                    self.moveCursorTo(row - 1, col - 1)
+                    return done()
+                elif c == 'r':
+                    start = int(self._cc_n1)
+                    end = int(self._cc_n2)
+                    self.resetScrollRange(start, end)
+                    return done()
+                # end if
             # end if
         # end if
         
@@ -869,7 +991,6 @@ class TerminalWindow(QtGui.QMainWindow):
         self.setCentralWidget(self.io)
         self.setWindowTitle("pyMultics Virtual Terminal - {0}".format(self.io.name))
         self.setWindowIcon(QtGui.QIcon(":/terminal.png"))
-        # self.setStyleSheet("QMainWindow { background: #444444; border: 1px solid #252525; }")
         self.setStyleSheet("QMainWindow { background: transparent; border: 0px; }")
         
         self.palette = QtGui.QPalette()
