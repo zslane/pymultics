@@ -3,6 +3,11 @@ from multics.globals import *
 
 include.iox_control
 
+NCHARS = 80
+NLINES = 25
+
+BS  = chr(8)
+CR  = chr(13)
 ESC = chr(27)
 
 def CTRL(s):
@@ -29,21 +34,54 @@ def _move_cursor_to(tty_channel, row, col):
 
 class Buffer(object):
 
-    def __init__(self, name, screeny=0, vsize=23):
+    def __init__(self, tty_channel, name, screeny=0, vsize=NLINES-2):
+        self._tty_channel = tty_channel
         self._name = name
         self._screeny = screeny
         self._vsize = vsize
         self._lines = []
         
-    def draw_lines(self, tty_channel):
-        for i, line in enumerate(self._lines):
-            _move_cursor_to(tty_channel, self._screeny + i, 0)
-            _erase_end_of_line(tty_channel)
-            call.iox_.put_chars(tty_channel, line[0:80])
+    def _map_cursor(self, x, y):
+        row = y - self._screeny
+        col = x
+        return (row, col)
+    
+    def next_line(self, y):
+        row = min(self._screeny + self._vsize - 1, y - self._screeny + 1)
+        return row
         
-        _move_cursor_to(tty_channel, self._screeny + self._vsize - len(self._lines), 0)
+    def draw_lines(self):
+        for i, line in enumerate(self._lines):
+            _move_cursor_to(self._tty_channel, self._screeny + i, 0)
+            _erase_end_of_line(self._tty_channel)
+            call.iox_.put_chars(self._tty_channel, line[0:NCHARS])
+        
+        _move_cursor_to(self._tty_channel, self._screeny + self._vsize - len(self._lines), 0)
         rest_of_bar = "=" * (54 - len(self._name))
-        call.iox_.put_chars(tty_channel, "=== Emacs (Fundamental): %s %s" % (self._name, rest_of_bar))
+        call.iox_.put_chars(self._tty_channel, "=== Emacs (Fundamental): %s %s" % (self._name, rest_of_bar))
+    
+    def insert_character(self, c, cursorx, cursory):
+        row, col = self._map_cursor(cursorx, cursory)
+        try:
+            self._lines[row] = self._lines[row][:col] + c + self._lines[row][col:]
+        except:
+            self._lines.append(c)
+        # end try
+        _erase_end_of_line(self._tty_channel)
+        if c == CR:
+            line_to_insert = self._lines[row][col + 1:]
+            self._lines[row] = self._lines[row][:col]
+            self._lines.append(line_to_insert)
+            if row == self._screeny + self._vsize:
+                # scroll up
+                pass
+            else:
+                _move_cursor_to(self._tty_channel, self._screeny + row + 1, 0)
+                call.iox_.put_chars(self._tty_channel, line_to_insert)
+            # end if
+        else:
+            n = NCHARS - col + 1
+            call.iox_.put_chars(self._tty_channel, self._lines[row][col:n])
     
 class EmacsEditor(object):
 
@@ -52,8 +90,8 @@ class EmacsEditor(object):
         self._cursorx = 0
         self._cursory = 0
         if not file_path_list:
-            self._buffers = [Buffer("*new*")]
-            self._current_buffer = "*new*"
+            self._buffers = [Buffer(self.tty, "*scratch*")]
+            self._current_buffer = self._buffers[0]
         else:
             for filepath in file_path_list:
                 # load file
@@ -67,7 +105,7 @@ class EmacsEditor(object):
     def redraw(self):
         _clear_screen(self.tty)
         for buffer in self._buffers:
-            buffer.draw_lines(self.tty)
+            buffer.draw_lines()
         _move_cursor_to(self.tty, self._cursory, self._cursorx)
         
     def wait_get_char(self):
@@ -90,9 +128,11 @@ class EmacsEditor(object):
                 
             elif CTRLX_prefix:
                 CTRLX_prefix = False
-                _move_cursor_to(self.tty, 24, 0)
+                _move_cursor_to(self.tty, NLINES-1, 0)
                 _erase_end_of_line(self.tty)
-                if c == CTRL('C'):
+                if c == CTRL('G'):
+                    pass
+                elif c == CTRL('C'):
                     break
                 elif c == CTRL('S'):
                     self.save_current_buffer()
@@ -102,12 +142,36 @@ class EmacsEditor(object):
                     
             elif c == ESC:
                 ESC_prefix = True
+            
             elif c == CTRL('X'):
                 CTRLX_prefix = True
-                _move_cursor_to(self.tty, 24, 0)
+                _move_cursor_to(self.tty, NLINES-1, 0)
                 call.iox_.put_chars(self.tty, "^X-")
+                
+            elif c == CR:
+                self.insert_character(c)
+                self._cursorx = 0
+                self._cursory = self._current_buffer.next_line(self._cursory)
+                _move_cursor_to(self.tty, self._cursory, self._cursorx)
+            elif c == BS:
+                self.delete_previous_character()
+            elif c == CTRL('D'):
+                self.delete_current_character()
+            else:
+                self.insert_character(c)
         
     def save_current_buffer(self):
+        print "\n".join(self._current_buffer._lines)
+        
+    def insert_character(self, c):
+        self._current_buffer.insert_character(c, self._cursorx, self._cursory)
+        self._cursorx = min(NCHARS-1, self._cursorx + 1)
+        _move_cursor_to(self.tty, self._cursory, self._cursorx)
+        
+    def delete_previous_character(self):
+        pass
+        
+    def delete_current_character(self):
         pass
         
 def emacs():
