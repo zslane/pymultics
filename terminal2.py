@@ -556,7 +556,7 @@ class GlassTTY(QtGui.QWidget):
                     return done()
                 elif request_code == 6:
                     # Respond with cursor position
-                    self.send_control_code_response("[%d;%dR"%(self.cursory + 1, self.cursorx + 1))
+                    self.send_control_code_response("[%d;%dR"%(self.cursory, self.cursorx))
                     return done()
                 #end if
             elif c == 'A':
@@ -603,7 +603,7 @@ class GlassTTY(QtGui.QWidget):
                 if c == 'H' or c == 'f':
                     row = int(self._cc_n1)
                     col = int(self._cc_n2)
-                    self.moveCursorTo(row - 1, col - 1)
+                    self.moveCursorTo(col, row)
                     return done()
                 elif c == 'r':
                     start = int(self._cc_n1)
