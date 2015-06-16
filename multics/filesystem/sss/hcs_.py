@@ -10,7 +10,7 @@ class hcs_(Subroutine):
         super(hcs_, self).__init__(self.__class__.__name__)
             
     def signal_break(self):
-        GlobalEnvironment.supervisor.signal_break(get_calling_process_().tty())
+        GlobalEnvironment.supervisor.signal_break(get_calling_process_())
         
     def get_entry_point(self, segment_name, segment):
         dir_name, entryname = None, segment_name

@@ -32,7 +32,7 @@ class iox_(Subroutine):
             if c == BACKSPACE and ioxbuffer == "":
                 pass
             else:
-                self.put_chars(tty_channel, c)
+                self.write(tty_channel, c)
             
         return c
         
@@ -92,7 +92,7 @@ class iox_(Subroutine):
             elif c:
                 buf += c
     
-    def put_chars(self, tty_channel, s):
+    def write(self, tty_channel, s):
         self.hardware.io.put_output(s, tty_channel)
         
     def terminal_closed(self, tty_channel):

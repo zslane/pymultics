@@ -295,7 +295,6 @@ class Supervisor(QtCore.QObject):
             # end if
             if not ignore_break_signals and self.__hardware.io.break_received(tty_channel):
                 print "Break signal detected by " + process.objectName()
-                self.send_to_tty("QUIT\n", tty_channel)
                 self.invoke_condition_handler(BreakCondition, process) ### ! EXPERIMENTAL ! ###
                 # raise BreakCondition
             # end if
@@ -311,8 +310,8 @@ class Supervisor(QtCore.QObject):
         # end if
         QtCore.QCoreApplication.processEvents()
     
-    def signal_break(self, tty_channel=None):
-        self.send_to_tty("QUIT\n", tty_channel)
+    def signal_break(self, process):
+        self.invoke_condition_handler(BreakCondition, process) ### ! EXPERIMENTAL ! ###
         
     def signal_condition(self, signalling_process, condition_instance):
         self.__signalled_conditions.append( (signalling_process, condition_instance) )
@@ -347,11 +346,19 @@ class Supervisor(QtCore.QObject):
             print process.objectName(), "No condition handler to deregister for %s." % (condition.name())
             
     def invoke_condition_handler(self, condition, process):
-        print process.objectName(), "invoking %s condition handler" % (condition.name()),
         try:
-            handler_function = self.__condition_handlers[process.id()][condition.name()][-1]
-            print handler_function
-            handler_function()
+            stack_frame = -1
+            while True:
+                print process.objectName(), "invoking %s condition handler" % (condition.name()),
+                handler_function = self.__condition_handlers[process.id()][condition.name()][stack_frame]
+                print handler_function
+                try:
+                    handler_function()
+                    break
+                except condition:
+                    stack_frame -= 1
+                except:
+                    raise
             
         except (KeyError, IndexError):
             raise condition

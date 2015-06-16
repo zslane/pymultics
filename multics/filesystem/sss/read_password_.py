@@ -16,7 +16,7 @@ class read_password_(Subroutine):
         iox_control.filter_chars = common_ctrl_chars
         buffer = parm()
         try:
-            call.iox_.put_chars(tty_channel, "%s\n" % (prompt))
+            call.iox_.write(tty_channel, "%s\n" % (prompt))
             
             call.iox_.set_input_mode(tty_channel, QtGui.QLineEdit.Password)
             call.iox_.wait_get_line(tty_channel, iox_control, buffer)

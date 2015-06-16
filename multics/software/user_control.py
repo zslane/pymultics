@@ -122,7 +122,7 @@ class UserControl(object):
     def _set_input_mode(self, mode):
         call.iox_.set_input_mode(self.tty, mode)
     def _put_output(self, s):
-        call.iox_.put_chars(self.tty, s)
+        call.iox_.write(self.tty, s)
         
     def _display_login_banner(self):
         load = len(os.listdir(GlobalEnvironment.fs.path2path(GlobalEnvironment.fs.process_dir_dir)))

@@ -66,7 +66,7 @@ def print_(*func_args):
         
         if print_header:
             header = "%s %s" % (segment.name, datetime.datetime.now().ctime())
-            call.iox_.put_chars(tty_channel, "{0:^80}\n\n".format(header))
+            call.iox_.write(tty_channel, "{0:^80}\n\n".format(header))
             page_size = 20
         # end if
         
@@ -81,7 +81,7 @@ def print_(*func_args):
         
         count = 0
         for i in range(begin, end):
-            call.iox_.put_chars(tty_channel, lines[i] + "\n")
+            call.iox_.write(tty_channel, lines[i] + "\n")
             count += 1
             if (count != nlines) and (count % page_size == 0):
                 call.command_query_(query_info, answer, "print", "Continue ({0} lines)?", nlines - count)

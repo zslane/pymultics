@@ -175,8 +175,8 @@ class ProcessOverseer(object):
             GlobalEnvironment.supervisor.remove_interactive_process(process)
     
     def _print_error_message(self, s, tty_channel):
-        call.iox_.put_chars(tty_channel, "\n%s\n" % (s))
-        call.iox_.put_chars(tty_channel, "Please contact System Administrator.\n")
+        call.iox_.write(tty_channel, "\n%s\n" % (s))
+        call.iox_.write(tty_channel, "Please contact System Administrator.\n")
     
 #-- end class ProcessOverseer
 

@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import time
 
 from PySide import QtCore, QtGui, QtNetwork
 
@@ -196,6 +197,32 @@ class FontGlyphs(object):
         return map(binary, m)
     
 #-- end class FontGlyphs
+        
+class HardwareClock(QtCore.QObject):
+
+    epoch = time.clock()
+
+    def __init__(self, wall_time):
+        t1 = time.clock()
+        super(HardwareClock, self).__init__()
+        t2 = time.clock()
+        #== Figure out which time function to use for the hardware clock
+        if abs(t1 - t2) < 1e-6: # <-- successive time.clock() calls too close in value
+            print "Hardware clock uses time.time() [{0.platform}]".format(sys)
+            self.__clock_fn = time.time # use time.time() instead
+        else:
+            print "Hardware clock uses time.clock() [{0.platform}]".format(sys)
+            self.__clock_fn = time.clock # time.clock() should be fine
+        
+        self.__wall_time = wall_time
+        self.__clocktick = self.__clock_fn()
+        
+    def current_time(self):
+        dc = self.__clock_fn() - self.__clocktick
+        return self._asInt(self.__wall_time + dc)
+        
+    def _asInt(self, t):
+        return long(t * 1000000)
 
 class GlassTTY(QtGui.QWidget):
 
@@ -256,6 +283,11 @@ class GlassTTY(QtGui.QWidget):
         self.autoCR = True
         self.control_code_state = 0
         
+        self._clock = HardwareClock(time.time())
+        self._iotime = None
+        self._iocursor_enable = True
+        self.xmitChars.connect(self._reset_iotimer)
+        
         self.setPhosphorColor(phosphor_color)
         self.resetScrollRange()
         
@@ -307,6 +339,12 @@ class GlassTTY(QtGui.QWidget):
         self.update()
         self.repaint()
         
+    @QtCore.Slot(str)
+    def _reset_iotimer(self, c=None):
+        self._iotime = None
+        self._iocursor_enable = True
+        self.cursor_visible = True
+    
     #==================================#
     #== HIGH-LEVEL RASTER MANAGEMENT ==#
     #==================================#
@@ -315,6 +353,10 @@ class GlassTTY(QtGui.QWidget):
         """
         Add a string of characters, one at a time, to the display raster matrix.
         """
+        t = self._clock.current_time()
+        self._iocursor_enable = (not self._iotime) or (t - self._iotime > 200000)
+        self._iotime = t
+        
         for c in text:
             #== Process control code
             if c == ESC or self.control_code_state:
@@ -364,20 +406,20 @@ class GlassTTY(QtGui.QWidget):
         # end if
         self.update()
 
-    def resetScrollRange(self, first=1, last=NLINES):
+    def resetScrollRange(self, first=0, last=NLINES-1):
         self.scroll_first = first
         self.scroll_last = last
         
     def scrollUp(self, n_lines=1):
         for i in range(n_lines):
-            line = self.raster_lines.pop(self.scroll_first - 1)
-            self.raster_lines.insert(self.scroll_last - 1, line.cleared())
+            line = self.raster_lines.pop(self.scroll_first)
+            self.raster_lines.insert(self.scroll_last, line.cleared())
         self.update()
         
     def scrollDown(self, n_lines=1):
         for i in range(n_lines):
-            line = self.raster_lines.pop(self.scroll_last - 1)
-            self.raster_lines.insert(self.scroll_first - 1, line.cleared())
+            line = self.raster_lines.pop(self.scroll_last)
+            self.raster_lines.insert(self.scroll_first, line.cleared())
         self.update()
     
     def eraseEndOfLine(self):
@@ -650,6 +692,13 @@ class GlassTTY(QtGui.QWidget):
     def timerEvent(self, event):
         if not self.connected:
             self.hideCursor()
+            
+        elif not self._iocursor_enable:
+            t = self._clock.current_time()
+            if t - self._iotime > 200000:
+                self._reset_iotimer()
+                self._repaint_cursor()
+                
         elif self.cursor_blink:
             self.toggleCursor()
         
@@ -690,7 +739,7 @@ class GlassTTY(QtGui.QWidget):
                 # end for
             # end if
             
-            if self.cursor_visible:
+            if self.cursor_visible and self._iocursor_enable:
                 if self.cursor_glyph == self.CURSOR_BLOCK:
                     # painter.setCompositionMode(QtGui.QPainter.CompositionMode_Difference)     # solid
                     # painter.fillRect(self.cursorRect().adjusted(0, 1, 0, -3), self.fontcolor) # block

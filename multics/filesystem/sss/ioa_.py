@@ -419,11 +419,11 @@ class ioa_(Subroutine):
         
     def procedure(self, format_string="", *args):
         tty_channel = get_calling_process_().tty()
-        call.iox_.put_chars(tty_channel, self._format(format_string, *args) + "\n")
+        call.iox_.write(tty_channel, self._format(format_string, *args) + "\n")
         
     def nnl(self, format_string="", *args):
         tty_channel = get_calling_process_().tty()
-        call.iox_.put_chars(tty_channel, self._format(format_string, *args))
+        call.iox_.write(tty_channel, self._format(format_string, *args))
     
     def rs(self, format_string, return_string, *args):
         return_string.val = self._format(format_string, *args) + "\n"

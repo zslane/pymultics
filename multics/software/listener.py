@@ -120,8 +120,6 @@ class Listener(Subroutine):
                     call.cu_.cp(command_line.val, code)
                     self.exit_code = code.val
                     
-                except BreakCondition:
-                    call.hcs_.signal_break()
                 except ReleaseUnwind:
                     if self.__process.stack_level() > self.__release_to_level:
                         return RELEASE_LEVEL
@@ -143,6 +141,7 @@ class Listener(Subroutine):
     
     def _push_command_level(self):
         print "Pushing command level"
+        call.ioa_("QUIT")
         self.__process.push_stack()
         exit_code = self._enter_command_level()
         self.__process.pop_stack()
