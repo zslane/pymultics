@@ -236,6 +236,18 @@ class Buffer(object):
                 
         self.restore_cursor()
 
+    def next_page_command(self):
+        new_top_row = min(self._top_row + self._window.vsize - 2, len(self._lines) - self._window.vsize + 1)
+        if new_top_row != self._top_row:
+            self._top_row = new_top_row
+            row, col = self._get_pos()
+            n_visible_chars = len(self._lines[row][self._lft_col:self._lft_col + NCHARS])
+            self._cursorx = min(self._cursorx, n_visible_chars)
+            if self._lft_col > 0 and n_visible_chars == 0:
+                self._lft_col = min(0, self._lft_col - NCHARS // 2)
+            self.draw_lines()
+            self.restore_cursor()
+    
     def begin_line_command(self):
         self._cursorx = 0
         if self._lft_col > 0:
@@ -540,6 +552,8 @@ class EmacsEditor(object):
                     self.next_line_command()
                 elif c == CTRL('P'):
                     self.prev_line_command()
+                elif c == CTRL('V'):
+                    self.next_page_command()
                 elif c == CTRL('Y'):
                     self.yank_buffer()
                 elif c:
@@ -638,6 +652,9 @@ class EmacsEditor(object):
         
     def next_line_command(self):
         self._current_buffer.next_line_command()
+        
+    def next_page_command(self):
+        self._current_buffer.next_page_command()
         
     def begin_line_command(self):
         self._current_buffer.begin_line_command()

@@ -286,7 +286,7 @@ class GlassTTY(QtGui.QWidget):
         self._clock = HardwareClock(time.time())
         self._iotime = None
         self._iocursor_enable = True
-        self.xmitChars.connect(self._reset_iotimer)
+        self._incount = 0
         
         self.setPhosphorColor(phosphor_color)
         self.resetScrollRange()
@@ -339,8 +339,11 @@ class GlassTTY(QtGui.QWidget):
         self.update()
         self.repaint()
         
-    @QtCore.Slot(str)
-    def _reset_iotimer(self, c=None):
+    def sendCharacters(self, text):
+        self._reset_iotimer()
+        self.xmitChars.emit(text)
+        
+    def _reset_iotimer(self):
         self._iotime = None
         self._iocursor_enable = True
         self.cursor_visible = True
@@ -354,7 +357,7 @@ class GlassTTY(QtGui.QWidget):
         Add a string of characters, one at a time, to the display raster matrix.
         """
         t = self._clock.current_time()
-        self._iocursor_enable = (not self._iotime) or (t - self._iotime > 200000)
+        self._iocursor_enable = (not self._iotime) or (t - self._iotime > 500000)
         self._iotime = t
         
         for c in text:
@@ -383,6 +386,11 @@ class GlassTTY(QtGui.QWidget):
                     self.cursorx = 0
                     self.cursory += 1
                 # end if
+                
+                self._incount += 1
+                if self._incount % self.NCHARS == 0:
+                    self.repaint()
+                    
             # end if
             
             #== Scroll display if necessary
@@ -393,6 +401,7 @@ class GlassTTY(QtGui.QWidget):
             # end if
         # end for
         self.update()
+        self.repaint()
         
     def delCharacters(self, nchars_to_delete):
         """
@@ -405,6 +414,7 @@ class GlassTTY(QtGui.QWidget):
             self.cursorx = prevx
         # end if
         self.update()
+        self.repaint()
 
     def resetScrollRange(self, first=0, last=NLINES-1):
         self.scroll_first = first
@@ -415,36 +425,48 @@ class GlassTTY(QtGui.QWidget):
             line = self.raster_lines.pop(self.scroll_first)
             self.raster_lines.insert(self.scroll_last, line.cleared())
         self.update()
+        self.repaint()
         
     def scrollDown(self, n_lines=1):
         for i in range(n_lines):
             line = self.raster_lines.pop(self.scroll_last)
             self.raster_lines.insert(self.scroll_first, line.cleared())
         self.update()
+        self.repaint()
     
     def eraseEndOfLine(self):
         self.raster_lines[self.cursory].clear(self.cursorx)
+        self.update()
+        self.repaint()
         
     def eraseStartOfLine(self):
         self.raster_lines[self.cursory].clear(0, self.cursorx + 1)
+        self.update()
+        self.repaint()
     
     def eraseLine(self):
         self.raster_lines[self.cursory].clear()
+        self.update()
+        self.repaint()
         
     def eraseDown(self):
         for line in self.raster_lines[self.cursory:self.NLINES]:
             line.clear()
+        self.update()
+        self.repaint()
             
     def eraseUp(self):
         for line in self.raster_lines[0:self.cursory + 1]:
             line.clear()
+        self.update()
+        self.repaint()
             
     def eraseScreen(self):
-        # self.raster_lines = [ GlassTTY.RasterLine(self.NCHARS) for i in range(self.NLINES) ]
         for line in self.raster_lines:
             line.clear()
         self.moveCursorTo(0, 0)
         self.update()
+        self.repaint()
     
     #==================================#
     #==       CURSOR MANAGEMENT      ==#
@@ -591,12 +613,12 @@ class GlassTTY(QtGui.QWidget):
                 self._cc_n2 = ""
                 return next(CC_NUM2)
             elif c == 'n':
-                request_code = int(self._cc_n1)
-                if request_code == 5:
+                code = int(self._cc_n1)
+                if code == 5:
                     # Respond with device status ok
                     self.send_control_code_response("[0n")
                     return done()
-                elif request_code == 6:
+                elif code == 6:
                     # Respond with cursor position
                     self.send_control_code_response("[%d;%dR"%(self.cursory, self.cursorx))
                     return done()
@@ -619,7 +641,10 @@ class GlassTTY(QtGui.QWidget):
                 return done()
             elif c == 'J':
                 code = int(self._cc_n1)
-                if code == 1:
+                if code == 0:
+                    self.eraseDown()
+                    return done()
+                elif code == 1:
                     self.eraseUp()
                     return done()
                 elif code == 2:
@@ -628,7 +653,10 @@ class GlassTTY(QtGui.QWidget):
                 # end if
             elif c == 'K':
                 code = int(self._cc_n1)
-                if code == 1:
+                if code == 0:
+                    self.eraseEndOfLine()
+                    return done()
+                elif code == 1:
                     self.eraseStartOfLine()
                     return done()
                 elif code == 2:
@@ -665,7 +693,7 @@ class GlassTTY(QtGui.QWidget):
         return failed()
         
     def send_control_code_response(self, code):
-        self.xmitChars.emit(ESC + code)
+        self.sendCharacters(ESC + code)
         
     #===============================#
     #==     QT EVENT HANDLERS     ==#
@@ -679,7 +707,7 @@ class GlassTTY(QtGui.QWidget):
                 self.breakSignal.emit()
             elif event.key() == QtCore.Qt.Key_Down: # Linefeed key
                 # print "Send LINEFEED"
-                self.xmitChars.emit(LF)
+                self.sendCharacters(LF)
                 
         #== ASCII KEYSTROKE ==#
         for c in str(event.text()):
@@ -687,7 +715,7 @@ class GlassTTY(QtGui.QWidget):
                 self.ring_bell()
                 
             # print "Send char: %r (%d)" % (c, ord(c))
-            self.xmitChars.emit(c)
+            self.sendCharacters(c)
             
     def timerEvent(self, event):
         if not self.connected:
@@ -695,7 +723,7 @@ class GlassTTY(QtGui.QWidget):
             
         elif not self._iocursor_enable:
             t = self._clock.current_time()
-            if t - self._iotime > 200000:
+            if t - self._iotime > 500000:
                 self._reset_iotimer()
                 self._repaint_cursor()
                 
