@@ -89,6 +89,14 @@ class Buffer(object):
         
     def get_contents(self):
         return "\n".join(self._lines)
+        
+    def clear_contents(self):
+        self._lines = []
+        self._top_row = 0
+        self._lft_col = 0
+        self._cursorx = 0
+        self._cursory = 0
+        self._marginx = 0
     
     def load_file(self, filepath):
         directory = parm()
@@ -109,28 +117,15 @@ class Buffer(object):
         self._cursory = 0
     
     def save_file(self):
-        if not self._filepath:
-            path = _minibuffer_get_line(self._tty_channel, "Save file: ")
-            if path:
-                self._filepath = path
-            # end if
-        # end if
         if self._filepath:
             f = open(vfile_(self._filepath), "w")
             f.write(self.get_contents())
             f.close()
-            _minibuffer_write(self._tty_channel, "File %s saved." % (self._filepath))
-            self.restore_cursor()
             
     def clear(self, name):
         self._name = name
-        self._lines = []
-        self._top_row = 0
-        self._lft_col = 0
-        self._cursorx = 0
-        self._cursory = 0
-        self._marginx = 0
         self._readonly = False
+        self.clear_contents()
         self.draw_lines()
         self.restore_cursor()
         
@@ -509,7 +504,7 @@ class EmacsEditor(object):
                     elif c == 'k':
                         self.clear_buffer_command()
                     elif c == CTRL('S'):
-                        self.save_current_buffer()
+                        self.save_file_command()
                     else:
                         self.cancel_minibuffer()
                         self.set_status_message("Unkown command ^X-" + _xlate(c))
@@ -582,11 +577,23 @@ class EmacsEditor(object):
     
     def process_minibuffer_input(self):
         s = self._minibuffer.get_contents()
+        self._minibuffer.clear_contents()
         self._minibuffer.set_special_prompt("")
         callback = self._minibuffer_callback
         self._minibuffer_callback = None
         self.cancel_minibuffer()
         callback(s)
+        
+    def yes_no_handler(self, answer):
+        if answer.lower() in ["yes", "y"]:
+            self._yes_no_callback(self._yes_no_arg)
+        elif answer.lower() in ["no", "n"]:
+            self._current_buffer.restore_cursor()
+        else:
+            self._minibuffer_callback = self.yes_no_handler
+            self._minibuffer.set_special_prompt("File exists. Overwrite? (Y/N): ")
+            self._cancel_to_buffer = self._current_buffer
+            self._current_buffer = self._minibuffer
         
     def find_file_command(self):
         self._minibuffer_callback = self.load_file_into_buffer
@@ -609,10 +616,45 @@ class EmacsEditor(object):
         self.cancel_minibuffer()
         self._current_buffer.clear(self._next_scratch())
         
-    def save_current_buffer(self):
-        self.cancel_minibuffer()
-        self._current_buffer.save_file()
+    def save_file_command(self):
+        if not self._current_buffer._filepath:
+            self._minibuffer_callback = self.save_file_as
+            self._minibuffer.set_special_prompt("Save file: ")
+        else:
+            self.cancel_minibuffer()
+            self._current_buffer.save_file()
+            self.set_status_message("File %s saved." % (self._current_buffer._filepath))
+            self._current_buffer.restore_cursor()
         
+    def save_file_as(self, filename):
+        full = parm()
+        directory = parm()
+        file_name = parm()
+        code = parm()
+        call.sys_.get_abs_path(filename, full)
+        call.sys_.split_path_(full.path, directory, file_name)
+        call.hcs_.fs_file_exists(directory.val, file_name.val, code)
+        if code.val == 0:
+            self._yes_no_callback = self.save_buffer_to_file
+            self._yes_no_arg = full.path
+            self._minibuffer_callback = self.yes_no_handler
+            self._minibuffer.set_special_prompt("File exists. Overwrite? (Y/N): ")
+            self._cancel_to_buffer = self._current_buffer
+            self._current_buffer = self._minibuffer
+        else:
+            self.save_buffer_to_file(full.path)
+            
+    def save_buffer_to_file(self, filepath):
+        self.cancel_minibuffer()
+        directory = parm()
+        file_name = parm()
+        call.sys_.split_path_(filepath, directory, file_name)
+        self._current_buffer._name = file_name.val
+        self._current_buffer._filepath = filepath
+        self._current_buffer.save_file()
+        self.set_status_message("File %s saved." % (self._current_buffer._filepath))
+        self._current_buffer.restore_cursor()
+    
     def clear_yank_buffer(self):
         self._yank_buffer = []
         self._killing = False
