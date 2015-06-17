@@ -198,32 +198,6 @@ class FontGlyphs(object):
     
 #-- end class FontGlyphs
         
-class HardwareClock(QtCore.QObject):
-
-    epoch = time.clock()
-
-    def __init__(self, wall_time):
-        t1 = time.clock()
-        super(HardwareClock, self).__init__()
-        t2 = time.clock()
-        #== Figure out which time function to use for the hardware clock
-        if abs(t1 - t2) < 1e-6: # <-- successive time.clock() calls too close in value
-            print "Hardware clock uses time.time() [{0.platform}]".format(sys)
-            self.__clock_fn = time.time # use time.time() instead
-        else:
-            print "Hardware clock uses time.clock() [{0.platform}]".format(sys)
-            self.__clock_fn = time.clock # time.clock() should be fine
-        
-        self.__wall_time = wall_time
-        self.__clocktick = self.__clock_fn()
-        
-    def current_time(self):
-        dc = self.__clock_fn() - self.__clocktick
-        return self._asInt(self.__wall_time + dc)
-        
-    def _asInt(self, t):
-        return long(t * 1000000)
-
 class GlassTTY(QtGui.QWidget):
 
     breakSignal = QtCore.Signal()
@@ -283,7 +257,6 @@ class GlassTTY(QtGui.QWidget):
         self.autoCR = True
         self.control_code_state = 0
         
-        self._clock = HardwareClock(time.time())
         self._iotime = None
         self._iocursor_enable = True
         self._incount = 0
@@ -356,9 +329,9 @@ class GlassTTY(QtGui.QWidget):
         """
         Add a string of characters, one at a time, to the display raster matrix.
         """
-        t = self._clock.current_time()
-        self._iocursor_enable = (not self._iotime) or (t - self._iotime > 500000)
-        self._iotime = t
+        self._iocursor_enable = (not self._iotime) or (self._iotime.elapsed() > 500)
+        self._iotime = QtCore.QTime()
+        self._iotime.start()
         
         for c in text:
             #== Process control code
@@ -722,8 +695,7 @@ class GlassTTY(QtGui.QWidget):
             self.hideCursor()
             
         elif not self._iocursor_enable:
-            t = self._clock.current_time()
-            if t - self._iotime > 500000:
+            if self._iotime.elapsed() > 500:
                 self._reset_iotimer()
                 self._repaint_cursor()
                 
