@@ -82,11 +82,24 @@ class Buffer(object):
         self._readonly = False
         self._dirty = False
         
+    def filepath(self):    return self._filepath
+    def name(self):        return self._name
+    def window(self):      return self._window
+    def is_readonly(self): return self._readonly
+    def is_modified(self): return self._dirty
+    def is_visible(self):  return self._window and self._window.visible
+    
     def set_window(self, window):
         self._window = window
         
     def set_read_only(self, flag):
         self._readonly = flag
+        
+    def set_file_path(self, file_path):
+        self._filepath = file_path
+        file_name = parm()
+        call.sys_.split_path_(file_path, null(), file_name)
+        self._name = file_name.val
         
     def get_contents(self):
         return "\n".join(self._lines)
@@ -145,7 +158,7 @@ class Buffer(object):
         _move_cursor_to(self._tty_channel, self._window.screeny + self._cursory, self._cursorx)
         
     def draw_lines(self, starting_at=0):
-        if self._window and self._window.visible:
+        if self.is_visible():
             for i in range(starting_at, self._window.vsize - 1):
                 _move_cursor_to(self._tty_channel, self._window.screeny + i, 0)
                 _erase_end_of_line(self._tty_channel)
@@ -440,36 +453,43 @@ class Window(object):
 
     def __init__(self, tty_channel, has_status_bar=True):
         self._tty_channel = tty_channel
+        self.has_status_bar = has_status_bar
         self.screeny = 0
         self.vsize = 0
-        self.has_status_bar = has_status_bar
         self.visible = False
         
-    def setup(self, screeny, vsize, visible):
+    def setup(self, screeny, vsize, visible=True):
         self.screeny = screeny
         self.vsize = vsize
         self.visible = visible
     
+    def show(self):
+        self.visible = True
+        
+    def hide(self):
+        self.visible = False
+        
     def draw_status_bar(self, buffer):
-        mode_data = []
-        if buffer._name.endswith(".py"):
-            mode_data.append("Python Mode")
-        elif buffer._name.endswith(".pl1"):
-            mode_data.append("PL1 Mode")
-        else:
-            mode_data.append("Fundamental Mode")
-        if buffer._readonly:
-            mode_data.append("Read Only")
-        mode_string = ", ".join(mode_data)
-        
-        dirty_flag = "*" if buffer._dirty and not buffer._name.startswith("*scratch-") else ""
-        status_bar_text = "    %s (%s) " % (dirty_flag + buffer._name, mode_string)
-        status_bar_text = "%-80s" % (status_bar_text)
-        
-        _move_cursor_to(self._tty_channel, self.screeny + self.vsize - 1, 0)
-        _reverse_video(self._tty_channel)
-        _write(self._tty_channel, status_bar_text)
-        _normal_video(self._tty_channel)
+        if self.has_status_bar:
+            mode_data = []
+            if buffer._name.endswith(".py"):
+                mode_data.append("Python Mode")
+            elif buffer._name.endswith(".pl1"):
+                mode_data.append("PL1 Mode")
+            else:
+                mode_data.append("Fundamental Mode")
+            if buffer._readonly:
+                mode_data.append("Read Only")
+            mode_string = ", ".join(mode_data)
+            
+            dirty_flag = "*" if buffer._dirty and not buffer._name.startswith("*scratch-") else ""
+            status_bar_text = "    %s (%s) " % (dirty_flag + buffer._name, mode_string)
+            status_bar_text = "%-80s" % (status_bar_text)
+            
+            _move_cursor_to(self._tty_channel, self.screeny + self.vsize - 1, 0)
+            _reverse_video(self._tty_channel)
+            _write(self._tty_channel, status_bar_text)
+            _normal_video(self._tty_channel)
     
     def scroll_up(self, starting_at=0):
         _set_scroll_range(self._tty_channel, self.screeny + starting_at, self.screeny + self.vsize - 2) # don't scroll the status bar
@@ -494,44 +514,50 @@ class EmacsEditor(object):
         self._killing = False
         self._scratch_n = 0
         
-        w = Window(self.tty, has_status_bar=False)
-        w.setup(NLINES - 1, 1, visible=True)
-        self._minibuffer = Buffer(self.tty, "*minibuffer*", w)
+        dedicated_minibuffer_window = Window(self.tty, has_status_bar=False)
+        dedicated_minibuffer_window.setup(NLINES - 1, 1)
+        self._minibuffer = Buffer(self.tty, "*minibuffer*", dedicated_minibuffer_window)
         
         for i in range(3):
             w = Window(self.tty)
             self._windows.append(w)
-            
+        # end for
+        
         if not file_path_list:
-            self._windows[0].setup(0, NLINES-1, visible=True)
+            self._windows[0].setup(0, NLINES - 1)
             self._buffers = [Buffer(self.tty, self._next_scratch(), self._windows[0])]
+            
         else:
-            full = parm()
+            file_path = parm()
             directory = parm()
             file_name = parm()
             code = parm()
             
             valid_files = []
-            for i, filepath in enumerate(file_path_list):
-                call.sys_.get_abs_path(filepath, full)
-                call.sys_.split_path_(full.path, directory, file_name)
+            for i, path in enumerate(file_path_list):
+                call.sys_.get_abs_path(path, file_path)
+                call.sys_.split_path_(file_path.val, directory, file_name)
                 call.hcs_.fs_file_exists(directory.val, file_name.val, code)
                 if code.val == 0:
-                    valid_files.append((file_name.val, full.path))
-                    
+                    valid_files.append(file_path.val)
+                # end if
+            # end for
+            
             nbuffers = min(3, len(valid_files))
             wsize = (NLINES - 1) // nbuffers
-            for i, (filename, filepath) in enumerate(valid_files):
+            for i, filepath in enumerate(valid_files):
                 if i < len(self._windows):
                     w = self._windows[i]
-                    w.setup(i * wsize, wsize, visible=True)
+                    w.setup(i * wsize, wsize)
                 else:
                     w = None
-                    
+                # end if
                 b = Buffer(self.tty, "", w)
                 b.load_file(filepath)
                 self._buffers.append(b)
-                
+            # end for
+        # end if
+        
         self._current_buffer = self._buffers[0]
         self._cancel_to_buffer = None
         self._minibuffer_callback = None
@@ -613,7 +639,7 @@ class EmacsEditor(object):
                         
                 elif ESC_prefix:
                     ESC_prefix = False
-                    _move_cursor_to(self.tty, NLINES-1, 0)
+                    _move_cursor_to(self.tty, NLINES - 1, 0)
                     _erase_end_of_line(self.tty)
                     
                     if c == 'v':
@@ -631,7 +657,7 @@ class EmacsEditor(object):
                     
                 elif CTRLX_prefix:
                     CTRLX_prefix = False
-                    _move_cursor_to(self.tty, NLINES-1, 0)
+                    _move_cursor_to(self.tty, NLINES - 1, 0)
                     _erase_end_of_line(self.tty)
                     
                     if c == CTRL('C'):
@@ -781,31 +807,31 @@ class EmacsEditor(object):
             
     def _set_done_flag(self, flag):
         self.done = flag
-        _move_cursor_to(self.tty, NLINES-1, 0)
+        _move_cursor_to(self.tty, NLINES - 1, 0)
         _erase_end_of_line(self.tty)
         
     def find_file_command(self):
         self.minibuffer_command("Find file", self._load_file_into_buffer)
         
     def _load_file_into_buffer(self, filename):
-        full = parm()
+        filepath = parm()
         directory = parm()
         file_name = parm()
         code = parm()
-        call.sys_.get_abs_path(filename, full)
-        call.sys_.split_path_(full.path, directory, file_name)
+        call.sys_.get_abs_path(filename, filepath)
+        call.sys_.split_path_(filepath.val, directory, file_name)
         call.hcs_.fs_file_exists(directory.val, file_name.val, code)
         if code.val == 0:
-            cur_window = self._current_buffer._window
+            cur_window = self._current_buffer.window()
             self._current_buffer.set_window(None)
             new_buffer = Buffer(self.tty, file_name, cur_window)
             self._buffers.append(new_buffer)
             
             self._current_buffer = new_buffer
-            self._current_buffer.load_file(full.path)
+            self._current_buffer.load_file(filepath.val)
             self._current_buffer.draw_lines()
         else:
-            self.set_status_message("Could not find file %s." % (full.path))
+            self.set_status_message("Could not find file %s." % (filepath.val))
             
         self._current_buffer.restore_cursor()
     
@@ -818,16 +844,16 @@ class EmacsEditor(object):
     def _kill_buffer(self, *args):
         #== If the current buffer is an unsaved scratch buffer, then just clear it out
         if self._current_buffer._name.startswith("*scratch-"):
-            self._current_buffer.clear(self._current_buffer._name)
+            self._current_buffer.clear(self._current_buffer.name())
             return
             
-        cur_window = self._current_buffer._window
+        cur_window = self._current_buffer.window()
         
         switch_to = None
         for buffer in self._buffers[:]:
             if buffer is self._current_buffer:
                 self._buffers.remove(buffer)
-            elif not buffer._window:
+            elif not buffer.window():
                 switch_to = buffer
             
         if not switch_to:
@@ -841,33 +867,27 @@ class EmacsEditor(object):
         self._current_buffer.restore_cursor()
         
     def save_file_command(self):
-        if not self._current_buffer._filepath:
+        if not self._current_buffer.filepath():
             self.minibuffer_command("Save file", self._save_file_as)
         else:
             self.save_current_buffer()
-            # self._current_buffer.restore_cursor()
         
     def _save_file_as(self, filename):
-        full = parm()
+        filepath = parm()
         directory = parm()
         file_name = parm()
         code = parm()
-        call.sys_.get_abs_path(filename, full)
-        call.sys_.split_path_(full.path, directory, file_name)
+        call.sys_.get_abs_path(filename, filepath)
+        call.sys_.split_path_(filepath.val, directory, file_name)
         call.hcs_.fs_file_exists(directory.val, file_name.val, code)
         if code.val == 0:
-            self.minibuffer_yes_no("File already exists. Overwrite?", self._save_buffer_to_file, full.path)
+            self.minibuffer_yes_no("File already exists. Overwrite?", self._save_buffer_to_file, filepath.val)
         else:
-            self._save_buffer_to_file(full.path)
+            self._save_buffer_to_file(filepath.val)
             
     def _save_buffer_to_file(self, filepath):
-        directory = parm()
-        file_name = parm()
-        call.sys_.split_path_(filepath, directory, file_name)
-        self._current_buffer._name = file_name.val
-        self._current_buffer._filepath = filepath
+        self._current_buffer.set_file_path(filepath)
         self.save_current_buffer()
-        
         self._current_buffer.restore_cursor()
     
     def save_current_buffer(self):
@@ -881,13 +901,21 @@ class EmacsEditor(object):
         self.minibuffer_command("Swap to buffer", self._swap_to_buffer)
         
     def _swap_to_buffer(self, buffer_name):
+        buffer1 = self._current_buffer
+        window1 = self._current_buffer.window()
+        
         for buffer in self._buffers:
-            if buffer._name == buffer_name:
-                cur_window = self._current_buffer._window
-                self._current_buffer._window = None
-                self._current_buffer = buffer
-                self._current_buffer.set_window(cur_window)
-                self._current_buffer.draw_lines()
+            if buffer.name() == buffer_name:
+                buffer2 = buffer
+                window2 = buffer.window()
+                
+                buffer1.set_window(window2)
+                buffer2.set_window(window1)
+                
+                buffer1.draw_lines()
+                buffer2.draw_lines()
+                
+                self._current_buffer = buffer2
                 break
         else:
             self.set_status_message("No buffer named %s." % (buffer_name))
@@ -959,22 +987,22 @@ class EmacsEditor(object):
         self._current_buffer.scroll_down_command()
         
     def prev_buffer_command(self):
-        visible_buffers = sorted([ buffer for buffer in self._buffers if buffer._window and buffer._window.visible ], key=lambda buffer: buffer._window.screeny)
+        visible_buffers = sorted([ buffer for buffer in self._buffers if buffer.is_visible() ], key=lambda buffer: buffer.window().screeny)
         index = visible_buffers.index(self._current_buffer)
         index = (index - 1) % len(visible_buffers)
         self._current_buffer = visible_buffers[index]
         
     def next_buffer_command(self):
-        visible_buffers = sorted([ buffer for buffer in self._buffers if buffer._window and buffer._window.visible ], key=lambda buffer: buffer._window.screeny)
+        visible_buffers = sorted([ buffer for buffer in self._buffers if buffer.is_visible() ], key=lambda buffer: buffer.window().screeny)
         index = visible_buffers.index(self._current_buffer)
         index = (index + 1) % len(visible_buffers)
         self._current_buffer = visible_buffers[index]
         
     def single_window_command(self):
         for buffer in self._buffers:
-            if buffer is not self._current_buffer and buffer._window and buffer._window.visible:
-                buffer._window.visible = False
-        self._current_buffer._window.setup(0, NLINES-1, visible=True)
+            if buffer is not self._current_buffer and buffer.is_visible():
+                buffer.window().hide()
+        self._current_buffer.window().setup(0, NLINES - 1)
         self._current_buffer.draw_lines()
         
     def split_window_command(self):
@@ -987,24 +1015,23 @@ class EmacsEditor(object):
             return
             
         for buffer in self._buffers:
-            if buffer._window is window_to_use:
-                buffer._window = None
+            if buffer.window() is window_to_use:
+                buffer.set_window(None)
                 
         new_buffer = Buffer(self.tty, self._next_scratch(), window_to_use)
         self._buffers.append(new_buffer)
         
         visible_windows = [ w for w in self._windows if w.visible ]
-        visible_windows.insert(visible_windows.index(self._current_buffer._window) + 1, window_to_use)
+        visible_windows.insert(visible_windows.index(self._current_buffer.window()) + 1, window_to_use)
         
         screeny = 0
         vsize = (NLINES - 1) // len(visible_windows)
         for w in visible_windows:
-            w.setup(screeny, vsize, visible=True)
+            w.setup(screeny, vsize)
             screeny += vsize
             
         for buffer in self._buffers:
-            if buffer._window and buffer._window.visible:
-                buffer.draw_lines()
+            buffer.draw_lines()
         
 def emacs():
     arg_list  = parm()
