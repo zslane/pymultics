@@ -15,7 +15,6 @@ DEFAULT_SERVER_PORT    = 6800
 DEFAULT_PHOSPHOR_COLOR = "vintage"
 DEFAULT_BRIGHTNESS     = 1.0
 DEFAULT_CURSOR_BLINK   = True
-DEFAULT_AA_FLAG        = True
 
 UNKNOWN_CODE       = chr(0)
 CONTROL_CODE       = chr(128)
@@ -32,6 +31,10 @@ TAB = chr(9)
 LF  = chr(10)
 CR  = chr(13)
 ESC = chr(27)
+SP  = chr(32)
+
+NRM, BRI, DIM, _, UND, BLI, _, REV, HID, ALL = (0,1,2,4,8,16,32,64,128,256)
+GLYPHSET_KEYS = [NRM, UND, REV, UND|REV, BRI, BRI|UND, BRI|REV, BRI|UND|REV, DIM, DIM|UND, DIM|REV, DIM|UND|REV, HID]
 
 class DataPacket(object):
 
@@ -76,128 +79,49 @@ class DataPacket(object):
 
 class FontGlyphs(object):
 
-    ord_BS = 8
-    ord_CR = 13
-    ord_LF = 10
-    ord_SP = 32
-    ord_BK = 128
-    
     def __init__(self, path):
         self.cell_width = 10
         self.cell_height = 22
+        
+        self.glyphs = self.loadGlyphPixmaps(path)
+        self.colored_glyphs = {}
         self.glyphColor = {}
         
-        if path.endswith(".glyphs"):
-            self.glyphs = self.load(path)
-        elif path.endswith(".bmp"):
-            self.glyphs = self.loadGlyphPixmaps(path)
-            self.colored_glyphs = {}
-        else:
-            self.glyphs = self.loadGlyphData(path)
-            
-    def load(self, path):
-        import cPickle as pickle
-        with open(path, "r") as f:
-            return pickle.load(f)
-            
-    def save(self, path):
-        import cPickle as pickle
-        with open(path, "w") as f:
-            pickle.dump(self.glyphs, f)
-    
     def createColoredGlyphs(self, name, color):
         self.glyphColor[name] = color
         try:
-            self.colored_glyphs[name] = []
-            for glyph in self.glyphs:
-                colored_glyph = glyph.copy()
-                painter = QtGui.QPainter()
-                if painter.begin(colored_glyph):
-                    painter.setCompositionMode(QtGui.QPainter.CompositionMode_Multiply)
-                    painter.fillRect(colored_glyph.rect(), color)
-                    self.colored_glyphs[name].append(colored_glyph)
-                    painter.end()
-                # end if
+            self.colored_glyphs[name] = {}
+            for glyphset in self.glyphs:
+                self.colored_glyphs[name][glyphset] = []
+                for glyph in self.glyphs[glyphset]:
+                    colored_glyph = glyph.copy()
+                    painter = QtGui.QPainter()
+                    if painter.begin(colored_glyph):
+                        painter.setCompositionMode(QtGui.QPainter.CompositionMode_Multiply)
+                        painter.fillRect(colored_glyph.rect(), color)
+                        self.colored_glyphs[name][glyphset].append(colored_glyph)
+                        painter.end()
+                    # end if
+                # end for
             # end for
         except:
             pass
         
     def loadGlyphPixmaps(self, path):
+        glyphset_dict = {}
         pixmap = QtGui.QPixmap(path)
         ncells = pixmap.width() // self.cell_width
+        nsets  = pixmap.height() // self.cell_height
         #== We ultimately create QImages so we can use the Multiply blending mode in createColoredGlyphs()
-        return [ pixmap.copy(QtCore.QRect(x * self.cell_width, 0, self.cell_width, self.cell_height)).toImage() for x in range(ncells) ]
+        for y in range(nsets):
+            glyphset = [ pixmap.copy(QtCore.QRect(x * self.cell_width, y * self.cell_height, self.cell_width, self.cell_height)).toImage() for x in range(ncells) ]
+            glyphset_dict[GLYPHSET_KEYS[y]] = glyphset
+            # end for
+        # end for
+        return glyphset_dict
         
-    def loadGlyphData(self, path):
-        with open(path) as f:
-        
-            bytecodes = []
-            while True:
-                c = f.read(1)
-                if c == "{":
-                    break
-                    
-            while True:
-                bytecode = self._next_bytecode(f)
-                if bytecode:
-                    u = ast.literal_eval(bytecode)
-                    bytecodes.append(u)
-                else:
-                    break
-                    
-        # Each list of 8 bytecodes represents an 8x8 pixel matrix: 'A' = [ 0x10,0x28,0x44,0x82,0xAA,0x82,0x82 ]
-        # Each list of 8 bytecodes must be converted to a list of bit-lists: 'A' = [ [0,0,0,1,0,0,0,0], ... ]
-        return [ self._pixel_matrix(bytecodes[i:i+8]) for i in range(0, len(bytecodes), 8) ]
-        
-    def _next_bytecode(self, f):
-        c = self._skip_ws(f)
-        if c == "}":
-            return None
-        s = ""
-        while c != ",":
-            s += c
-            c = f.read(1)
-        return s.strip()
-        
-    def _skip_ws(self, f):
-        in_comment = False
-        while True:
-            c = f.read(1)
-            if c.isspace():
-                continue
-            elif c == "/":
-                c = f.read(1)
-                if c == "*" or in_comment:
-                    in_comment = True
-                    continue
-                elif c == "/":
-                    # eat line comment to EOL
-                    while c != "\n":
-                        c = f.read(1)
-                    continue
-            elif c == "*":
-                c = f.read(1)
-                if c == "/":
-                    in_comment = False
-                    continue
-                elif in_comment:
-                    continue
-            elif in_comment:
-                continue
-            return c
-            
-    def _pixel_matrix(self, m):
-        def binary(n):
-            result = []
-            for i in range(8):
-                result.append(n & 1)
-                n = n >> 1
-            return list(reversed(result))
-            
-        return map(binary, m)
-    
 #-- end class FontGlyphs
-        
+
 class GlassTTY(QtGui.QWidget):
 
     breakSignal = QtCore.Signal()
@@ -210,38 +134,57 @@ class GlassTTY(QtGui.QWidget):
     CURSOR_BLOCK = 0
     CURSOR_LINE  = 5
     
+    IOTIMEOUT = 100 # ms
+    
+    n_blinkers = 0
+    @classmethod
+    def add_blinkers(cls, chars):
+        n = len(filter(lambda (c, a): a & BLI, chars))
+        cls.n_blinkers += n
+    @classmethod
+    def deduct_blinkers(cls, chars):
+        n = len(filter(lambda (c, a): a & BLI, chars))
+        cls.n_blinkers -= n
+    
     class RasterLine(list):
+        NULL = ( chr(0), 0 )
         def __init__(self, n):
             super(GlassTTY.RasterLine, self).__init__()
-            self.extend([ chr(0) for i in range(n) ])
+            self.extend([ self.NULL for i in range(n) ])
+        def pop(self, index):
+            line = super(GlassTTY.RasterLine, self).pop(index)
+            GlassTTY.deduct_blinkers(line)
+            return line
         def cleared(self):
+            GlassTTY.deduct_blinkers(self)
             for i in range(len(self)):
-                self[i] = chr(0)
+                self[i] = self.NULL
             return self
         def clear(self, start=0, end=-1):
             if end == -1:
                 end = len(self)
             if end < start:
                 start, end = end, start
-            self[start:end] = [ chr(0) for i in range(end - start) ]
-            
+            GlassTTY.deduct_blinkers(self[start:end])
+            self[start:end] = [ self.NULL for i in range(end - start) ]
     #-- end class RasterLine
     
-    def __init__(self, phosphor_color=DEFAULT_PHOSPHOR_COLOR, aa=DEFAULT_AA_FLAG, parent=None):
+    def __init__(self, phosphor_color=DEFAULT_PHOSPHOR_COLOR, parent=None):
         super(GlassTTY, self).__init__(parent)
         self.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         
-        self.aa = aa
         self.opacity = DEFAULT_BRIGHTNESS
         
-        self.font = FontGlyphs(":/UiCrt2_Charset.bmp" if aa else ":/UiCrt2_Charset_noaa.bmp")
-        self.font.createColoredGlyphs("vintage", QtGui.QColor(57, 255, 174)) #QtGui.QColor(50, 221, 151))
-        self.font.createColoredGlyphs("green",   QtGui.QColor(96, 255, 96)) #QtGui.QColor("lightgreen"))
-        self.font.createColoredGlyphs("amber",   QtGui.QColor(255, 215, 0)) #QtGui.QColor("gold"))
-        self.font.createColoredGlyphs("white",   QtGui.QColor(240, 248, 255)) #QtGui.QColor("aliceblue"))
+        self.font = FontGlyphs(":/UiCrt2_Charset_Rom.png")
+        self.font.createColoredGlyphs("vintage", QtGui.QColor(57, 255, 174))
+        self.font.createColoredGlyphs("green",   QtGui.QColor(96, 255, 96))
+        self.font.createColoredGlyphs("amber",   QtGui.QColor(255, 215, 0))
+        self.font.createColoredGlyphs("white",   QtGui.QColor(240, 248, 255))
         
         self.raster_lines = [ GlassTTY.RasterLine(self.NCHARS) for i in range(self.NLINES) ]
+        self.charattrs = 0
+        self.blink_state = True
         
         self.cursorx = 0
         self.cursory = 0
@@ -255,11 +198,12 @@ class GlassTTY(QtGui.QWidget):
         
         self.autoLF = True
         self.autoCR = True
-        self.control_code_state = 0
+        self.esc_code_state = 0
         
         self._iotime = None
         self._iocursor_enable = True
         self._incount = 0
+        self._elapsed_times = []
         
         self.setPhosphorColor(phosphor_color)
         self.resetScrollRange()
@@ -285,26 +229,8 @@ class GlassTTY(QtGui.QWidget):
     def setPhosphorColor(self, phosphor_color):
         self.fontcolor = self.font.glyphColor[phosphor_color]
         self.wincolor = self.fontcolor.darker(1500)
-        self.cursor_pen.setColor(self.fontcolor)
-        
-        try:
-            self.glyphs = self.font.colored_glyphs[phosphor_color]
-        except:
-            self.glyphs = self.font.glyphs
-            
-            pixel = QtGui.QPen(self.fontcolor)
-            if self.aa:
-                dim = QtGui.QPen(self.fontcolor.darker(300)) # 400))
-                dimmer = QtGui.QPen(self.fontcolor.darker(600)) # 800))
-            else:
-                dim = dimmer = QtGui.QPen(self.wincolor)
-                
-            self.aa_pen_matrix = [
-                dimmer,  dim,  dimmer,
-                   dim, pixel, dim,
-                dimmer,  dim,  dimmer
-            ]
-        # end try
+        self.cursor_pen.setColor(self.fontcolor)        
+        self.glyphs = self.font.colored_glyphs[phosphor_color]
         self.update()
     
     def setBrightness(self, value):
@@ -329,31 +255,34 @@ class GlassTTY(QtGui.QWidget):
         """
         Add a string of characters, one at a time, to the display raster matrix.
         """
-        self._iocursor_enable = (not self._iotime) or (self._iotime.elapsed() > 500)
+        # if self._iotime:
+            # self._elapsed_times.append(self._iotime.elapsed() / len(text))
+        self._iocursor_enable = (not self._iotime) or (self._iotime.elapsed() / len(text) > self.IOTIMEOUT)
         self._iotime = QtCore.QTime()
         self._iotime.start()
         
         for c in text:
             #== Process control code
-            if c == ESC or self.control_code_state:
-                if self.process_control_code(c):
+            if c == ESC or self.esc_code_state:
+                if self.process_esc_code(c):
                     continue
                     
             #== CR/LF/backspace
-            if ord(c) == self.font.ord_CR:
+            if c == CR:
                 self.cursorx = 0
                 if self.autoLF:
                     self.cursory += 1
-            elif ord(c) == self.font.ord_LF:
+            elif c == LF:
                 self.cursory += 1
                 if self.autoCR:
                     self.cursorx = 0
-            elif ord(c) == self.font.ord_BS:
+            elif c == BS:
                 self.delCharacters(1)
                 
             #== All other characters
             else:
-                self.raster_lines[self.cursory][self.cursorx] = c
+                GlassTTY.add_blinkers([(c, self.charattrs)])
+                self.raster_lines[self.cursory][self.cursorx] = (c, self.charattrs)
                 self.cursorx += 1
                 if self.cursorx == self.NCHARS:
                     self.cursorx = 0
@@ -373,6 +302,7 @@ class GlassTTY(QtGui.QWidget):
                 self.cursory -= 1
             # end if
         # end for
+        
         self.update()
         self.repaint()
         
@@ -383,12 +313,18 @@ class GlassTTY(QtGui.QWidget):
         """
         prevx = self.cursorx - nchars_to_delete
         if prevx >= 0:
-            self.raster_lines[self.cursory][prevx:self.cursorx] = [chr(0)] * nchars_to_delete
+            self.raster_lines[self.cursory].clear(prevx, self.cursorx)
             self.cursorx = prevx
         # end if
         self.update()
         self.repaint()
 
+    def valid_row_coord(self, n):
+        return 0 <= n < self.NLINES
+        
+    def valid_col_coord(self, n):
+        return 0 <= n < self.NCHARS
+        
     def resetScrollRange(self, first=0, last=NLINES-1):
         self.scroll_first = first
         self.scroll_last = last
@@ -470,7 +406,7 @@ class GlassTTY(QtGui.QWidget):
         self._repaint_cursor()
         
     def toggleCursor(self):
-        self.cursor_visible = not self.cursor_visible
+        self.cursor_visible = self.blink_state
         self._repaint_cursor()
         
     def moveCursor(self, dx, dy):
@@ -502,37 +438,37 @@ class GlassTTY(QtGui.QWidget):
     #==  CONTROL CODE STATE MACHINE  ==#
     #==================================#
     
-    def process_control_code(self, c):
+    def process_esc_code(self, c):
         #== State machine for processing VT100 control codes
         
         (CC_NONE,
          CC_BEGIN,
          CC_TYPE1,
          CC_NUM1,
-         CC_NUM2,
+         CC_NUMLIST,
         ) = range(5)
         
         def start():
-            self.control_code_state = CC_BEGIN
+            self.esc_code_state = CC_BEGIN
             return True
         def next(state):
-            self.control_code_state = state
+            self.esc_code_state = state
             return True
         def same():
             #== Don't change state
             return True
         def done():
-            self.control_code_state = 0
+            self.esc_code_state = 0
             return True
         def failed():
-            self.control_code_state = 0
+            self.esc_code_state = 0
             return False
         
-        if self.control_code_state == 0:
+        if self.esc_code_state == 0:
             assert c == ESC
             return start()
             
-        elif self.control_code_state == CC_BEGIN:
+        elif self.esc_code_state == CC_BEGIN:
             self._cc_n1 = ""
             if c == '[':
                 return next(CC_TYPE1)
@@ -544,10 +480,13 @@ class GlassTTY(QtGui.QWidget):
                 return done()
             # end if
             
-        elif self.control_code_state == CC_TYPE1:
+        elif self.esc_code_state == CC_TYPE1:
             if c.isdigit():
                 self._cc_n1 = c
                 return next(CC_NUM1)
+            elif c == ';':
+                self._cc_nl = ["0", "0"]
+                return next(CC_NUMLIST)
             elif c == 'A':
                 self.moveCursor(0, -1)
                 return done()
@@ -559,7 +498,7 @@ class GlassTTY(QtGui.QWidget):
                 return done()
             elif c == 'c':
                 # Respond with device code
-                self.send_control_code_response("[x0c")
+                self.send_esc_code_response("[x0c")
                 return done()
             elif c == 'D':
                 self.moveCursor(-1, 0)
@@ -578,22 +517,37 @@ class GlassTTY(QtGui.QWidget):
                 return done()
             # end if
             
-        elif self.control_code_state == CC_NUM1:
+        elif self.esc_code_state == CC_NUM1:
             if c.isdigit():
                 self._cc_n1 += c
                 return same()
             elif c == ';':
-                self._cc_n2 = ""
-                return next(CC_NUM2)
+                self._cc_nl = [self._cc_n1, "0"]
+                return next(CC_NUMLIST)
+            elif c == 'm':
+                n = int(self._cc_n1)
+                if n == 0:
+                    charattrs = 0
+                elif n in [1,2,4,5,7,8]:
+                    charattrs = 2 ** (n - 1)
+                else:
+                    return failed()
+                try:
+                    glyphset = self.glyphs[charattrs & ~BLI]
+                    self.charattrs = charattrs
+                except:
+                    print "No glyphset for attributes", charattrs
+                    pass
+                return done()
             elif c == 'n':
                 code = int(self._cc_n1)
                 if code == 5:
                     # Respond with device status ok
-                    self.send_control_code_response("[0n")
+                    self.send_esc_code_response("[0n")
                     return done()
                 elif code == 6:
                     # Respond with cursor position
-                    self.send_control_code_response("[%d;%dR"%(self.cursory, self.cursorx))
+                    self.send_esc_code_response("[%d;%dR"%(self.cursory, self.cursorx))
                     return done()
                 #end if
             elif c == 'A':
@@ -638,23 +592,53 @@ class GlassTTY(QtGui.QWidget):
                 # end if
             # end if
             
-        elif self.control_code_state == CC_NUM2:
+        elif self.esc_code_state == CC_NUMLIST:
             if c.isdigit():
-                self._cc_n2 += c
+                self._cc_nl[-1] += c
                 return same()
-            elif self._cc_n2:
-                if c == 'H' or c == 'f':
-                    row = int(self._cc_n1)
-                    col = int(self._cc_n2)
-                    self.moveCursorTo(col, row)
-                    return done()
-                elif c == 'r':
-                    start = int(self._cc_n1)
-                    end = int(self._cc_n2)
-                    self.resetScrollRange(start, end)
+            elif c == ';':
+                self._cc_nl.append("0")
+                return same()
+            else:
+                nums = map(int, self._cc_nl)
+                if (c == 'H' or c == 'f') and len(nums) == 2:
+                    row, col = nums
+                    if self.valid_row_coord(row) and self.valid_col_coord(col):
+                        self.moveCursorTo(col, row)
+                        return done()
+                elif c == 'r' and len(nums) == 2:
+                    start, end = nums
+                    if self.valid_row_coord(start) and self.valid_row_coord(end):
+                        self.resetScrollRange(start, end)
+                        return done()
+                elif c == 'm':
+                    nums = set(nums)
+                    # Dim(1) + Bright(2) cancel each other out
+                    if set([1,2]) <= nums:
+                        nums -= set([1,2])
+                    charattrs = 0
+                    for n in nums:
+                        if n == 0:
+                            # Reset all attribute bits
+                            charattrs = 0
+                        elif n in [1,2,4,5,7]:
+                            # All others set the corresponding attribute bit
+                            charattrs |= 2 ** (n - 1)
+                            charattrs &= ~HID # and clear the Hidden bit
+                        elif n == 8:
+                            # Hidden attribute overrides all others
+                            charattrs = HID
+                        else:
+                            return failed()
+                    try:
+                        glyphset = self.glyphs[charattrs & ~BLI]
+                        self.charattrs = charattrs
+                    except:
+                        print "No glyphset for attributes", charattrs
+                        pass
                     return done()
                 # end if
-            # end if
+                
         # end if
         
         #== Special case: failed the code parse on new ESC char;
@@ -665,7 +649,7 @@ class GlassTTY(QtGui.QWidget):
         #== Otherwise stop parsing and process new char normally
         return failed()
         
-    def send_control_code_response(self, code):
+    def send_esc_code_response(self, code):
         self.sendCharacters(ESC + code)
         
     #===============================#
@@ -673,14 +657,26 @@ class GlassTTY(QtGui.QWidget):
     #===============================#
     
     def keyPressEvent(self, event):
+        #== KEYPAD 'ENTER' KEY ==#
+        if event.key() == QtCore.Qt.Key_Enter: # Linefeed key
+            # print "Send LINEFEED"
+            self.sendCharacters(LF)
+            return
+            
         #== NON-ASCII KEYSTROKE ==#
         if not event.text():
             if event.key() == QtCore.Qt.Key_Pause: # Break key
                 # print "Send BREAK"
                 self.breakSignal.emit()
-            elif event.key() == QtCore.Qt.Key_Down: # Linefeed key
-                # print "Send LINEFEED"
-                self.sendCharacters(LF)
+                
+            elif event.key() == QtCore.Qt.Key_Up:
+                self.send_esc_code_response("OA")
+            elif event.key() == QtCore.Qt.Key_Down:
+                self.send_esc_code_response("OB")
+            elif event.key() == QtCore.Qt.Key_Right:
+                self.send_esc_code_response("OC")
+            elif event.key() == QtCore.Qt.Key_Left:
+                self.send_esc_code_response("OD")
                 
         #== ASCII KEYSTROKE ==#
         for c in str(event.text()):
@@ -691,11 +687,17 @@ class GlassTTY(QtGui.QWidget):
             self.sendCharacters(c)
             
     def timerEvent(self, event):
+        self.blink_state = not self.blink_state
+        if GlassTTY.n_blinkers > 0:
+            #== Only trigger a full-screen update if there are blinking characters
+            #== that need to be toggled on/off.
+            self.update()
+        
         if not self.connected:
             self.hideCursor()
             
         elif not self._iocursor_enable:
-            if self._iotime.elapsed() > 500:
+            if not self.cursor_blink or self._iotime.elapsed() > 500:
                 self._reset_iotimer()
                 self._repaint_cursor()
                 
@@ -703,6 +705,9 @@ class GlassTTY(QtGui.QWidget):
             self.toggleCursor()
         
     def paintEvent(self, event):
+        def drawit(attr):
+            return (attr & BLI) == 0 or self.blink_state
+            
         #== Get a QImage of the widget's current pixel contents as our painting canvas
         canvas = QtGui.QPixmap.grabWindow(self.winId()).toImage()
         
@@ -710,26 +715,26 @@ class GlassTTY(QtGui.QWidget):
         #== full access to all the Qt composition/blending modes.
         painter = QtGui.QPainter()
         if painter.begin(canvas):
+            # painter.save()
             painter.fillRect(event.rect(), self.wincolor)
             
-            painter.save()
             painter.setCompositionMode(QtGui.QPainter.CompositionMode_Lighten)
-            painter.setOpacity(self.opacity) # <-- this is how phosphor brightness is implemented
             
-            char_under_cursor = ord(self.raster_lines[self.cursory][self.cursorx]) or self.font.ord_SP
-            
-            #== If we aren't just repainting the cursor, then redraw all the characters on the screen
-            if event.rect() == self.cursorRect():
-                self._draw_glyph(painter, self.glyphs[char_under_cursor], self.cursorx, self.cursory)
+            #== Draw the character under the cursor if we are only drawing the cursor in this paint event
+            c, attr = self.raster_lines[self.cursory][self.cursorx]
+            if event.rect() == self.cursorRect() and drawit(attr):
+                char_under_cursor = ord(c) or ord(SP)
+                self._draw_glyph(painter, self.glyphs[attr & ~BLI][char_under_cursor], self.cursorx, self.cursory)
                 
+            #== If we aren't just repainting the cursor, then redraw all the characters on the screen
             else:
                 cellx = celly = 0
                 for line in self.raster_lines:
                     cellx = 0
-                    for c in line:
-                        if ord(c):
+                    for c, attr in line:
+                        if ord(c) and drawit(attr):
                             try:
-                                self._draw_glyph(painter, self.glyphs[ord(c)], cellx, celly)
+                                self._draw_glyph(painter, self.glyphs[attr & ~BLI][ord(c)], cellx, celly)
                             except:
                                 print "Bad character code for display:", repr(c), ord(c)
                             # end try
@@ -741,61 +746,35 @@ class GlassTTY(QtGui.QWidget):
             
             if self.cursor_visible and self._iocursor_enable:
                 if self.cursor_glyph == self.CURSOR_BLOCK:
-                    # painter.setCompositionMode(QtGui.QPainter.CompositionMode_Difference)     # solid
-                    # painter.fillRect(self.cursorRect().adjusted(0, 1, 0, -3), self.fontcolor) # block
-                    self._draw_glyph(painter, self.glyphs[0], self.cursorx, self.cursory) # glyph block
+                    painter.setCompositionMode(QtGui.QPainter.CompositionMode_Difference)
+                    painter.fillRect(self.cursorRect().adjusted(0, 0, 0, 0), self.fontcolor)
                 else:
-                    # painter.fillRect(self.cursorRect().adjusted(0, self.font.cell_height-3, 0, -1), self.fontcolor) # solid line
-                    p = self.cursorRect().bottomLeft() # dotted
-                    painter.setPen(self.cursor_pen)    # line
-                    painter.drawLines([self.cursor_line1.translated(p), self.cursor_line2.translated(p)]) # dotted line
+                    painter.fillRect(self.cursorRect().adjusted(0, self.font.cell_height-3, 0, 0), self.fontcolor)
                 # end if
             # end if
             
-            painter.restore()
+            # painter.restore()
             painter.end()
         # endif
         
         #== Now blit the painted image to the widget
         if painter.begin(self):
+            painter.setOpacity(self.opacity) # <-- this is how phosphor brightness is implemented
             painter.drawImage(0, 0, canvas)
             painter.end()
         
     def _draw_glyph(self, painter, glyph, cellx, celly):
-        s = cellx * self.font.cell_width + self.MARGIN
+        x = cellx * self.font.cell_width + self.MARGIN
         y = celly * self.font.cell_height + self.MARGIN
         
         if isinstance(glyph, QtGui.QPixmap):
             #== If the glyph is a pixmap, then just blit it to the canvas
-            painter.drawPixmap(s, y, glyph)
+            painter.drawPixmap(x, y, glyph)
             
         elif isinstance(glyph, QtGui.QImage):
             #== If the glyph is an image, then just blit it to the canvas
-            painter.drawImage(s, y, glyph)
-            
-        else:
-            #== Otherwise we draw the glyph ourselves pixel by pixel
-            painter.fillRect(QtCore.QRect(s, y, self.font.cell_width, self.font.cell_height), self.wincolor)
-            for row in glyph:
-                x = s
-                for pixel in row:
-                    if pixel:
-                        self._draw_pixel(painter, x, y)
-                    x += 1
-                # end for
-                y += 2
+            painter.drawImage(x, y, glyph)
         
-    def _draw_pixel(self, painter, x, y):
-        #== x and y are the coordinates of the upper-right corner of
-        #== the full 10x22 character cell. The 8x16 glyph pixel matrix
-        #== needs to be centered within this cell, so we offset our
-        #== pixel drawing by 1,3.
-        pen = iter(self.aa_pen_matrix)
-        for dy in [-1, 0, +1]:
-            for dx in [-1, 0, +1]:
-                painter.setPen(pen.next())
-                painter.drawPoint(x + dx + 1, y + dy + 3)
-    
     def ring_bell(self):
         QtGui.QApplication.beep()
     
@@ -1223,6 +1202,34 @@ class TerminalWindow(QtGui.QMainWindow):
     def closeEvent(self, event):
         self.closed.emit()
         event.accept()
+        try:
+            self.io.ttyio._elapsed_times.sort()
+            self.io.ttyio._elapsed_times.pop(0)
+            self.io.ttyio._elapsed_times.pop()
+            print "Lowest input time:", min(self.io.ttyio._elapsed_times), "ms"
+            print "Highest input time:", max(self.io.ttyio._elapsed_times), "ms"
+            print "Average input time:", sum(self.io.ttyio._elapsed_times)/len(self.io.ttyio._elapsed_times), "ms"
+            self.plot_times()
+        except:
+            print "Not enough I/O events to generate a timing histogram."
+    
+    def plot_times(self):
+        times = self.io.ttyio._elapsed_times
+        binned_times = map(lambda n: (n // 10) * 10, times)
+        bins = set(binned_times)
+        counts = dict(map(lambda n: (n, binned_times.count(n)), sorted(bins)))
+        most = max(counts.values())
+        from pprint import pprint
+        pprint(counts)
+        for v in range(most, 0, -1):
+            for bin in range(0, max(counts) + 1, 10):
+                count = counts.get(bin)
+                if count >= v:
+                    sys.stdout.write("*")
+                else:
+                    sys.stdout.write(" ")
+            sys.stdout.write("\n")
+        print "0123456789"
     
 #-- end class TerminalWindow
 

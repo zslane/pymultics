@@ -2,8 +2,16 @@
 from multics.globals import *
 from iox_control import *
 
-BACKSPACE = chr(8)
+BS = chr(8)
+LF = chr(10)
+CR = chr(13)
 
+def _xlate_cc(c):
+    if (0 <= ord(c) <= 31) and (c not in [BS, LF, CR]):
+        return "^" + chr(ord(c) + 64)
+    else:
+        return c
+        
 class iox_(Subroutine):
     def __init__(self):
         super(iox_, self).__init__(self.__class__.__name__)
@@ -29,10 +37,10 @@ class iox_(Subroutine):
         
         c = self._buffer.pop(0)
         if c and ioxctl.echo_input_sw:
-            if c == BACKSPACE and ioxbuffer == "":
+            if c == BS and ioxbuffer == "":
                 pass
             else:
-                self.write(tty_channel, c)
+                self.write(tty_channel, _xlate_cc(c))
             
         return c
         
@@ -45,8 +53,11 @@ class iox_(Subroutine):
             buffer.val = self._fetchbyte(tty_channel, ioxctl)
         
     def peek_char(self, tty_channel, buffer):
-        buffer.val = self.hardware.io.peek_input(tty_channel) or ""
-            
+        try:
+            buffer.val = self._buffer[0]
+        except:
+            buffer.val = self.hardware.io.peek_input(tty_channel) or ""
+        
     def inline_edit_(self, s):
         result = []
         escape_next = False
@@ -71,13 +82,13 @@ class iox_(Subroutine):
             if c == '\r' or c == '\n':
                 buffer.val = self.inline_edit_(buf)
                 return
-            elif c == BACKSPACE:
+            elif c == BS:
                 buf = buf[:-1]
             elif c:
                 buf += c
             # end if
         # end while
-        self._buffer = buf
+        self._buffer += list(buf)
         buffer.val = ""
     
     def wait_get_line(self, tty_channel, ioxctl, buffer):
@@ -87,7 +98,7 @@ class iox_(Subroutine):
             if c == '\r' or c == '\n':
                 buffer.val = self.inline_edit_(buf)
                 return
-            elif c == BACKSPACE:
+            elif c == BS:
                 buf = buf[:-1]
             elif c:
                 buf += c

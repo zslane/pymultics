@@ -4,8 +4,8 @@ from multics.pl1types import PL1
 iox_control_version_1 = 1
 
 #== This filter set allows users to type Ctrl-H (backspace), Ctrl-I (tab),
-#== Ctrl-J (linefeed), and Ctrl-M (carriage return)
-common_ctrl_chars = map(chr, set(range(32)) - set([8, 9, 10, 13]))
+#== Ctrl-J (linefeed), Ctrl-M (carriage return), and ESC (Escape)
+common_ctrl_chars = map(chr, set(range(32)) - set([8, 9, 10, 13, 27]))
 
 class iox_control_structure(PL1.Structure):
     def __init__(self):

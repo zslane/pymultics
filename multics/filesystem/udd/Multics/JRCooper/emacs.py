@@ -6,30 +6,31 @@ include.iox_control
 NCHARS = 80
 NLINES = 25
 
-BRICK = chr(1)
 BS  = chr(8)
 LF  = chr(10)
 CR  = chr(13)
 ESC = chr(27)
+ARR = chr(28)
 
 def CTRL(s):
     return chr(ord(s.upper()) - 64)
     
 ESC_CODES = {
-    'clear_screen': "[2J",
-    'move_cursor_to': "[%d;%dH",
+    'normal_video':      "[0m",
+    'reverse_video':     "[7m",
+    'clear_screen':      "[2J",
+    'move_cursor_to':    "[%d;%dH",
     'erase_end_of_line': "[K",
-    'erase_start_of_line': "[1K",
-    'set_scroll_range': "[%d;%dr",
-    'scroll_up': "M",
-    'scroll_down': "D",
+    'set_scroll_range':  "[%d;%dr",
+    'scroll_up':         "M",
+    'scroll_down':       "D",
 }
 
 def _xlate(c):
-    if c < ' ':
-        return "^" + chr(ord(c) + 64)
-    elif c == ESC:
+    if c == ESC:
         return "ESC"
+    elif c < ' ':
+        return "^" + chr(ord(c) + 64)
     else:
         return c
         
@@ -38,6 +39,12 @@ def _write(tty_channel, s):
     
 def _send_esc_code(tty_channel, name, *args):
     _write(tty_channel, ESC + ESC_CODES[name] % args)
+    
+def _normal_video(tty_channel):
+    _send_esc_code(tty_channel, 'normal_video')
+    
+def _reverse_video(tty_channel):
+    _send_esc_code(tty_channel, 'reverse_video')
     
 def _clear_screen(tty_channel):
     _send_esc_code(tty_channel, 'clear_screen')
@@ -455,15 +462,14 @@ class Window(object):
             mode_data.append("Read Only")
         mode_string = ", ".join(mode_data)
         
-        # dirty_flag = " -- (modified)" if buffer._dirty and not buffer._name.startswith("*scratch-") else ""
-        # status_bar_text = "--- Emacs 1.0 (%s) -- %s%s " % (mode_string, buffer._name, dirty_flag)
         dirty_flag = "*" if buffer._dirty and not buffer._name.startswith("*scratch-") else ""
-        status_bar_text = BRICK*3 + " %s (%s) " % (dirty_flag + buffer._name, mode_string)
-        rest_of_bar = BRICK * (80 - len(status_bar_text))
-        status_bar_text += rest_of_bar
+        status_bar_text = "    %s (%s) " % (dirty_flag + buffer._name, mode_string)
+        status_bar_text = "%-80s" % (status_bar_text)
         
         _move_cursor_to(self._tty_channel, self.screeny + self.vsize - 1, 0)
+        _reverse_video(self._tty_channel)
         _write(self._tty_channel, status_bar_text)
+        _normal_video(self._tty_channel)
     
     def scroll_up(self, starting_at=0):
         _set_scroll_range(self._tty_channel, self.screeny + starting_at, self.screeny + self.vsize - 2) # don't scroll the status bar
@@ -547,24 +553,29 @@ class EmacsEditor(object):
             buffer.draw_lines()
         self._current_buffer.restore_cursor()
         
-    def wait_get_char(self):
-        iox_control.echo_input_sw = False
-        iox_control.enable_signals_sw = True
-        iox_control.filter_chars = []
-        buffer = parm()
-        call.iox_.wait_get_char(self.tty, iox_control, buffer)
-        return buffer.val
-
     def get_char(self):
         iox_control.echo_input_sw = False
         iox_control.enable_signals_sw = True
         iox_control.filter_chars = []
         buffer = parm()
         call.iox_.get_char(self.tty, iox_control, buffer)
+        #== Special handling of arrow key escape codes. We don't want to
+        #== treat them like normal Emacs ESC- commands, so filter them
+        #== and convert them to an internal ARROW- command prefix.
+        if buffer.val == ESC:
+            next = parm()
+            call.iox_.peek_char(self.tty, next)
+            if next.val == 'O':
+                #== Eat the 'O' byte and leave the byte indicating arrow direction still in the iox_ buffer
+                call.iox_.get_char(self.tty, iox_control, next)
+                buffer.val = ARR
+            # end if
+        # end if
         return buffer.val
 
     def enter_command_loop(self):
         ESC_prefix = False
+        ARROW_prefix = False
         CTRLX_prefix = False
         QUOTE_char = False
         
@@ -587,15 +598,25 @@ class EmacsEditor(object):
                     QUOTE_char = False
                     self.insert_character(c)
                     
+                elif ARROW_prefix:
+                    ARROW_prefix = False
+                    if c == 'A':
+                        self.prev_line_command()
+                    elif c == 'B':
+                        self.next_line_command()
+                    elif c == 'C':
+                        self.next_char_command()
+                    elif c == 'D':
+                        self.prev_char_command()
+                    else:
+                        self.insert_character(c)
+                        
                 elif ESC_prefix:
                     ESC_prefix = False
                     _move_cursor_to(self.tty, NLINES-1, 0)
                     _erase_end_of_line(self.tty)
                     
-                    if c == CTRL('G'):
-                        pass
-                        
-                    elif c == 'v':
+                    if c == 'v':
                         self.prev_page_command()
                     elif c == 'z':
                         self.scroll_down_command()
@@ -604,7 +625,7 @@ class EmacsEditor(object):
                     elif c == '>':
                         self.buffer_end_command()
                     else:
-                        self.set_status_message("Unknown command ESC-" + _xlate(c))
+                        self.set_status_message("ESC-" + _xlate(c) + " undefined")
                         
                     self._current_buffer.restore_cursor()
                     
@@ -613,10 +634,7 @@ class EmacsEditor(object):
                     _move_cursor_to(self.tty, NLINES-1, 0)
                     _erase_end_of_line(self.tty)
                     
-                    if c == CTRL('G'):
-                        pass
-                        
-                    elif c == CTRL('C'):
+                    if c == CTRL('C'):
                         self.quit_command()
                         continue
                         
@@ -631,6 +649,8 @@ class EmacsEditor(object):
                         self.save_file_command()
                     elif c == CTRL('W'):
                         self.write_file_command()
+                    elif c == 'b':
+                        self.swap_buffer_command()
                     elif c == 'k':
                         self.kill_buffer_command()
                     elif c == 'n':
@@ -642,9 +662,12 @@ class EmacsEditor(object):
                     elif c == '2':
                         self.split_window_command()
                     else:
-                        self.set_status_message("Unknown command ^X-" + _xlate(c))
+                        self.set_status_message("^X-" + _xlate(c) + " undefined")
                         
                     self._current_buffer.restore_cursor()
+                    
+                elif c == ARR:
+                    ARROW_prefix = True
                     
                 elif c == ESC:
                     if self._current_buffer != self._minibuffer:
@@ -679,8 +702,9 @@ class EmacsEditor(object):
                     self.next_char_command()
                 elif c == CTRL('G'):
                     if self._current_buffer == self._minibuffer:
-                        self._minibuffer.set_special_prompt("")
+                        # self._minibuffer.set_special_prompt("")
                         self.cancel_minibuffer()
+                    self.set_status_message("Quit")
                 elif c == CTRL('K'):
                     self.delete_to_line_end()
                 elif c == CTRL('N'):
@@ -696,7 +720,7 @@ class EmacsEditor(object):
                 elif (' ') <= c <= ('~'):
                     self.insert_character(c)
                 else:
-                    self.set_status_message("Unknown command " + _xlate(c))
+                    self.set_status_message(_xlate(c) + " undefined")
             
     def _break_handler(self):
         _move_cursor_to(self.tty, NLINES - 1, 0)
@@ -852,6 +876,24 @@ class EmacsEditor(object):
     
     def write_file_command(self):
         self.minibuffer_command("Write file", self._save_file_as)
+    
+    def swap_buffer_command(self):
+        self.minibuffer_command("Swap to buffer", self._swap_to_buffer)
+        
+    def _swap_to_buffer(self, buffer_name):
+        for buffer in self._buffers:
+            if buffer._name == buffer_name:
+                cur_window = self._current_buffer._window
+                self._current_buffer._window = None
+                self._current_buffer = buffer
+                self._current_buffer.set_window(cur_window)
+                self._current_buffer.draw_lines()
+                break
+        else:
+            self.set_status_message("No buffer named %s." % (buffer_name))
+        # end for
+        
+        self._current_buffer.restore_cursor()
     
     def clear_yank_buffer(self):
         self._yank_buffer = []

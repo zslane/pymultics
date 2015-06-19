@@ -78,7 +78,7 @@ class TTYChannel(QtCore.QObject):
                 
             else:
                 s = data_packet.extract_plain_data()
-                # print "tty", self.id, "received", repr(s),
+                # print "tty", self.id, "received", repr(s)
                 self.__input_buffer.append(s)
     
     @QtCore.Slot("QAbstractSocket.SocketError")
