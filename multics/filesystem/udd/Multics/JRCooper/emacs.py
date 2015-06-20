@@ -1,4 +1,5 @@
-import os, stat
+import os
+import stat
 
 from multics.globals import *
 
@@ -96,6 +97,7 @@ class Buffer(object):
         self._cursorx = 0
         self._cursory = 0
         self._marginx = 0
+        self._marginy = 0
         self._dirty = False
         self._readonly = False
         self._selectonly = False
@@ -141,6 +143,7 @@ class Buffer(object):
         self._cursorx = 0
         self._cursory = 0
         self._marginx = 0
+        self._marginy = 0
     
     def visit_file(self, filepath, name_resolver=None):
         self.set_file_path(filepath, name_resolver)
@@ -192,10 +195,9 @@ class Buffer(object):
         self._cursory = 0
         
         self._lines = lines[:]
-        if title:
-            self._lines.insert(0, _underline(title))
-            self._cursory = 1 # start the user someplace useful, first line below the title
-        # end if
+        self._lines.insert(0, _underline(title))
+        self._marginy = 1
+        self._cursory = 1 # start the user someplace useful, first line below the title
         self.draw_lines()
     
     def set_cancel_to_buffer(self, buffer):
@@ -213,9 +215,7 @@ class Buffer(object):
         row = -1
         if self.is_select():
             row, _ = self._get_pos()
-            if self._lines[0][0] == ESC:
-                row -= 1 # adjust for the title line
-            # end if
+            row -= 1
         # end if
         return row, self._selections.get(row)
         
@@ -228,7 +228,6 @@ class Buffer(object):
             self._window.draw_status_bar(self)
             
     def restore_cursor(self):
-        print "Restoring cursor for buffer", self._name, "to", self._cursorx, ",", self._window.screeny + self._cursory
         _move_cursor_to(self._tty_channel, self._window.screeny + self._cursory, self._cursorx)
         
     def draw_lines(self, starting_at=0):
@@ -253,36 +252,41 @@ class Buffer(object):
         self._cursorx = self._marginx
         
     def prev_char_command(self):
-        if self._cursorx == self._marginx:
-            if self._lft_col > 0:
-                # scroll window right
-                self._lft_col -= 1
+        if not self.is_select():
+            row, _ = self._get_pos()
+            if self._cursorx == self._marginx:
+                if self._lft_col > 0:
+                    # scroll window right
+                    self._lft_col -= 1
+                    self.draw_lines()
+                    self.restore_cursor()
+                elif row > self._marginy:
+                    self.prev_line_command()
+                    self.end_line_command()
+            else:
+                self._cursorx -= 1
+                self.restore_cursor()
+        
+    def next_char_command(self):
+        if not self.is_select():
+            row, _ = self._get_pos()
+            if self._lft_col + self._cursorx == len(self._lines[row]):
+                if row < len(self._lines) - 1:
+                    self.begin_line_command()
+                    self.next_line_command()
+                # end if
+            elif self._cursorx == NCHARS - 1:
+                # scroll window left
+                self._lft_col += 1
                 self.draw_lines()
                 self.restore_cursor()
             else:
-                self.prev_line_command()
-                self.end_line_command()
-        else:
-            self._cursorx -= 1
-            self.restore_cursor()
-        
-    def next_char_command(self):
-        row, _ = self._get_pos()
-        if self._lft_col + self._cursorx == len(self._lines[row]):
-            self.begin_line_command()
-            self.next_line_command()
-        elif self._cursorx == NCHARS - 1:
-            # scroll window left
-            self._lft_col += 1
-            self.draw_lines()
-            self.restore_cursor()
-        else:
-            self._cursorx += 1
-            self.restore_cursor()
+                self._cursorx += 1
+                self.restore_cursor()
         
     def prev_line_command(self):
         row, _ = self._get_pos()
-        if row > 0:
+        if row > self._marginy:
             self._cursory -= 1
             if self._cursory < 0:
                 for i in range(self._window.vsize // 2 - 1):
@@ -352,15 +356,16 @@ class Buffer(object):
         self.restore_cursor()
         
     def end_line_command(self):
-        row, _ = self._get_pos()
-        n_visible_chars = len(self._lines[row][self._lft_col:self._lft_col + NCHARS])
-        if n_visible_chars >= NCHARS:
-            self._lft_col = len(self._lines[row]) - NCHARS + 1
-            self.draw_lines()
-            self._cursorx = NCHARS - 1
-        else:
-            self._cursorx = n_visible_chars
-        self.restore_cursor()
+        if not self.is_select():
+            row, _ = self._get_pos()
+            n_visible_chars = len(self._lines[row][self._lft_col:self._lft_col + NCHARS])
+            if n_visible_chars >= NCHARS:
+                self._lft_col = len(self._lines[row]) - NCHARS + 1
+                self.draw_lines()
+                self._cursorx = NCHARS - 1
+            else:
+                self._cursorx = n_visible_chars
+            self.restore_cursor()
         
     def buffer_home_command(self):
         if self._top_row != 0 or self._lft_col != 0:
@@ -369,13 +374,13 @@ class Buffer(object):
             self.draw_lines()
         # end if
         self._cursorx = self._marginx
-        self._cursory = 0
+        self._cursory = self._marginy
         self.restore_cursor()
         
     def buffer_end_command(self):
-        self._cursory = self._window.vsize - 2
+        self._cursory = min(len(self._lines) - 1, self._window.vsize - 2)
         row, _ = self._get_pos()
-        new_top_row = len(self._lines) - self._window.vsize + 1
+        new_top_row = max(0, len(self._lines) - self._window.vsize + 1)
         new_lft_col = max(0, len(self._lines[row]) - NCHARS + 1)
         
         if new_top_row != self._top_row:
@@ -389,8 +394,11 @@ class Buffer(object):
             self.draw_lines()
         # end if
         
-        n_visible_chars = len(self._lines[row][self._lft_col:self._lft_col + NCHARS])
-        self._cursorx = n_visible_chars + self._marginx
+        if not self.is_select():
+            n_visible_chars = len(self._lines[row][self._lft_col:self._lft_col + NCHARS])
+            self._cursorx = n_visible_chars + self._marginx
+        # end if
+        
         self.restore_cursor()
         
     def scroll_up_command(self):
@@ -399,7 +407,7 @@ class Buffer(object):
             self._window.scroll_up()
             _move_cursor_to(self._tty_channel, self._window.screeny + self._window.vsize - 2, 0)
             _write(self._tty_channel, self._lines[self._top_row + self._window.vsize - 2][:NCHARS])
-            self._cursory = max(0, self._cursory - 1)
+            self._cursory = max(self._marginy, self._cursory - 1)
             self.restore_cursor()
     
     def scroll_down_command(self):
@@ -480,7 +488,7 @@ class Buffer(object):
             
         row, col = self._get_pos()
         if col == 0:
-            if row > 0:
+            if row > self._marginy:
                 # delete a CR and merge lines
                 self.prev_line_command()
                 self.end_line_command()
@@ -984,7 +992,6 @@ class EmacsEditor(object):
             
     def _set_done_flag(self, flag):
         self.done = flag
-        print "Setting done flag. Clearing screen"
         _clear_screen(self.tty)
         
     def visit_file_command(self):
@@ -1035,6 +1042,8 @@ class EmacsEditor(object):
         self._current_buffer.restore_cursor()
     
     def open_dired_buffer(self, dir_name):
+        EXCLUDED_EXTENSIONS = (".pyc", ".pyo")
+        
         full_path   = parm()
         directory   = parm()
         parent_dir  = parm()
@@ -1058,8 +1067,10 @@ class EmacsEditor(object):
             select_list.append(_bold(" > " + directory))
         # end for
         for filename in segment.list:
-            entry_list.append(dir_name + ">" + filename)
-            select_list.append(" | " + filename)
+            if not filename.endswith(EXCLUDED_EXTENSIONS):
+                entry_list.append(dir_name + ">" + filename)
+                select_list.append(" : " + filename)
+            # end if
         # end for
         
         self.open_selection_buffer("*dir-ed*", "Contents of %s:" % (dir_name), select_list, entry_list, self._load_file_into_buffer)
