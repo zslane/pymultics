@@ -1,3 +1,4 @@
+import os, stat
 
 from multics.globals import *
 
@@ -18,6 +19,8 @@ def CTRL(s):
 ESC_CODES = {
     'normal_video':      "[0m",
     'reverse_video':     "[7m",
+    'underline_mode':    "[4m",
+    'bold_video':        "[1m",
     'clear_screen':      "[2J",
     'move_cursor_to':    "[%d;%dH",
     'erase_end_of_line': "[K",
@@ -34,6 +37,14 @@ def _xlate(c):
     else:
         return c
         
+def _is_readonly_file(multics_path):
+    native_path = vfile_(multics_path)
+    return os.path.exists(native_path) and (os.stat(native_path).st_mode & (stat.S_IWUSR|stat.S_IWGRP|stat.S_IWOTH) == 0)
+
+def _is_directory(multics_path):
+    native_path = vfile_(multics_path)
+    return os.path.isdir(native_path)
+    
 def _write(tty_channel, s):
     call.iox_.write(tty_channel, s)
     
@@ -66,6 +77,12 @@ def _erase_end_of_line(tty_channel):
 def _move_cursor_to(tty_channel, row, col):
     _send_esc_code(tty_channel, 'move_cursor_to', row, col)
 
+def _underline(s):
+    return ESC + ESC_CODES['underline_mode'] + s + ESC + ESC_CODES['normal_video']
+    
+def _bold(s):
+    return ESC + ESC_CODES['bold_video'] + s + ESC + ESC_CODES['normal_video']
+    
 class Buffer(object):
 
     def __init__(self, tty_channel, name, window=None):
@@ -79,13 +96,19 @@ class Buffer(object):
         self._cursorx = 0
         self._cursory = 0
         self._marginx = 0
-        self._readonly = False
         self._dirty = False
+        self._readonly = False
+        self._selectonly = False
+        self._selections = {}
+        self._select_callback = None
+        self._select_cancel_to_buffer = None
         
     def filepath(self):    return self._filepath
     def name(self):        return self._name
     def window(self):      return self._window
+    def cancel_to(self):   return self._select_cancel_to_buffer
     def is_readonly(self): return self._readonly
+    def is_select(self):   return self._selectonly
     def is_modified(self): return self._dirty
     def is_visible(self):  return self._window and self._window.visible
     
@@ -95,11 +118,18 @@ class Buffer(object):
     def set_read_only(self, flag):
         self._readonly = flag
         
-    def set_file_path(self, file_path):
+    def set_file_path(self, file_path, name_resolver=None):
         self._filepath = file_path
+        
         file_name = parm()
         call.sys_.split_path_(file_path, null(), file_name)
+        if name_resolver:
+            file_name.val = name_resolver(file_name.val)
+        # end if
         self._name = file_name.val
+        
+    def set_name(self, name):
+        self._name = name
         
     def get_contents(self):
         return "\n".join(self._lines)
@@ -112,13 +142,12 @@ class Buffer(object):
         self._cursory = 0
         self._marginx = 0
     
-    def load_file(self, filepath):
-        directory = parm()
-        file_name = parm()
-        
-        self._filepath = filepath
-        call.sys_.split_path_(filepath, directory, file_name)
-        self._name = file_name.val
+    def visit_file(self, filepath, name_resolver=None):
+        self.set_file_path(filepath, name_resolver)
+        self.clear_contents()
+    
+    def load_file(self, filepath, name_resolver=None):
+        self.set_file_path(filepath, name_resolver)
         
         f = open(vfile_(filepath))
         file_text = f.read()
@@ -129,6 +158,7 @@ class Buffer(object):
         self._lft_col = 0
         self._cursorx = 0
         self._cursory = 0
+        self._readonly = _is_readonly_file(filepath)
     
     def save_file(self):
         if self._filepath:
@@ -142,9 +172,52 @@ class Buffer(object):
         self._name = name
         self._readonly = False
         self._dirty = False
+        self._selectonly = False
+        self._selections = {}
+        self._select_callback = None
+        self._select_cancel_to_buffer = None
+        
         self.clear_contents()
         self.draw_lines()
         self.restore_cursor()
+        
+    def set_selections(self, title, lines, selections, callback):
+        self._selections = dict(enumerate(selections))
+        self._select_callback = callback
+        self._selectonly = True
+        self._readonly = True
+        self._top_row = 0
+        self._lft_col = 0
+        self._cursorx = 0
+        self._cursory = 0
+        
+        self._lines = lines[:]
+        if title:
+            self._lines.insert(0, _underline(title))
+            self._cursory = 1 # start the user someplace useful, first line below the title
+        # end if
+        self.draw_lines()
+    
+    def set_cancel_to_buffer(self, buffer):
+        self._select_cancel_to_buffer = buffer
+    
+    def do_select(self):
+        index, selection = self.get_selection()
+        if index != -1:
+            self._select_callback(selection)
+            return True
+        else:
+            return False
+            
+    def get_selection(self):
+        row = -1
+        if self.is_select():
+            row, _ = self._get_pos()
+            if self._lines[0][0] == ESC:
+                row -= 1 # adjust for the title line
+            # end if
+        # end if
+        return row, self._selections.get(row)
         
     def _get_pos(self):
         return self._top_row + self._cursory, self._lft_col + self._cursorx - self._marginx
@@ -338,6 +411,9 @@ class Buffer(object):
             self.restore_cursor()
     
     def insert_character(self, c):
+        if self.is_readonly():
+            return
+            
         if c == LF: c = CR
         
         row, col = self._get_pos()
@@ -371,6 +447,9 @@ class Buffer(object):
         self.restore_cursor()
     
     def insert_textblock(self, char_list):
+        if self.is_readonly():
+            return
+            
         row, col = self._get_pos()
         textblock = "".join(char_list)
         lines = textblock.split(CR)
@@ -395,6 +474,9 @@ class Buffer(object):
         self.restore_cursor()
         
     def delete_previous_character(self):
+        if self.is_readonly():
+            return
+            
         row, col = self._get_pos()
         if col == 0:
             if row > 0:
@@ -412,6 +494,9 @@ class Buffer(object):
             self.restore_cursor()
     
     def delete_current_character(self):
+        if self.is_readonly():
+            return
+            
         row, col = self._get_pos()
         if col == len(self._lines[row]):
             if row < len(self._lines):
@@ -437,6 +522,9 @@ class Buffer(object):
             return c
     
     def delete_to_line_end(self):
+        if self.is_readonly():
+            return
+            
         row, col = self._get_pos()
         if col == len(self._lines[row]):
             # delete CR
@@ -471,19 +559,27 @@ class Window(object):
         
     def draw_status_bar(self, buffer):
         if self.has_status_bar:
-            mode_data = []
-            if buffer._name.endswith(".py"):
-                mode_data.append("Python Mode")
-            elif buffer._name.endswith(".pl1"):
-                mode_data.append("PL1 Mode")
+            if buffer.is_select():
+                mode_data = ["Selection"]
             else:
-                mode_data.append("Fundamental Mode")
-            if buffer._readonly:
-                mode_data.append("Read Only")
+                mode_data = []
+                if buffer.name().endswith(".py"):
+                    mode_data.append("Python Mode")
+                elif buffer.name().endswith(".pl1"):
+                    mode_data.append("PL1 Mode")
+                else:
+                    mode_data.append("Fundamental Mode")
+                # end if
+                
+                if buffer.is_readonly():
+                    mode_data.append("Read Only")
+                # end if
+            # end if
+            
             mode_string = ", ".join(mode_data)
             
-            dirty_flag = "*" if buffer._dirty and not buffer._name.startswith("*scratch-") else ""
-            status_bar_text = "    %s (%s) " % (dirty_flag + buffer._name, mode_string)
+            dirty_flag = "*" if buffer.is_modified() and not buffer.name().startswith("*scratch*") else ""
+            status_bar_text = "    %s (%s) " % (dirty_flag + buffer.name(), mode_string)
             status_bar_text = "%-80s" % (status_bar_text)
             
             _move_cursor_to(self._tty_channel, self.screeny + self.vsize - 1, 0)
@@ -503,6 +599,8 @@ class Window(object):
     
 class EmacsEditor(object):
 
+    MAX_WINDOWS = 3
+    
     def __init__(self, file_path_list):
         self.tty = get_calling_process_().tty()
         self._return_from_break = False
@@ -512,20 +610,18 @@ class EmacsEditor(object):
         self._windows = []
         self._yank_buffer = []
         self._killing = False
-        self._scratch_n = 0
         
         dedicated_minibuffer_window = Window(self.tty, has_status_bar=False)
         dedicated_minibuffer_window.setup(NLINES - 1, 1)
         self._minibuffer = Buffer(self.tty, "*minibuffer*", dedicated_minibuffer_window)
         
-        for i in range(3):
-            w = Window(self.tty)
-            self._windows.append(w)
+        for i in range(self.MAX_WINDOWS):
+            self._windows.append(Window(self.tty))
         # end for
         
         if not file_path_list:
             self._windows[0].setup(0, NLINES - 1)
-            self._buffers = [Buffer(self.tty, self._next_scratch(), self._windows[0])]
+            self.new_buffer("*scratch*", self._windows[0])
             
         else:
             file_path = parm()
@@ -533,42 +629,64 @@ class EmacsEditor(object):
             file_name = parm()
             code = parm()
             
-            valid_files = []
-            for i, path in enumerate(file_path_list):
-                call.sys_.get_abs_path(path, file_path)
-                call.sys_.split_path_(file_path.val, directory, file_name)
-                call.hcs_.fs_file_exists(directory.val, file_name.val, code)
-                if code.val == 0:
-                    valid_files.append(file_path.val)
-                # end if
-            # end for
-            
-            nbuffers = min(3, len(valid_files))
+            nbuffers = min(self.MAX_WINDOWS, len(file_path_list))
             wsize = (NLINES - 1) // nbuffers
-            for i, filepath in enumerate(valid_files):
+            for i, path in enumerate(file_path_list):
                 if i < len(self._windows):
                     w = self._windows[i]
                     w.setup(i * wsize, wsize)
                 else:
                     w = None
                 # end if
-                b = Buffer(self.tty, "", w)
-                b.load_file(filepath)
-                self._buffers.append(b)
+                
+                b = self.new_buffer(window=w)
+                
+                call.sys_.get_abs_path(path, file_path)
+                call.sys_.split_path_(file_path.val, directory, file_name)
+                call.hcs_.fs_file_exists(directory.val, file_name.val, code)
+                if code.val == 0:
+                    b.load_file(file_path.val, self._next_name)
+                else:
+                    b.visit_file(file_path.val, self._next_name)
+                # end if
             # end for
         # end if
         
         self._current_buffer = self._buffers[0]
         self._cancel_to_buffer = None
         self._minibuffer_callback = None
+        self._minibuffer_kwargs = {}
         self._yes_no_callback = None
-        self._yes_no_arg = None
+        self._yes_no_args = []
         self._yes_no_prompt = None
         
-    def _next_scratch(self):
-        self._scratch_n += 1
-        return "*scratch-%d*" % (self._scratch_n)
+    def new_buffer(self, name="", window=None):
+        if name:
+            name = self._next_name(name)
+        # end if
+        b = Buffer(self.tty, name, window)
+        self._buffers.append(b)
+        return b
         
+    def get_visible_buffers(self):
+        return sorted([ buffer for buffer in self._buffers if buffer.is_visible() ], key=lambda buffer: buffer.window().screeny)
+        
+    def _next_name(self, name):
+        basename, _, _ = name.partition(" ")
+        
+        highest = 0
+        for buffer in self._buffers:
+            bufname, _, nstr = buffer.name().partition(" ")
+            if bufname == basename:
+                highest = max(highest, int(nstr.strip("()") or 1))
+            # end if
+        # end for
+        
+        if highest == 0:
+            return name
+        else:
+            return basename + " (%d)" % (highest + 1)
+    
     def open(self):
         self.redraw()
         self.enter_command_loop()
@@ -667,19 +785,22 @@ class EmacsEditor(object):
                     elif c == CTRL('B'):
                         print "Buffers:"
                         for buffer in self._buffers:
-                            print " *" if buffer._dirty else "  ", buffer._name
+                            print " *" if buffer.is_modified() else "  ", buffer.name()
+                        self.select_buffer_command()
                         
                     elif c == CTRL('F'):
                         self.find_file_command()
                     elif c == CTRL('S'):
                         self.save_file_command()
+                    elif c == CTRL('V'):
+                        self.visit_file_command()
                     elif c == CTRL('W'):
                         self.write_file_command()
                     elif c == 'b':
                         self.swap_buffer_command()
                     elif c == 'k':
                         self.kill_buffer_command()
-                    elif c == 'n':
+                    elif c == 'n' or c == 'o':
                         self.next_buffer_command()
                     elif c == 'p':
                         self.prev_buffer_command()
@@ -712,6 +833,8 @@ class EmacsEditor(object):
                 elif c in [CR, LF]:
                     if self._current_buffer == self._minibuffer:
                         self.process_minibuffer_input()
+                    elif self._current_buffer.is_select():
+                        self._current_buffer.do_select()
                     else:
                         self.insert_character(c)
                 elif c == BS:
@@ -728,11 +851,14 @@ class EmacsEditor(object):
                     self.next_char_command()
                 elif c == CTRL('G'):
                     if self._current_buffer == self._minibuffer:
-                        # self._minibuffer.set_special_prompt("")
                         self.cancel_minibuffer()
+                    elif self._current_buffer.is_select():
+                        self.close_selection_buffer()
                     self.set_status_message("Quit")
                 elif c == CTRL('K'):
                     self.delete_to_line_end()
+                elif c == CTRL('L'):
+                    self.redraw_command()
                 elif c == CTRL('N'):
                     self.next_line_command()
                 elif c == CTRL('P'):
@@ -745,7 +871,7 @@ class EmacsEditor(object):
                     self.scroll_up_command()
                 elif (' ') <= c <= ('~'):
                     self.insert_character(c)
-                else:
+                elif self._current_buffer != self._minibuffer:
                     self.set_status_message(_xlate(c) + " undefined")
             
     def _break_handler(self):
@@ -763,16 +889,17 @@ class EmacsEditor(object):
         self._minibuffer.set_special_prompt("")
         self._current_buffer.restore_cursor()
     
-    def minibuffer_command(self, prompt, callback):
+    def minibuffer_command(self, prompt, callback, **kwargs):
         self._cancel_to_buffer = self._current_buffer
         self._current_buffer = self._minibuffer
         self._minibuffer_callback = callback
+        self._minibuffer_kwargs = kwargs
         self._minibuffer.set_special_prompt(prompt + ": ")
     
-    def minibuffer_yes_no(self, prompt, callback, arg):
+    def minibuffer_yes_no(self, prompt, callback, *args):
         self._yes_no_prompt = prompt
         self._yes_no_callback = callback
-        self._yes_no_arg = arg
+        self._yes_no_args = args
         self.minibuffer_command(prompt + " (Y/N)", self._yes_no_handler)
     
     def cancel_minibuffer(self):
@@ -786,67 +913,155 @@ class EmacsEditor(object):
         self._minibuffer.clear_contents()
         self._minibuffer.set_special_prompt("")
         callback = self._minibuffer_callback
+        kwargs = self._minibuffer_kwargs
         self._minibuffer_callback = None
+        self._minibuffer_kwargs = {}
         self.cancel_minibuffer()
-        callback(s)
+        return callback(s, **kwargs)
         
     def _yes_no_handler(self, answer):
         if answer.lower() in ["yes", "y"]:
-            self._yes_no_callback(self._yes_no_arg)
+            self._yes_no_callback(*self._yes_no_args)
         elif answer.lower() in ["no", "n"]:
             self._current_buffer.restore_cursor()
         else:
             #== Reassert the existing prompt, callback, and arg
-            self.minibuffer_yes_no(self._yes_no_prompt, self._yes_no_callback, self._yes_no_arg)
+            self.minibuffer_yes_no(self._yes_no_prompt, self._yes_no_callback, *self._yes_no_args)
         
+    def close_selection_buffer(self):
+        if self._current_buffer.is_select():
+            cancel_to = self._current_buffer.cancel_to()
+            if cancel_to:
+                self._swap_to_buffer(cancel_to.name())
+            else:
+                cur_window = self._current_buffer.window()
+                cur_window.hide()
+                self._current_buffer.set_window(None)
+                
+                visible_buffers = self.get_visible_buffers()
+                
+                screeny = 0
+                vsize = (NLINES - 1) // len(visible_buffers)
+                for buffer in visible_buffers:
+                    buffer.window().setup(screeny, vsize)
+                    buffer.draw_lines()
+                    screeny += vsize
+                # end for
+                
+                self._current_buffer = visible_buffers[0]
+    
     def quit_command(self):
-        if any([ buffer._dirty for buffer in self._buffers ]):
+        if any([ buffer.is_modified() for buffer in self._buffers ]):
             self.minibuffer_yes_no("Modified buffers exist. Quit anyway?", self._set_done_flag, True)
         else:
             self._set_done_flag(True)
             
     def _set_done_flag(self, flag):
         self.done = flag
-        _move_cursor_to(self.tty, NLINES - 1, 0)
-        _erase_end_of_line(self.tty)
+        _clear_screen(self.tty)
+        
+    def visit_file_command(self):
+        self.minibuffer_command("Visit file", self._load_file_into_buffer, create_new=True)
         
     def find_file_command(self):
         self.minibuffer_command("Find file", self._load_file_into_buffer)
         
-    def _load_file_into_buffer(self, filename):
-        filepath = parm()
+    def _load_file_into_buffer(self, filename, create_new=False):
+        file_path = parm()
         directory = parm()
         file_name = parm()
-        code = parm()
-        call.sys_.get_abs_path(filename, filepath)
-        call.sys_.split_path_(filepath.val, directory, file_name)
+        code      = parm()
+        
+        call.sys_.get_abs_path(filename, file_path)
+        call.sys_.split_path_(file_path.val, directory, file_name)
+        
+        if _is_directory(file_path.val):
+            # self.set_status_message("Can't load file. %s is a directory." % (filename))
+            self.open_dired_buffer(file_path.val)
+            return
+        # end if
+        
+        for buffer in self._buffers:
+            if buffer.filepath() == file_path.val:
+                self._swap_to_buffer(file_name.val)
+                return
+            # end if
+        # end for
+        
         call.hcs_.fs_file_exists(directory.val, file_name.val, code)
-        if code.val == 0:
+        if code.val == 0 or create_new:
             cur_window = self._current_buffer.window()
             self._current_buffer.set_window(None)
-            new_buffer = Buffer(self.tty, file_name, cur_window)
-            self._buffers.append(new_buffer)
-            
-            self._current_buffer = new_buffer
-            self._current_buffer.load_file(filepath.val)
+            self._current_buffer = self.new_buffer(window=cur_window)
+        # end if
+        
+        if code.val == 0:
+            self._current_buffer.load_file(file_path.val, name_resolver=self._next_name)
+            self._current_buffer.draw_lines()
+        elif create_new:
+            self._current_buffer.visit_file(file_path.val, name_resolver=self._next_name)
             self._current_buffer.draw_lines()
         else:
-            self.set_status_message("Could not find file %s." % (filepath.val))
-            
+            self.set_status_message("Could not find file %s." % (file_path.val))
+        # end if
+        
+        self._current_buffer.restore_cursor()
+    
+    def open_dired_buffer(self, dir_name):
+        entry_list = []
+        select_list = []
+        select_line = parm()
+        select_buffer = None
+        
+        for buffer in self._buffers:
+            if buffer.name() == "*dir-ed*":
+                select_buffer = buffer
+                break
+            # end if
+        else:
+            select_buffer = self.new_buffer("*dir-ed*")
+        # end for
+        
+        branch = parm()
+        segment = parm()
+        code = parm()
+        call.hcs_.get_directory_contents(dir_name, branch, segment, code)
+        for directory in branch.list:
+            entry_list.append(dir_name + ">" + directory)
+            select_list.append(_bold(directory))
+        # end for
+        for filename in segment.list:
+            entry_list.append(dir_name + ">" + filename)
+            select_list.append(filename)
+        # end for
+        
+        visible_buffers = self.get_visible_buffers()
+        if len(visible_buffers) == 1:
+            select_buffer.set_cancel_to_buffer(None)
+            self.split_window_command(select_buffer)
+            self._current_buffer = select_buffer
+        else:
+            self._current_buffer = visible_buffers[-1]
+            select_buffer.set_cancel_to_buffer(self._current_buffer)
+            self._swap_to_buffer(select_buffer.name())
+        # end if
+        select_buffer.set_selections("Contents of %s:" % (dir_name), select_list, entry_list, self._load_file_into_buffer)
+        
         self._current_buffer.restore_cursor()
     
     def kill_buffer_command(self):
-        if self._current_buffer._dirty:
-            self.minibuffer_yes_no("Modified buffer not saved. Kill anyway?", self._kill_buffer, None)
+        if self._current_buffer.is_modified():
+            self.minibuffer_yes_no("Modified buffer not saved. Kill anyway?", self._kill_buffer)
         else:
             self._kill_buffer()
         
     def _kill_buffer(self, *args):
         #== If the current buffer is an unsaved scratch buffer, then just clear it out
-        if self._current_buffer._name.startswith("*scratch-"):
+        if self._current_buffer.name().startswith("*scratch*"):
             self._current_buffer.clear(self._current_buffer.name())
             return
-            
+        # end if
+        
         cur_window = self._current_buffer.window()
         
         switch_to = None
@@ -855,44 +1070,62 @@ class EmacsEditor(object):
                 self._buffers.remove(buffer)
             elif not buffer.window():
                 switch_to = buffer
-            
+            # end if
+        # end for
+        
         if not switch_to:
-            switch_to = Buffer(self.tty, self._next_scratch(), cur_window)
-            self._buffers.append(switch_to)
+            switch_to = self.new_buffer("*scratch*", cur_window)
         else:
             switch_to.set_window(cur_window)
-            
+        # end if
+        
         self._current_buffer = switch_to
         self._current_buffer.draw_lines()
         self._current_buffer.restore_cursor()
         
     def save_file_command(self):
-        if not self._current_buffer.filepath():
+        if self._current_buffer.is_readonly():
+            self.set_status_message("File is read-only.")
+        elif not self._current_buffer.filepath():
             self.minibuffer_command("Save file", self._save_file_as)
         else:
             self.save_current_buffer()
         
     def _save_file_as(self, filename):
-        filepath = parm()
+        file_path = parm()
         directory = parm()
         file_name = parm()
-        code = parm()
-        call.sys_.get_abs_path(filename, filepath)
-        call.sys_.split_path_(filepath.val, directory, file_name)
+        code      = parm()
+        
+        call.hcs_.fs_valid_name(filename, code)
+        if code.val != 0:
+            self.set_status_message("Invalid file name %s." % (filename))
+            return
+        # end if
+        
+        call.sys_.get_abs_path(filename, file_path)
+        call.sys_.split_path_(file_path.val, directory, file_name)
         call.hcs_.fs_file_exists(directory.val, file_name.val, code)
         if code.val == 0:
-            self.minibuffer_yes_no("File already exists. Overwrite?", self._save_buffer_to_file, filepath.val)
+            if _is_directory(file_path.val):
+                self.set_status_message("Can't write file. %s is a directory." % (file_name.val))
+            else:
+                self.minibuffer_yes_no("File already exists. Overwrite?", self._save_buffer_to_file, file_path.val)
+            # end if
         else:
-            self._save_buffer_to_file(filepath.val)
+            self._save_buffer_to_file(file_path.val)
             
     def _save_buffer_to_file(self, filepath):
-        self._current_buffer.set_file_path(filepath)
-        self.save_current_buffer()
-        self._current_buffer.restore_cursor()
+        if _is_readonly_file(filepath):
+            self.set_status_message("File is read-only.")
+        else:
+            self._current_buffer.set_file_path(filepath, name_resolver=self._next_name)
+            self.save_current_buffer()
+            self._current_buffer.restore_cursor()
     
     def save_current_buffer(self):
         self._current_buffer.save_file()
-        self.set_status_message("File %s saved." % (self._current_buffer._filepath))
+        self.set_status_message("File %s saved." % (self._current_buffer.filepath()))
     
     def write_file_command(self):
         self.minibuffer_command("Write file", self._save_file_as)
@@ -900,6 +1133,40 @@ class EmacsEditor(object):
     def swap_buffer_command(self):
         self.minibuffer_command("Swap to buffer", self._swap_to_buffer)
         
+    def select_buffer_command(self):
+        buffer_list = []
+        select_list = []
+        select_line = parm()
+        select_buffer = None
+        
+        for buffer in self._buffers:
+            if buffer.name() == "*buffers*":
+                select_buffer = buffer
+            else:
+                buffer_list.append(buffer.name())
+                call.ioa_.rsnnl("^[ *^;  ^]^20a^a", select_line, buffer.is_modified(), buffer.name(), buffer.filepath())
+                select_list.append(select_line.val)
+            # end if
+        # end for
+        
+        if not select_buffer:
+            select_buffer = self.new_buffer("*buffers*")
+        # end if
+        
+        visible_buffers = self.get_visible_buffers()
+        if len(visible_buffers) == 1:
+            select_buffer.set_cancel_to_buffer(None)
+            self.split_window_command(select_buffer)
+            self._current_buffer = select_buffer
+        else:
+            self._current_buffer = visible_buffers[-1]
+            select_buffer.set_cancel_to_buffer(self._current_buffer)
+            self._swap_to_buffer(select_buffer.name())
+        # end if
+        select_buffer.set_selections("Select a buffer:", select_list, buffer_list, self._swap_to_buffer)
+        
+        self._current_buffer.restore_cursor()
+    
     def _swap_to_buffer(self, buffer_name):
         buffer1 = self._current_buffer
         window1 = self._current_buffer.window()
@@ -909,20 +1176,29 @@ class EmacsEditor(object):
                 buffer2 = buffer
                 window2 = buffer.window()
                 
-                buffer1.set_window(window2)
-                buffer2.set_window(window1)
-                
-                buffer1.draw_lines()
-                buffer2.draw_lines()
+                if not buffer.is_visible():
+                    buffer1.set_window(window2)
+                    buffer2.set_window(window1)
+                    
+                    buffer1.draw_lines()
+                    buffer2.draw_lines()
+                    
+                elif buffer1.is_select():
+                    self.close_selection_buffer()
+                # end if
                 
                 self._current_buffer = buffer2
                 break
+            # end if
         else:
             self.set_status_message("No buffer named %s." % (buffer_name))
         # end for
         
         self._current_buffer.restore_cursor()
     
+    def redraw_command(self):
+        self.redraw()
+        
     def clear_yank_buffer(self):
         self._yank_buffer = []
         self._killing = False
@@ -987,13 +1263,13 @@ class EmacsEditor(object):
         self._current_buffer.scroll_down_command()
         
     def prev_buffer_command(self):
-        visible_buffers = sorted([ buffer for buffer in self._buffers if buffer.is_visible() ], key=lambda buffer: buffer.window().screeny)
+        visible_buffers = self.get_visible_buffers()
         index = visible_buffers.index(self._current_buffer)
         index = (index - 1) % len(visible_buffers)
         self._current_buffer = visible_buffers[index]
         
     def next_buffer_command(self):
-        visible_buffers = sorted([ buffer for buffer in self._buffers if buffer.is_visible() ], key=lambda buffer: buffer.window().screeny)
+        visible_buffers = self.get_visible_buffers()
         index = visible_buffers.index(self._current_buffer)
         index = (index + 1) % len(visible_buffers)
         self._current_buffer = visible_buffers[index]
@@ -1002,10 +1278,12 @@ class EmacsEditor(object):
         for buffer in self._buffers:
             if buffer is not self._current_buffer and buffer.is_visible():
                 buffer.window().hide()
+            # end if
+        # end for
         self._current_buffer.window().setup(0, NLINES - 1)
         self._current_buffer.draw_lines()
         
-    def split_window_command(self):
+    def split_window_command(self, new_buffer=None):
         for window in self._windows:
             if not window.visible:
                 window_to_use = window
@@ -1013,13 +1291,19 @@ class EmacsEditor(object):
             # end if
         else:
             return
-            
+        # end for
+        
         for buffer in self._buffers:
             if buffer.window() is window_to_use:
                 buffer.set_window(None)
-                
-        new_buffer = Buffer(self.tty, self._next_scratch(), window_to_use)
-        self._buffers.append(new_buffer)
+            # end if
+        # end for
+        
+        if new_buffer:
+            new_buffer.set_window(window_to_use)
+        else:
+            new_buffer = self.new_buffer("*scratch*", window_to_use)
+        # end if
         
         visible_windows = [ w for w in self._windows if w.visible ]
         visible_windows.insert(visible_windows.index(self._current_buffer.window()) + 1, window_to_use)
@@ -1029,16 +1313,15 @@ class EmacsEditor(object):
         for w in visible_windows:
             w.setup(screeny, vsize)
             screeny += vsize
-            
+        # end for
+        
         for buffer in self._buffers:
             buffer.draw_lines()
         
 def emacs():
-    arg_list  = parm()
-    code      = parm()
-    
+    arg_list = parm()
     call.cu_.arg_list(arg_list)
-        
+    
     editor = EmacsEditor(arg_list.args)
     editor.open()
     

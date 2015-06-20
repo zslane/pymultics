@@ -68,10 +68,18 @@ class hcs_(Subroutine):
         else:
             process_dir.name = None
     
+    def fs_valid_name(self, filename, code):
+        if GlobalEnvironment.fs.valid_name(filename):
+            code.val = 0
+        else:
+            code.val = error_table_.badpath
+        
     def fs_file_exists(self, dirname, filename, code):
         native_path = GlobalEnvironment.fs.path2path(dirname, filename)
         if GlobalEnvironment.fs.file_exists(native_path):
             code.val = 0
+        elif not GlobalEnvironment.fs.valid_name(dirname + ">" + filename):
+            code.val = error_table_.badpath
         else:
             code.val = error_table_.no_directory_entry
         

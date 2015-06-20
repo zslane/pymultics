@@ -328,6 +328,10 @@ class VirtualMulticsFileSystem(QtCore.QObject):
         if ">" in p:
             p = self.path2path(p)
         return p
+    
+    def valid_name(self, p):
+        DISALLOWED_CHARS = r" '`~#$%^&=?,;:*|{}[]()\/" + '"'
+        return set(p) & set(DISALLOWED_CHARS) == set()
         
     def merge_path(self, *args):
         #== args assumed to be a list of Multics paths
