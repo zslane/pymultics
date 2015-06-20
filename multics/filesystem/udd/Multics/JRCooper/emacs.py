@@ -228,6 +228,7 @@ class Buffer(object):
             self._window.draw_status_bar(self)
             
     def restore_cursor(self):
+        print "Restoring cursor for buffer", self._name, "to", self._cursorx, ",", self._window.screeny + self._cursory
         _move_cursor_to(self._tty_channel, self._window.screeny + self._cursory, self._cursorx)
         
     def draw_lines(self, starting_at=0):
@@ -781,13 +782,8 @@ class EmacsEditor(object):
                     if c == CTRL('C'):
                         self.quit_command()
                         continue
-                        
                     elif c == CTRL('B'):
-                        print "Buffers:"
-                        for buffer in self._buffers:
-                            print " *" if buffer.is_modified() else "  ", buffer.name()
                         self.select_buffer_command()
-                        
                     elif c == CTRL('F'):
                         self.find_file_command()
                     elif c == CTRL('S'):
@@ -928,6 +924,36 @@ class EmacsEditor(object):
             #== Reassert the existing prompt, callback, and arg
             self.minibuffer_yes_no(self._yes_no_prompt, self._yes_no_callback, *self._yes_no_args)
         
+    def open_selection_buffer(self, name, title, selection_list, entry_list, selection_callback):
+        for buffer in self._buffers:
+            if buffer.name() == name:
+                selection_buffer = buffer
+                break
+            # end if
+        else:
+            selection_buffer = self.new_buffer(name)
+        # end for
+        
+        if selection_buffer.is_visible():
+            #== If the selection buffer is already visible, then just make sure
+            #== self._current_buffer refers to it.
+            self._current_buffer = selection_buffer
+        else:
+            visible_buffers = self.get_visible_buffers()
+            if len(visible_buffers) == 1:
+                selection_buffer.set_cancel_to_buffer(None)
+                self.split_window_command(selection_buffer)
+                self._current_buffer = selection_buffer
+            else:
+                self._current_buffer = visible_buffers[-1]
+                selection_buffer.set_cancel_to_buffer(self._current_buffer)
+                self._swap_to_buffer(selection_buffer.name())
+            # end if
+        # end if
+        selection_buffer.set_selections(title, selection_list, entry_list, selection_callback)
+        
+        self._current_buffer.restore_cursor()
+    
     def close_selection_buffer(self):
         if self._current_buffer.is_select():
             cancel_to = self._current_buffer.cancel_to()
@@ -958,6 +984,7 @@ class EmacsEditor(object):
             
     def _set_done_flag(self, flag):
         self.done = flag
+        print "Setting done flag. Clearing screen"
         _clear_screen(self.tty)
         
     def visit_file_command(self):
@@ -1008,46 +1035,34 @@ class EmacsEditor(object):
         self._current_buffer.restore_cursor()
     
     def open_dired_buffer(self, dir_name):
-        entry_list = []
+        full_path   = parm()
+        directory   = parm()
+        parent_dir  = parm()
+        branch      = parm()
+        segment     = parm()
+        code        = parm()
+        entry_list  = []
         select_list = []
-        select_line = parm()
-        select_buffer = None
         
-        for buffer in self._buffers:
-            if buffer.name() == "*dir-ed*":
-                select_buffer = buffer
-                break
-            # end if
-        else:
-            select_buffer = self.new_buffer("*dir-ed*")
-        # end for
+        call.sys_.get_abs_path(dir_name, full_path)
+        if full_path.val != ">":
+            call.sys_.split_path_(full_path.val, directory, null())
+            call.sys_.split_path_(directory.val, null(), parent_dir)
+            entry_list.append(directory.val)
+            select_list.append(_bold(" < " + parent_dir.val))
+        # end if
         
-        branch = parm()
-        segment = parm()
-        code = parm()
         call.hcs_.get_directory_contents(dir_name, branch, segment, code)
         for directory in branch.list:
             entry_list.append(dir_name + ">" + directory)
-            select_list.append(_bold(directory))
+            select_list.append(_bold(" > " + directory))
         # end for
         for filename in segment.list:
             entry_list.append(dir_name + ">" + filename)
-            select_list.append(filename)
+            select_list.append(" | " + filename)
         # end for
         
-        visible_buffers = self.get_visible_buffers()
-        if len(visible_buffers) == 1:
-            select_buffer.set_cancel_to_buffer(None)
-            self.split_window_command(select_buffer)
-            self._current_buffer = select_buffer
-        else:
-            self._current_buffer = visible_buffers[-1]
-            select_buffer.set_cancel_to_buffer(self._current_buffer)
-            self._swap_to_buffer(select_buffer.name())
-        # end if
-        select_buffer.set_selections("Contents of %s:" % (dir_name), select_list, entry_list, self._load_file_into_buffer)
-        
-        self._current_buffer.restore_cursor()
+        self.open_selection_buffer("*dir-ed*", "Contents of %s:" % (dir_name), select_list, entry_list, self._load_file_into_buffer)
     
     def kill_buffer_command(self):
         if self._current_buffer.is_modified():
@@ -1060,6 +1075,9 @@ class EmacsEditor(object):
         if self._current_buffer.name().startswith("*scratch*"):
             self._current_buffer.clear(self._current_buffer.name())
             return
+        elif self._current_buffer.is_select():
+            self.close_selection_buffer()
+            return
         # end if
         
         cur_window = self._current_buffer.window()
@@ -1068,7 +1086,7 @@ class EmacsEditor(object):
         for buffer in self._buffers[:]:
             if buffer is self._current_buffer:
                 self._buffers.remove(buffer)
-            elif not buffer.window():
+            elif not buffer.is_visible():
                 switch_to = buffer
             # end if
         # end for
@@ -1137,35 +1155,17 @@ class EmacsEditor(object):
         buffer_list = []
         select_list = []
         select_line = parm()
-        select_buffer = None
         
         for buffer in self._buffers:
-            if buffer.name() == "*buffers*":
-                select_buffer = buffer
-            else:
+            #== Don't put any selection buffer on the list.
+            if not buffer.is_select():
                 buffer_list.append(buffer.name())
                 call.ioa_.rsnnl("^[ *^;  ^]^20a^a", select_line, buffer.is_modified(), buffer.name(), buffer.filepath())
                 select_list.append(select_line.val)
             # end if
         # end for
         
-        if not select_buffer:
-            select_buffer = self.new_buffer("*buffers*")
-        # end if
-        
-        visible_buffers = self.get_visible_buffers()
-        if len(visible_buffers) == 1:
-            select_buffer.set_cancel_to_buffer(None)
-            self.split_window_command(select_buffer)
-            self._current_buffer = select_buffer
-        else:
-            self._current_buffer = visible_buffers[-1]
-            select_buffer.set_cancel_to_buffer(self._current_buffer)
-            self._swap_to_buffer(select_buffer.name())
-        # end if
-        select_buffer.set_selections("Select a buffer:", select_list, buffer_list, self._swap_to_buffer)
-        
-        self._current_buffer.restore_cursor()
+        self.open_selection_buffer("*buffers*", "Select a buffer:", select_list, buffer_list, self._swap_to_buffer)
     
     def _swap_to_buffer(self, buffer_name):
         buffer1 = self._current_buffer

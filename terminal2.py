@@ -529,7 +529,7 @@ class GlassTTY(QtGui.QWidget):
                 if n == 0:
                     charattrs = 0
                 elif n in [1,2,4,5,7,8]:
-                    charattrs = 2 ** (n - 1)
+                    charattrs = self.charattrs | (2 ** (n - 1))
                 else:
                     return failed()
                 try:
@@ -616,15 +616,14 @@ class GlassTTY(QtGui.QWidget):
                     # Dim(1) + Bright(2) cancel each other out
                     if set([1,2]) <= nums:
                         nums -= set([1,2])
-                    charattrs = 0
+                    charattrs = self.charattrs
                     for n in nums:
                         if n == 0:
                             # Reset all attribute bits
                             charattrs = 0
-                        elif n in [1,2,4,5,7]:
+                        elif n in [1,2,4,5,7] and (charattrs & HID == 0):
                             # All others set the corresponding attribute bit
                             charattrs |= 2 ** (n - 1)
-                            charattrs &= ~HID # and clear the Hidden bit
                         elif n == 8:
                             # Hidden attribute overrides all others
                             charattrs = HID
