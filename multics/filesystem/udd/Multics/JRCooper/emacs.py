@@ -1179,10 +1179,10 @@ class EmacsEditor(object):
         _clear_screen(self.tty)
         
     def visit_file_command(self):
-        self.minibuffer_command("Visit file", self._load_file_into_buffer, create_new=True, special_input_fn=self._find_file_input)
+        self.minibuffer_command("Visit file", self._load_file_into_buffer, create_new=True, special_input_fn=self._find_file_input_handler)
         
     def find_file_command(self):
-        self.minibuffer_command("Find file", self._load_file_into_buffer, special_input_fn=self._find_file_input)
+        self.minibuffer_command("Find file", self._load_file_into_buffer, special_input_fn=self._find_file_input_handler)
         
     def _load_file_into_buffer(self, filename, create_new=False):
         file_path = parm()
@@ -1225,15 +1225,28 @@ class EmacsEditor(object):
         
         self._current_buffer.restore_cursor()
     
-    def _find_file_input(self, c):
+    def _find_file_input_handler(self, c):
         if c == '?' and self._current_buffer.get_contents().strip() == "":
             self._minibuffer.set_special_prompt("")
             self.cancel_minibuffer()
             self.open_dired_buffer(get_wdir_())
             return Character_Handled
+            
         elif c == TAB and self._current_buffer.get_contents().strip() != "":
-            # auto-complete buffer name
+            full_path = parm()
+            directory = parm()
+            dir_list  = parm()
+            file_list = parm()
+            code      = parm()
+            
+            input_string = self._current_buffer.get_contents()
+            call.sys_.get_abs_path(input_string, full_path)
+            call.sys_.split_path_(full_path.val, directory, null())
+            call.hcs_.get_directory_contents(directory.val, dir_list, file_list, code)
+            added_chars = self.autocomplete(input_string, file_list.val)
+            self._current_buffer.insert_textblock(added_chars)
             return Character_Handled
+            
         else:
             return not Character_Handled
     
@@ -1356,7 +1369,7 @@ class EmacsEditor(object):
         self.minibuffer_command("Write file", self._save_file_as)
     
     def swap_buffer_command(self):
-        self.minibuffer_command("Swap to buffer", self._swap_to_buffer, special_input_fn=self._swap_buffer_input)
+        self.minibuffer_command("Swap to buffer", self._swap_to_buffer, special_input_fn=self._swap_buffer_input_handler)
         
     def select_buffer_command(self):
         buffer_list = []
@@ -1403,17 +1416,19 @@ class EmacsEditor(object):
         
         self._current_buffer.restore_cursor()
     
-    def _swap_buffer_input(self, c):
+    def _swap_buffer_input_handler(self, c):
         if c == '?' and self._current_buffer.get_contents().strip() == "":
             self._minibuffer.set_special_prompt("")
             self.select_buffer_command()
             return Character_Handled
+            
         elif c == TAB and self._current_buffer.get_contents().strip() != "":
             # auto-complete buffer name
             choices = [ buffer.name() for buffer in self._buffers if not buffer.is_select() ]
             added_chars = self.autocomplete(self._current_buffer.get_contents(), choices)
             self._current_buffer.insert_textblock(added_chars)
             return Character_Handled
+            
         else:
             return not Character_Handled
     
