@@ -170,7 +170,7 @@ class UserControl(object):
                     self.__login_options = self._verify_login_command()
                     if self.__login_options:
                         self._set_input_mode(QtGui.QLineEdit.Password)
-                        self._put_output("Password: ")
+                        self._put_output("Password:\n")
                         return self._set_state(self.WAITING_FOR_PASSWORD)
                     # end if
                 elif command_name.val == "help" or command_name.val == "?":
@@ -259,7 +259,7 @@ class UserControl(object):
                 self.__login_options['pdt'] = pdt
                 if self.__login_options.get('change_password'):
                     self._set_input_mode(QtGui.QLineEdit.Password)
-                    self._put_output("New password: ")
+                    self._put_output("New password:\n")
                     return self._set_state(self.WAITING_FOR_CHANGE_PASSWORD)
                 # end if
                 return self._set_state(self.LOGIN_COMPLETE)
@@ -323,7 +323,7 @@ class UserControl(object):
         elif self._has_input():
             self.__new_password = self._get_input()
             self._put_output("\n")
-            self._put_output("New Password Again: ")
+            self._put_output("New password again:\n")
             return self._set_state(self.WAITING_FOR_CHANGE_PASSWORD_CONFIRM)
             
         else:

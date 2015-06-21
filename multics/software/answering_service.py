@@ -176,7 +176,7 @@ class AnsweringService(Subroutine):
             # end if
             
             if not login_options.get('brief'):
-                call.iox_.write(tty_channel, "\n%s logged in %s from %s\n" % (login_info.user_id, login_info.time_login.ctime(), tty_name))
+                call.iox_.write(tty_channel, "%s logged in %s from %s\n" % (login_info.user_id, login_info.time_login.ctime(), tty_name))
                 if last_login_time:
                     call.iox_.write(tty_channel, "Last login %s from %s\n" % (last_login_time.ctime(), last_login_from))
                 # end if

@@ -1,34 +1,48 @@
 import os
+import re
 import stat
 
 from multics.globals import *
 
 include.iox_control
 
+declare (get_wdir_ = entry . returns (char(168)))
+
 NCHARS = 80
 NLINES = 25
 
 BS  = chr(8)
+TAB = chr(9)
 LF  = chr(10)
 CR  = chr(13)
 ESC = chr(27)
 ARR = chr(28)
 
+Character_Handled = True
+
 def CTRL(s):
     return chr(ord(s.upper()) - 64)
     
 ESC_CODES = {
-    'normal_video':      "[0m",
-    'reverse_video':     "[7m",
-    'underline_mode':    "[4m",
-    'bold_video':        "[1m",
-    'clear_screen':      "[2J",
-    'move_cursor_to':    "[%d;%dH",
-    'erase_end_of_line': "[K",
-    'set_scroll_range':  "[%d;%dr",
-    'scroll_up':         "M",
-    'scroll_down':       "D",
+    'normal_video':      ESC + "[0m",
+    'reverse_video':     ESC + "[7m",
+    'underline_mode':    ESC + "[4m",
+    'bold_video':        ESC + "[1m",
+    'clear_screen':      ESC + "[2J",
+    'move_cursor_to':    ESC + "[%d;%dH",
+    'erase_end_of_line': ESC + "[K",
+    'set_scroll_range':  ESC + "[%d;%dr",
+    'scroll_up':         ESC + "M",
+    'scroll_down':       ESC + "D",
 }
+
+FORMAT_NORMAL = "0"
+FORMAT_BOLD = "1"
+FORMAT_DIM = "2"
+FORMAT_UNDERLINE = "4"
+FORMAT_BLINKING = "5"
+FORMAT_REVERSE = "7"
+FORMAT_HIDDEN = "8"
 
 def _xlate(c):
     if c == ESC:
@@ -47,10 +61,10 @@ def _is_directory(multics_path):
     return os.path.isdir(native_path)
     
 def _write(tty_channel, s):
-    call.iox_.write(tty_channel, s)
+    call.iox_.write(tty_channel, str(s))
     
 def _send_esc_code(tty_channel, name, *args):
-    _write(tty_channel, ESC + ESC_CODES[name] % args)
+    _write(tty_channel, ESC_CODES[name] % args)
     
 def _normal_video(tty_channel):
     _send_esc_code(tty_channel, 'normal_video')
@@ -79,10 +93,58 @@ def _move_cursor_to(tty_channel, row, col):
     _send_esc_code(tty_channel, 'move_cursor_to', row, col)
 
 def _underline(s):
-    return ESC + ESC_CODES['underline_mode'] + s + ESC + ESC_CODES['normal_video']
+    return CTRL('U') + s
     
 def _bold(s):
-    return ESC + ESC_CODES['bold_video'] + s + ESC + ESC_CODES['normal_video']
+    return CTRL('B') + s
+    
+def _reverse(s):
+    return CTRL('R') + s
+    
+class BufferLine(object):
+
+    def __init__(self, parent_buffer, text, attrs=[]):
+        self._tty_channel = parent_buffer._tty_channel
+        self._buffer = parent_buffer
+        self._text = text
+        # video attributes apply to the entire line of characters.
+        self._attrs = attrs
+        
+    def __len__(self):
+        return len(self._text)
+        
+    def __getitem__(self, index):
+        return BufferLine(self._buffer, self._text[index], self._attrs)
+        
+    def __add__(self, s):
+        return BufferLine(self._buffer, self._text + str(s), self._attrs)
+        
+    def __iadd__(self, s):
+        self._text += str(s)
+        return self
+        
+    def __str__(self):
+        return self._text
+        
+    def _write_attrs_begin(self):
+        if self._attrs:
+            attr_esc_string = ESC + "[" + ";".join(self._attrs) + "m"
+            _write(self._tty_channel, attr_esc_string)
+            
+    def _write_attrs_end(self):
+        if self._attrs:
+            _write(self._tty_channel, ESC_CODES['normal_video'])
+        
+    def write(self, starting_at=0, cursorx=0):
+        if starting_at == 0:
+            starting_at = self._buffer._lft_col
+        # end if
+        max_chars = NCHARS - cursorx
+        n_chars_to_write = max(0, len(self._text) - starting_at)
+        if n_chars_to_write:
+            self._write_attrs_begin() # video attributes apply to the entire line of characters.
+            _write(self._tty_channel, self._text[starting_at:starting_at + max_chars])
+            self._write_attrs_end()
     
 class Buffer(object):
 
@@ -134,7 +196,7 @@ class Buffer(object):
         self._name = name
         
     def get_contents(self):
-        return "\n".join(self._lines)
+        return "\n".join(map(str, self._lines))
         
     def clear_contents(self):
         self._lines = []
@@ -155,7 +217,8 @@ class Buffer(object):
         f = open(vfile_(filepath))
         file_text = f.read()
         f.close()
-        self._lines = file_text.split("\n")
+        
+        self._lines = [ BufferLine(self, line) for line in file_text.split("\n") ]
         
         self._top_row = 0
         self._lft_col = 0
@@ -194,8 +257,15 @@ class Buffer(object):
         self._cursorx = 0
         self._cursory = 0
         
-        self._lines = lines[:]
-        self._lines.insert(0, _underline(title))
+        FORMATTING = { CTRL('B'):FORMAT_BOLD, CTRL('R'):FORMAT_REVERSE, CTRL('U'):FORMAT_UNDERLINE }
+        format_regexp = re.compile("[%s]" % ("".join(FORMATTING)))
+        
+        self._lines = [BufferLine(self, title, [FORMAT_UNDERLINE])]
+        for line in lines:
+            attrs = [ FORMATTING[format_byte] for format_byte in format_regexp.findall(line) ]
+            self._lines.append(BufferLine(self, line[len(attrs):], attrs))
+        # end for
+        
         self._marginy = 1
         self._cursory = 1 # start the user someplace useful, first line below the title
         self.draw_lines()
@@ -222,6 +292,90 @@ class Buffer(object):
     def _get_pos(self):
         return self._top_row + self._cursory, self._lft_col + self._cursorx - self._marginx
     
+    def _get_buffer_pos(self, cx=None, cy=None):
+        row = self._top_row + (self._cursory if cy is None else cy)
+        col = self._lft_col + (self._cursorx if cx is None else cx) - self._marginx
+        
+        if cx is None and cy is None:
+            return row, col
+            
+        row = max(0, min(len(self._lines     ) - 1, row))
+        col = max(0, min(len(self._lines[row]) - 1, col))
+        
+        return row, col
+    
+    def _get_window_pos(self, dx=0, dy=(0, 0), wrap=True):
+        def get_cy(dy):
+            dy1, dy2 = dy
+            cy = self._cursory + dy1
+            tr = self._top_row
+            if cy > self._window.bottomy:
+                tr = min(len(self._lines) - self._window.vsizeb, self._top_row + dy2)
+                cy = self._window.bottomy
+            elif cy < 0:
+                tr = max(0, self._top_row + dy2)
+                cy = self._marginy if tr == 0 else 0
+            return cy, tr
+            
+        def get_cx(dx, cy=None):
+            row, col = self._get_buffer_pos(cy=cy)
+            line_len = len(self._lines[row])
+            cx = self._cursorx + dx
+            if cx > NCHARS - 1:
+                n_available_cols = NCHARS - self._marginx - 1
+                lc = min(line_len - n_available_cols, self._lft_col + dx)
+                cx = NCHARS - 1
+            elif cx < self._marginx:
+                lc = max(0, self._lft_col + dx)
+                cx = self._marginx
+            else:
+                cx = min(cx, len(self._lines[row]) + self._marginx)
+                lc = self._lft_col
+            return cx, lc
+        
+        def get_cx_wrap(dx):
+            row, col = self._get_buffer_pos()
+            line_len = len(self._lines[row])
+            dy = 1 if dx > 0 else -1 # direction of wrapping in Y
+            cy = self._cursory
+            while col + dx > line_len or col + dx < 0:
+                new_row, _ = self._get_buffer_pos(cy=cy + dy)
+                if new_row == row: # no prev or next line to wrap to
+                    dy = cy - self._cursory # delta lines we wrapped
+                    cy, tr = get_cy(dy=(dy, dy))
+                    cx, lc = get_cx(dx, cy)
+                    return (cy, tr, cx, lc)
+                # end if
+                cy += dy
+                row = new_row
+                line_len = len(self._lines[row])
+                if dx > 0:
+                    dx = col + dx - line_len
+                    col = 0
+                else:
+                    dx = dx + col + 1
+                    col = line_len
+            # end while
+            dy = cy - self._cursory
+            cy, tr = get_cy(dy=(dy, dy))
+            cx, lc = get_cx(dx, cy)
+            return (cy, tr, cx, lc)
+            
+        if dx != 0:
+            if wrap:
+                cy, tr, cx, lc = get_cx_wrap(dx)
+            else:
+                cy, tr = self._cursory, self._top_row
+                cx, lc = get_cx(dx)
+            # end if
+        elif dy != (0, 0):
+            cy, tr = get_cy(dy)
+            cx, lc = get_cx(dx, cy)
+        else:
+            cy, tr, cx, lc = self._cursory, self._top_row, self._cursorx, self._lft_col
+            
+        return (cy, tr, cx, lc)
+    
     def _update_dirty_state_to(self, state):
         if self._dirty != state and self._name != "*minibuffer*":
             self._dirty = state
@@ -237,8 +391,7 @@ class Buffer(object):
                 _erase_end_of_line(self._tty_channel)
                 try:
                     row = self._top_row + i
-                    line = self._lines[row]
-                    _write(self._tty_channel, line[self._lft_col:self._lft_col + NCHARS])
+                    self._lines[row].write()
                 except:
                     pass
             
@@ -252,37 +405,35 @@ class Buffer(object):
         self._cursorx = self._marginx
         
     def prev_char_command(self):
-        if not self.is_select():
-            row, _ = self._get_pos()
-            if self._cursorx == self._marginx:
-                if self._lft_col > 0:
-                    # scroll window right
-                    self._lft_col -= 1
-                    self.draw_lines()
-                    self.restore_cursor()
-                elif row > self._marginy:
-                    self.prev_line_command()
-                    self.end_line_command()
-            else:
-                self._cursorx -= 1
-                self.restore_cursor()
-        
-    def next_char_command(self):
-        if not self.is_select():
-            row, _ = self._get_pos()
-            if self._lft_col + self._cursorx == len(self._lines[row]):
-                if row < len(self._lines) - 1:
-                    self.begin_line_command()
-                    self.next_line_command()
-                # end if
-            elif self._cursorx == NCHARS - 1:
-                # scroll window left
-                self._lft_col += 1
+        row, _ = self._get_pos()
+        if self._cursorx == self._marginx:
+            if self._lft_col > 0:
+                # scroll window right
+                self._lft_col -= 1
                 self.draw_lines()
                 self.restore_cursor()
-            else:
-                self._cursorx += 1
-                self.restore_cursor()
+            elif row > self._marginy:
+                self.prev_line_command()
+                self.end_line_command()
+        else:
+            self._cursorx -= 1
+            self.restore_cursor()
+        
+    def next_char_command(self):
+        row, _ = self._get_pos()
+        if self._lft_col + self._cursorx == len(self._lines[row]):
+            if row < len(self._lines) - 1:
+                self.begin_line_command()
+                self.next_line_command()
+            # end if
+        elif self._cursorx == NCHARS - 1:
+            # scroll window left
+            self._lft_col += 1
+            self.draw_lines()
+            self.restore_cursor()
+        else:
+            self._cursorx += 1
+            self.restore_cursor()
         
     def prev_line_command(self):
         row, _ = self._get_pos()
@@ -294,7 +445,8 @@ class Buffer(object):
                         self._top_row -= 1
                         self._window.scroll_down()
                         _move_cursor_to(self._tty_channel, self._window.screeny, 0)
-                        _write(self._tty_channel, self._lines[self._top_row][:NCHARS])
+                        # _write(self._tty_channel, self._lines[self._top_row][:NCHARS])
+                        self._lines[self._top_row].write()
                         self._cursory += 1
                 
             row, _ = self._get_pos()
@@ -319,7 +471,8 @@ class Buffer(object):
                         self._top_row += 1
                         self._window.scroll_up()
                         _move_cursor_to(self._tty_channel, self._window.screeny + self._window.vsize - 2, 0)
-                        _write(self._tty_channel, self._lines[row + i + 1][:NCHARS])
+                        # _write(self._tty_channel, self._lines[row + i + 1][:NCHARS])
+                        self._lines[row + i + 1].write()
                         self._cursory -= 1
                 
         self.restore_cursor()
@@ -356,16 +509,15 @@ class Buffer(object):
         self.restore_cursor()
         
     def end_line_command(self):
-        if not self.is_select():
-            row, _ = self._get_pos()
-            n_visible_chars = len(self._lines[row][self._lft_col:self._lft_col + NCHARS])
-            if n_visible_chars >= NCHARS:
-                self._lft_col = len(self._lines[row]) - NCHARS + 1
-                self.draw_lines()
-                self._cursorx = NCHARS - 1
-            else:
-                self._cursorx = n_visible_chars
-            self.restore_cursor()
+        row, _ = self._get_pos()
+        n_visible_chars = len(self._lines[row][self._lft_col:self._lft_col + NCHARS])
+        if n_visible_chars >= NCHARS:
+            self._lft_col = len(self._lines[row]) - NCHARS + 1
+            self.draw_lines()
+            self._cursorx = NCHARS - 1
+        else:
+            self._cursorx = self._marginx + n_visible_chars
+        self.restore_cursor()
         
     def buffer_home_command(self):
         if self._top_row != 0 or self._lft_col != 0:
@@ -394,10 +546,8 @@ class Buffer(object):
             self.draw_lines()
         # end if
         
-        if not self.is_select():
-            n_visible_chars = len(self._lines[row][self._lft_col:self._lft_col + NCHARS])
-            self._cursorx = n_visible_chars + self._marginx
-        # end if
+        n_visible_chars = len(self._lines[row][self._lft_col:self._lft_col + NCHARS])
+        self._cursorx = n_visible_chars + self._marginx
         
         self.restore_cursor()
         
@@ -406,7 +556,8 @@ class Buffer(object):
             self._top_row += 1
             self._window.scroll_up()
             _move_cursor_to(self._tty_channel, self._window.screeny + self._window.vsize - 2, 0)
-            _write(self._tty_channel, self._lines[self._top_row + self._window.vsize - 2][:NCHARS])
+            # _write(self._tty_channel, self._lines[self._top_row + self._window.vsize - 2][:NCHARS])
+            self._lines[self._top_row + self._window.vsize - 2].write()
             self._cursory = max(self._marginy, self._cursory - 1)
             self.restore_cursor()
     
@@ -415,7 +566,8 @@ class Buffer(object):
             self._top_row -= 1
             self._window.scroll_down()
             _move_cursor_to(self._tty_channel, self._window.screeny, 0)
-            _write(self._tty_channel, self._lines[self._top_row][:NCHARS])
+            # _write(self._tty_channel, self._lines[self._top_row][:NCHARS])
+            self._lines[self._top_row].write()
             self._cursory = min(self._window.vsize - 2, self._cursory + 1)
             self.restore_cursor()
     
@@ -429,13 +581,13 @@ class Buffer(object):
         try:
             self._lines[row] = self._lines[row][:col] + c + self._lines[row][col:]
         except:
-            self._lines.append(c)
+            self._lines.append(BufferLine(self, c))
         # end try
         _erase_end_of_line(self._tty_channel)
         if c == CR:
             line_to_insert = self._lines[row][col + 1:]
             self._lines[row] = self._lines[row][:col]
-            self._lines.append(line_to_insert)
+            self._lines.append(BufferLine(self, line_to_insert))
             if self._cursory == self._window.screeny + self._window.vsize - 1:
                 # scroll up
                 pass
@@ -444,12 +596,14 @@ class Buffer(object):
                 if row + 1 < len(self._lines):
                     self._window.scroll_down(self._cursory)
                 _move_cursor_to(self._tty_channel, self._window.screeny + self._cursory, 0)
-                _write(self._tty_channel, line_to_insert[:NCHARS])
+                # _write(self._tty_channel, line_to_insert[:NCHARS])
+                line_to_insert.write()
             # end if
             self._cursorx = self._marginx
         else:
             n = NCHARS - col
-            _write(self._tty_channel, self._lines[row][col:n])
+            # _write(self._tty_channel, self._lines[row][col:n])
+            self._lines[row].write(col, self._cursorx)
             self._cursorx += 1
         # end if
         self._update_dirty_state_to(True)
@@ -461,7 +615,7 @@ class Buffer(object):
             
         row, col = self._get_pos()
         textblock = "".join(char_list)
-        lines = textblock.split(CR)
+        lines = textblock.split("\n")
         rest_of_line = self._lines[row][col:]
         line = lines.pop(0)
         lines_inserted = len(lines)
@@ -469,14 +623,15 @@ class Buffer(object):
         while lines:
             row += 1
             line = lines.pop(0)
-            self._lines.insert(row, line)
+            self._lines.insert(row, BufferLine(self, line))
         # end while
         self._lines[row] += rest_of_line
         if lines_inserted > 0:
             self.draw_lines(starting_at=self._cursory)
             self._cursory = min(self._cursory + lines_inserted, self._window.vsize - 2)
         else:
-            _write(self._tty_channel, self._lines[row][col:NCHARS])
+            # _write(self._tty_channel, self._lines[row][col:NCHARS])
+            self._lines[row].write(col, self._cursorx)
             self.end_line_command()
         
         self._update_dirty_state_to(True)
@@ -498,7 +653,8 @@ class Buffer(object):
             self._cursorx -= 1
             self.restore_cursor()
             _erase_end_of_line(self._tty_channel)
-            _write(self._tty_channel, self._lines[row][col:NCHARS])
+            # _write(self._tty_channel, self._lines[row][col:NCHARS])
+            self._lines[row].write(col, self._cursorx)
             self._update_dirty_state_to(True)
             self.restore_cursor()
     
@@ -512,18 +668,21 @@ class Buffer(object):
                 # delete a CR and merge lines
                 line_to_merge = self._lines.pop(row + 1)
                 self._lines[row] += line_to_merge
-                _write(self._tty_channel, self._lines[row][col:NCHARS])
+                # _write(self._tty_channel, self._lines[row][col:NCHARS])
+                self._lines[row].write(col, self._cursorx)
                 self._window.scroll_up(self._cursory + 1)
                 if row + self._window.vsize - 1 < len(self._lines):
                     _move_cursor_to(self._tty_channel, self._window.screeny + self._window.vsize - 1, 0)
-                    _write(self._tty_channel, self._lines[row + self._window.vsize - 1][:NCHARS])
+                    # _write(self._tty_channel, self._lines[row + self._window.vsize - 1][:NCHARS])
+                    self._lines[row + self._window.vsize - 1].write()
                 self._update_dirty_state_to(True)
                 self.restore_cursor()
                 return CR
         else:
             c = self._lines[row][col]
             self._lines[row] = self._lines[row][:col] + self._lines[row][col+1:]
-            _write(self._tty_channel, self._lines[row][col:NCHARS])
+            # _write(self._tty_channel, self._lines[row][col:NCHARS])
+            self._lines[row].write(col, self._cursorx)
             if len(self._lines[row]) < NCHARS - 1:
                 _erase_end_of_line(self._tty_channel)
             self._update_dirty_state_to(True)
@@ -553,11 +712,15 @@ class Window(object):
         self.has_status_bar = has_status_bar
         self.screeny = 0
         self.vsize = 0
+        self.vsizeb = 0
+        self.bottomy = 0
         self.visible = False
         
     def setup(self, screeny, vsize, visible=True):
         self.screeny = screeny
         self.vsize = vsize
+        self.vsizeb = vsize - (1 if self.has_status_bar else 0)
+        self.bottomy = self.vsizeb - 1
         self.visible = visible
     
     def show(self):
@@ -817,6 +980,9 @@ class EmacsEditor(object):
                         
                     self._current_buffer.restore_cursor()
                     
+                elif self.process_minibuffer_input(c):
+                    pass
+                    
                 elif c == ARR:
                     ARROW_prefix = True
                     
@@ -835,9 +1001,7 @@ class EmacsEditor(object):
                         QUOTE_char = True
                         
                 elif c in [CR, LF]:
-                    if self._current_buffer == self._minibuffer:
-                        self.process_minibuffer_input()
-                    elif self._current_buffer.is_select():
+                    if self._current_buffer.is_select():
                         self._current_buffer.do_select()
                     else:
                         self.insert_character(c)
@@ -896,6 +1060,7 @@ class EmacsEditor(object):
     def minibuffer_command(self, prompt, callback, **kwargs):
         self._cancel_to_buffer = self._current_buffer
         self._current_buffer = self._minibuffer
+        self._minibuffer_input_fn = kwargs.pop('special_input_fn', None)
         self._minibuffer_callback = callback
         self._minibuffer_kwargs = kwargs
         self._minibuffer.set_special_prompt(prompt + ": ")
@@ -912,16 +1077,27 @@ class EmacsEditor(object):
             self._current_buffer.restore_cursor()
             self._cancel_to_buffer = None
     
-    def process_minibuffer_input(self):
-        s = self._minibuffer.get_contents()
-        self._minibuffer.clear_contents()
-        self._minibuffer.set_special_prompt("")
-        callback = self._minibuffer_callback
-        kwargs = self._minibuffer_kwargs
-        self._minibuffer_callback = None
-        self._minibuffer_kwargs = {}
-        self.cancel_minibuffer()
-        return callback(s, **kwargs)
+    def process_minibuffer_input(self, c):
+        if self._current_buffer == self._minibuffer:
+            if c in [CR, LF]:
+                s = self._minibuffer.get_contents().strip()
+                if s:
+                    self._minibuffer.clear_contents()
+                    self._minibuffer.set_special_prompt("")
+                    callback = self._minibuffer_callback
+                    kwargs = self._minibuffer_kwargs
+                    self._minibuffer_callback = None
+                    self._minibuffer_kwargs = {}
+                    self.cancel_minibuffer()
+                    callback(s, **kwargs)
+                # end if
+                return Character_Handled
+                
+            elif self._minibuffer_input_fn:
+                return self._minibuffer_input_fn(c)
+            # end if
+        # end if
+        return not Character_Handled
         
     def _yes_no_handler(self, answer):
         if answer.lower() in ["yes", "y"]:
@@ -931,6 +1107,14 @@ class EmacsEditor(object):
         else:
             #== Reassert the existing prompt, callback, and arg
             self.minibuffer_yes_no(self._yes_no_prompt, self._yes_no_callback, *self._yes_no_args)
+        
+    def autocomplete(self, prefix, choices):
+        candidates = sorted([ choice for choice in choices if choice.startswith(prefix) ], key=len)
+        if candidates:
+            clist = map(lambda s: s.pop(), filter(lambda s: len(s) == 1, [ set([ item[i] for item in candidates ]) for i in range(len(candidates[0])) ]))
+            return "".join(clist)[len(prefix):]
+        else:
+            return ""
         
     def open_selection_buffer(self, name, title, selection_list, entry_list, selection_callback):
         for buffer in self._buffers:
@@ -995,10 +1179,10 @@ class EmacsEditor(object):
         _clear_screen(self.tty)
         
     def visit_file_command(self):
-        self.minibuffer_command("Visit file", self._load_file_into_buffer, create_new=True)
+        self.minibuffer_command("Visit file", self._load_file_into_buffer, create_new=True, special_input_fn=self._find_file_input)
         
     def find_file_command(self):
-        self.minibuffer_command("Find file", self._load_file_into_buffer)
+        self.minibuffer_command("Find file", self._load_file_into_buffer, special_input_fn=self._find_file_input)
         
     def _load_file_into_buffer(self, filename, create_new=False):
         file_path = parm()
@@ -1040,6 +1224,18 @@ class EmacsEditor(object):
         # end if
         
         self._current_buffer.restore_cursor()
+    
+    def _find_file_input(self, c):
+        if c == '?' and self._current_buffer.get_contents().strip() == "":
+            self._minibuffer.set_special_prompt("")
+            self.cancel_minibuffer()
+            self.open_dired_buffer(get_wdir_())
+            return Character_Handled
+        elif c == TAB and self._current_buffer.get_contents().strip() != "":
+            # auto-complete buffer name
+            return Character_Handled
+        else:
+            return not Character_Handled
     
     def open_dired_buffer(self, dir_name):
         EXCLUDED_EXTENSIONS = (".pyc", ".pyo")
@@ -1160,7 +1356,7 @@ class EmacsEditor(object):
         self.minibuffer_command("Write file", self._save_file_as)
     
     def swap_buffer_command(self):
-        self.minibuffer_command("Swap to buffer", self._swap_to_buffer)
+        self.minibuffer_command("Swap to buffer", self._swap_to_buffer, special_input_fn=self._swap_buffer_input)
         
     def select_buffer_command(self):
         buffer_list = []
@@ -1206,6 +1402,20 @@ class EmacsEditor(object):
         # end for
         
         self._current_buffer.restore_cursor()
+    
+    def _swap_buffer_input(self, c):
+        if c == '?' and self._current_buffer.get_contents().strip() == "":
+            self._minibuffer.set_special_prompt("")
+            self.select_buffer_command()
+            return Character_Handled
+        elif c == TAB and self._current_buffer.get_contents().strip() != "":
+            # auto-complete buffer name
+            choices = [ buffer.name() for buffer in self._buffers if not buffer.is_select() ]
+            added_chars = self.autocomplete(self._current_buffer.get_contents(), choices)
+            self._current_buffer.insert_textblock(added_chars)
+            return Character_Handled
+        else:
+            return not Character_Handled
     
     def redraw_command(self):
         self.redraw()
