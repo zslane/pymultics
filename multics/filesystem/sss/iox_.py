@@ -35,11 +35,11 @@ class iox_(Subroutine):
             process = get_calling_process_()
         self.supervisor.check_conditions(tty_channel, process)
         
-        if not self._buffer:
-            input_data = self.hardware.io.get_input(tty_channel) or ""
-            self._buffer = filter(lambda c: c not in ioxctl.filter_chars, list(input_data)) or [""]
+        input_data = self.hardware.io.get_input(tty_channel) or ""
+        self._buffer += filter(lambda c: c not in ioxctl.filter_chars, list(input_data))
+        safe_buffer = self._buffer or [""]
         
-        c = self._buffer.pop(0)
+        c = safe_buffer.pop(0)
         if c and ioxctl.echo_input_sw:
             if c == BS:
                 if ioxbuffer:
@@ -60,6 +60,12 @@ class iox_(Subroutine):
     def wait_get_char(self, tty_channel, ioxctl, buffer):
         buffer.val = ""
         while not buffer.val:
+            #== Always check for the tty disconnecting before fetching a byte.
+            if self.terminal_closed(tty_channel):
+                buffer.val = ""
+                return
+            # end if
+            
             buffer.val = self._fetchbyte(tty_channel, ioxctl)
         
     def peek_char(self, tty_channel, buffer):
@@ -107,6 +113,12 @@ class iox_(Subroutine):
     def wait_get_line(self, tty_channel, ioxctl, buffer):
         buf = ""
         while True:
+            #== Always check for the tty disconnecting before fetching a byte.
+            if self.terminal_closed(tty_channel):
+                buffer.val = ""
+                return
+            # end if
+            
             c = self._fetchbyte(tty_channel, ioxctl, buf)
             if c == CR or c == LF:
                 buffer.val = self.inline_edit_(buf)

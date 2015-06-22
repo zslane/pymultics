@@ -135,8 +135,8 @@ class BufferLine(object):
         if self._attrs:
             _write(self._tty_channel, ESC_CODES['normal_video'])
         
-    def write(self, starting_at=0, cursorx=0):
-        if starting_at == 0:
+    def write(self, starting_at=-1, cursorx=0):
+        if starting_at == -1:
             starting_at = self._buffer._lft_col
         # end if
         max_chars = NCHARS - cursorx

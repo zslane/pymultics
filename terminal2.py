@@ -291,6 +291,7 @@ class GlassTTY(QtGui.QWidget):
                 
                 self._incount += 1
                 if self._incount % self.NCHARS == 0:
+                    # self.update()
                     self.repaint()
                     
             # end if
@@ -303,7 +304,7 @@ class GlassTTY(QtGui.QWidget):
             # end if
         # end for
         
-        self.update()
+        # self.update()
         self.repaint()
         
     def delCharacters(self, nchars_to_delete):
@@ -316,7 +317,7 @@ class GlassTTY(QtGui.QWidget):
             self.raster_lines[self.cursory].clear(prevx, self.cursorx)
             self.cursorx = prevx
         # end if
-        self.update()
+        # self.update()
         self.repaint()
 
     def valid_row_coord(self, n):
@@ -682,8 +683,12 @@ class GlassTTY(QtGui.QWidget):
             if c == BEL:
                 self.ring_bell()
                 
-            # print "Send char: %r (%d)" % (c, ord(c))
-            self.sendCharacters(c)
+            #== Turn Alt+key into ESC+char
+            if event.modifiers() & QtCore.Qt.AltModifier:
+                self.sendCharacters(ESC + c)
+            else:
+                # print "Send char: %r (%d)" % (c, ord(c))
+                self.sendCharacters(c)
             
     def timerEvent(self, event):
         self.blink_state = not self.blink_state
@@ -723,23 +728,23 @@ class GlassTTY(QtGui.QWidget):
             c, attr = self.raster_lines[self.cursory][self.cursorx]
             if event.rect() == self.cursorRect() and drawit(attr):
                 char_under_cursor = ord(c) or ord(SP)
-                self._draw_glyph(painter, self.glyphs[attr & ~BLI][char_under_cursor], self.cursorx, self.cursory)
+                painter.drawImage(self.cursorRect().topLeft(), self.glyphs[attr & ~BLI][char_under_cursor])
                 
             #== If we aren't just repainting the cursor, then redraw all the characters on the screen
             else:
-                cellx = celly = 0
+                cell_rect = QtCore.QRect(self.MARGIN, self.MARGIN, self.font.cell_width, self.font.cell_height)
                 for line in self.raster_lines:
-                    cellx = 0
                     for c, attr in line:
                         if ord(c) and drawit(attr):
                             try:
-                                self._draw_glyph(painter, self.glyphs[attr & ~BLI][ord(c)], cellx, celly)
+                                painter.drawImage(cell_rect.topLeft(), self.glyphs[attr & ~BLI][ord(c)])
                             except:
                                 print "Bad character code for display:", repr(c), ord(c)
                             # end try
-                        cellx += 1
+                        # end if
+                        cell_rect.translate(self.font.cell_width, 0)
                     # end for
-                    celly += 1
+                    cell_rect.setLeft(self.MARGIN) ; cell_rect.translate(0, self.font.cell_height)
                 # end for
             # end if
             
@@ -761,18 +766,6 @@ class GlassTTY(QtGui.QWidget):
             painter.setOpacity(self.opacity) # <-- this is how phosphor brightness is implemented
             painter.drawImage(0, 0, canvas)
             painter.end()
-        
-    def _draw_glyph(self, painter, glyph, cellx, celly):
-        x = cellx * self.font.cell_width + self.MARGIN
-        y = celly * self.font.cell_height + self.MARGIN
-        
-        if isinstance(glyph, QtGui.QPixmap):
-            #== If the glyph is a pixmap, then just blit it to the canvas
-            painter.drawPixmap(x, y, glyph)
-            
-        elif isinstance(glyph, QtGui.QImage):
-            #== If the glyph is an image, then just blit it to the canvas
-            painter.drawImage(x, y, glyph)
         
     def ring_bell(self):
         QtGui.QApplication.beep()
