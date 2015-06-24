@@ -1194,16 +1194,16 @@ class TerminalWindow(QtGui.QMainWindow):
     def closeEvent(self, event):
         self.closed.emit()
         event.accept()
-        try:
-            self.io.ttyio._elapsed_times.sort()
-            self.io.ttyio._elapsed_times.pop(0)
-            self.io.ttyio._elapsed_times.pop()
-            print "Lowest input time:", min(self.io.ttyio._elapsed_times), "ms"
-            print "Highest input time:", max(self.io.ttyio._elapsed_times), "ms"
-            print "Average input time:", sum(self.io.ttyio._elapsed_times)/len(self.io.ttyio._elapsed_times), "ms"
-            self.plot_times()
-        except:
-            print "Not enough I/O events to generate a timing histogram."
+        # try:
+            # self.io.ttyio._elapsed_times.sort()
+            # self.io.ttyio._elapsed_times.pop(0)
+            # self.io.ttyio._elapsed_times.pop()
+            # print "Lowest input time:", min(self.io.ttyio._elapsed_times), "ms"
+            # print "Highest input time:", max(self.io.ttyio._elapsed_times), "ms"
+            # print "Average input time:", sum(self.io.ttyio._elapsed_times)/len(self.io.ttyio._elapsed_times), "ms"
+            # self.plot_times()
+        # except:
+            # print "Not enough I/O events to generate a timing histogram."
     
     def plot_times(self):
         times = self.io.ttyio._elapsed_times

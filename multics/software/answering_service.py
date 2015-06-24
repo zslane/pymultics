@@ -104,7 +104,7 @@ class AnsweringService(Subroutine):
                 # end if
                 
                 if not self.shutting_down:
-                    check_conditions_(ignore_break_signal=True)
+                    check_conditions_()
                 # end if
             
             # except DisconnectCondition:

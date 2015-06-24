@@ -288,12 +288,12 @@ class Supervisor(QtCore.QObject):
     
     #== CONDITION HANDLING ==#
     
-    def check_conditions(self, tty_channel, process, ignore_break_signals=False):
+    def check_conditions(self, tty_channel, process):
         if process:
             if self.__hardware.io.terminal_closed(tty_channel):
                 raise DisconnectCondition
             # end if
-            if not ignore_break_signals and self.__hardware.io.break_received(tty_channel):
+            if self.__hardware.io.break_received(tty_channel):
                 print "Break signal detected by " + process.objectName()
                 self.invoke_condition_handler(BreakCondition, process) ### ! EXPERIMENTAL ! ###
                 # raise BreakCondition

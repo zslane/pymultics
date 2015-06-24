@@ -71,7 +71,6 @@ def cc_test():
 def wait_get_char():
     tty_channel = get_calling_process_().tty()
     iox_control.echo_input_sw = False
-    iox_control.enable_signals_sw = True
     iox_control.filter_chars = []
     buffer = parm()
     call. iox_.wait_get_char (tty_channel, iox_control, buffer)

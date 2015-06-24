@@ -12,6 +12,5 @@ class iox_control_structure(PL1.Structure):
         PL1.Structure.__init__(self,
             version             = iox_control_version_1,
             echo_input_sw       = False,
-            enable_signals_sw   = False,
             filter_chars        = [],
         )

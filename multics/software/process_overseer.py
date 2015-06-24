@@ -148,6 +148,7 @@ class ProcessOverseer(object):
         print "Created", process
         
         if process_env.pit.process_type == pit_process_type_daemon:
+            GlobalEnvironment.supervisor.register_condition_handler(BreakCondition, process, self._ignore_break_condition)
             GlobalEnvironment.supervisor.add_daemon_process(process)
         elif process_env.pit.process_type == pit_process_type_interactive:
             GlobalEnvironment.supervisor.add_interactive_process(process)
@@ -174,6 +175,9 @@ class ProcessOverseer(object):
         elif process_type == pit_process_type_interactive:
             GlobalEnvironment.supervisor.remove_interactive_process(process)
     
+    def _ignore_break_condition(self):
+        pass
+        
     def _print_error_message(self, s, tty_channel):
         call.iox_.write(tty_channel, "\n%s\n" % (s))
         call.iox_.write(tty_channel, "Please contact System Administrator.\n")

@@ -61,20 +61,25 @@ class UserControl(object):
         return GlobalEnvironment.hardware
     
     def do_state(self):
-        if self._terminal_closed():
+        try:
+            if self._terminal_closed():
+                return self._set_state(self.DISCONNECTED)
+            elif self.__state == self.WAITING_FOR_LINEFEED:
+                return self._wait_for_linefeed()
+            elif self.__state == self.WAITING_FOR_LOGIN_COMMAND:
+                return self._wait_for_login_command()
+            elif self.__state == self.WAITING_FOR_PASSWORD:
+                return self._wait_for_password()
+            elif self.__state == self.WAITING_FOR_CHANGE_PASSWORD:
+                return self._wait_for_password_change()
+            elif self.__state == self.WAITING_FOR_CHANGE_PASSWORD_CONFIRM:
+                return self._wait_for_password_change_confirm()
+            else:
+                return self.__state
+                
+        except DisconnectCondition:
+            print "UserControl.do_state(): Terminal DISCONNECT detected."
             return self._set_state(self.DISCONNECTED)
-        elif self.__state == self.WAITING_FOR_LINEFEED:
-            return self._wait_for_linefeed()
-        elif self.__state == self.WAITING_FOR_LOGIN_COMMAND:
-            return self._wait_for_login_command()
-        elif self.__state == self.WAITING_FOR_PASSWORD:
-            return self._wait_for_password()
-        elif self.__state == self.WAITING_FOR_CHANGE_PASSWORD:
-            return self._wait_for_password_change()
-        elif self.__state == self.WAITING_FOR_CHANGE_PASSWORD_CONFIRM:
-            return self._wait_for_password_change_confirm()
-        else:
-            return self.__state
             
     def login_options(self):
         return self.__login_options or {}
@@ -112,7 +117,6 @@ class UserControl(object):
         return iox_.has_input(self.tty)
     def _get_input(self, echo=False):
         iox_control.echo_input_sw = echo
-        iox_control.enable_signals_sw = False
         iox_control.filter_chars = common_ctrl_chars
         buffer = parm()
         call.iox_.wait_get_line(self.tty, iox_control, buffer)

@@ -13,7 +13,6 @@ class command_query_(Subroutine):
     def _do_query(self, info_ptr, answer, caller, control_string="", *args, **kwargs):
         tty_channel = get_calling_process_().tty()
         iox_control.echo_input_sw = info_ptr.echo_answer_sw
-        iox_control.enable_signals_sw = True
         iox_control.filter_chars = common_ctrl_chars
         
         return_string = parm()

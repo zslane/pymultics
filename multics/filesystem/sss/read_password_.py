@@ -12,7 +12,6 @@ class read_password_(Subroutine):
     def procedure(self, prompt, password):
         tty_channel = get_calling_process_().tty()
         iox_control.echo_input_sw = False
-        iox_control.enable_signals_sw = True
         iox_control.filter_chars = common_ctrl_chars
         buffer = parm()
         try:

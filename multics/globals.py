@@ -302,10 +302,10 @@ def call_(entryname):
     else:
         raise SegmentFault(procedure_name)
 
-def check_conditions_(ignore_break_signal=False):
+def check_conditions_():
     process = get_calling_process_()
     tty_channel = process.tty()
-    GlobalEnvironment.supervisor.check_conditions(tty_channel, process, ignore_break_signal)
+    GlobalEnvironment.supervisor.check_conditions(tty_channel, process)
     
 @contextlib.contextmanager
 def do_loop(container, ignore_break_signal=False):
