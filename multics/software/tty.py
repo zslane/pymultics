@@ -21,7 +21,6 @@ class TTYChannel(QtCore.QObject):
         
         self.__input_buffer = []
         self.__break_signal = False
-        self.__closed_signal = False
         self.__origin_thread = QtCore.QThread.currentThread()
         self.__client_name = self.get_tty_name(socket)
         

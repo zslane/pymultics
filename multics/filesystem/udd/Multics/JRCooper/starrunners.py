@@ -5,8 +5,8 @@ from multics.globals import *
 include.pit
 include.query_info
 
-class goto_command_loop(NonLocalGoto): pass
-class goto_end_of_game(NonLocalGoto): pass
+class command_loop(NonLocalGoto): pass
+class end_of_game(NonLocalGoto): pass
 
 dcl (get_pdir_               = entry . returns (char(168)))
 dcl (clock_                  = entry . returns (fixed.bin(36)))
@@ -424,7 +424,7 @@ def starrunners():
                         check_monitor()
                         send_notifications()
                         
-                    except goto_end_of_game:
+                    except end_of_game:
                         return
                     # end try
                 # end with (on_seg_fault_error)
@@ -489,10 +489,10 @@ def starrunners():
                             psionics_check()
                             robot_functions()
                         
-                        except goto_command_loop: # goto command_loop
+                        except command_loop: # goto command_loop
                             continue
                             
-                        except goto_end_of_game: # goto end_of_game
+                        except end_of_game: # goto end_of_game
                             return
                             
                         # except DisconnectCondition: # on finish call universe_destroyed;
@@ -1611,7 +1611,7 @@ def starrunners():
             call.hcs_.delentry_seg(my.ship, code)
             call.ioa_("^/<<< YOU HAVE BEEN VAPORIZED >>>")
             call.ioa_("^/Thank you for playing STARRUNNERS.")
-            raise goto_end_of_game
+            go_to (end_of_game)
         #-- end def update_universe
 
         call.timer_manager_.reset_alarm_call(inform_routines)
@@ -1640,7 +1640,7 @@ def starrunners():
         call.hcs_.initiate(dname, xname, "", 0, 0, univptr, code)
         if code.val != 0 and univptr == null():
             call.ioa_("^/*** GALACTIC IMPLOSION IMMINENT ***^/Alas, the universe has been destroyed...")
-            raise goto_end_of_game
+            goto (end_of_game)
         # end if
         call.ioa_("^/*** SENSORS: Enemy ship is gone, sir")
         enemy = null()
@@ -2193,7 +2193,7 @@ def starrunners():
                     # end with
                     unlock(universe.lock)
                 except SegmentFault:
-                    raise goto_command_loop
+                    go_to (command_loop)
                 # end try
                 # on seg_fault_error call universe_destroyed;
                 update_condition()
@@ -2399,7 +2399,7 @@ def starrunners():
     
     def command_seq_terminator():
         call.ioa_("^/:: COMMAND SEQUENCE TERMINATED ::")
-        raise goto_command_loop
+        go_to (command_loop)
     #-- end def command_seq_terminator
      
     def send_notifications():

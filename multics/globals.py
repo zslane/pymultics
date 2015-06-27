@@ -165,10 +165,12 @@ class InvalidSegmentFault(MulticsCondition):
         super(InvalidSegmentFault, self).__init__("invalid segment %s" % (entry_point_name))
         self.segment_name = entry_point_name
 
+def go_to(target):
+    raise target
+    
 class NonLocalGoto(Exception):
-    def __init__(self, arg=""):
-        super(NonLocalGoto, self).__init__(arg)
-        
+    pass
+
 class System:
     
     INVALID_LOGIN = -1

@@ -41,7 +41,7 @@ class UserControl(object):
     
     TIMEOUT_PERIOD = 60 * 1 # 1 minute
     
-    def __init__(self, max_attempts, whotab, tty_channel):
+    def __init__(self, max_attempts, whotab, tty_channel, wait_for_linefeed=True):
         self.__whotab        = whotab
         self.__tty_channel   = tty_channel
         self.__start_time    = None
@@ -50,7 +50,10 @@ class UserControl(object):
         self.__login_options = {}
         self.__new_password  = ""
         
-        self._set_state(self.WAITING_FOR_LINEFEED)
+        if wait_for_linefeed:
+            self._set_state(self.WAITING_FOR_LINEFEED)
+        else:
+            self._go_to_login()
         
     @property
     def tty(self):

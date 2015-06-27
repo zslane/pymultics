@@ -167,6 +167,9 @@ class Buffer(object):
         self._select_callback = None
         self._select_cancel_to_buffer = None
         
+    def __len__(self):
+        return sum(map(len, self._lines))
+        
     def filepath(self):    return self._filepath
     def name(self):        return self._name
     def window(self):      return self._window
@@ -175,6 +178,18 @@ class Buffer(object):
     def is_select(self):   return self._selectonly
     def is_modified(self): return self._dirty
     def is_visible(self):  return self._window and self._window.visible
+    def num_lines(self):   return len(self._lines)
+    
+    @property
+    def _visible_chars_slice(self):
+        max_visible_chars = NCHARS - self._marginx
+        return slice(self._lft_col, self._lft_col + max_visible_chars)
+    
+    def num_chars(self, row, starting_at_col=0):
+        return len(self._lines[row][starting_at_col:])
+        
+    def num_visible_chars(self, row):
+        return len(self._lines[row][self._visible_chars_slice])
     
     def set_window(self, window):
         self._window = window
@@ -246,6 +261,13 @@ class Buffer(object):
         self.clear_contents()
         self.draw_lines()
         self.restore_cursor()
+    
+    def set_special_prompt(self, prompt):
+        _move_cursor_to(self._tty_channel, self._window.screeny + self._cursory, 0)
+        _erase_end_of_line(self._tty_channel)
+        _write(self._tty_channel, prompt)
+        self._marginx = len(prompt)
+        self._cursorx = self._marginx
         
     def set_selections(self, title, lines, selections, callback):
         self._selections = dict(enumerate(selections))
@@ -274,23 +296,57 @@ class Buffer(object):
         self._select_cancel_to_buffer = buffer
     
     def do_select(self):
-        index, selection = self.get_selection()
+        index, selected_item = self.get_selected_item()
         if index != -1:
-            self._select_callback(selection)
+            self._select_callback(selected_item)
             return True
         else:
             return False
             
-    def get_selection(self):
+    def get_selected_item(self):
         row = -1
         if self.is_select():
             row, _ = self._get_pos()
             row -= 1
         # end if
         return row, self._selections.get(row)
-        
+    
+    def _get_row(self):
+        return self._top_row + self._cursory
+    def _get_col(self):
+        return self._lft_col + self._cursorx - self._marginx
     def _get_pos(self):
-        return self._top_row + self._cursory, self._lft_col + self._cursorx - self._marginx
+        return self._get_row(), self._get_col()
+    
+    def cursor_is_at_top_of_buffer(self):
+        row = self._get_row()
+        return row == self._marginy
+        
+    def cursor_is_at_bottom_of_buffer(self):
+        row = self._get_row()
+        return row == self.num_lines() - 1
+    
+    def cursor_is_at_end_of_current_line(self):
+        row, col = self._get_pos()
+        return col == self.num_chars(row)
+    
+    def cursor_is_at_top_edge(self):
+        return self._cursory == 0
+        
+    def cursor_is_at_bottom_edge(self):
+        return self._cursory == self._window.bottomy
+        
+    def cursor_is_at_left_edge(self):
+        return self._cursorx == self._marginx
+        
+    def cursor_is_at_right_edge(self):
+        return self._cursorx == NCHARS - 1
+        
+    def clamp_cursor(self):
+        row = self._get_row()
+        min_x = self._marginx
+        max_x = self._marginx + self.num_visible_chars(row)
+        self._cursorx = max(min_x, min(max_x, self._cursorx))
     
     def _get_buffer_pos(self, cx=None, cy=None):
         row = self._top_row + (self._cursory if cy is None else cy)
@@ -396,23 +452,40 @@ class Buffer(object):
                     pass
             
             self._window.draw_status_bar(self)
-    
-    def set_special_prompt(self, prompt):
-        _move_cursor_to(self._tty_channel, self._window.screeny + self._cursory, 0)
-        _erase_end_of_line(self._tty_channel)
-        _write(self._tty_channel, prompt)
-        self._marginx = len(prompt)
-        self._cursorx = self._marginx
+        
+    def buffer_can_scroll_up(self):
+        n_lines_below_top = self.num_lines() - self._top_row + 1
+        return n_lines_below_top - self._window.vsize + 1
+        
+    def buffer_can_scroll_down(self):
+        return self._top_row
+        
+    def scroll_up(self, dy):
+        for i in range(dy):
+            self._top_row += 1
+            self._window.scroll_up()
+        
+    def scroll_down(self, dy):
+        for i in range(dy):
+            self._top_row -= 1
+            self._window.scroll_down()
+        
+    def scroll_left(self, dx):
+        self._lft_col += dx
+        self.draw_lines()
+        self.restore_cursor()
+        
+    def scroll_right(self, dx):
+        if self._lft_col > 0:
+            self._lft_col = max(0, self._lft_col - dx)
+            self.draw_lines()
+            self.restore_cursor()
         
     def prev_char_command(self):
-        row, _ = self._get_pos()
-        if self._cursorx == self._marginx:
+        if self.cursor_is_at_left_edge():
             if self._lft_col > 0:
-                # scroll window right
-                self._lft_col -= 1
-                self.draw_lines()
-                self.restore_cursor()
-            elif row > self._marginy:
+                self.scroll_right(1)
+            elif not self.cursor_is_at_top_of_buffer():
                 self.prev_line_command()
                 self.end_line_command()
         else:
@@ -420,85 +493,74 @@ class Buffer(object):
             self.restore_cursor()
         
     def next_char_command(self):
-        row, _ = self._get_pos()
-        if self._lft_col + self._cursorx == len(self._lines[row]):
-            if row < len(self._lines) - 1:
+        if self.cursor_is_at_end_of_current_line():
+            if not self.cursor_is_at_bottom_of_buffer():
                 self.begin_line_command()
                 self.next_line_command()
             # end if
         elif self._cursorx == NCHARS - 1:
-            # scroll window left
-            self._lft_col += 1
-            self.draw_lines()
-            self.restore_cursor()
+            self.scroll_left(1)
         else:
             self._cursorx += 1
             self.restore_cursor()
         
     def prev_line_command(self):
-        row, _ = self._get_pos()
-        if row > self._marginy:
+        if not self.cursor_is_at_top_of_buffer():
+            if self.cursor_is_at_top_edge():
+                for i in range(min(self.buffer_can_scroll_down(), self._window.vsize // 2 - 1)):
+                    self.scroll_down(1)
+                    _move_cursor_to(self._tty_channel, self._window.screeny, 0)
+                    self._lines[self._top_row].write()
+                    self._cursory += 1 # cursor tracks scrolling, therefore row doesn't change
+            # end if
             self._cursory -= 1
-            if self._cursory < 0:
-                for i in range(self._window.vsize // 2 - 1):
-                    if self._top_row > 0:
-                        self._top_row -= 1
-                        self._window.scroll_down()
-                        _move_cursor_to(self._tty_channel, self._window.screeny, 0)
-                        # _write(self._tty_channel, self._lines[self._top_row][:NCHARS])
-                        self._lines[self._top_row].write()
-                        self._cursory += 1
-                
-            row, _ = self._get_pos()
-            self._cursorx = min(self._cursorx, len(self._lines[row]))
-        # end if
-        self.restore_cursor()
-        
-    def next_line_command(self):
-        row, _ = self._get_pos()
-        if row < len(self._lines) - 1:
-            #== Move to next line...
-            n_visible_chars = len(self._lines[row + 1][self._lft_col:self._lft_col + NCHARS])
-            self._cursorx = min(self._cursorx, n_visible_chars)
-            if self._lft_col > 0 and n_visible_chars == 0:
-                self._lft_col = min(0, self._lft_col - NCHARS // 2)
+            row = self._get_row()
+            if self._lft_col > 0 and self.num_visible_chars(row) == 0:
+                self._lft_col = max(0, self._lft_col - NCHARS // 2)
                 self.draw_lines()
-                self._cursorx = min(self._cursorx, len(self._lines[row + 1][self._lft_col:self._lft_col + NCHARS]))
+            self.clamp_cursor()
+            self.restore_cursor()
+        # end if
+    
+    def next_line_command(self):
+        if not self.cursor_is_at_bottom_of_buffer():
+            if self.cursor_is_at_bottom_edge():
+                for i in range(min(self.buffer_can_scroll_up(), self._window.vsize // 2 - 1)):
+                    self.scroll_up(1)
+                    _move_cursor_to(self._tty_channel, self._window.screeny + self._window.bottomy, 0)
+                    self._lines[self._top_row + self._window.bottomy].write()
+                    self._cursory -= 1 # cursor tracks scrolling, therefore row doesn't change
+                # end for
+            # end if
             self._cursory += 1
-            if self._cursory == self._window.vsize - 1:
-                for i in range(self._window.vsize // 2 - 1):
-                    if row + i + 1 < len(self._lines):
-                        self._top_row += 1
-                        self._window.scroll_up()
-                        _move_cursor_to(self._tty_channel, self._window.screeny + self._window.vsize - 2, 0)
-                        # _write(self._tty_channel, self._lines[row + i + 1][:NCHARS])
-                        self._lines[row + i + 1].write()
-                        self._cursory -= 1
-                
-        self.restore_cursor()
+            row = self._get_row()
+            if self._lft_col > 0 and self.num_visible_chars(row) == 0:
+                self._lft_col = max(0, self.num_chars(row) - NCHARS + 1)
+                self.draw_lines()
+            self.clamp_cursor()
+            self.restore_cursor()
+        # end if
     
     def prev_page_command(self):
-        new_top_row = max(self._top_row - self._window.vsize + 2, 0)
+        new_top_row = max(0, self._top_row - self._window.vsizeb - 1) # the - 1 keeps the previous top row visible at the bottom of the window
         if new_top_row != self._top_row:
             self._top_row = new_top_row
-            row, _ = self._get_pos()
-            n_visible_chars = len(self._lines[row][self._lft_col:self._lft_col + NCHARS])
-            self._cursorx = min(self._cursorx, n_visible_chars)
-            if self._lft_col > 0 and n_visible_chars == 0:
-                self._lft_col = min(0, self._lft_col - NCHARS // 2)
+            row = self._get_row()
+            if self._lft_col > 0 and self.num_visible_chars(row) == 0:
+                self._lft_col = max(0, self._lft_col - NCHARS // 2)
             self.draw_lines()
+            self.clamp_cursor()
             self.restore_cursor()
     
     def next_page_command(self):
-        new_top_row = min(self._top_row + self._window.vsize - 2, len(self._lines) - self._window.vsize + 1)
+        new_top_row = min(self.num_lines() - self._window.vsizeb, self._top_row + self._window.vsizeb - 1) # the - 1 keeps the previous bottom row visible at the top of the window
         if new_top_row != self._top_row:
             self._top_row = new_top_row
-            row, _ = self._get_pos()
-            n_visible_chars = len(self._lines[row][self._lft_col:self._lft_col + NCHARS])
-            self._cursorx = min(self._cursorx, n_visible_chars)
-            if self._lft_col > 0 and n_visible_chars == 0:
-                self._lft_col = min(0, self._lft_col - NCHARS // 2)
+            row = self._get_row()
+            if self._lft_col > 0 and self.num_visible_chars(row) == 0:
+                self._lft_col = max(0, self._lft_col - NCHARS // 2)
             self.draw_lines()
+            self.clamp_cursor()
             self.restore_cursor()
     
     def begin_line_command(self):
@@ -509,14 +571,15 @@ class Buffer(object):
         self.restore_cursor()
         
     def end_line_command(self):
-        row, _ = self._get_pos()
-        n_visible_chars = len(self._lines[row][self._lft_col:self._lft_col + NCHARS])
-        if n_visible_chars >= NCHARS:
-            self._lft_col = len(self._lines[row]) - NCHARS + 1
+        row = self._get_row()
+        max_visible_chars = NCHARS - self._marginx - 1
+        n_chars_avail = self.num_chars(row, starting_at_col=self._lft_col)
+        if n_chars_avail > max_visible_chars:
+            self._lft_col = self.num_chars(row) - max_visible_chars
             self.draw_lines()
-            self._cursorx = NCHARS - 1
-        else:
-            self._cursorx = self._marginx + n_visible_chars
+        # end if
+        self._cursorx = NCHARS
+        self.clamp_cursor()
         self.restore_cursor()
         
     def buffer_home_command(self):
@@ -530,15 +593,15 @@ class Buffer(object):
         self.restore_cursor()
         
     def buffer_end_command(self):
-        self._cursory = min(len(self._lines) - 1, self._window.vsize - 2)
-        row, _ = self._get_pos()
-        new_top_row = max(0, len(self._lines) - self._window.vsize + 1)
-        new_lft_col = max(0, len(self._lines[row]) - NCHARS + 1)
+        self._cursory = min(self.num_lines() - 1, self._window.bottomy)
+        row = self._get_row()
+        new_top_row = max(0, self.num_lines() - self._window.vsizeb)
+        new_lft_col = max(0, self.num_chars(row) - NCHARS + 1)
         
         if new_top_row != self._top_row:
             self._top_row = new_top_row
-            row, _ = self._get_pos()
-            self._lft_col = max(0, len(self._lines[row]) - NCHARS + 1)
+            row = self._get_row()
+            self._lft_col = max(0, self.num_chars(row) - NCHARS + 1)
             self.draw_lines()
             
         elif new_lft_col != self._lft_col:
@@ -546,19 +609,18 @@ class Buffer(object):
             self.draw_lines()
         # end if
         
-        n_visible_chars = len(self._lines[row][self._lft_col:self._lft_col + NCHARS])
-        self._cursorx = n_visible_chars + self._marginx
-        
+        self._cursorx = NCHARS
+        self.clamp_cursor()
         self.restore_cursor()
         
     def scroll_up_command(self):
-        if self._top_row != len(self._lines) - self._window.vsize + 1:
+        if self._top_row != self.num_lines() - self._window.vsizeb:
             self._top_row += 1
             self._window.scroll_up()
-            _move_cursor_to(self._tty_channel, self._window.screeny + self._window.vsize - 2, 0)
-            # _write(self._tty_channel, self._lines[self._top_row + self._window.vsize - 2][:NCHARS])
-            self._lines[self._top_row + self._window.vsize - 2].write()
+            _move_cursor_to(self._tty_channel, self._window.screeny + self._window.bottomy, 0)
+            self._lines[self._top_row + self._window.bottomy].write()
             self._cursory = max(self._marginy, self._cursory - 1)
+            self.clamp_cursor()
             self.restore_cursor()
     
     def scroll_down_command(self):
@@ -566,9 +628,9 @@ class Buffer(object):
             self._top_row -= 1
             self._window.scroll_down()
             _move_cursor_to(self._tty_channel, self._window.screeny, 0)
-            # _write(self._tty_channel, self._lines[self._top_row][:NCHARS])
             self._lines[self._top_row].write()
-            self._cursory = min(self._window.vsize - 2, self._cursory + 1)
+            self._cursory = min(self._window.bottomy, self._cursory + 1)
+            self.clamp_cursor()
             self.restore_cursor()
     
     def insert_character(self, c):
@@ -694,7 +756,7 @@ class Buffer(object):
             return
             
         row, col = self._get_pos()
-        if col == len(self._lines[row]):
+        if col == self.num_lines():
             # delete CR
             return self.delete_current_character()
         else:
@@ -1441,7 +1503,7 @@ class EmacsEditor(object):
     def add_to_yank_buffer(self, c):
         if not self._killing:
             self.clear_yank_buffer()
-        self._yank_buffer.extend(list(c))
+        self._yank_buffer.extend(list(str(c)))
         self._killing = True
         
     def yank_buffer(self):

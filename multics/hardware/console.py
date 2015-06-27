@@ -30,7 +30,7 @@ class KeyboardIO(QtGui.QLineEdit):
         if event.key() == QtCore.Qt.Key_Pause:
             self.breakSignal.emit()
             event.accept()
-        elif event.key() == QtCore.Qt.Key_Down:
+        elif event.key() == QtCore.Qt.Key_Enter:
             self.lineFeed.emit()
             event.accept()
         else:

@@ -1,5 +1,6 @@
 import shutil
 import datetime
+from collections import defaultdict
 from pprint import pprint
 
 from ..globals import *
@@ -27,6 +28,7 @@ class AnsweringService(Subroutine):
         self.__whotab             = None
         self.__pending_login_ttys = []
         self.__logins_in_progress = []
+        self.__login_count        = defaultdict(int)
         
         self.exit_code            = 0
         self.shutting_down        = False
@@ -91,7 +93,8 @@ class AnsweringService(Subroutine):
                 #== Add the next pending login tty to the list of logins 'in progress'
                 if self.__pending_login_ttys:
                     tty_channel = self.__pending_login_ttys.pop(0)
-                    login = UserControl(MAX_ATTEMPTS, self.__whotab, tty_channel)
+                    first_login = (self.__login_count[tty_channel] == 0)
+                    login = UserControl(MAX_ATTEMPTS, self.__whotab, tty_channel, wait_for_linefeed=first_login)
                     self.__logins_in_progress.append(login)
                 # end if
                     
@@ -99,7 +102,8 @@ class AnsweringService(Subroutine):
                 #== already attached to a process and not already in the list
                 if (not GlobalEnvironment.hardware.io.attached_console_process() and
                     not any([ login.tty == SYSTEM_CONSOLE for login in self.__logins_in_progress ])):
-                    login = UserControl(-1, self.__whotab, SYSTEM_CONSOLE)
+                    first_login = (self.__login_count[SYSTEM_CONSOLE] == 0)
+                    login = UserControl(-1, self.__whotab, SYSTEM_CONSOLE, wait_for_linefeed=first_login)
                     self.__logins_in_progress.append(login)
                 # end if
                 
@@ -153,6 +157,7 @@ class AnsweringService(Subroutine):
         login_info.time_login = datetime.datetime.now()
         person_id = login_options['person_id']
         tty_name = (tty_channel and tty_channel.name) or "console"
+        self.__login_count[tty_channel] += 1
         
         process = self._new_process(person_id, login_options['pdt'], login_options, tty_channel)
         if process:
@@ -208,11 +213,13 @@ class AnsweringService(Subroutine):
         pprint(self.__whotab)
         
         if tty_channel == SYSTEM_CONSOLE:
+            call.iox_.write(tty_channel, "\n")
             GlobalEnvironment.supervisor.hardware.io.detach_console_process(process.id())
         elif not logout_options.get('hold'):
             call.iox_.write(tty_channel, "Disconnect\n")
             GlobalEnvironment.supervisor.hardware.io.disconnect_tty(tty_channel)
         else:
+            call.iox_.write(tty_channel, "\n")
             self.__pending_login_ttys.append(tty_channel)
         # end if
         
