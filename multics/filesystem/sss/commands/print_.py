@@ -23,13 +23,13 @@ def print_(*func_args):
     # end if
     
     filename = arg_list.args.pop(0)
-    begin = 0
+    begin = 1
     end = -1
     print_header = True
     page_size = 20
     
     if arg_list.args:
-        begin = int(arg_list.args.pop(0)) - 1
+        begin = int(arg_list.args.pop(0))
         print_header = False
     if arg_list.args:
         end = int(arg_list.args.pop(0)) + 1
@@ -37,8 +37,6 @@ def print_(*func_args):
         call.ioa_("Usage: print [file] {{begin}} {{end}}")
         return
     # end if
-    
-    # call.ioa_("clock_ = ^d", clock_())
     
     call.sys_.get_abs_path(filename, full)
     call.sys_.split_path_(full.path, directory, segment)
@@ -80,10 +78,14 @@ def print_(*func_args):
         query_info.yes_or_no_sw = True
         
         count = 0
-        for i in range(begin, end):
-            call.iox_.write(tty_channel, lines[i] + "\n")
+        output_count = 0
+        for i in range(begin - 1, end):
+            line = _add_continuation(lines[i])
+            call.iox_.write(tty_channel, line + "\n")
             count += 1
-            if (count != nlines) and (count % page_size == 0):
+            output_count += 1 + ((len(lines[i]) - 1) // 80)
+            if (count != nlines) and (output_count >= page_size):
+                output_count = 0
                 call.command_query_(query_info, answer, "print", "Continue ({0} lines)?", nlines - count)
                 if answer.val.lower() in ["no", "n"]:
                     break
@@ -103,5 +105,14 @@ def _isprintable(s):
         return False
     # end if
 #-- end def _isprintable
+
+def _add_continuation(s):
+    out = []
+    while s:
+        out.append(s[:80])
+        s = s[80:]
+    # end while
+    return r"\c".join(out)
+#-- end def _add_continuation
 
 pr = print_

@@ -1,0 +1,8 @@
+<RCC>
+    <qresource>
+        <file>terminal.png</file>
+        <file>UiCrt2_StdCharset_Rom.png</file>
+        <file>UiCrt2_AltCharset_Rom.png</file>
+        <file>terminal_enclosure.png</file>
+    </qresource>
+</RCC>

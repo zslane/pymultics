@@ -1,0 +1,10 @@
+#!/usr/bin/env python
+
+from PySide.QtGui import QApplication
+app = QApplication([])
+
+from terminal.old import terminal2
+term = terminal2.TerminalWindow()
+term.show()
+
+app.exec_()

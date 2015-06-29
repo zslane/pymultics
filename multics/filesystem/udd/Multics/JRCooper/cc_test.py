@@ -12,13 +12,20 @@ def cc_test():
     ESC_prefix = False
     CTRLX_prefix = False
     
-    send_control_code("[c") # Query Device Code
+    send_esc_code("[c") # Query Device Code
     call. ioa_ (get_response('c').replace(ESC, "<ESC>"))
-    send_control_code("[5n") # Query Device Status
+    send_esc_code("[5n") # Query Device Status
     call. ioa_ (get_response('n').replace(ESC, "<ESC>"))
-    send_control_code("[6n") # Query Cursor Position
+    send_esc_code("[6n") # Query Cursor Position
     call. ioa_ (get_response('R').replace(ESC, "<ESC>"))
-    send_control_code("[3;5r")
+    
+    s = "".join(map(chr, range(33, 112)))
+    for code in [0, 1, 2, 4, 5, 7]:
+        send_esc_code("[0;%dm" % (code))
+        call. ioa_ (s)
+    send_esc_code("[0m")
+    
+    send_esc_code("[3;5r")
 
     call. ioa_ ("Entering single character input mode (use ^C to exit).")
     while True:
@@ -27,20 +34,20 @@ def cc_test():
         if ESC_prefix:
             ESC_prefix = False
             if c == 'k':
-                send_control_code("[1K") # Erase (to) Start of Line
+                send_esc_code("[1K") # Erase (to) Start of Line
             elif c == 'u':
-                send_control_code("[1J") # Erase Up
+                send_esc_code("[1J") # Erase Up
             elif c == 'z':
-                send_control_code("D") # Scroll Down
+                send_esc_code("D") # Scroll Down
             else:
                 call. ioa_.nnl ("<ESC> " + c)
                 
         elif CTRLX_prefix:
             CTRLX_prefix = False
             if c == 'k':
-                send_control_code("[2K") # Erase Line
+                send_esc_code("[2K") # Erase Line
             elif c == 'u':
-                send_control_code("[2J") # Erase Screen
+                send_esc_code("[2J") # Erase Screen
             else:
                 call. ioa_.nnl ("^X-" + c)
             
@@ -48,19 +55,19 @@ def cc_test():
             break
             
         elif c == CTRL('B'):
-            send_control_code("[D") # Cursor Backward
+            send_esc_code("[D") # Cursor Backward
         elif c == CTRL('F'):
-            send_control_code("[C") # Cursor Forward
+            send_esc_code("[C") # Cursor Forward
         elif c == CTRL('K'):
-            send_control_code("[K") # Erase (to) End of Line
+            send_esc_code("[K") # Erase (to) End of Line
         elif c == CTRL('N'):
-            send_control_code("[B") # Cursor Down
+            send_esc_code("[B") # Cursor Down
         elif c == CTRL('P'):
-            send_control_code("[A") # Cursor Up
+            send_esc_code("[A") # Cursor Up
         elif c == CTRL('Z'):
-            send_control_code("M") # Scroll Up
+            send_esc_code("M") # Scroll Up
         elif c == CTRL('U'):
-            send_control_code("[J") # Erase Down
+            send_esc_code("[J") # Erase Down
         elif c == CTRL('X'):
             CTRLX_prefix = True
         elif c == ESC:
@@ -76,7 +83,7 @@ def wait_get_char():
     call. iox_.wait_get_char (tty_channel, iox_control, buffer)
     return buffer.val
 
-def send_control_code(s):
+def send_esc_code(s):
     call. ioa_.nnl (ESC+s)
     
 def get_response(response_terminator):
