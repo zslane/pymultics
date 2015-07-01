@@ -6,6 +6,7 @@ import time
 from PySide import QtCore, QtGui, QtNetwork
 
 import vt100_rc
+import QTelnetSocket
 
 N_HORZ_CHARS = 80
 N_VERT_LINES = 25
@@ -206,6 +207,7 @@ class GlassTTY(QtGui.QWidget):
         
         self.autoLF = True
         self.autoCR = True
+        self.localecho = False
         self.esc_code_state = 0
         
         self.setPhosphorColor(phosphor_color)
@@ -695,6 +697,8 @@ class GlassTTY(QtGui.QWidget):
             if event.modifiers() & QtCore.Qt.AltModifier:
                 self.sendCharacters(ESC + c)
             else:
+                if self.localecho:
+                    self.addCharacters(c)
                 # print "Send char: %r (%d)" % (c, ord(c))
                 self.sendCharacters(c)
             
@@ -926,6 +930,8 @@ class TerminalIO(QtGui.QWidget):
         self.port = DEFAULT_SERVER_PORT
         
         self.socket = QtNetwork.QTcpSocket(self)
+        # self.socket = QTelnetSocket.QTelnetSocket(self)
+        # parent.closed.connect(self.socket._thread.stop)
         self.socket.error.connect(self.socket_error)
         self.socket.hostFound.connect(self.host_found)
         self.socket.connected.connect(self.connection_made)
@@ -955,9 +961,13 @@ class TerminalIO(QtGui.QWidget):
         self.setLayout(layout)
         
     def startup(self):
+        # self.host = "batmud.bat.org"
+        # self.port = 23
+        # self.host = "73.221.10.251"
+        # self.port = 6180
         self.socket.connectToHost(self.host, self.port)
         
-    @QtCore.Slot("QAbstractSocket.SocketError")
+    @QtCore.Slot(int)
     def socket_error(self, error):
         if error == QtNetwork.QAbstractSocket.SocketError.ConnectionRefusedError:
             self.setErrorStatus.emit("Host Server %s not Active" % (self.host))
