@@ -175,8 +175,8 @@ class TerminalIO(QtGui.QWidget):
         self.setLayout(layout)
         
     def startup(self):
-        # self.host = "batmud.bat.org"
-        # self.port = 23
+        self.host = "batmud.bat.org"
+        self.port = 23
         # self.host = "73.221.10.251"
         # self.port = 6180
         self.socket.connectToHost(self.host, self.port)

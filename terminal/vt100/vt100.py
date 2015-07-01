@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import ast
 import time
 
 from PySide import QtCore, QtGui, QtNetwork
@@ -13,6 +14,10 @@ N_VERT_LINES = 25
 
 DEFAULT_SERVER_NAME    = "localhost"
 DEFAULT_SERVER_PORT    = 6800
+DEFAULT_PROTOCOL       = "pymultics"
+DEFAULT_CRECHO_MODE    = True
+DEFAULT_LFECHO_MODE    = True
+DEFAULT_LOCALECHO_MODE = False
 DEFAULT_PHOSPHOR_COLOR = "vintage"
 DEFAULT_CHARSET        = "std"
 DEFAULT_BRIGHTNESS     = 1.0
@@ -205,9 +210,9 @@ class GlassTTY(QtGui.QWidget):
         self.cursor_visible = True
         self.cursor_glyph = self.CURSOR_BLOCK
         
-        self.autoLF = True
-        self.autoCR = True
-        self.localecho = False
+        self.lfecho = DEFAULT_LFECHO_MODE
+        self.crecho = DEFAULT_CRECHO_MODE
+        self.localecho = DEFAULT_LOCALECHO_MODE
         self.esc_code_state = 0
         
         self.setPhosphorColor(phosphor_color)
@@ -240,8 +245,12 @@ class GlassTTY(QtGui.QWidget):
         self.cursor_visible = flag
         self.repaint_cursor()
         
-    def setEchoMode(self, mode):
-        self.echoMode = mode
+    def setEchoMode(self, *args):
+        try:
+            mode, flag = args
+            setattr(self, mode, flag)
+        except:
+            pass
         
     def setPhosphorColor(self, phosphor_color):
         self.phosphor_color = phosphor_color
@@ -286,11 +295,11 @@ class GlassTTY(QtGui.QWidget):
             #== CR/LF/backspace
             if c == CR:
                 self.cursorx = 0
-                if self.autoLF:
+                if self.lfecho:
                     self.cursory += 1
             elif c == LF:
                 self.cursory += 1
-                if self.autoCR:
+                if self.crecho:
                     self.cursorx = 0
             elif c == BS:
                 self.delCharacters(1)
@@ -921,6 +930,10 @@ class TerminalIO(QtGui.QWidget):
     setConnectStatus = QtCore.Signal(str)
     setErrorStatus = QtCore.Signal(str)
     
+    connected = QtCore.Signal()
+    disconnected = QtCore.Signal()
+    error = QtCore.Signal(int)
+    
     def __init__(self, phosphor_color, charset, parent=None):
         super(TerminalIO, self).__init__(parent)
         self.ME = self.__class__.__name__
@@ -928,16 +941,21 @@ class TerminalIO(QtGui.QWidget):
         self.name = QtNetwork.QHostInfo.localHostName()
         self.host = DEFAULT_SERVER_NAME
         self.port = DEFAULT_SERVER_PORT
+        self.protocol = DEFAULT_PROTOCOL
         
-        self.socket = QtNetwork.QTcpSocket(self)
-        # self.socket = QTelnetSocket.QTelnetSocket(self)
-        # parent.closed.connect(self.socket._thread.stop)
-        self.socket.error.connect(self.socket_error)
-        self.socket.hostFound.connect(self.host_found)
-        self.socket.connected.connect(self.connection_made)
-        self.socket.disconnected.connect(self.connection_lost)
-        self.socket.readyRead.connect(self.data_available)
-        self.com_port = 0
+        # if self.protocol == "pymultics":
+            # self.socket = QtNetwork.QTcpSocket(self)
+            
+        # elif self.protocol == "telnet":
+            # self.socket = QTelnetSocket.QTelnetSocket(self)
+            # self.parent().closed.connect(self.socket._thread.stop)
+            
+        # self.socket.error.connect(self.socket_error)
+        # self.socket.hostFound.connect(self.host_found)
+        # self.socket.connected.connect(self.connection_made)
+        # self.socket.disconnected.connect(self.connection_lost)
+        # self.socket.readyRead.connect(self.data_available)
+        # self.com_port = 0
         
         self.ttyio = GlassTTY(phosphor_color, charset)
         
@@ -961,11 +979,25 @@ class TerminalIO(QtGui.QWidget):
         self.setLayout(layout)
         
     def startup(self):
+        if self.protocol == "pymultics":
+            self.socket = QtNetwork.QTcpSocket(self)
+            
+        elif self.protocol == "telnet":
+            self.socket = QTelnetSocket.QTelnetSocket(self)
+            self.parent().closed.connect(self.socket._thread.stop)
+            
+        self.socket.error.connect(self.socket_error)
+        self.socket.hostFound.connect(self.host_found)
+        self.socket.connected.connect(self.connection_made)
+        self.socket.disconnected.connect(self.connection_lost)
+        self.socket.readyRead.connect(self.data_available)
+        self.com_port = 0
         # self.host = "batmud.bat.org"
         # self.port = 23
         # self.host = "73.221.10.251"
         # self.port = 6180
         self.socket.connectToHost(self.host, self.port)
+        # pass
         
     @QtCore.Slot(int)
     def socket_error(self, error):
@@ -974,6 +1006,7 @@ class TerminalIO(QtGui.QWidget):
         elif error != QtNetwork.QAbstractSocket.SocketError.RemoteHostClosedError:
             self.setErrorStatus.emit(self.socket.errorString())
             print self.ME, "socket_error:", error
+        self.error.emit(error)
         
     @QtCore.Slot()
     def host_found(self):
@@ -981,6 +1014,7 @@ class TerminalIO(QtGui.QWidget):
         
     @QtCore.Slot()
     def connection_made(self):
+        self.connected.emit()
         self.socket.setSocketOption(QtNetwork.QAbstractSocket.LowDelayOption, 1)
         connected_msg = "Connected to %s on port %d" % (self.socket.peerName(), self.socket.peerPort())
         if self.socket.peerPort() != self.port:
@@ -994,6 +1028,7 @@ class TerminalIO(QtGui.QWidget):
         
     @QtCore.Slot()
     def connection_lost(self):
+        self.disconnected.emit()
         self.input.setEnabled(False)
         self.output.setConnected(False)
         self.setNormalStatus.emit("Disconnected")
@@ -1059,7 +1094,8 @@ class TerminalIO(QtGui.QWidget):
         
     @QtCore.Slot()
     def reconnect(self):
-        self.socket.connectToHost(self.host, self.port)
+        # self.socket.connectToHost(self.host, self.port)
+        self.startup()
         
     @QtCore.Slot(str)
     def display(self, txt):
@@ -1081,6 +1117,12 @@ class TerminalIO(QtGui.QWidget):
         
     def set_server_port(self, port):
         self.port = port
+        
+    def set_protocol(self, protocol):
+        self.protocol = protocol
+        
+    def set_echo_mode(self, mode, flag):
+        self.ttyio.setEchoMode(mode, flag)
         
     def set_phosphor_color(self, phosphor_color):
         self.ttyio.setPhosphorColor(phosphor_color)
@@ -1121,14 +1163,15 @@ class TerminalWindow(QtGui.QMainWindow):
         super(TerminalWindow, self).__init__(parent)
         
         self.settings = QtCore.QSettings("pymultics", "Multics.Terminal")
+        self.recent_connections = ast.literal_eval(self.settings.value("recent_connections", "[]"))
         
         self.io = TerminalIO(DEFAULT_PHOSPHOR_COLOR, DEFAULT_CHARSET, self)
         self.io.setNormalStatus.connect(self.set_normal_status)
         self.io.setConnectStatus.connect(self.set_connect_status)
         self.io.setErrorStatus.connect(self.set_error_status)
-        self.io.socket.connected.connect(self.disable_reconnect)
-        self.io.socket.disconnected.connect(self.enable_reconnect)
-        self.io.socket.error.connect(self.enable_reconnect)
+        self.io.connected.connect(self.disable_reconnect)
+        self.io.disconnected.connect(self.enable_reconnect)
+        self.io.error.connect(self.enable_reconnect)
         self.transmitString.connect(self.io.display)
         self.shutdown.connect(self.io.shutdown)
         
@@ -1171,9 +1214,8 @@ class TerminalWindow(QtGui.QMainWindow):
         self.options_menu = self.menuBar().addMenu("Options")
         self.options_menu.setStyleSheet(MENU_STYLE_SHEET)
         
-        self.set_host_action = self.options_menu.addAction("Set Host...", self.set_host_dialog)
-        self.set_port_action = self.options_menu.addAction("Set Port...", self.set_port_dialog)
-        self.options_menu.addSeparator()
+        self.connect_action = self.menuBar().addAction("Connect", self.do_connect)
+        
         self.phosphor_color_menu = self.options_menu.addMenu("Phosphor Color")
         self.brightness_action = self.options_menu.addAction("Brightness...", self.set_brightness)
         self.options_menu.addSeparator()
@@ -1182,7 +1224,31 @@ class TerminalWindow(QtGui.QMainWindow):
         self.options_menu.addSeparator()
         self.charset_menu = self.options_menu.addMenu("Character Set")
         self.options_menu.addSeparator()
-        self.reconnect_action = self.options_menu.addAction("Reconnect", self.io.reconnect)
+        self.mode_options_menu = self.options_menu.addMenu("Modes")
+        self.options_menu.addSeparator()
+        self.set_host_action = self.options_menu.addAction("Set Host...", self.set_host_dialog)
+        self.set_port_action = self.options_menu.addAction("Set Port...", self.set_port_dialog)
+        self.set_protocol_menu = self.options_menu.addMenu("Protocol")
+        self.options_menu.addSeparator()
+        self.recent_connections_menu = self.options_menu.addMenu("Recent Connections")
+        
+        self.set_protocol_pymultics = self.set_protocol_menu.addAction("pymultics", lambda: self.set_protocol("pymultics"))
+        self.set_protocol_telnet = self.set_protocol_menu.addAction("telnet", lambda: self.set_protocol("telnet"))
+        
+        self.protocol_group = QtGui.QActionGroup(self)
+        self.protocol_group.addAction(self.set_protocol_pymultics)
+        self.protocol_group.addAction(self.set_protocol_telnet)
+        
+        self.set_protocol_pymultics.setCheckable(True)
+        self.set_protocol_telnet.setCheckable(True)
+        
+        self.set_crecho_action = self.mode_options_menu.addAction("Add CRs To Incoming LFs", self.set_crecho_mode)
+        self.set_lfecho_action = self.mode_options_menu.addAction("Add LFs To Incoming CRs", self.set_lfecho_mode)
+        self.set_localecho_action = self.mode_options_menu.addAction("Local Echo Typed Characters", self.set_localecho_mode)
+        
+        self.set_crecho_action.setCheckable(True)
+        self.set_lfecho_action.setCheckable(True)
+        self.set_localecho_action.setCheckable(True)
         
         self.set_phosphor_vintg = self.phosphor_color_menu.addAction("Vintage Green", lambda: self.set_phosphor_color("vintage"))
         self.set_phosphor_green = self.phosphor_color_menu.addAction("Green", lambda: self.set_phosphor_color("green"))
@@ -1222,6 +1288,15 @@ class TerminalWindow(QtGui.QMainWindow):
         self.set_std_charset.setCheckable(True)
         self.set_alt_charset.setCheckable(True)
         
+        self.build_recent_connections_menu()
+        
+        self.set_protocol_pymultics.setChecked(self.settings.value("protocol", DEFAULT_PROTOCOL) == "pymultics")
+        self.set_protocol_telnet.setChecked(self.settings.value("protocol", DEFAULT_PROTOCOL) == "telnet")
+        
+        self.set_crecho_action.setChecked(bool(self.settings.value("crecho_mode", DEFAULT_CRECHO_MODE)))
+        self.set_lfecho_action.setChecked(bool(self.settings.value("lfecho_mode", DEFAULT_LFECHO_MODE)))
+        self.set_localecho_action.setChecked(bool(self.settings.value("localecho_mode", DEFAULT_LOCALECHO_MODE)))
+        
         self.set_phosphor_vintg.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "vintage")
         self.set_phosphor_green.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "green")
         self.set_phosphor_amber.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "amber")
@@ -1235,18 +1310,53 @@ class TerminalWindow(QtGui.QMainWindow):
         self.set_std_charset.setChecked(self.settings.value("character_set", DEFAULT_CHARSET) == "std")
         self.set_alt_charset.setChecked(self.settings.value("character_set", DEFAULT_CHARSET) == "alt")
         
-        self.reconnect_action.setEnabled(False)
+        self.connect_action.setEnabled(True)
     
     def startup(self):
         self.setFixedSize(self.size())
         self.io.set_server_name(self.settings.value("host", DEFAULT_SERVER_NAME))
         self.io.set_server_port(self.settings.value("port", DEFAULT_SERVER_PORT))
+        self.io.set_protocol(self.settings.value("protocol", DEFAULT_PROTOCOL))
+        self.io.set_echo_mode("crecho", bool(self.settings.value("crecho_mode", DEFAULT_CRECHO_MODE)))
+        self.io.set_echo_mode("lfecho", bool(self.settings.value("lfecho_mode", DEFAULT_LFECHO_MODE)))
+        self.io.set_echo_mode("localecho", bool(self.settings.value("localecho_mode", DEFAULT_LOCALECHO_MODE)))
         self.io.set_phosphor_color(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR))
         self.io.set_brightness(float(self.settings.value("brightness", DEFAULT_BRIGHTNESS)))
         self.io.set_cursor_style(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK))
         self.io.set_cursor_blink(bool(self.settings.value("cursor_blink", DEFAULT_CURSOR_BLINK)))
         self.io.set_character_set(self.settings.value("character_set", DEFAULT_CHARSET))
-        self.io.startup()
+        # self.io.startup()
+        
+    def build_recent_connections_menu(self):
+        self.recent_connections_menu.clear()
+        for (host, port, protocol) in self.recent_connections:
+            self.recent_connections_menu.addAction("%s:%s %d" % (protocol, host, port), lambda host=host, port=port, protocol=protocol: self.connect_to_recent(host, port, protocol))
+    
+    def do_connect(self):
+        host, port, protocol = (self.settings.value("host"), self.settings.value("port"), self.settings.value("protocol"))
+        self.recent_connections.insert(0, (host, port, protocol))
+        self.settings.setValue("recent_connections", str(self.recent_connections))
+        
+        self.build_recent_connections_menu()
+        
+        self.io.reconnect()
+    
+    def connect_to_recent(self, host, port, protocol):
+        self.io.set_server_name(host)
+        self.io.set_server_port(port)
+        self.io.set_protocol(protocol)
+        
+        self.recent_connections.remove((host, port, protocol))
+        self.recent_connections.insert(0, (host, port, protocol))
+        self.settings.setValue("recent_connections", str(self.recent_connections))
+        
+        self.build_recent_connections_menu()
+            
+        self.io.reconnect()
+    
+    def set_protocol(self, protocol):
+        self.io.set_protocol(protocol)
+        self.settings.setValue("protocol", protocol)
         
     def set_phosphor_color(self, color):
         self.io.set_phosphor_color(color)
@@ -1267,11 +1377,11 @@ class TerminalWindow(QtGui.QMainWindow):
     
     @QtCore.Slot()
     def enable_reconnect(self):
-        self.reconnect_action.setEnabled(True)
+        self.connect_action.setEnabled(True)
         
     @QtCore.Slot()
     def disable_reconnect(self):
-        self.reconnect_action.setEnabled(False)
+        self.connect_action.setEnabled(False)
     
     @QtCore.Slot(str)
     def set_normal_status(self, txt):
@@ -1298,7 +1408,7 @@ class TerminalWindow(QtGui.QMainWindow):
         if ok:
             self.settings.setValue("host", host)
             self.io.set_server_name(host)
-            self.io.reset()
+            # self.io.reset()
         
     @QtCore.Slot()
     def set_port_dialog(self):
@@ -1306,7 +1416,25 @@ class TerminalWindow(QtGui.QMainWindow):
         if ok:
             self.settings.setValue("port", port)
             self.io.set_server_port(port)
-            self.io.reset()
+            # self.io.reset()
+    
+    @QtCore.Slot()
+    def set_crecho_mode(self):
+        flag = self.set_crecho_action.isChecked()
+        self.io.set_echo_mode("crecho", flag)
+        self.settings.setValue("crecho_mode", int(flag))
+    
+    @QtCore.Slot()
+    def set_lfecho_mode(self):
+        flag = self.set_lfecho_action.isChecked()
+        self.io.set_echo_mode("lfecho", flag)
+        self.settings.setValue("lfecho_mode", int(flag))
+    
+    @QtCore.Slot()
+    def set_localecho_mode(self):
+        flag = self.set_localecho_action.isChecked()
+        self.io.set_echo_mode("localecho", flag)
+        self.settings.setValue("localecho_mode", int(flag))
     
     @QtCore.Slot()
     def set_brightness(self):
