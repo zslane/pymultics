@@ -306,6 +306,10 @@ class GlassTTY(QtGui.QWidget):
                     self.cursorx = 0
             elif c == BS:
                 self.delCharacters(1)
+            elif c == TAB:
+                x = self.cursorx + 8
+                a, b = divmod(x, 8)
+                self.cursorx = (x // 8) * 8
                 
             #== All other characters
             else:
@@ -467,12 +471,14 @@ class GlassTTY(QtGui.QWidget):
         (CC_NONE,
          CC_BEGIN,
          CC_TYPE1,
+         CC_SETDEC,
          CC_NUM1,
          CC_NUMLIST,
-        ) = range(5)
+        ) = range(6)
         
         def start():
             self.esc_code_state = CC_BEGIN
+            sys.stdout.write("^[")
             return True
         def next(state):
             self.esc_code_state = state
@@ -482,9 +488,11 @@ class GlassTTY(QtGui.QWidget):
             return True
         def done():
             self.esc_code_state = 0
+            sys.stdout.write("\n")
             return True
         def failed():
             self.esc_code_state = 0
+            sys.stdout.write("\n")
             return False
         
         if self.esc_code_state == 0:
@@ -492,6 +500,7 @@ class GlassTTY(QtGui.QWidget):
             return start()
             
         elif self.esc_code_state == CC_BEGIN:
+            sys.stdout.write(c)
             self._cc_n1 = ""
             if c == '[':
                 return next(CC_TYPE1)
@@ -504,12 +513,15 @@ class GlassTTY(QtGui.QWidget):
             # end if
             
         elif self.esc_code_state == CC_TYPE1:
+            sys.stdout.write(c)
             if c.isdigit():
                 self._cc_n1 = c
                 return next(CC_NUM1)
             elif c == ';':
                 self._cc_nl = ["0", "0"]
                 return next(CC_NUMLIST)
+            elif c == '?':
+                return next(CC_SETDEC)
             elif c == 'A':
                 self.moveCursor(0, -1)
                 return done()
@@ -540,7 +552,21 @@ class GlassTTY(QtGui.QWidget):
                 return done()
             # end if
             
+        elif self.esc_code_state == CC_SETDEC:
+            sys.stdout.write(c)
+            if c.isdigit():
+                self._cc_n1 = c
+                return same()
+            elif c == 'h' and self._cc_n1:
+                index = int(self._cc_n1)
+                return done()
+            elif c == 'l' and self._cc_n1:
+                index = int(self._cc_n1)
+                return done()
+            # end if
+            
         elif self.esc_code_state == CC_NUM1:
+            sys.stdout.write(c)
             if c.isdigit():
                 self._cc_n1 += c
                 return same()
@@ -570,7 +596,7 @@ class GlassTTY(QtGui.QWidget):
                     return done()
                 elif code == 6:
                     # Respond with cursor position
-                    self.send_esc_code_response("[%d;%dR"%(self.cursory, self.cursorx))
+                    self.send_esc_code_response("[%d;%dR"%(self.cursory + 1, self.cursorx + 1))
                     return done()
                 #end if
             elif c == 'A':
@@ -616,6 +642,7 @@ class GlassTTY(QtGui.QWidget):
             # end if
             
         elif self.esc_code_state == CC_NUMLIST:
+            sys.stdout.write(c)
             if c.isdigit():
                 self._cc_nl[-1] += c
                 return same()
@@ -626,11 +653,15 @@ class GlassTTY(QtGui.QWidget):
                 nums = map(int, self._cc_nl)
                 if (c == 'H' or c == 'f') and len(nums) == 2:
                     row, col = nums
+                    row -= 1 ; col -= 1
                     if self.valid_row_coord(row) and self.valid_col_coord(col):
                         self.moveCursorTo(col, row)
                         return done()
+                    else:
+                        print "^[[%d;%dH" % (row, col)
                 elif c == 'r' and len(nums) == 2:
                     start, end = nums
+                    start -= 1 ; end -= 1
                     if self.valid_row_coord(start) and self.valid_row_coord(end):
                         self.resetScrollRange(start, end)
                         return done()

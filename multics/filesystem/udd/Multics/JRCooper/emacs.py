@@ -91,7 +91,7 @@ def _clear_screen(tty_channel):
     _send_esc_code(tty_channel, 'clear_screen')
     
 def _set_scroll_range(tty_channel, start=0, end=NLINES-1):
-    _send_esc_code(tty_channel, 'set_scroll_range', start, end)
+    _send_esc_code(tty_channel, 'set_scroll_range', start + 1, end + 1)
 
 def _scroll_up(tty_channel, nlines=1):
     for i in range(nlines):
@@ -105,7 +105,7 @@ def _erase_end_of_line(tty_channel):
     _send_esc_code(tty_channel, 'erase_end_of_line')
     
 def _move_cursor_to(tty_channel, row, col):
-    _send_esc_code(tty_channel, 'move_cursor_to', row, col)
+    _send_esc_code(tty_channel, 'move_cursor_to', row + 1, col + 1)
 
 def _underline(s):
     return CTRL('U') + s
