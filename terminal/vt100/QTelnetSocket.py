@@ -106,6 +106,7 @@ class Worker(QtCore.QObject):
     @QtCore.Slot()
     def disconnectFromHost(self):
         self.closeSocket()
+        self.stop()
         
     @QtCore.Slot()
     def closeSocket(self):

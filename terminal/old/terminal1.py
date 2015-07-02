@@ -104,9 +104,9 @@ class ScreenIO(QtGui.QTextEdit):
         self.setFont(font)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        # self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setCursorWidth(fm.width("M"))
-        self.setEnabled(False)
+        # self.setEnabled(False)
         self.setConnected(False)
         
     def setConnected(self, flag):
@@ -175,15 +175,15 @@ class TerminalIO(QtGui.QWidget):
         self.setLayout(layout)
         
     def startup(self):
-        self.host = "batmud.bat.org"
-        self.port = 23
-        # self.host = "73.221.10.251"
-        # self.port = 6180
+        # self.host = "batmud.bat.org"
+        # self.port = 23
+        self.host = "73.221.10.251"
+        self.port = 6180
         self.socket.connectToHost(self.host, self.port)
         
     def _width(self, nchars):
         fm = QtGui.QFontMetricsF(self.output.currentFont())
-        return int(round(fm.width("M") * nchars + 0.5) + self.output.document().documentMargin() * 2)
+        return int(round(fm.width("M") * nchars + 0.5) + self.output.document().documentMargin() * 2) + 20
         
     def _height(self, nlines):
         fm = QtGui.QFontMetrics(self.output.currentFont())
@@ -264,7 +264,7 @@ class TerminalIO(QtGui.QWidget):
         
     @QtCore.Slot()
     def send_string(self):
-        s = self.input.text().strip() + CR
+        s = self.input.text().strip() + CR + LF
         self.input.clear()
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
             # print self.ME, "sending:", repr(s)
@@ -319,7 +319,7 @@ class TerminalIO(QtGui.QWidget):
             cursor = self.output.textCursor()
             cursor.setPosition(0, QtGui.QTextCursor.MoveAnchor)
             cursor.setPosition(num_chars - max_chars, QtGui.QTextCursor.KeepAnchor)
-            cursor.removeSelectedText()
+            # cursor.removeSelectedText()
         # end if
         self.output.moveCursor(QtGui.QTextCursor.End)
         

@@ -3,6 +3,7 @@ import re
 import sys
 import ast
 import time
+from pprint import pprint
 
 from PySide import QtCore, QtGui, QtNetwork
 
@@ -11,6 +12,8 @@ import QTelnetSocket
 
 N_HORZ_CHARS = 80
 N_VERT_LINES = 25
+
+SUPPORTED_PROTOCOLS    = ["pymultics", "telnet"]
 
 DEFAULT_SERVER_NAME    = "localhost"
 DEFAULT_SERVER_PORT    = 6800
@@ -984,7 +987,7 @@ class TerminalIO(QtGui.QWidget):
             
         elif self.protocol == "telnet":
             self.socket = QTelnetSocket.QTelnetSocket(self)
-            self.parent().closed.connect(self.socket._thread.stop)
+            self.parent().closed.connect(self.hard_exit)
             
         self.socket.error.connect(self.socket_error)
         self.socket.hostFound.connect(self.host_found)
@@ -999,6 +1002,12 @@ class TerminalIO(QtGui.QWidget):
         self.socket.connectToHost(self.host, self.port)
         # pass
         
+    @QtCore.Slot()
+    def hard_exit(self):
+        if self.socket and self.socket._thread.isRunning():
+            self.socket._thread.stop()
+            self.socket = None
+    
     @QtCore.Slot(int)
     def socket_error(self, error):
         if error == QtNetwork.QAbstractSocket.SocketError.ConnectionRefusedError:
@@ -1089,7 +1098,7 @@ class TerminalIO(QtGui.QWidget):
     def shutdown(self):
         self.input.setEnabled(False)
         self.output.setConnected(False)
-        if self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
+        if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
             self.socket.disconnectFromHost()
         
     @QtCore.Slot()
@@ -1155,6 +1164,8 @@ MENU_STYLE_SHEET = """
 
 class TerminalWindow(QtGui.QMainWindow):
 
+    MAX_RECENT_CONNECTIONS = 10
+    
     transmitString = QtCore.Signal(str)
     shutdown = QtCore.Signal()
     closed = QtCore.Signal()
@@ -1226,21 +1237,9 @@ class TerminalWindow(QtGui.QMainWindow):
         self.options_menu.addSeparator()
         self.mode_options_menu = self.options_menu.addMenu("Modes")
         self.options_menu.addSeparator()
-        self.set_host_action = self.options_menu.addAction("Set Host...", self.set_host_dialog)
-        self.set_port_action = self.options_menu.addAction("Set Port...", self.set_port_dialog)
-        self.set_protocol_menu = self.options_menu.addMenu("Protocol")
-        self.options_menu.addSeparator()
+        self.set_server_action = self.options_menu.addAction("Server Settings...", self.set_server_info)
+        # self.options_menu.addSeparator()
         self.recent_connections_menu = self.options_menu.addMenu("Recent Connections")
-        
-        self.set_protocol_pymultics = self.set_protocol_menu.addAction("pymultics", lambda: self.set_protocol("pymultics"))
-        self.set_protocol_telnet = self.set_protocol_menu.addAction("telnet", lambda: self.set_protocol("telnet"))
-        
-        self.protocol_group = QtGui.QActionGroup(self)
-        self.protocol_group.addAction(self.set_protocol_pymultics)
-        self.protocol_group.addAction(self.set_protocol_telnet)
-        
-        self.set_protocol_pymultics.setCheckable(True)
-        self.set_protocol_telnet.setCheckable(True)
         
         self.set_crecho_action = self.mode_options_menu.addAction("Add CRs To Incoming LFs", self.set_crecho_mode)
         self.set_lfecho_action = self.mode_options_menu.addAction("Add LFs To Incoming CRs", self.set_lfecho_mode)
@@ -1290,9 +1289,6 @@ class TerminalWindow(QtGui.QMainWindow):
         
         self.build_recent_connections_menu()
         
-        self.set_protocol_pymultics.setChecked(self.settings.value("protocol", DEFAULT_PROTOCOL) == "pymultics")
-        self.set_protocol_telnet.setChecked(self.settings.value("protocol", DEFAULT_PROTOCOL) == "telnet")
-        
         self.set_crecho_action.setChecked(bool(self.settings.value("crecho_mode", DEFAULT_CRECHO_MODE)))
         self.set_lfecho_action.setChecked(bool(self.settings.value("lfecho_mode", DEFAULT_LFECHO_MODE)))
         self.set_localecho_action.setChecked(bool(self.settings.value("localecho_mode", DEFAULT_LOCALECHO_MODE)))
@@ -1311,6 +1307,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.set_alt_charset.setChecked(self.settings.value("character_set", DEFAULT_CHARSET) == "alt")
         
         self.connect_action.setEnabled(True)
+        self.set_connect_action_tooltip()
     
     def startup(self):
         self.setFixedSize(self.size())
@@ -1327,37 +1324,52 @@ class TerminalWindow(QtGui.QMainWindow):
         self.io.set_character_set(self.settings.value("character_set", DEFAULT_CHARSET))
         # self.io.startup()
         
+    def set_connect_action_tooltip(self):
+        self.connect_action.setToolTip("Connect to " + self.connection_label())
+        
+    def connection_label(self, host=None, port=None, protocol=None):
+        host = host or self.settings.value("host", DEFAULT_SERVER_NAME)
+        port = port or self.settings.value("port", DEFAULT_SERVER_PORT)
+        protocol = protocol or self.settings.value("protocol", DEFAULT_PROTOCOL)
+        return "%s: %s %d" % (protocol, host, port)
+        
     def build_recent_connections_menu(self):
         self.recent_connections_menu.clear()
+        self.recent_connections_actions = []
         for (host, port, protocol) in self.recent_connections:
-            self.recent_connections_menu.addAction("%s:%s %d" % (protocol, host, port), lambda host=host, port=port, protocol=protocol: self.connect_to_recent(host, port, protocol))
-    
-    def do_connect(self):
-        host, port, protocol = (self.settings.value("host"), self.settings.value("port"), self.settings.value("protocol"))
-        self.recent_connections.insert(0, (host, port, protocol))
+            self.recent_connections_actions.append(self.recent_connections_menu.addAction(self.connection_label(host, port, protocol),
+                                                                                          lambda host=host, port=port, protocol=protocol: self.connect_to_recent(host, port, protocol)))
+        
+    def update_recent_connections(self, host, port, protocol):
+        connection = (host, port, protocol)
+        #== Move the connection to the top of the MRU list
+        if connection in self.recent_connections:
+            self.recent_connections.remove(connection)
+        if len(self.recent_connections) == self.MAX_RECENT_CONNECTIONS:
+            self.recent_connections.pop()
+        self.recent_connections.insert(0, connection)
         self.settings.setValue("recent_connections", str(self.recent_connections))
         
         self.build_recent_connections_menu()
         
-        self.io.reconnect()
+    def do_connect(self):
+        if self.connect_action.text() == "Connect":
+            self.io.set_server_name(self.settings.value("host", DEFAULT_SERVER_NAME))
+            self.io.set_server_port(self.settings.value("port", DEFAULT_SERVER_PORT))
+            self.io.set_protocol(self.settings.value("protocol", DEFAULT_PROTOCOL))
+            
+            self.io.reconnect()
+            
+        elif self.connect_action.text() == "Disconnect":
+            self.io.shutdown()
     
     def connect_to_recent(self, host, port, protocol):
         self.io.set_server_name(host)
         self.io.set_server_port(port)
         self.io.set_protocol(protocol)
         
-        self.recent_connections.remove((host, port, protocol))
-        self.recent_connections.insert(0, (host, port, protocol))
-        self.settings.setValue("recent_connections", str(self.recent_connections))
-        
-        self.build_recent_connections_menu()
-            
         self.io.reconnect()
     
-    def set_protocol(self, protocol):
-        self.io.set_protocol(protocol)
-        self.settings.setValue("protocol", protocol)
-        
     def set_phosphor_color(self, color):
         self.io.set_phosphor_color(color)
         self.settings.setValue("phosphor_color", color)
@@ -1377,11 +1389,18 @@ class TerminalWindow(QtGui.QMainWindow):
     
     @QtCore.Slot()
     def enable_reconnect(self):
-        self.connect_action.setEnabled(True)
+        # self.connect_action.setEnabled(True)
+        self.connect_action.setText("Connect")
+        for connect_action in self.recent_connections_actions:
+            connect_action.setEnabled(True)
         
     @QtCore.Slot()
     def disable_reconnect(self):
-        self.connect_action.setEnabled(False)
+        # self.connect_action.setEnabled(False)
+        self.update_recent_connections(self.io.host, self.io.port, self.io.protocol)
+        self.connect_action.setText("Disconnect")
+        for connect_action in self.recent_connections_actions:
+            connect_action.setEnabled(False)
     
     @QtCore.Slot(str)
     def set_normal_status(self, txt):
@@ -1403,20 +1422,10 @@ class TerminalWindow(QtGui.QMainWindow):
         QtCore.QTimer.singleShot(0, self.close)
         
     @QtCore.Slot()
-    def set_host_dialog(self):
-        host, ok = QtGui.QInputDialog.getText(None, "Set Host", "Enter host address:", text=self.settings.value("host", DEFAULT_SERVER_NAME))
-        if ok:
-            self.settings.setValue("host", host)
-            self.io.set_server_name(host)
-            # self.io.reset()
-        
-    @QtCore.Slot()
-    def set_port_dialog(self):
-        port, ok = QtGui.QInputDialog.getInt(None, "Set Port", "Enter port number:", value=self.settings.value("port", DEFAULT_SERVER_PORT))
-        if ok:
-            self.settings.setValue("port", port)
-            self.io.set_server_port(port)
-            # self.io.reset()
+    def set_server_info(self):
+        dlg = ServerInfoDialog(self.settings, self)
+        if dlg.exec_():
+            self.set_connect_action_tooltip()
     
     @QtCore.Slot()
     def set_crecho_mode(self):
@@ -1469,6 +1478,52 @@ class TerminalWindow(QtGui.QMainWindow):
     
 #-- end class TerminalWindow
 
+class ServerInfoDialog(QtGui.QDialog):
+
+    def __init__(self, settings, parent=None):
+        super(ServerInfoDialog, self).__init__(parent)
+        self.setWindowTitle("Server Settings")
+        
+        self.settings = settings
+        
+        self.server_name_edit = QtGui.QLineEdit("Server")
+        self.server_name_edit.setText(settings.value("host", DEFAULT_SERVER_NAME))
+        
+        self.server_port_edit = QtGui.QLineEdit("Port")
+        self.server_port_edit.setValidator(QtGui.QIntValidator(1, 2**16, self))
+        self.server_port_edit.setText(str(settings.value("port", DEFAULT_SERVER_PORT)))
+        
+        self.protocol_combobox = QtGui.QComboBox()
+        self.protocol_combobox.addItems(SUPPORTED_PROTOCOLS)
+        self.protocol_combobox.setCurrentIndex(self.protocol_combobox.findText(settings.value("protocol", DEFAULT_PROTOCOL)))
+        
+        protocol_form = QtGui.QFormLayout()
+        protocol_form.addRow("Protocol", self.protocol_combobox)
+        
+        host_port_layout = QtGui.QHBoxLayout()
+        host_port_layout.addWidget(self.server_name_edit)
+        host_port_layout.addWidget(self.server_port_edit)
+        
+        self.buttons = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
+        
+        main_layout = QtGui.QVBoxLayout()
+        main_layout.addLayout(host_port_layout)
+        main_layout.addLayout(protocol_form)
+        main_layout.addWidget(self.buttons)
+        
+        self.setLayout(main_layout)
+        
+        self.buttons.accepted.connect(self.update_settings)
+        self.buttons.rejected.connect(self.reject)
+        
+    def update_settings(self):
+        self.settings.setValue("host", self.server_name_edit.text())
+        self.settings.setValue("port", int(self.server_port_edit.text()))
+        self.settings.setValue("protocol", self.protocol_combobox.currentText())
+        self.accept()
+        
+#-- end class ServerInfoDialog
+        
 if __name__ == "__main__":
     app = QtGui.QApplication([])
     win = TerminalWindow()
