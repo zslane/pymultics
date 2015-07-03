@@ -35,8 +35,8 @@ ESC_CODES = {
     'move_cursor_to':    ESC + "[%d;%dH",
     'erase_end_of_line': ESC + "[K",
     'set_scroll_range':  ESC + "[%d;%dr",
-    'scroll_up':         ESC + "M",
-    'scroll_down':       ESC + "D",
+    'scroll_up':         ESC + "D",
+    'scroll_down':       ESC + "M",
 }
 
 FORMAT_NORMAL = "0"
@@ -383,6 +383,9 @@ class Buffer(object):
     def cursor_is_at_right_edge(self):
         return self._cursorx == LASTX
     
+    def cursor_is_visible(self):
+        return self._top_row <= self._get_row() <= self._top_row + self._window.bottomy
+    
     def adjusted_lft_col(self):
         row = self._get_row()
         if (self._lft_col > 0) and (self.num_visible_chars(row) == 0):
@@ -403,9 +406,17 @@ class Buffer(object):
         if self._dirty != state and self._name != "*minibuffer*":
             self._dirty = state
             self._window.draw_status_bar(self)
+            self.restore_cursor()
         
     def draw_lines(self, starting_at=0):
         if self.is_visible():
+            #== If we are about to redraw the buffer, but the cursor is
+            #== no longer visible in the window, then call center_on()
+            #== instead of doing a regular draw_lines().
+            if not self.cursor_is_visible():
+                self.center_on(self._get_row()) # <-- this will call draw_lines() recursively!
+                return
+                
             for i in range(starting_at, self._window.vsizeb):
                 self.move_cursor_to(i)
                 _erase_end_of_line(self._tty_channel)
@@ -650,7 +661,6 @@ class Buffer(object):
         # end if
         
         self._update_dirty_state_to(True)
-        self.restore_cursor()
         return True
     
     def insert_textblock(self, char_list):
@@ -710,7 +720,6 @@ class Buffer(object):
             self.restore_cursor()
             _erase_end_of_line(self._tty_channel)
             self._lines[row].write(col - 1, self._cursorx)
-            self.restore_cursor()
             self._update_dirty_state_to(True)
             return c
     
@@ -731,7 +740,6 @@ class Buffer(object):
                     self._lines[self._top_row + self._window.bottomy].write()
                 except:
                     pass
-                self.restore_cursor()
                 self._update_dirty_state_to(True)
                 return CR
             except:
@@ -742,7 +750,6 @@ class Buffer(object):
             if self.num_chars(row) < LASTX:
                 _erase_end_of_line(self._tty_channel)
             # end if
-            self.restore_cursor()
             self._update_dirty_state_to(True)
             return c
         # end if
@@ -759,7 +766,6 @@ class Buffer(object):
         else:
             s = self._lines[row].delete_to_line_end(col)
             _erase_end_of_line(self._tty_channel)
-            self.restore_cursor()
             self._update_dirty_state_to(True)
             return s
     
@@ -1053,7 +1059,9 @@ class EmacsEditor(object):
                         
                 elif c in [CR, LF]:
                     if self._current_buffer.is_select():
-                        self._current_buffer.do_select()
+                        select_buffer = self._current_buffer
+                        self.close_selection_buffer()
+                        select_buffer.do_select()
                     else:
                         self.insert_character(c)
                 elif c == BS:
@@ -1245,7 +1253,6 @@ class EmacsEditor(object):
         call.sys_.split_path_(file_path.val, directory, file_name)
         
         if _is_directory(file_path.val):
-            # self.set_status_message("Can't load file. %s is a directory." % (filename))
             self.open_dired_buffer(file_path.val)
             return
         # end if
@@ -1605,8 +1612,14 @@ class EmacsEditor(object):
             new_buffer = self.new_buffer("*scratch*", window_to_use)
         # end if
         
+        if self._current_buffer is self._minibuffer:
+            insert_after_buffer = self._cancel_to_buffer
+        else:
+            insert_after_buffer = self._current_buffer
+        # end if
+        
         visible_windows = [ w for w in self._windows if w.visible ]
-        visible_windows.insert(visible_windows.index(self._current_buffer.window()) + 1, window_to_use)
+        visible_windows.insert(visible_windows.index(insert_after_buffer.window()) + 1, window_to_use)
         
         screeny = 0
         vsize = (NLINES - 1) // len(visible_windows)
@@ -1617,6 +1630,8 @@ class EmacsEditor(object):
         
         for buffer in self._buffers:
             buffer.draw_lines()
+            
+        self._current_buffer = new_buffer
         
 def emacs():
     arg_list = parm()

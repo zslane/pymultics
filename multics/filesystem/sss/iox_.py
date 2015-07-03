@@ -12,7 +12,8 @@ def _is_cc(c):
 
 def _xlate_cc(c):
     if _is_cc(c) and (c not in [BS, LF, CR, ESC]):
-        return "^" + chr(ord(c) + ord('@'))
+        # return "^" + chr(ord(c) + ord('@'))
+        return r"\%03o" % ord(c)
     else:
         return c
         
@@ -49,9 +50,16 @@ class iox_(Subroutine):
         if c and ioxctl.echo_input_sw:
             if c == BS:
                 if ioxbuffer:
-                    self.write(tty_channel, BS)
-                    if _is_cc(ioxbuffer[-1]):
-                        self.write(tty_channel, BS) # send out a second backspace char to remove the '^'
+                    # self.write(tty_channel, BS)
+                    # if _is_cc(ioxbuffer[-1]):
+                        # self.write(tty_channel, BS) # send out a second backspace char to remove the '^'
+                    n = 2 if _is_cc(ioxbuffer[-1]) else 1
+                    for i in range(n):
+                        self.write(tty_channel, BS)
+                    for i in range(n):
+                        self.write(tty_channel, ' ')
+                    for i in range(n):
+                        self.write(tty_channel, BS)
             else:
                 self.write(tty_channel, _xlate_cc(c))
             
@@ -131,8 +139,43 @@ class iox_(Subroutine):
     def _has_line_input(self, tty_channel):
         return set([CR, LF]) <= set(self._buffer.get(tty_channel) or "")
         
+    def _filter_line_endings(self, in_s):
+        #== Get these from the process data stack (set by the set_tty command) someday!
+        crecho = True
+        lfecho = True
+        
+        hold_for_LF = False
+        hold_for_CR = False
+        out_s = ""
+        for c in in_s:
+            if hold_for_LF:
+                hold_for_LF = (c == CR)
+                out_s += (CR+LF)
+                if c not in [CR, LF]:
+                    out_s += c
+                # end if
+            elif hold_for_CR:
+                hold_for_CR = (c == LF)
+                out_s += (CR+LF)
+                if c not in [CR, LF]:
+                    out_s += c
+                # end if
+            elif c == CR and lfecho:
+                hold_for_LF = True
+            elif c == LF and crecho:
+                hold_for_CR = True
+            else:
+                out_s += c
+            # end if
+        # end for
+        if hold_for_LF or hold_for_CR:
+            out_s += (CR+LF)
+        # end if
+        
+        return out_s
+    
     def write(self, tty_channel, s):
-        self.hardware.io.put_output(self._xlate_string(s), tty_channel)
+        self.hardware.io.put_output(self._xlate_string(self._filter_line_endings(s)), tty_channel)
         
     def terminal_closed(self, tty_channel):
         return self.hardware.io.terminal_closed(tty_channel)
