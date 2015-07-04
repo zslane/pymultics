@@ -14,12 +14,12 @@ DEFAULT_SERVER_PORT = 6800
 DEFAULT_PHOSPHOR_COLOR = "vintage"
 
 UNKNOWN_CODE       = chr(0)
-CONTROL_CODE       = chr(128)
-ECHO_NORMAL_CODE   = chr(129)
-ECHO_PASSWORD_CODE = chr(130)
-ASSIGN_PORT_CODE   = chr(131)
-WHO_CODE           = chr(132)
-BREAK_CODE         = chr(133)
+CONTROL_CODE       = chr(129)
+ECHO_NORMAL_CODE   = chr(130)
+ECHO_PASSWORD_CODE = chr(131)
+ASSIGN_PORT_CODE   = chr(132)
+WHO_CODE           = chr(133)
+BREAK_CODE         = chr(134)
 END_CONTROL_CODE   = chr(254)
 
 BEL = chr(7)
