@@ -10,6 +10,7 @@ real = __builtin__.float
 round_ = __builtin__.round
 
 from pl1types import *
+from math import *
 
 from PySide import QtCore
 

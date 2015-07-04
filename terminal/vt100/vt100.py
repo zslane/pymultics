@@ -1589,8 +1589,8 @@ class TerminalWindow(QtGui.QMainWindow):
         self.set_phosphor_amber.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "amber")
         self.set_phosphor_white.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "white")
         
-        self.set_cursor_block.setChecked(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK) == GlassTTY.CURSOR_BLOCK)
-        self.set_cursor_line.setChecked(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK) == GlassTTY.CURSOR_LINE)
+        self.set_cursor_block.setChecked(int(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK)) == GlassTTY.CURSOR_BLOCK)
+        self.set_cursor_line.setChecked(int(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK)) == GlassTTY.CURSOR_LINE)
         
         self.cursor_blink_action.setChecked(bool(self.settings.value("cursor_blink", DEFAULT_CURSOR_BLINK)))
         
@@ -1603,14 +1603,14 @@ class TerminalWindow(QtGui.QMainWindow):
     def startup(self):
         self.setFixedSize(self.size())
         self.io.set_server_name(self.settings.value("host", DEFAULT_SERVER_NAME))
-        self.io.set_server_port(self.settings.value("port", DEFAULT_SERVER_PORT))
+        self.io.set_server_port(int(self.settings.value("port", DEFAULT_SERVER_PORT)))
         self.io.set_protocol(self.settings.value("protocol", DEFAULT_PROTOCOL))
         self.io.set_echo_mode("crecho", bool(self.settings.value("crecho_mode", DEFAULT_CRECHO_MODE)))
         self.io.set_echo_mode("lfecho", bool(self.settings.value("lfecho_mode", DEFAULT_LFECHO_MODE)))
         self.io.set_echo_mode("localecho", bool(self.settings.value("localecho_mode", DEFAULT_LOCALECHO_MODE)))
         self.io.set_phosphor_color(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR))
         self.io.set_brightness(float(self.settings.value("brightness", DEFAULT_BRIGHTNESS)))
-        self.io.set_cursor_style(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK))
+        self.io.set_cursor_style(int(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK)))
         self.io.set_cursor_blink(bool(self.settings.value("cursor_blink", DEFAULT_CURSOR_BLINK)))
         self.io.set_character_set(self.settings.value("character_set", DEFAULT_CHARSET))
         # self.io.startup()
@@ -1620,7 +1620,7 @@ class TerminalWindow(QtGui.QMainWindow):
         
     def connection_label(self, host=None, port=None, protocol=None):
         host = host or self.settings.value("host", DEFAULT_SERVER_NAME)
-        port = port or self.settings.value("port", DEFAULT_SERVER_PORT)
+        port = port or int(self.settings.value("port", DEFAULT_SERVER_PORT))
         protocol = protocol or self.settings.value("protocol", DEFAULT_PROTOCOL)
         return "%s: %s %d" % (protocol, host, port)
         
@@ -1646,7 +1646,7 @@ class TerminalWindow(QtGui.QMainWindow):
     def do_connect(self):
         if self.connect_action.text() == "Connect":
             self.io.set_server_name(self.settings.value("host", DEFAULT_SERVER_NAME))
-            self.io.set_server_port(self.settings.value("port", DEFAULT_SERVER_PORT))
+            self.io.set_server_port(int(self.settings.value("port", DEFAULT_SERVER_PORT)))
             self.io.set_protocol(self.settings.value("protocol", DEFAULT_PROTOCOL))
             
             self.io.reconnect()
