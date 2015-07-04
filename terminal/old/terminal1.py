@@ -420,6 +420,7 @@ class TerminalWindow(QtGui.QMainWindow):
         
     def setup_menus(self):
         self.menuBar().setStyleSheet(MENUBAR_STYLE_SHEET)
+        self.menuBar().setNativeMenuBar(False)
         
         self.options_menu = self.menuBar().addMenu("Options")
         self.options_menu.setStyleSheet(MENU_STYLE_SHEET)

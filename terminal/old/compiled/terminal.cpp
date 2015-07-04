@@ -425,6 +425,7 @@ TerminalWindow::TerminalWindow(QWidget* parent) : QMainWindow(parent),
 void TerminalWindow::setup_menus()
 {
     menuBar()->setStyleSheet(MENUBAR_STYLE_SHEET);
+    menuBar()->setNativeMenuBar(false);
 
     m_options_menu = menuBar()->addMenu("Options");
     m_options_menu->setStyleSheet(MENU_STYLE_SHEET);
