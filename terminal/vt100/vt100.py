@@ -18,6 +18,11 @@ SUPPORTED_PROTOCOLS    = ["pymultics", "telnet"]
 DEFAULT_SERVER_NAME    = "localhost"
 DEFAULT_SERVER_PORT    = 6800
 DEFAULT_PROTOCOL       = "pymultics"
+DEFAULT_ARROWKEY_MODE  = True # True is application mode, False is cursor mode
+DEFAULT_WRAP_MODE      = True
+DEFAULT_REPEAT_MODE    = True
+DEFAULT_SCREEN_MODE    = False # True is reverse screen, False is normal screen
+DEFAULT_NEWLINE_MODE   = False
 DEFAULT_CRECHO_MODE    = True
 DEFAULT_LFECHO_MODE    = True
 DEFAULT_LOCALECHO_MODE = False
@@ -27,14 +32,16 @@ DEFAULT_BRIGHTNESS     = 1.0
 DEFAULT_CURSOR_BLINK   = True
 
 UNKNOWN_CODE       = chr(0)
-CONTROL_CODE       = chr(128)
-ECHO_NORMAL_CODE   = chr(129)
-ECHO_PASSWORD_CODE = chr(130)
-ASSIGN_PORT_CODE   = chr(131)
-WHO_CODE           = chr(132)
-BREAK_CODE         = chr(133)
+CONTROL_CODE       = chr(129)
+ECHO_NORMAL_CODE   = chr(130)
+ECHO_PASSWORD_CODE = chr(131)
+ASSIGN_PORT_CODE   = chr(132)
+WHO_CODE           = chr(133)
+BREAK_CODE         = chr(134)
 END_CONTROL_CODE   = chr(254)
+NULL_CHAR_CODE     = chr(128)
 
+NUL = chr(0)
 BEL = chr(7)
 BS  = chr(8)
 TAB = chr(9)
@@ -53,8 +60,15 @@ PHOSPHOR_COLORS = {
     'white':   QtGui.QColor(200, 240, 255),
 }
 
+REVERSE_VIDEO_ATTRS = {
+    NRM:         NRM|REV,     BRI:         NRM|REV,     DIM:         BRI|REV,
+    NRM|UND:     NRM|REV|UND, BRI|UND:     NRM|REV|UND, DIM|UND:     BRI|REV|UND,
+    NRM|REV:     NRM,         BRI|REV:     BRI,         DIM|REV:     DIM,
+    NRM|REV|UND: NRM|UND,     BRI|REV|UND: BRI|UND,     DIM|REV|UND: DIM|UND,
+}
+
 def _debug(s):
-    if True:
+    if False:
         sys.stdout.write(s)
         
 class DataPacket(object):
@@ -221,10 +235,15 @@ class GlassTTY(QtGui.QWidget):
         self.cursor_visible = True
         self.cursor_glyph = self.CURSOR_BLOCK
         
+        self.arrowkey_mode = DEFAULT_ARROWKEY_MODE
+        self.autowrap = DEFAULT_WRAP_MODE
+        self.autorepeat = DEFAULT_REPEAT_MODE
+        self.screen_mode = DEFAULT_SCREEN_MODE
+        self.newline_mode = DEFAULT_NEWLINE_MODE
+        
         self.lfecho = DEFAULT_LFECHO_MODE
         self.crecho = DEFAULT_CRECHO_MODE
         self.localecho = DEFAULT_LOCALECHO_MODE
-        self.newline_mode = False
         self.esc_code_state = 0
         
         self.setPhosphorColor(phosphor_color)
@@ -270,9 +289,15 @@ class GlassTTY(QtGui.QWidget):
         self.wincolor = self.fontcolor.darker(1500)
         self.glyphs = self.font.colored_glyphs[phosphor_color]
         
+        if self.screen_mode:
+            self.compmode = QtGui.QPainter.CompositionMode_Darken
+        else:
+            self.compmode = QtGui.QPainter.CompositionMode_Lighten
+        # end if
+        
         painter = QtGui.QPainter()
         if painter.begin(self.raster_image):
-            painter.fillRect(self.raster_image.rect(), self.wincolor)
+            self.paint_background(painter, self.raster_image.rect())
             painter.end()
             
         self.repaint_all()
@@ -299,63 +324,81 @@ class GlassTTY(QtGui.QWidget):
         """
         self.hideCursor()
         for c in text:
-            #== Process control code
-            if c == ESC or self.esc_code_state:
+            #== Process control characters
+            if c != ESC and 0 <= ord(c) < 32:
+                self.process_ctl_char(c)
+                continue
+                
+            #== Process escape code sequence
+            elif c == ESC or self.esc_code_state:
                 if self.process_esc_code(c):
                     continue
                     
-            needs_scrolling = False
+            #== All other characters ('graphical characters')
+            GlassTTY.add_blinkers([(c, self.charattrs)])
+            self.raster_lines[self.cursory][self.cursorx] = (c, self.charattrs)
+            self.repaint_cell(self.cursory, self.cursorx)
             
-            #== CR/LF/backspace/tab
-            if c == CR:
-                self.cursorx = 0
-                if self.lfecho:
-                    needs_scrolling = self.moveCursor(0, +1, redraw_immediately=False)
-            elif c == LF:
-                if self.crecho or self.newline_mode:
+            #== Advance to next position
+            if self.cursorx + 1 == self.NCHARS:
+                if self.autowrap:
+                    #== Wrap around
                     self.cursorx = 0
-                needs_scrolling = self.moveCursor(0, +1, redraw_immediately=False)
-            elif c == BS:
-                # self.delCharacters(1)
-                self.cursorx = max(0, self.cursorx - 1)
-            elif c == TAB:
-                self.cursorx = self.nextTabStopX()
-            elif c == BEL:
-                self.ring_bell()
-                
-            #== All other characters
-            else:
-                if 0 <= ord(c) < 32:
-                    print "Received unexpected control character: ^%s %r (%d)" % (chr(ord(c)+64), c, ord(c))
-                GlassTTY.add_blinkers([(c, self.charattrs)])
-                self.raster_lines[self.cursory][self.cursorx] = (c, self.charattrs)
-                self.repaint_cell(self.cursory, self.cursorx)
-                self.cursorx += 1
-                if self.cursorx == self.NCHARS:
-                    self.cursorx = 0
-                    needs_scrolling = self.moveCursor(0, +1, redraw_immediately=False)
+                    if self.moveCursor(0, +1, redraw_immediately=False):
+                        #== Scroll display if necessary
+                        self.scrollUp()
+                    # end if
                 # end if
-            # end if
-            
-            #== Scroll display if necessary
-            if needs_scrolling:
-                self.scrollUp()
+            else:
+                self.cursorx += 1
             # end if
         # end for
         self.showCursor()
         
-    def delCharacters(self, nchars_to_delete):
-        """
-        Delete the last nchars_to_delete characters from the display raster matrix,
-        relative to the current raster 'cursor' position.
-        """
-        prevx = self.cursorx - nchars_to_delete
-        if prevx >= 0:
-            self.raster_lines[self.cursory].clear(prevx, self.cursorx)
-            self.cursorx = prevx
-        # end if
-        self.repaint_line(self.cursory)
+    # def delCharacters(self, nchars_to_delete):
+        # """
+        # Delete the last nchars_to_delete characters from the display raster matrix,
+        # relative to the current raster 'cursor' position.
+        # """
+        # prevx = self.cursorx - nchars_to_delete
+        # if prevx >= 0:
+            # self.raster_lines[self.cursory].clear(prevx, self.cursorx)
+            # self.cursorx = prevx
+        # # end if
+        # self.repaint_line(self.cursory)
+
+    def process_ctl_char(self, c):
+        needs_scrolling = False
         
+        if c == NUL:
+            pass
+            
+        elif c == CR:
+            self.cursorx = 0
+            if self.lfecho:
+                needs_scrolling = self.moveCursor(0, +1, redraw_immediately=False)
+                
+        elif c == LF:
+            if self.crecho or self.newline_mode:
+                self.cursorx = 0
+            needs_scrolling = self.moveCursor(0, +1, redraw_immediately=False)
+            
+        elif c == BS:
+            self.cursorx = max(0, self.cursorx - 1)
+            
+        elif c == TAB:
+            self.cursorx = self.nextTabStopX()
+            
+        elif c == BEL:
+            self.ring_bell()
+            
+        else:
+            print "Received unexpected control character: ^%s %r (%d) \\%03o" % (chr(ord(c)+64), c, ord(c), ord(c))
+            
+        #== Scroll display if necessary
+        if needs_scrolling:
+            self.scrollUp()
+    
     def valid_row_coord(self, n):
         return 0 <= n < self.NLINES
         
@@ -466,15 +509,15 @@ class GlassTTY(QtGui.QWidget):
         
     def showCursor(self):
         self.cursor_visible = True
-        self._repaint_cursor()
+        self.repaint_cursor()
         
     def hideCursor(self):
         self.cursor_visible = False
-        self._repaint_cursor()
+        self.repaint_cursor()
         
     def toggleCursor(self):
         self.cursor_visible = self.blink_state
-        self._repaint_cursor()
+        self.repaint_cursor()
         
     def saveCursor(self):
         self.saved_cursorx = self.cursorx
@@ -493,7 +536,7 @@ class GlassTTY(QtGui.QWidget):
         if redraw_immediately and self.cursor_visible:
             #== Erase from old position
             self.cursor_visible = False
-            self._repaint_cursor()
+            self.repaint_cursor()
             self.cursor_visible = True
             
         #== Draw in new position
@@ -502,16 +545,17 @@ class GlassTTY(QtGui.QWidget):
         self.cursory = min(self.scroll_last, max(self.scroll_first, self.cursory + dy))
         
         if redraw_immediately:
-            self._repaint_cursor()
+            self.repaint_cursor()
         # end if
         
         return needs_scrolling
         
     def moveCursorTo(self, x, y, redraw_immediately=True):
+        _debug(" -> %d, %d" % (y, x))
         if redraw_immediately and self.cursor_visible:
             #== Erase from old position
             self.cursor_visible = False
-            self._repaint_cursor()
+            self.repaint_cursor()
             self.cursor_visible = True
             
         #== Draw in new position
@@ -522,28 +566,25 @@ class GlassTTY(QtGui.QWidget):
             
         elif self.origin_mode == self.RELATIVE_ORIGIN:
             self.cursorx = min(self.NCHARS - 1, max(0, x))
-            self.cursory = min(self.scroll_last, max(self.scroll_last, self.scroll_first + y))
+            self.cursory = min(self.scroll_last, max(self.scroll_first, self.scroll_first + y))
             needs_scrolling = (y < self.scroll_first) or (y > self.scroll_last)
         # end if
         
         if redraw_immediately:
-            self._repaint_cursor()
+            self.repaint_cursor()
         # end if
         
         return needs_scrolling
         
     def homeCursor(self, redraw_immediately=True):
         self.moveCursorTo(0, 0, redraw_immediately)
-        
-    def _repaint_cursor(self):
-        self.repaint_cursor()
     
-    #==================================#
-    #==  CONTROL CODE STATE MACHINE  ==#
-    #==================================#
+    #=================================#
+    #==  ESCAPE CODE STATE MACHINE  ==#
+    #=================================#
     
     def process_esc_code(self, c):
-        #== State machine for processing VT100 control codes
+        #== State machine for processing VT100 escape codes
         
         (CC_NONE,
          CC_BEGIN,
@@ -586,7 +627,7 @@ class GlassTTY(QtGui.QWidget):
                 return next(CC_TYPE1)
             elif c == '<':
                 #== Ignore request to enter/exit VT52/ANSI mode
-                _debug("\nIgnoring Enter ANSI Mode request (already in ANSI Mode)")
+                _debug("\nIgnoring 'Enter VT100 Mode' request (already in VT100 Mode)")
                 return done()
             elif c == '7':
                 self.saveCursor()
@@ -633,7 +674,7 @@ class GlassTTY(QtGui.QWidget):
                 return done()
             elif c == 'c':
                 #== Respond with device code
-                self.send_esc_code_response("[x0c")
+                self.send_esc_code_response("[?1;0c")
                 return done()
             elif c == 'D':
                 self.moveCursor(-1, 0)
@@ -650,7 +691,7 @@ class GlassTTY(QtGui.QWidget):
             elif c == 'K':
                 self.eraseEndOfLine()
                 return done()
-            elif c == 'r' and not self._cc_n1:
+            elif c == 'r':
                 self.resetScrollRange()
                 # self.homeCursor()
                 return done()
@@ -661,22 +702,44 @@ class GlassTTY(QtGui.QWidget):
             if c.isdigit():
                 self._cc_n1 = c
                 return same()
+            #== SM (Set Mode)
             elif c == 'h' and self._cc_n1:
                 code = int(self._cc_n1)
-                if code == 6:
+                if code == 1:
+                    self.arrowkey_mode = True
+                elif code == 5:
+                    self.screen_mode = True
+                    self.compmode = QtGui.QPainter.CompositionMode_Darken
+                    self.update()
+                elif code == 6:
                     self.origin_mode = self.RELATIVE_ORIGIN
                     self.homeCursor()
+                elif code == 7:
+                    self.autowrap = True
+                elif code == 8:
+                    self.autorepeat = True
                 else:
-                    _debug("\nIgnoring DEC private %dh" % (code))
+                    _debug("\nIgnoring DEC private '%dh'" % (code))
                 # end if
                 return done()
+            #== RM (Reset Mode)
             elif c == 'l' and self._cc_n1:
                 code = int(self._cc_n1)
-                if code == 6:
+                if code == 1:
+                    self.arrowkey_mode = False
+                elif code == 5:
+                    self.screen_mode = False
+                    self.compmode = QtGui.QPainter.CompositionMode_Lighten
+                    self.update()
+                elif code == 6:
                     self.origin_mode = self.ABSOLUTE_ORIGIN
                     self.homeCursor()
+                elif code == 7:
+                    self.autowrap = False
+                elif code == 8:
+                    self.autorepeat = False
                 else:
-                    _debug("\nIgnoreing DEC private %dl" % (code))
+                    _debug("\nIgnoreing DEC private '%dl'" % (code))
                 # end if
                 return done()
             # end if
@@ -689,6 +752,10 @@ class GlassTTY(QtGui.QWidget):
             elif c == ';':
                 self._cc_nl = [self._cc_n1, "0"]
                 return next(CC_NUMLIST)
+            elif c == 'c' and self._cc_n1 == '0':
+                #== Respond with device code
+                self.send_esc_code_response("[?1;0c")
+                return done()
             elif c == 'g':
                 code = int(self._cc_n1)
                 if code == 0:
@@ -758,7 +825,7 @@ class GlassTTY(QtGui.QWidget):
                     self.moveCursorTo(0, row)
                     return done()
                 else:
-                    print "^[[%d;%dH" % (row, 0)
+                    print "^[[%d;%dH (invalid position)" % (row, 0)
             elif c == 'J':
                 code = int(self._cc_n1)
                 if code == 0:
@@ -794,23 +861,27 @@ class GlassTTY(QtGui.QWidget):
                 self._cc_nl.append("0")
                 return same()
             else:
-                nums = map(default1, self._cc_nl)
-                if (c == 'H' or c == 'f') and len(nums) == 2:
+                if (c == 'H' or c == 'f') and len(self._cc_nl) == 2:
+                    nums = map(default1, self._cc_nl)
                     row, col = nums
                     row -= 1 ; col -= 1
                     if self.valid_row_coord(row) and self.valid_col_coord(col):
                         self.moveCursorTo(col, row)
                         return done()
                     else:
-                        print "^[[%d;%dH" % (row, col)
-                elif c == 'r' and len(nums) == 2:
+                        print "^[[%d;%dH (invalid position)" % (row, col)
+                elif c == 'r' and len(self._cc_nl) == 2:
+                    nums = map(default1, self._cc_nl)
                     start, end = nums
                     start -= 1 ; end -= 1
                     if self.valid_row_coord(start) and self.valid_row_coord(end):
                         self.resetScrollRange(start, end)
                         self.homeCursor()
                         return done()
+                    else:
+                        print "^[[%d;%dr (invalid range)" % (row, col)
                 elif c == 'm':
+                    nums = map(int, self._cc_nl)
                     nums = set(nums)
                     #== Dim(1) + Bright(2) cancel each other out
                     if set([1,2]) <= nums:
@@ -855,6 +926,13 @@ class GlassTTY(QtGui.QWidget):
     #===============================#
     
     def keyPressEvent(self, event):
+        special = {'2':NULL_CHAR_CODE, '@':NULL_CHAR_CODE, '6':chr(30), '-':chr(31)}
+        
+        #== Ignore auto-repeated keystrokes if auto-repeat mode is off
+        if event.isAutoRepeat() and not self.autorepeat:
+            event.ignore()
+            return
+            
         #== KEYPAD 'ENTER' KEY ==#
         if event.key() == QtCore.Qt.Key_Enter: # Linefeed key
             # print "Send LINEFEED"
@@ -871,13 +949,13 @@ class GlassTTY(QtGui.QWidget):
                 self.breakSignal.emit()
                 
             elif event.key() == QtCore.Qt.Key_Up:
-                self.send_esc_code_response("OA")
+                self.send_esc_code_response("OA" if self.arrowkey_mode else "A")
             elif event.key() == QtCore.Qt.Key_Down:
-                self.send_esc_code_response("OB")
+                self.send_esc_code_response("OB" if self.arrowkey_mode else "B")
             elif event.key() == QtCore.Qt.Key_Right:
-                self.send_esc_code_response("OC")
+                self.send_esc_code_response("OC" if self.arrowkey_mode else "C")
             elif event.key() == QtCore.Qt.Key_Left:
-                self.send_esc_code_response("OD")
+                self.send_esc_code_response("OD" if self.arrowkey_mode else "D")
                 
         #== ASCII KEYSTROKE ==#
         for c in str(event.text()):
@@ -890,6 +968,10 @@ class GlassTTY(QtGui.QWidget):
             #== Turn Alt+key into ESC+char
             if event.modifiers() & QtCore.Qt.AltModifier:
                 self.sendCharacters(ESC + c)
+                
+            elif event.modifiers() & QtCore.Qt.ControlModifier and (c in special):
+                self.sendCharacters(special[c])
+                
             else:
                 if self.localecho:
                     self.addCharacters(c)
@@ -917,6 +999,23 @@ class GlassTTY(QtGui.QWidget):
             painter.drawImage(event.rect(), self.raster_image, event.rect())
             painter.end()
         
+    def paint_background(self, painter, rect):
+        if self.screen_mode:
+            opacity = 0.66
+            color = self.fontcolor
+        else:
+            opacity = 1.0
+            color = self.wincolor
+        # end if
+        
+        painter.save()
+        painter.fillRect(rect, QtCore.Qt.black)
+        painter.setOpacity(opacity)
+        painter.fillRect(rect, color)
+        painter.restore()
+        
+        painter.setCompositionMode(self.compmode)
+        
     def repaint_cursor(self):
         def drawit(attr):
             return (attr & BLI) == 0 or self.blink_state
@@ -925,14 +1024,14 @@ class GlassTTY(QtGui.QWidget):
         
         painter = QtGui.QPainter()
         if painter.begin(self.raster_image):
-            painter.fillRect(cursor_rect, self.wincolor)
-            
-            painter.setCompositionMode(QtGui.QPainter.CompositionMode_Lighten)
+            # painter.fillRect(cursor_rect, self.wincolor)
+            # painter.setCompositionMode(self.compmode)
+            self.paint_background(painter, cursor_rect)
             
             c, attr = self.raster_lines[self.cursory][self.cursorx]
             if drawit(attr):
                 char_under_cursor = ord(c) or ord(SP)
-                painter.drawImage(cursor_rect.topLeft(), self.glyphs[attr & ~BLI][char_under_cursor])
+                painter.drawImage(cursor_rect.topLeft(), self.glyphs[self._glyph_index(attr)][char_under_cursor])
                 
             if self.cursor_visible:
                 if self.cursor_glyph == self.CURSOR_BLOCK:
@@ -955,13 +1054,14 @@ class GlassTTY(QtGui.QWidget):
         
         painter = QtGui.QPainter()
         if painter.begin(self.raster_image):
-            painter.fillRect(cell_rect, self.wincolor)
+            # painter.fillRect(cell_rect, self.wincolor)
+            # painter.setCompositionMode(self.compmode)
+            self.paint_background(painter, cell_rect)
             
             c, attr = self.raster_lines[celly][cellx]
             if drawit(c, attr):
                 try:
-                    painter.setCompositionMode(QtGui.QPainter.CompositionMode_Lighten)
-                    painter.drawImage(cell_rect.topLeft(), self.glyphs[attr & ~BLI][ord(c)])
+                    painter.drawImage(cell_rect.topLeft(), self.glyphs[self._glyph_index(attr)][ord(c)])
                 except:
                     print "Bad character code for display:", repr(c), ord(c)
                 # end try
@@ -980,13 +1080,14 @@ class GlassTTY(QtGui.QWidget):
         
         painter = QtGui.QPainter()
         if painter.begin(self.raster_image):
-            painter.fillRect(line_rect, self.wincolor)
-            painter.setCompositionMode(QtGui.QPainter.CompositionMode_Lighten)
+            # painter.fillRect(line_rect, self.wincolor)
+            # painter.setCompositionMode(self.compmode)
+            self.paint_background(painter, line_rect)
             
             for c, attr in self.raster_lines[liney][cellx:]:
                 if drawit(c, attr):
                     try:
-                        painter.drawImage(cell_rect.topLeft(), self.glyphs[attr & ~BLI][ord(c)])
+                        painter.drawImage(cell_rect.topLeft(), self.glyphs[self._glyph_index(attr)][ord(c)])
                     except:
                         print "Bad character code for display:", repr(c), ord(c)
                     # end try
@@ -1002,22 +1103,22 @@ class GlassTTY(QtGui.QWidget):
         def drawit(attr):
             return (attr & BLI) == 0 or self.blink_state
             
-        rect = rect or self.raster_image.rect()
+        screen_rect = rect or self.raster_image.rect()
         
         #== We paint on this QImage object instead of directly on the widget. Doing so gives us
         #== full access to all the Qt composition/blending modes.
         painter = QtGui.QPainter()
         if painter.begin(self.raster_image):
-            painter.fillRect(rect, self.wincolor)
-            
-            painter.setCompositionMode(QtGui.QPainter.CompositionMode_Lighten)
+            # painter.fillRect(screen_rect, self.wincolor)
+            # painter.setCompositionMode(self.compmode)
+            self.paint_background(painter, screen_rect)
             
             #== Draw the character under the cursor if we are only drawing the cursor in this paint event
             c, attr = self.raster_lines[self.cursory][self.cursorx]
-            if rect == self.cursorRect() and drawit(attr):
+            if screen_rect == self.cursorRect() and drawit(attr):
                 print "*** CURSOR ONLY ***"
                 char_under_cursor = ord(c) or ord(SP)
-                painter.drawImage(self.cursorRect().topLeft(), self.glyphs[attr & ~BLI][char_under_cursor])
+                painter.drawImage(self.cursorRect().topLeft(), self.glyphs[self._glyph_index(attr)][char_under_cursor])
                 
             #== If we aren't just repainting the cursor, then redraw all the characters on the screen
             else:
@@ -1026,7 +1127,7 @@ class GlassTTY(QtGui.QWidget):
                     for c, attr in line:
                         if ord(c) and drawit(attr):
                             try:
-                                painter.drawImage(cell_rect.topLeft(), self.glyphs[attr & ~BLI][ord(c)])
+                                painter.drawImage(cell_rect.topLeft(), self.glyphs[self._glyph_index(attr)][ord(c)])
                             except:
                                 print "Bad character code for display:", repr(c), ord(c)
                             # end try
@@ -1048,7 +1149,13 @@ class GlassTTY(QtGui.QWidget):
             
             painter.end()
             
-            self.update(rect)
+            self.update(screen_rect)
+    
+    def _glyph_index(self, attr):
+        if self.screen_mode:
+            return REVERSE_VIDEO_ATTRS[attr & ~BLI]
+        else:
+            return attr & ~BLI
     
     # def shift_raster_image(self, n):
         # if n == 0:
@@ -1097,12 +1204,14 @@ class TerminalEnclosure(QtGui.QFrame):
         return self.image.size()
         
     def paintEvent(self, event):
-        canvas = self.image.copy()
         painter = QtGui.QPainter()
+        
+        canvas = self.image.copy()
         if painter.begin(canvas):
             painter.setCompositionMode(QtGui.QPainter.CompositionMode_Lighten)
             painter.fillRect(event.rect(), self.ttyio.wincolor)
             painter.end()
+            
         if painter.begin(self):
             painter.drawImage(0, 0, canvas)
             painter.end()

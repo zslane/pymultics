@@ -14,6 +14,8 @@ NLINES = 25
 LASTX  = NCHARS - 1
 LASTY  = NLINES - 1
 
+TAB_SIZE = 8
+
 BS  = chr(8)
 TAB = chr(9)
 LF  = chr(10)
@@ -207,6 +209,7 @@ class Buffer(object):
         self._selections = {}
         self._select_callback = None
         self._select_cancel_to_buffer = None
+        self._autoclear_callback = None
         
     def filepath(self):    return self._filepath
     def name(self):        return self._name
@@ -304,12 +307,22 @@ class Buffer(object):
     def move_cursor_to(self, y=0, x=0):
         _move_cursor_to(self._tty_channel, self._window.screeny + y, x)
         
-    def set_special_prompt(self, prompt):
+    def set_special_prompt(self, prompt, autoclear_callback=None):
+        if self._autoclear_callback:
+            call.timer_manager_.reset_alarm_call(self._autoclear_callback)
+        
         self.move_cursor_to(self._cursory)
         _erase_end_of_line(self._tty_channel)
         _write(self._tty_channel, prompt)
         self._marginx = len(prompt)
         self._cursorx = self._marginx
+        
+        if autoclear_callback:
+            self._autoclear_callback = autoclear_callback
+            call.timer_manager_.alarm_call(1.5, self._autoclear_callback)
+        
+    def clear_special_prompt(self):
+        self.set_special_prompt("")
         
     def set_selections(self, title, lines, selections, callback):
         self._selections = dict(enumerate(selections))
@@ -491,12 +504,6 @@ class Buffer(object):
     def prev_line_command(self):
         if not self.cursor_is_at_top_of_buffer():
             if self.cursor_is_at_top_edge():
-                # for i in range(min(self.buffer_can_scroll_down(), self._window.vsize // 2 - 1)):
-                    # self.scroll_down(1)
-                    # self.move_cursor_to()
-                    # self._lines[self._top_row].write()
-                    # self._cursory += 1 # cursor tracks scrolling, therefore row doesn't change
-                # # end for
                 self.center_on(self._get_row() - 1)
             else:
                 self._cursory -= 1
@@ -509,12 +516,6 @@ class Buffer(object):
     def next_line_command(self):
         if not self.cursor_is_at_bottom_of_buffer():
             if self.cursor_is_at_bottom_edge():
-                # for i in range(min(self.buffer_can_scroll_up(), self._window.vsize // 2 - 1)):
-                    # self.scroll_up(1)
-                    # self.move_cursor_to(self._window.bottomy)
-                    # self._lines[self._top_row + self._window.bottomy].write()
-                    # self._cursory -= 1 # cursor tracks scrolling, therefore row doesn't change
-                # # end for
                 self.center_on(self._get_row() + 1)
             else:
                 self._cursory += 1
@@ -617,6 +618,15 @@ class Buffer(object):
             self.clamp_cursor()
             self.restore_cursor()
     
+    def insert_line_command(self):
+        if self.is_readonly() or self.is_select():
+            return False
+        
+        x, y = self._cursorx, self._cursory
+        self.insert_character(CR)
+        self._cursorx, self._cursory = x, y
+        self.restore_cursor()
+    
     def insert_character(self, c):
         if self.is_readonly():
             return False
@@ -626,8 +636,6 @@ class Buffer(object):
         row, col = self._get_pos()
         if c == CR:
             try:
-                # line_to_insert = self._lines[row][col:]
-                # self._lines[row] = self._lines[row][:col]
                 line_to_insert = self._lines[row].split(col)
                 _erase_end_of_line(self._tty_channel)
                 self._lines.insert(row + 1, line_to_insert)
@@ -647,9 +655,9 @@ class Buffer(object):
                 line_to_insert.write()
             # end if
             self._cursorx = self._marginx
+            self.restore_cursor()
         else:
             try:
-                # self._lines[row] = self._lines[row][:col] + c + self._lines[row][col:]
                 self._lines[row].insert_char(c, at=col)
             except:
                 self._lines.append(BufferLine(self, c))
@@ -657,7 +665,13 @@ class Buffer(object):
             
             _erase_end_of_line(self._tty_channel)
             self._lines[row].write(col, self._cursorx)
-            self._cursorx += 1
+            if self.cursor_is_at_right_edge():
+                self._lft_col += 1
+                self.draw_lines()
+            else:
+                self._cursorx += 1
+            # end if
+            self.restore_cursor()
         # end if
         
         self._update_dirty_state_to(True)
@@ -674,8 +688,6 @@ class Buffer(object):
         
         row, col = self._get_pos()
         try:
-            # rest_of_line = self._lines[row][col:]
-            # self._lines[row] = self._lines[row][:col] + line
             rest_of_line = self._lines[row].insert_and_split(line, at=col)
         except:
             rest_of_line = BufferLine(self)
@@ -697,11 +709,23 @@ class Buffer(object):
                 self.restore_cursor()
         else:
             self._lines[row].write(col, self._cursorx)
-            self.end_line_command()
+            if self._cursorx + len(line) > LASTX:
+                self._lft_col = self.num_chars(row) - LASTX + self._marginx
+                self._cursorx = LASTX
+                self.draw_lines()
+            else:
+                self._cursorx += len(line)
+            # end if
+            self.restore_cursor()
         # end if
         
         self._update_dirty_state_to(True)
         return True
+    
+    def insert_tab_command(self):
+        next_x = ((self._cursorx + TAB_SIZE) // TAB_SIZE) * TAB_SIZE
+        n_spaces_to_insert = next_x - self._cursorx
+        return self.insert_textblock([' '] * n_spaces_to_insert)
     
     def delete_previous_character(self):
         if self.is_readonly():
@@ -716,10 +740,16 @@ class Buffer(object):
                 return self.delete_current_character()
         else:
             c = self._lines[row].delete_char(col - 1)
-            self._cursorx -= 1
-            self.restore_cursor()
-            _erase_end_of_line(self._tty_channel)
-            self._lines[row].write(col - 1, self._cursorx)
+            if col == self._lft_col:
+                self._lft_col -= 1
+                self.draw_lines()
+                self.restore_cursor()
+            else:
+                self._cursorx -= 1
+                self.restore_cursor()
+                _erase_end_of_line(self._tty_channel)
+                self._lines[row].write(col, self._cursorx)
+            # end if
             self._update_dirty_state_to(True)
             return c
     
@@ -738,6 +768,7 @@ class Buffer(object):
                 try:
                     self.move_cursor_to(self._window.bottomy)
                     self._lines[self._top_row + self._window.bottomy].write()
+                    self.restore_cursor()
                 except:
                     pass
                 self._update_dirty_state_to(True)
@@ -745,11 +776,10 @@ class Buffer(object):
             except:
                 pass
         else:
+            _erase_end_of_line(self._tty_channel)
             c = self._lines[row].delete_char(col)
             self._lines[row].write(col, self._cursorx)
-            if self.num_chars(row) < LASTX:
-                _erase_end_of_line(self._tty_channel)
-            # end if
+            self.restore_cursor()
             self._update_dirty_state_to(True)
             return c
         # end if
@@ -1066,6 +1096,8 @@ class EmacsEditor(object):
                         self.insert_character(c)
                 elif c == BS:
                     self.delete_previous_character()
+                elif c == TAB:
+                    self.insert_tab_command()
                 elif c == CTRL('A'):
                     self.begin_line_command()
                 elif c == CTRL('B'):
@@ -1088,6 +1120,8 @@ class EmacsEditor(object):
                     self.redraw_command()
                 elif c == CTRL('N'):
                     self.next_line_command()
+                elif c == CTRL('O'):
+                    self.insert_line_command()
                 elif c == CTRL('P'):
                     self.prev_line_command()
                 elif c == CTRL('V'):
@@ -1102,18 +1136,18 @@ class EmacsEditor(object):
                     self.set_status_message(_xlate(c) + " undefined")
             
     def _break_handler(self):
+        self.cancel_minibuffer()
         _move_cursor_to(self.tty, LASTY, 0)
         self._return_from_break = True
         raise BreakCondition
         
     def set_status_message(self, msg):
-        self._minibuffer.set_special_prompt(msg)
+        self._minibuffer.set_special_prompt(msg, self.clear_status_message)
         self._current_buffer.restore_cursor()
-        call.timer_manager_.alarm_call(1.5, self.clear_status_message)
+        # call.timer_manager_.alarm_call(1.5, self.clear_status_message)
     
     def clear_status_message(self):
-        call.timer_manager_.reset_alarm_call(self.clear_status_message)
-        self._minibuffer.set_special_prompt("")
+        self._minibuffer.clear_special_prompt()
         self._current_buffer.restore_cursor()
     
     def minibuffer_command(self, prompt, callback, **kwargs):
@@ -1131,6 +1165,7 @@ class EmacsEditor(object):
         self.minibuffer_command(prompt + " (Y/N)", self._yes_no_handler)
     
     def cancel_minibuffer(self):
+        self._minibuffer.clear_special_prompt()
         if self._cancel_to_buffer is not None:
             self._current_buffer = self._cancel_to_buffer
             self._current_buffer.restore_cursor()
@@ -1384,6 +1419,8 @@ class EmacsEditor(object):
             self.set_status_message("File is read-only.")
         elif not self._current_buffer.filepath():
             self.minibuffer_command("Save file", self._save_file_as)
+        elif not self._current_buffer.is_modified():
+            self.set_status_message("No changes to save.")
         else:
             self.save_current_buffer()
         
@@ -1533,6 +1570,18 @@ class EmacsEditor(object):
             s = self._current_buffer.delete_to_line_end()
             self.add_to_yank_buffer(s)
         
+    def insert_line_command(self):
+        if self._current_buffer.is_readonly():
+            self.set_status_message("Buffer is read-only.")
+        elif self._current_buffer is not self._minibuffer:
+            self._current_buffer.insert_line_command()
+        
+    def insert_tab_command(self):
+        if self._current_buffer.is_readonly():
+            self.set_status_message("Buffer is read-only.")
+        elif self._current_buffer is not self._minibuffer:
+            self._current_buffer.insert_tab_command()
+            
     def prev_char_command(self):
         self._current_buffer.prev_char_command()
         

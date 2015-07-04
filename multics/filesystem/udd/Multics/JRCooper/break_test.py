@@ -37,7 +37,8 @@ def break_test():
         delay = real(arg_list_ptr.pop(0))
     else:
         delay = 1
-        
+    
+    call. ioa_ ("Running ^d iterations for ^d seconds each:", num_iterations, delay)
     for x in do_range(1, num_iterations):
         check_conditions_()
         call. ioa_ ("Iteration ^d", x)

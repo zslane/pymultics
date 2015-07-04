@@ -50,16 +50,8 @@ class iox_(Subroutine):
         if c and ioxctl.echo_input_sw:
             if c == BS:
                 if ioxbuffer:
-                    # self.write(tty_channel, BS)
-                    # if _is_cc(ioxbuffer[-1]):
-                        # self.write(tty_channel, BS) # send out a second backspace char to remove the '^'
-                    n = 2 if _is_cc(ioxbuffer[-1]) else 1
-                    for i in range(n):
-                        self.write(tty_channel, BS)
-                    for i in range(n):
-                        self.write(tty_channel, ' ')
-                    for i in range(n):
-                        self.write(tty_channel, BS)
+                    n = 4 if _is_cc(ioxbuffer[-1]) else 1
+                    self.write(tty_channel, (BS * n) + (' ' * n) + (BS * n))
             else:
                 self.write(tty_channel, _xlate_cc(c))
             

@@ -11,6 +11,7 @@ def CTRL(s):
 def cc_test():
     ESC_prefix = False
     CTRLX_prefix = False
+    reverse_video = False
     
     send_esc_code("[c") # Query Device Code
     call. ioa_ (get_response('c').replace(ESC, "<ESC>"))
@@ -23,9 +24,10 @@ def cc_test():
     for code in [0, 1, 2, 4, 5, 7]:
         send_esc_code("[0;%dm" % (code))
         call. ioa_ (s)
+    # end for
     send_esc_code("[0m")
     
-    send_esc_code("[3;5r")
+    send_esc_code("[4;6r")
 
     call. ioa_ ("Entering single character input mode (use ^C to exit).")
     while True:
@@ -64,6 +66,9 @@ def cc_test():
             send_esc_code("[B") # Cursor Down
         elif c == CTRL('P'):
             send_esc_code("[A") # Cursor Up
+        elif c == CTRL('R'):
+            reverse_video = not reverse_video
+            send_esc_code("[?5%s" % ("h" if reverse_video else "l")) # Reverse/normal video
         elif c == CTRL('Z'):
             send_esc_code("M") # Scroll Up
         elif c == CTRL('U'):
@@ -74,6 +79,9 @@ def cc_test():
             ESC_prefix = True
         else:
             call. ioa_.nnl (c)
+    # end while
+    send_esc_code("[r")
+    send_esc_code("[J")
         
 def wait_get_char():
     tty_channel = get_calling_process_().tty()
