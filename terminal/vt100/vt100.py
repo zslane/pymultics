@@ -1412,6 +1412,12 @@ class TerminalIO(QtGui.QWidget):
         self.socket.abort()
         QtCore.QTimer.singleShot(0, self.reconnect)
         
+    def send_text_file(self, path):
+        with open(path) as f:
+            for line in f:
+                self.send_chars(line.replace(LF, CR+LF))
+                QtCore.QThread.msleep(250)
+    
     def set_server_name(self, host):
         self.host = host
         
@@ -1514,10 +1520,19 @@ class TerminalWindow(QtGui.QMainWindow):
         self.menuBar().setStyleSheet(MENUBAR_STYLE_SHEET)
         self.menuBar().setNativeMenuBar(False)
         
+        #== Create menus
+        self.file_menu = self.menuBar().addMenu("File")
+        self.file_menu.setStyleSheet(MENU_STYLE_SHEET)
+        
         self.options_menu = self.menuBar().addMenu("Options")
         self.options_menu.setStyleSheet(MENU_STYLE_SHEET)
         
         self.connect_action = self.menuBar().addAction("Connect", self.do_connect)
+        
+        #== Create menu items
+        self.send_file_action = self.file_menu.addAction("Send Text File...", self.send_text_file)
+        self.file_menu.addSeparator()
+        self.file_menu.addAction("Quit", self.close)
         
         self.phosphor_color_menu = self.options_menu.addMenu("Phosphor Color")
         self.brightness_action = self.options_menu.addAction("Brightness...", self.set_brightness)
@@ -1530,7 +1545,6 @@ class TerminalWindow(QtGui.QMainWindow):
         self.mode_options_menu = self.options_menu.addMenu("Modes")
         self.options_menu.addSeparator()
         self.set_server_action = self.options_menu.addAction("Server Settings...", self.set_server_info)
-        # self.options_menu.addSeparator()
         self.recent_connections_menu = self.options_menu.addMenu("Recent Connections")
         
         self.set_crecho_action = self.mode_options_menu.addAction("Add CRs To Incoming LFs", self.set_crecho_mode)
@@ -1581,9 +1595,9 @@ class TerminalWindow(QtGui.QMainWindow):
         
         self.build_recent_connections_menu()
         
-        self.set_crecho_action.setChecked(bool(self.settings.value("crecho_mode", DEFAULT_CRECHO_MODE)))
-        self.set_lfecho_action.setChecked(bool(self.settings.value("lfecho_mode", DEFAULT_LFECHO_MODE)))
-        self.set_localecho_action.setChecked(bool(self.settings.value("localecho_mode", DEFAULT_LOCALECHO_MODE)))
+        self.set_crecho_action.setChecked(int(self.settings.value("crecho_mode", DEFAULT_CRECHO_MODE)))
+        self.set_lfecho_action.setChecked(int(self.settings.value("lfecho_mode", DEFAULT_LFECHO_MODE)))
+        self.set_localecho_action.setChecked(int(self.settings.value("localecho_mode", DEFAULT_LOCALECHO_MODE)))
         
         self.set_phosphor_vintg.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "vintage")
         self.set_phosphor_green.setChecked(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR) == "green")
@@ -1593,11 +1607,12 @@ class TerminalWindow(QtGui.QMainWindow):
         self.set_cursor_block.setChecked(int(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK)) == GlassTTY.CURSOR_BLOCK)
         self.set_cursor_line.setChecked(int(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK)) == GlassTTY.CURSOR_LINE)
         
-        self.cursor_blink_action.setChecked(bool(self.settings.value("cursor_blink", DEFAULT_CURSOR_BLINK)))
+        self.cursor_blink_action.setChecked(int(self.settings.value("cursor_blink", DEFAULT_CURSOR_BLINK)))
         
         self.set_std_charset.setChecked(self.settings.value("character_set", DEFAULT_CHARSET) == "std")
         self.set_alt_charset.setChecked(self.settings.value("character_set", DEFAULT_CHARSET) == "alt")
         
+        self.send_file_action.setEnabled(False)
         self.connect_action.setEnabled(True)
         self.set_connect_action_tooltip()
     
@@ -1606,13 +1621,13 @@ class TerminalWindow(QtGui.QMainWindow):
         self.io.set_server_name(self.settings.value("host", DEFAULT_SERVER_NAME))
         self.io.set_server_port(int(self.settings.value("port", DEFAULT_SERVER_PORT)))
         self.io.set_protocol(self.settings.value("protocol", DEFAULT_PROTOCOL))
-        self.io.set_echo_mode("crecho", bool(self.settings.value("crecho_mode", DEFAULT_CRECHO_MODE)))
-        self.io.set_echo_mode("lfecho", bool(self.settings.value("lfecho_mode", DEFAULT_LFECHO_MODE)))
+        self.io.set_echo_mode("crecho", bool(int(self.settings.value("crecho_mode", DEFAULT_CRECHO_MODE))))
+        self.io.set_echo_mode("lfecho", bool(int(self.settings.value("lfecho_mode", DEFAULT_LFECHO_MODE))))
         self.io.set_echo_mode("localecho", bool(self.settings.value("localecho_mode", DEFAULT_LOCALECHO_MODE)))
         self.io.set_phosphor_color(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR))
         self.io.set_brightness(float(self.settings.value("brightness", DEFAULT_BRIGHTNESS)))
         self.io.set_cursor_style(int(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK)))
-        self.io.set_cursor_blink(bool(self.settings.value("cursor_blink", DEFAULT_CURSOR_BLINK)))
+        self.io.set_cursor_blink(bool(int(self.settings.value("cursor_blink", DEFAULT_CURSOR_BLINK))))
         self.io.set_character_set(self.settings.value("character_set", DEFAULT_CHARSET))
         # self.io.startup()
         
@@ -1681,14 +1696,14 @@ class TerminalWindow(QtGui.QMainWindow):
     
     @QtCore.Slot()
     def enable_reconnect(self):
-        # self.connect_action.setEnabled(True)
+        self.send_file_action.setEnabled(False)
         self.connect_action.setText("Connect")
         for connect_action in self.recent_connections_actions:
             connect_action.setEnabled(True)
         
     @QtCore.Slot()
     def disable_reconnect(self):
-        # self.connect_action.setEnabled(False)
+        self.send_file_action.setEnabled(True)
         self.update_recent_connections(self.io.host, self.io.port, self.io.protocol)
         self.connect_action.setText("Disconnect")
         for connect_action in self.recent_connections_actions:
@@ -1712,6 +1727,12 @@ class TerminalWindow(QtGui.QMainWindow):
     @QtCore.Slot()
     def disconnect(self):
         QtCore.QTimer.singleShot(0, self.close)
+        
+    @QtCore.Slot()
+    def send_text_file(self):
+        path, _ = QtGui.QFileDialog.getOpenFileName(self, "Send Text File")
+        if path:
+            self.io.send_text_file(path)
         
     @QtCore.Slot()
     def set_server_info(self):
