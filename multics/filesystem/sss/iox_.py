@@ -88,6 +88,8 @@ class iox_(Subroutine):
                 result.pop()
             elif c == "@" and not escape_next:
                 result = []
+            elif escape_next:
+                result.append("\\" + c)
             else:
                 result.append(c)
             escape_next = False

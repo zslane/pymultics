@@ -39,12 +39,15 @@ def list_():
         segment.list = [ segment.name ]
     # end if
     
+    branch.list = _sift_hidden_files(branch.list)
+    segment.list = _sift_hidden_files(segment.list)
+    
     if len(branch.list) + len(segment.list) == 0:
         call.ioa_("Directory empty.")
     else:
         #== Sift out add_names and files with excluded file extensions
         segment.list = filter(lambda s: not s.endswith(EXCLUDED_EXTENSIONS), segment.list)
-        branch_add_names = _sift_add_names(branch.list, segment.list)
+        branch_add_names = _sift_add_names(branch.list, segment.list) # <-- branch add names exist as *files* with the .xxx+yyyyy naming format
         segment_add_names = _sift_add_names(segment.list, segment.list)
         
         total_lengths = 0
@@ -105,6 +108,23 @@ def _get_acl(dir_name, segment_name):
     else:
         #== Everything else
         return "r w"
+        
+#-- end def _get_acl
+
+def _sift_hidden_files(file_list):
+    sifted_list = []
+    for fname in file_list:
+        if fname.startswith("."):
+            match = re.match(r"\.(.*)\+(.*)", fname)
+            if not match:
+                continue
+            # end if
+        # end if
+        sifted_list.append(fname)
+    # end for
+    return sifted_list
+    
+#-- end def _sift_hidden_files
         
 def _sift_add_names(name_list, file_list):
     add_names = defaultdict(list)

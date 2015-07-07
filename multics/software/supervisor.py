@@ -675,8 +675,9 @@ class DynamicLinker(QtCore.QObject):
     def dump_traceback_(self):
         import traceback
         traceback.print_exc()
-        excmsg = traceback.format_exc().replace("{", "{{").replace("}", "}}")
-        self.__supervisor.send_to_tty(excmsg, get_calling_process_().tty())
+        # excmsg = traceback.format_exc().replace("\n", "\r\n")
+        # self.__supervisor.send_to_tty(excmsg, get_calling_process_().tty())
+        self.iox_.write(get_calling_process_().tty(), traceback.format_exc())
         
     #== Called by hcs_ ==#
     
@@ -746,7 +747,7 @@ class DynamicLinker(QtCore.QObject):
             # print "...segment fault"
             self.__segfault_count += 1
             module, module_path = self._find_module(segment_name, known_location, frame_id=frame_id)
-            if module:
+            if module and hasattr(module, segment_name):
                 self.known_segment_table[segment_name] = SegmentDescriptor(self.__supervisor, segment_name, module_path, module)
                 entry_point = self.known_segment_table[segment_name].segment
                 # print "   found", entry_point

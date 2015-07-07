@@ -19,7 +19,16 @@ class command_processor_(CommandProcessor):
             if program_entry_point:
                 program_entry_point()
             else:
-                call.ioa_("Segment ^a not found.", command.name)
+                directory = parm()
+                code      = parm()
+                call.sys_.get_abs_path(command.name, segment)
+                call.sys_.split_path_(segment.path, directory, segment)
+                call.hcs_.fs_file_exists(directory.val, segment.name + ".py", code)
+                if code.val == 0:
+                    call.ioa_("No entry point ^a in segment ^a.", command.name, command.name)
+                else:
+                    call.ioa_("Segment ^a not found.", command.name)
+                # end if
             # end if
         # end if
         

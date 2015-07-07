@@ -458,7 +458,7 @@ class VirtualMulticsFileSystem(QtCore.QObject):
                     return ([], [], error_table_.fileioerr)
                 return ([], [], error_table_.no_directory_entry)
             # end if
-            contents = glob.glob(os.path.join(dirpath, "*")) # + glob.glob(os.path.join(dirpath, ".*"))
+            contents = glob.glob(os.path.join(dirpath, "*")) + glob.glob(os.path.join(dirpath, ".*"))
             file_list = map(os.path.basename, filter(os.path.isfile, contents))
             dir_list = map(os.path.basename, filter(os.path.isdir, contents))
             return (dir_list, file_list, 0)
