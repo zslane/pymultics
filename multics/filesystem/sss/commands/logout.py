@@ -18,7 +18,7 @@ def logout():
         elif arg == "-brief" or arg == "-bf":
             process.root_stack.logout_options['brief'] = True
         else:
-            call.ioa_("Usage: logout {{-hold}} {{-brief|-bf}}")
+            call.ioa_("Usage: logout {-hold} {-brief|-bf}")
             return
         # end if
     # end if

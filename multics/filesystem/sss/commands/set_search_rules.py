@@ -40,7 +40,7 @@ def set_search_rules():
         # end if
         
     else:
-        call.ioa_("Usage: set_search_rules {{path}}")
+        call.ioa_("Usage: set_search_rules {path}")
         return
     # end if
     

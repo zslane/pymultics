@@ -439,7 +439,7 @@ class ioa_(Subroutine):
             s = _ioa_parser(format_string, args)
             
         else:
-            s = format_string.format(*args)
+            s = format_string
         # end if
         
         s = re.sub(r"[ \t]+?\n", "\n", s) # remove whitespace preceding a newline

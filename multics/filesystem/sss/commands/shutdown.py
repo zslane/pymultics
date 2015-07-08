@@ -66,7 +66,7 @@ def shutdown():
                 # end if
                 return 0
             else:
-                call.ioa_("Usage: shutdown {{-in [time] [units]}} {{-m [message]}} {{-cancel|-c}}")
+                call.ioa_("Usage: shutdown {-in [time] [units]} {-m [message]} {-cancel|-c}")
                 return 0
             # end if
         # end while

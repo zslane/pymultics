@@ -11,7 +11,7 @@ SEARCH_PATH_SYMBOLS = [
 ]
 
 def _show_usage():
-    call.ioa_("""Usage: add_search_rules|asr [path1] {{-control_arg path2}} ...
+    call.ioa_("""Usage: add_search_rules|asr [path1] {-control_arg path2} ...
     -before [path2]
     -after [path2]""")
 

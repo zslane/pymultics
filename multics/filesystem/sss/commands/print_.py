@@ -18,7 +18,7 @@ def print_(*func_args):
         call.cu_.arg_list(arg_list)
     # end if
     if len(arg_list.args) == 0:
-        call.ioa_("Usage: print [file] {{begin}} {{end}}")
+        call.ioa_("Usage: print [file] {begin} {end}")
         return
     # end if
     
@@ -34,7 +34,7 @@ def print_(*func_args):
     if arg_list.args:
         end = int(arg_list.args.pop(0)) + 1
     if arg_list.args:
-        call.ioa_("Usage: print [file] {{begin}} {{end}}")
+        call.ioa_("Usage: print [file] {begin} {end}")
         return
     # end if
     
@@ -86,7 +86,7 @@ def print_(*func_args):
             output_count += 1 + ((len(lines[i]) - 1) // 80)
             if (count != nlines) and (output_count >= page_size):
                 output_count = 0
-                call.command_query_(query_info, answer, "print", "Continue ({0} lines)?", nlines - count)
+                call.command_query_(query_info, answer, "print", "Continue (^d lines)?", nlines - count)
                 if answer.val.lower() in ["no", "n"]:
                     break
                 # end if

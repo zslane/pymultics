@@ -32,7 +32,7 @@ def accept_messages():
             hold_messages = False
             unhold_messages = True
         else:
-            call.ioa_("Usage: accept_messages|am {{-print|-pr}} {{-hold|-hd}} {{-nohold}} {{-brief|-bf}} {{-short|-sh}}")
+            call.ioa_("Usage: accept_messages|am {-print|-pr} {-hold|-hd} {-nohold} {-brief|-bf} {-short|-sh}")
             return
         # end if
     # end for

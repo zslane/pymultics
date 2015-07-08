@@ -108,7 +108,7 @@ class AnsweringService(Subroutine):
                 # end if
                 
                 if not self.shutting_down:
-                    check_conditions_()
+                    GlobalEnvironment.supervisor.check_for_shutdown()
                 # end if
             
             # except DisconnectCondition:

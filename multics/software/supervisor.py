@@ -310,6 +310,15 @@ class Supervisor(QtCore.QObject):
         # end if
         QtCore.QCoreApplication.processEvents()
     
+    def check_for_shutdown(self):
+        #== This is a minimal pulse routine that just checks for system shutdown and
+        #== calls the Qt event processor to keep everything flowing
+        if self.shutting_down():
+            print "Shutdown signal detected by " + get_calling_process_().objectName()
+            raise ShutdownCondition
+        # end if
+        QtCore.QCoreApplication.processEvents()
+    
     def signal_break(self, process):
         self.invoke_condition_handler(BreakCondition, process) ### ! EXPERIMENTAL ! ###
         
@@ -746,8 +755,8 @@ class DynamicLinker(QtCore.QObject):
         except SegmentFault:
             # print "...segment fault"
             self.__segfault_count += 1
-            module, module_path = self._find_module(segment_name, known_location, frame_id=frame_id)
-            if module and hasattr(module, segment_name):
+            module, module_path, entryname = self._find_module(segment_name, known_location, frame_id=frame_id)
+            if module and hasattr(module, entryname or segment_name):
                 self.known_segment_table[segment_name] = SegmentDescriptor(self.__supervisor, segment_name, module_path, module)
                 entry_point = self.known_segment_table[segment_name].segment
                 # print "   found", entry_point
@@ -818,7 +827,7 @@ class DynamicLinker(QtCore.QObject):
                     # print module_path
                     try:
                         module = self._load_python_code(segment_name, module_path)
-                        return module, module_path
+                        return module, module_path, entryname
                     except SyntaxError:
                         raise
                     except:
@@ -829,7 +838,7 @@ class DynamicLinker(QtCore.QObject):
                 # end if
             # end for
         # end for
-        return None, None
+        return None, None, None
     
     def _load_python_code(self, module_name, module_path):
         #== Turn the module name into a unique namespace based on the process id

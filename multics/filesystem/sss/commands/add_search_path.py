@@ -18,7 +18,7 @@ def add_search_path():
     
     call.cu_.arg_list(arg_list)
     if len(arg_list.args) < 2:
-        call.ioa_("""Usage: add_search_path|asp [search_list_name] [path] {{-control_args}}
+        call.ioa_("""Usage: add_search_path|asp [search_list_name] [path] {-control_args}
     -first
     -last
     -before [path]
