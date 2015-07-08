@@ -111,6 +111,8 @@ class cu_(Subroutine):
         
     def set_command_string_(self, command_string):
         command_name, _, args_string = command_string.strip().partition(" ")
+        if command_name.endswith(".py"):
+            command_name, _ = os.path.splitext(command_name)
         self._current_context.program_name = command_name
         self._current_context.argument_string = args_string.strip()
     

@@ -25,9 +25,13 @@ class command_processor_(CommandProcessor):
                 call.sys_.split_path_(segment.path, directory, segment)
                 call.hcs_.fs_file_exists(directory.val, segment.name + ".py", code)
                 if code.val == 0:
-                    call.ioa_("Entry point ^a not found in segment ^a.", command.name, command.name)
+                    call.ioa_("Entry point ^a not found in segment ^a.", segment.name, segment.name)
                 else:
-                    call.ioa_("Segment ^a not found.", command.name)
+                    segment_name, _, entry_name = segment.name.partition("$")
+                    if entry_name:
+                        call.ioa_("Entry point ^a not found in segment ^a.", entry_name, segment_name)
+                    else:
+                        call.ioa_("Segment ^a not found.", segment_name)
                 # end if
             # end if
         # end if
