@@ -21,5 +21,7 @@ def add_name():
     if supervisor.fs.file_exists(full_path.val):
         for name in names:
             supervisor.fs.add_name(full_path.val, name)
+    else:
+        call.ioa_("add_name: Segment not found. ^a", path)
 
 an = add_name

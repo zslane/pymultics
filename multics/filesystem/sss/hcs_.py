@@ -132,6 +132,11 @@ class hcs_(Subroutine):
         self.terminate_ptr(segment_data_ptr, code)
         code.val = segment_data_ptr.delete_file()
     
+    def delentry_name(self, dirname, filename, code):
+        self.fs_file_exists(dirname, filename, code)
+        if code.val == 0:
+            GlobalEnvironment.fs.delete_file(GlobalEnvironment.fs.merge_path(dirname, filename))
+    
     def get_segment_length(self, dir_name, entryname, seg_len, code):
         full_path = GlobalEnvironment.fs.path2path(dir_name, entryname)
         try:
