@@ -597,11 +597,7 @@ class Buffer(object):
     def scroll_up_command(self):
         if self._top_row != self.num_lines() - self._window.vsizeb:
             self._top_row += 1
-            self._window.scroll_up()
-            
-            self.move_cursor_to(self._window.bottomy)
-            self._lines[self._top_row + self._window.bottomy].write()
-            
+            self.draw_lines()
             self._cursory = max(self._marginy, self._cursory - 1)
             self.clamp_cursor()
             self.restore_cursor()
@@ -609,11 +605,7 @@ class Buffer(object):
     def scroll_down_command(self):
         if self._top_row != 0:
             self._top_row -= 1
-            self._window.scroll_down()
-            
-            self.move_cursor_to()
-            self._lines[self._top_row].write()
-            
+            self.draw_lines()
             self._cursory = min(self._window.bottomy, self._cursory + 1)
             self.clamp_cursor()
             self.restore_cursor()
