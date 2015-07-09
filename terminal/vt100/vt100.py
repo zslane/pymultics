@@ -11,7 +11,7 @@ import vt100_rc
 import QTelnetSocket
 
 N_HORZ_CHARS = 80
-N_VERT_LINES = 25
+N_VERT_LINES = 24
 
 SUPPORTED_PROTOCOLS    = ["pymultics", "telnet"]
 
@@ -270,7 +270,7 @@ class GlassTTY(QtGui.QWidget):
         #== We are a fixed-size widget containing (NCHARS x NLINES) monospaced character cells
         #== and a small border margin
         w = self.cell_width * self.NCHARS
-        h = self.cell_height * self.NLINES
+        h = self.cell_height * (self.NLINES + 1)
         return QtCore.QSize(w, h)
         
     def setConnected(self, flag):
@@ -307,7 +307,8 @@ class GlassTTY(QtGui.QWidget):
     def setCharSet(self, charset):
         self.charset = charset
         self.glyphs = self.font.colored_glyphs[self.phosphor_color]
-        self.repaint_all()
+        # self.repaint_all()
+        self.update()
         
     def setBrightness(self, value):
         self.opacity = value
@@ -1010,6 +1011,10 @@ class GlassTTY(QtGui.QWidget):
         if painter.begin(self):
             painter.setOpacity(self.opacity) # <-- this is how phosphor brightness is implemented
             painter.drawImage(event.rect(), self.raster_image, event.rect())
+            
+            if True:
+                self.paint_status_bar(painter)
+            
             painter.end()
         
     def paint_background(self, painter, rect):
@@ -1029,6 +1034,39 @@ class GlassTTY(QtGui.QWidget):
         
         painter.setCompositionMode(self.compmode)
         
+    def paint_status_bar(self, painter):
+        painter.save()
+        
+        status_bar_rect = self.rect().adjusted(0, self.NLINES * self.cell_height + 2, 0, 0)
+        painter.fillRect(status_bar_rect, self.wincolor)
+        
+        import datetime
+        status_list = [ "NORMAL",
+                        "",
+                        "WRAP" if self.autowrap else "",
+                        "CR ECHO" if self.crecho else "",
+                        "LF ECHO" if self.lfecho else "",
+                        "LOCAL" if self.localecho else "",
+                        "REPEAT" if self.autorepeat else "",
+                        datetime.datetime.now().strftime("%I:%M %p"),
+                      ]
+        status_text = ("").join([" %-9s" % s for s in status_list])
+        
+        cell_rect = status_bar_rect.adjusted(1, 1, 0, 0)
+        for c in status_text:
+            painter.drawImage(cell_rect.topLeft(), self.glyphs[NRM|REV][ord(c)])
+            cell_rect.translate(self.cell_width, 0)
+        # end for
+        
+        painter.setPen(self.wincolor)
+        status_bar_rect.setRight(self.cell_width * 10)
+        for i in range(8):
+            painter.drawRect(status_bar_rect)
+            status_bar_rect.translate(self.cell_width * 10, 0)
+        # end for
+        
+        painter.restore()
+    
     def repaint_cursor(self):
         def drawit(attr):
             return (attr & BLI) == 0 or self.blink_state
