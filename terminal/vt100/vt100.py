@@ -47,6 +47,8 @@ BS  = chr(8)
 TAB = chr(9)
 LF  = chr(10)
 CR  = chr(13)
+CAN = chr(24)
+SUB = chr(26)
 ESC = chr(27)
 SP  = chr(32)
 
@@ -330,7 +332,7 @@ class GlassTTY(QtGui.QWidget):
                 continue
                 
             #== Process escape code sequence
-            elif c == ESC or self.esc_code_state:
+            elif c in [ESC, CAN, SUB] or self.esc_code_state:
                 if self.process_esc_code(c):
                     continue
                     
@@ -584,15 +586,22 @@ class GlassTTY(QtGui.QWidget):
     #=================================#
     
     def process_esc_code(self, c):
-        #== State machine for processing VT100 escape codes
+        #== State machine for processing VT100 escape codes. Returns True
+        #== whenever c is a character recognized as the next one in the
+        #== escape sequence being processed. This tells the caller not to
+        #== do anything with that character since it has been consumed
+        #== by this state machine. Returns False if c does not fit
+        #== anywhere in the current sequence, typically aborting the
+        #== sequence and informing the caller to process the character
+        #== normally.
         
-        (CC_NONE,
+        (
          CC_BEGIN,
          CC_TYPE1,
          CC_SETDEC,
          CC_NUM1,
          CC_NUMLIST,
-        ) = range(6)
+        ) = range(1, 6)
         
         def start():
             self.esc_code_state = CC_BEGIN
@@ -613,7 +622,7 @@ class GlassTTY(QtGui.QWidget):
             _debug("\n")
             return False
             
-        def default1(s):
+        def defaultTo1(s):
             return int(s) or 1
         
         if self.esc_code_state == 0:
@@ -739,7 +748,7 @@ class GlassTTY(QtGui.QWidget):
                 elif code == 8:
                     self.autorepeat = False
                 else:
-                    _debug("\nIgnoreing DEC private '%dl'" % (code))
+                    _debug("\nIgnoring DEC private '%dl'" % (code))
                 # end if
                 return done()
             # end if
@@ -804,23 +813,23 @@ class GlassTTY(QtGui.QWidget):
                     return done()
                 #end if
             elif c == 'A':
-                count = default1(self._cc_n1)
+                count = defaultTo1(self._cc_n1)
                 self.moveCursor(0, -count)
                 return done()
             elif c == 'B':
-                count = default1(self._cc_n1)
+                count = defaultTo1(self._cc_n1)
                 self.moveCursor(0, count)
                 return done()
             elif c == 'C':
-                count = default1(self._cc_n1)
+                count = defaultTo1(self._cc_n1)
                 self.moveCursor(count, 0)
                 return done()
             elif c == 'D':
-                count = default1(self._cc_n1)
+                count = defaultTo1(self._cc_n1)
                 self.moveCursor(-count, 0)
                 return done()
             elif c == 'H' or c == 'f':
-                row = default1(self._cc_n1) - 1
+                row = defaultTo1(self._cc_n1) - 1
                 if self.valid_row_coord(row):
                     self.moveCursorTo(0, row)
                     return done()
@@ -862,7 +871,7 @@ class GlassTTY(QtGui.QWidget):
                 return same()
             else:
                 if (c == 'H' or c == 'f') and len(self._cc_nl) == 2:
-                    nums = map(default1, self._cc_nl)
+                    nums = map(defaultTo1, self._cc_nl)
                     row, col = nums
                     row -= 1 ; col -= 1
                     if self.valid_row_coord(row) and self.valid_col_coord(col):
@@ -871,7 +880,7 @@ class GlassTTY(QtGui.QWidget):
                     else:
                         print "^[[%d;%dH (invalid position)" % (row, col)
                 elif c == 'r' and len(self._cc_nl) == 2:
-                    nums = map(default1, self._cc_nl)
+                    nums = map(defaultTo1, self._cc_nl)
                     start, end = nums
                     start -= 1 ; end -= 1
                     if self.valid_row_coord(start) and self.valid_row_coord(end):
@@ -914,6 +923,10 @@ class GlassTTY(QtGui.QWidget):
         #== just begin control code parsing again from the start
         if c == ESC:
             return start()
+        #== Special case: abort code sequence in progress when
+        #== CAN (ctrl-X) or SUB (ctrl-Z) is encountered
+        elif c in [CAN, SUB]:
+            return done()
             
         #== Otherwise stop parsing and process new char normally
         return failed()
