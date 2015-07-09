@@ -333,7 +333,7 @@ class GlassTTY(QtGui.QWidget):
         self.hideCursor()
         for c in text:
             #== Process control characters
-            if c != ESC and 0 <= ord(c) < 32:
+            if c not in [ESC, CAN, SUB] and 0 <= ord(c) < 32:
                 self.process_ctl_char(c)
                 continue
                 
@@ -632,6 +632,8 @@ class GlassTTY(QtGui.QWidget):
             return int(s) or 1
         
         if self.esc_code_state == 0:
+            if c in [CAN, SUB]:
+                return done()
             assert c == ESC
             return start()
             
