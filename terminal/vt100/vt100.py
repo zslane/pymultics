@@ -248,11 +248,14 @@ class GlassTTY(QtGui.QWidget):
         self.localecho = DEFAULT_LOCALECHO_MODE
         self.esc_code_state = 0
         
+        self.status_bar_rect = QtCore.QRect(0, self.NLINES * self.cell_height + 2, self.NCHARS * self.cell_width, self.cell_height)
+        
         self.setPhosphorColor(phosphor_color)
         self.resetScrollRange()
         
         self.setConnected(False)
         self.startTimer(500)
+        self.clock_minute_now = QtCore.QTime.currentTime().minute()
     
     @property
     def font(self):
@@ -277,11 +280,13 @@ class GlassTTY(QtGui.QWidget):
         self.connected = flag
         self.cursor_visible = flag
         self.repaint_cursor()
+        self.update(self.status_bar_rect)
         
     def setEchoMode(self, *args):
         try:
             mode, flag = args
             setattr(self, mode, flag)
+            self.update(self.status_bar_rect)
         except:
             pass
         
@@ -993,6 +998,10 @@ class GlassTTY(QtGui.QWidget):
                 self.sendCharacters(c)
             
     def timerEvent(self, event):
+        if self.clock_minute_now != QtCore.QTime.currentTime().minute():
+            self.clock_minute_now = QtCore.QTime.currentTime().minute()
+            self.update(self.status_bar_rect)
+            
         self.blink_state = not self.blink_state
         if GlassTTY.n_blinkers > 0:
             #== Only trigger a full-screen update if there are blinking characters
@@ -1037,32 +1046,33 @@ class GlassTTY(QtGui.QWidget):
     def paint_status_bar(self, painter):
         painter.save()
         
-        status_bar_rect = self.rect().adjusted(0, self.NLINES * self.cell_height + 2, 0, 0)
-        painter.fillRect(status_bar_rect, self.wincolor)
+        painter.fillRect(self.status_bar_rect, self.wincolor)
         
-        import datetime
-        status_list = [ "NORMAL",
-                        "",
-                        "WRAP" if self.autowrap else "",
-                        "CR ECHO" if self.crecho else "",
-                        "LF ECHO" if self.lfecho else "",
-                        "LOCAL" if self.localecho else "",
-                        "REPEAT" if self.autorepeat else "",
-                        datetime.datetime.now().strftime("%I:%M %p"),
-                      ]
-        status_text = ("").join([" %-9s" % s for s in status_list])
+        status_list = [
+            ("ONLINE"     if self.connected else "OFFLINE",   9),
+            ("",                                              10),
+            ("WRAP"       if self.autowrap else "",           6),
+            ("CR ECHO"    if self.crecho else "",             9),
+            ("LF ECHO"    if self.lfecho else "",             9),
+            ("LOCAL ECHO" if self.localecho else "",          12),
+            ("REPEAT"     if self.autorepeat else "",         8),
+            ("",                                              7),
+            (QtCore.QTime.currentTime().toString("hh:mm AP"), 10),
+        ]
+        status_text = ("").join([" %-*s" % (w - 1, s) for (s, w) in status_list])
         
-        cell_rect = status_bar_rect.adjusted(1, 1, 0, 0)
+        cell_rect = self.status_bar_rect.adjusted(1, 1, 0, 0)
         for c in status_text:
             painter.drawImage(cell_rect.topLeft(), self.glyphs[NRM|REV][ord(c)])
             cell_rect.translate(self.cell_width, 0)
         # end for
         
+        box_rect = self.status_bar_rect.adjusted(0, 0, 0, 0)
         painter.setPen(self.wincolor)
-        status_bar_rect.setRight(self.cell_width * 10)
-        for i in range(8):
-            painter.drawRect(status_bar_rect)
-            status_bar_rect.translate(self.cell_width * 10, 0)
+        for (_, w) in status_list:
+            box_rect.setWidth(self.cell_width * w)
+            painter.drawRect(box_rect)
+            box_rect.translate(self.cell_width * w, 0)
         # end for
         
         painter.restore()

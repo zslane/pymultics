@@ -28,7 +28,7 @@ patterns    = re.compile("|".join([bitstr_pat, dquote_pat, squote_pat, comment_p
 
 class Supervisor(QtCore.QObject):
 
-    IDLE_DELAY_TIME = 20
+    IDLE_DELAY_TIME = 200
     
     def __init__(self, hardware):
         super(Supervisor, self).__init__()
@@ -123,7 +123,15 @@ class Supervisor(QtCore.QObject):
         return "Multics.Supervisor"
     
     def _msleep(self, milliseconds):
-        QtCore.QThread.msleep(milliseconds)
+        # QtCore.QThread.msleep(milliseconds)
+        process = get_calling_process_()
+        countdown = milliseconds
+        while countdown > 0:
+            if process:
+                self.check_conditions(process.tty(), process)
+            # end if
+            QtCore.QThread.msleep(self.IDLE_DELAY_TIME)
+            countdown -= self.IDLE_DELAY_TIME
         
     def _heartbeat(self):
         self._process_timers()

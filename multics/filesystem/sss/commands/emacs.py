@@ -9,7 +9,7 @@ include.iox_control
 declare (get_wdir_ = entry . returns (char(168)))
 
 NCHARS = 80
-NLINES = 25
+NLINES = 24
 
 LASTX  = NCHARS - 1
 LASTY  = NLINES - 1
@@ -880,11 +880,11 @@ class EmacsEditor(object):
             code = parm()
             
             nbuffers = min(self.MAX_WINDOWS, len(file_path_list))
-            wsize = (NLINES - 1) // nbuffers
+            windim = self.window_dimensions(nbuffers)
             for i, path in enumerate(file_path_list):
                 if i < len(self._windows):
                     w = self._windows[i]
-                    w.setup(i * wsize, wsize)
+                    w.setup(*windim.next())
                 else:
                     w = None
                 # end if
@@ -910,6 +910,14 @@ class EmacsEditor(object):
         self._yes_no_args = []
         self._yes_no_prompt = None
         
+    def window_dimensions(self, n_windows):
+        screeny = 0
+        winsize = int(round_(LASTY / float_(n_windows)))
+        for i in range(n_windows):
+            yield (screeny, winsize)
+            screeny += winsize
+            winsize = min(winsize, LASTY - screeny)
+            
     def new_buffer(self, name="", window=None):
         if name:
             name = self._next_name(name)
@@ -1244,12 +1252,10 @@ class EmacsEditor(object):
                 
                 visible_buffers = self.get_visible_buffers()
                 
-                screeny = 0
-                wsize = (NLINES - 1) // len(visible_buffers)
+                windim = self.window_dimensions(len(visible_buffers))
                 for buffer in visible_buffers:
-                    buffer.window().setup(screeny, wsize)
+                    buffer.window().setup(*windim.next())
                     buffer.draw_lines()
-                    screeny += wsize
                 # end for
                 
                 self._current_buffer = visible_buffers[0]
@@ -1662,11 +1668,9 @@ class EmacsEditor(object):
         visible_windows = [ w for w in self._windows if w.visible ]
         visible_windows.insert(visible_windows.index(insert_after_buffer.window()) + 1, window_to_use)
         
-        screeny = 0
-        vsize = (NLINES - 1) // len(visible_windows)
+        windim = self.window_dimensions(len(visible_windows))
         for w in visible_windows:
-            w.setup(screeny, vsize)
-            screeny += vsize
+            w.setup(*windim.next())
         # end for
         
         for buffer in self._buffers:
