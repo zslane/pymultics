@@ -30,6 +30,16 @@ class iox_(Subroutine):
     def supervisor(self):
         return GlobalEnvironment.supervisor
         
+    @property
+    def user_io(self):
+        return get_calling_process_().tty()
+    @property
+    def user_input(self):
+        return get_calling_process_().tty()
+    @property
+    def user_output(self):
+        return get_calling_process_().tty()
+        
     def _fetchbyte(self, tty_channel, ioxctl, ioxbuffer=None):
         self.supervisor.check_conditions(tty_channel, get_calling_process_())
         
@@ -67,6 +77,18 @@ class iox_(Subroutine):
         buffer.val = ""
         while not buffer.val:
             buffer.val = self._fetchbyte(tty_channel, ioxctl)
+        
+    def get_chars(self, iocb, buffer, n, n_read, code):
+        tty_channel = iocb
+        ioxctl = iox_control_structure()
+        ioxctl.echo_input_sw = True
+        
+        buffer.val = ""
+        while len(buffer.val) < n:
+            buffer.val += self._fetchbyte(tty_channel, ioxctl)
+        # end while
+        n_read.val = n
+        code.val = 0
         
     def peek_char(self, tty_channel, buffer):
         try:

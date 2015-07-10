@@ -72,6 +72,9 @@ def round(x, y):
     else:
         return round_(x, y)
         
+def clock():
+    return GlobalEnvironment.hardware.clock.current_time()
+    
 def char_(x):
     return str(x)
     
@@ -187,10 +190,10 @@ class Subroutine(QtCore.QObject):
     Subroutines are created within the SegmentDescriptor constructor to
     represent both procedure$entrypoint executables and pure functions.
     """
-    def __init__(self, segment_name, fn=None):
+    def __init__(self, segment_name="", fn=None):
         super(Subroutine, self).__init__()
         
-        self.__segment_name = segment_name
+        self.__segment_name = segment_name or self.__class__.__name__
         self.__fn = fn # wrapped python function
         
     def __call__(self, *args, **kwargs):

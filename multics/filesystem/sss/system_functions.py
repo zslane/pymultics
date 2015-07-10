@@ -19,10 +19,6 @@ def clock_():
     return supervisor.hardware.clock.current_time()
     
 @system_privileged
-def clock():
-    return supervisor.hardware.clock.current_time()
-    
-@system_privileged
 def shutdown_started_():
     return supervisor.shutdown_started()
     
