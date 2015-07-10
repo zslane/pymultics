@@ -11,6 +11,7 @@ def exec_com():
     acct      = parm()
     homedir   = parm()
     full_path = parm()
+    dir_name  = parm()
     code      = parm()
     
     call.cu_.arg_list(arg_list)
@@ -39,10 +40,18 @@ def exec_com():
         call.user_info_.homedir(homedir)
         script_dirs.append(homedir.val)
     else:
-        dir_name = parm()
-        entryname = parm()
-        call.sys_.get_abs_path(script_file, full_path)
-        call.sys_.split_path_(full_path.val, dir_name, entryname)
+        if '>' in script_file or '<' in script_file:
+            #== The user specified the location of the script file as an absolute or relative path
+            call.sys_.get_abs_path(script_file, full_path)
+            call.sys_.split_path_(full_path.val, dir_name, null())
+        else:
+            #== Search exec_com search list for a directory containing the specified ec script
+            call.search_paths_.find_dir("exec_com", null(), script_file, dir_name, code)
+            if code.val != 0:
+                call.com_err_(code.val, "exec_com", "^a using exec_com search list.", script_file)
+                return code.val
+            # end if
+        # end if
         script_dirs = [dir_name.val]
     # end if
     
@@ -56,6 +65,7 @@ def exec_com():
             for command_line in lines:
                 command_line = command_line.strip()
                 if command_line:
+                    call.ioa_(command_line)
                     call.cu_.cp(command_line, code)
                     if code.val != 0:
                         return code.val

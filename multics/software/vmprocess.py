@@ -180,7 +180,9 @@ class ProcessWorker(QtCore.QObject):
         #== Start the event msg process timer
         call.timer_manager_.alarm_call(self.PROCESS_TIMER_DURATION, self._process_messages)
         
-        #== Create default search paths and store them in the process stack
+        #== Create default search paths and store them in the process stack ==#
+        
+        #== "object" segment search paths
         sl_info_ptr = parm()
         sl_info_ptr.sl_info = alloc(sl_info_p) # make a fresh sl_info object
         for rule in self.rnt().search_rules:
@@ -188,6 +190,13 @@ class ProcessWorker(QtCore.QObject):
             sl_info_ptr.sl_info.paths[sl_info_ptr.sl_info.num_paths - 1].pathname = rule
         # end for
         call.search_paths_.set("object", null(), sl_info_ptr, code)
+        #== "exec_com" search paths
+        sl_info_ptr.sl_info = alloc(sl_info_p) # make a fresh sl_info object
+        sl_info_ptr.sl_info.num_paths += 1
+        sl_info_ptr.sl_info.paths[0].pathname = "-working_dir"
+        call.search_paths_.set("exec_com", null(), sl_info_ptr, code)
+        #== Get a pointer to the search segment created by search_paths_.set()
+        #== and store it in the process stack for easy access
         call.hcs_.initiate(self.dir(), "search_paths", "", 0, 0, search_seg, code)
         self.stack.search_seg_ptr = search_seg.ptr
     

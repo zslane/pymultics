@@ -86,7 +86,6 @@ class search_paths_(Subroutine):
         declare (resolve_path_symbol_ = entry . returns (char(168)))
         
         sl_info_get = parm()
-        code        = parm()
         
         self.get(sl_name, search_seg_ptr, sl_info_get, sl_info_version_1, code)
         if code.val == 0:
@@ -105,7 +104,6 @@ class search_paths_(Subroutine):
         declare (resolve_path_symbol_ = entry . returns (char(168)))
         
         sl_info_get = parm()
-        code        = parm()
         
         self.get(sl_name, search_seg_ptr, sl_info_get, sl_info_version_1, code)
         if code.val == 0:
@@ -170,11 +168,21 @@ class search_paths_(Subroutine):
         with search_seg_ptr:
             if code.val == error_table_.new_search_list:
                 search_seg_ptr.names.append(sl_name)
+                #== Create new sl_list object
                 new_sl_list = alloc(sl_list)
                 new_sl_list.version = sl_list_version_1
                 new_sl_list.names.append(sl_name)
                 new_sl_list.link = null()
-                search_seg_ptr.aliases = new_sl_list
+                #== Add it to the end of the linked list
+                if search_seg_ptr.aliases != null():
+                    last_link = search_seg_ptr.aliases
+                    while last_link.link != null():
+                        last_link = last_link.link
+                    # end while
+                    last_link.link = new_sl_list
+                else:
+                    search_seg_ptr.aliases = new_sl_list
+                # end if
             # end if
             
             if sl_info_ptr != null():

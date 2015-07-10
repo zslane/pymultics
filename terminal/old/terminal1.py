@@ -6,8 +6,8 @@ from PySide import QtCore, QtGui, QtNetwork
 
 from ..vt100 import QTelnetSocket
 
-N_HORZ_CHARS = 80
-N_VERT_LINES = 25
+N_HORZ_CHARS = 132
+N_VERT_LINES = 66
 
 DEFAULT_SERVER_NAME = "localhost"
 DEFAULT_SERVER_PORT = 6800
@@ -104,7 +104,7 @@ class ScreenIO(QtGui.QTextEdit):
         self.setFont(font)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
-        # self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         self.setCursorWidth(fm.width("M"))
         # self.setEnabled(False)
         self.setConnected(False)
@@ -112,6 +112,9 @@ class ScreenIO(QtGui.QTextEdit):
     def setConnected(self, flag):
         self.connected = flag
         self.update()
+        
+    def mousePressEvent(self, event):
+        event.ignore()
         
     def paintEvent(self, event):
         super(ScreenIO, self).paintEvent(event)
@@ -145,8 +148,13 @@ class TerminalIO(QtGui.QWidget):
         self.socket.readyRead.connect(self.data_available)
         self.com_port = 0
         
-        FONT_NAME = "Glass TTY VT220"
-        FONT_SIZE = 20 if sys.platform == "darwin" else 15
+        if N_HORZ_CHARS <= 80 and N_VERT_LINES <= 25:
+            FONT_NAME = "Glass TTY VT220"
+            FONT_SIZE = 20 if sys.platform == "darwin" else 15
+        else:
+            FONT_NAME = "Consolas"
+            FONT_SIZE = 10
+        # end if
         font = QtGui.QFont(FONT_NAME, FONT_SIZE)
         font.setStyleHint(QtGui.QFont.TypeWriter)
         
@@ -177,8 +185,10 @@ class TerminalIO(QtGui.QWidget):
     def startup(self):
         # self.host = "batmud.bat.org"
         # self.port = 23
-        self.host = "73.221.10.251"
+        self.host = "104.174.119.211"
         self.port = 6180
+        global BREAK_CODE
+        BREAK_CODE = chr(3) # Ctrl-C
         self.socket.connectToHost(self.host, self.port)
         
     def _width(self, nchars):
@@ -191,14 +201,14 @@ class TerminalIO(QtGui.QWidget):
         return fm.lineSpacing() * nlines
         
     def get_text_colors(self, phosphor_color):
-        if phosphor_color == "vintage": color = '#32dd97'
-        elif phosphor_color == "green": color = "lightgreen"
-        elif phosphor_color == "amber": color = "gold"
-        elif phosphor_color == "white": color = "white"
+        if phosphor_color == "vintage": color = QtGui.QColor(57, 255, 174)
+        elif phosphor_color == "green": color = QtGui.QColor(96, 255, 96)
+        elif phosphor_color == "amber": color = QtGui.QColor(255, 215, 0)
+        elif phosphor_color == "white": color = QtGui.QColor(200, 240, 255)
         
-        bkgdcolor = QtGui.QColor(color).darker(1500).name()
+        bkgdcolor = QtGui.QColor(color).darker(1500)
         
-        return (color, bkgdcolor)
+        return (color.name(), bkgdcolor.name())
     
     @QtCore.Slot(int)
     def socket_error(self, error):
