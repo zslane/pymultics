@@ -7,11 +7,12 @@ from PySide import QtCore, QtGui, QtNetwork
 from ..vt100 import QTelnetSocket
 
 N_HORZ_CHARS = 132
-N_VERT_LINES = 66
+N_VERT_LINES = 60
 
 DEFAULT_SERVER_NAME = "localhost"
 DEFAULT_SERVER_PORT = 6800
 DEFAULT_PHOSPHOR_COLOR = "vintage"
+DEFAULT_BUFFER_SIZE = 300
 
 UNKNOWN_CODE       = chr(0)
 CONTROL_CODE       = chr(129)
@@ -99,13 +100,15 @@ class ScreenIO(QtGui.QTextEdit):
         
         fm = QtGui.QFontMetrics(font)
         
-        self.setReadOnly(True)
         self.setStyleSheet(TEXTIO_STYLE_SHEET % (color, bkgdcolor))
-        self.setFont(font)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.document().setMaximumBlockCount(1024)
+        self.document().setDocumentMargin(0)
         self.setCursorWidth(fm.width("M"))
+        self.setFont(font)
+        self.setReadOnly(True)
         # self.setEnabled(False)
         self.setConnected(False)
         
@@ -153,7 +156,7 @@ class TerminalIO(QtGui.QWidget):
             FONT_SIZE = 20 if sys.platform == "darwin" else 15
         else:
             FONT_NAME = "Consolas"
-            FONT_SIZE = 10
+            FONT_SIZE = 10 if sys.platform == "win32" else 15
         # end if
         font = QtGui.QFont(FONT_NAME, FONT_SIZE)
         font.setStyleHint(QtGui.QFont.TypeWriter)
@@ -163,7 +166,6 @@ class TerminalIO(QtGui.QWidget):
         
         output_layout = QtGui.QVBoxLayout()
         output_layout.addWidget(self.output)
-        output_layout.setContentsMargins(0, 3, 0, 3)
         
         output_frame = QtGui.QFrame()
         output_frame.setFrameStyle(QtGui.QFrame.NoFrame)
@@ -183,12 +185,12 @@ class TerminalIO(QtGui.QWidget):
         self.setLayout(layout)
         
     def startup(self):
-        # self.host = "batmud.bat.org"
-        # self.port = 23
-        self.host = "104.174.119.211"
-        self.port = 6180
-        global BREAK_CODE
-        BREAK_CODE = chr(3) # Ctrl-C
+        self.host = "batmud.bat.org"
+        self.port = 23
+        # self.host = "104.174.119.211"
+        # self.port = 6180
+        # global BREAK_CODE
+        # BREAK_CODE = chr(3) # Ctrl-C
         self.socket.connectToHost(self.host, self.port)
         
     def _width(self, nchars):
@@ -202,7 +204,7 @@ class TerminalIO(QtGui.QWidget):
         
     def get_text_colors(self, phosphor_color):
         if phosphor_color == "vintage": color = QtGui.QColor(57, 255, 174)
-        elif phosphor_color == "green": color = QtGui.QColor(96, 255, 96)
+        elif phosphor_color == "green": color = QtGui.QColor(63, 255, 127)
         elif phosphor_color == "amber": color = QtGui.QColor(255, 215, 0)
         elif phosphor_color == "white": color = QtGui.QColor(200, 240, 255)
         
@@ -321,17 +323,8 @@ class TerminalIO(QtGui.QWidget):
     @QtCore.Slot(str)
     def display(self, txt):
         self.output.insertPlainText(txt)
-        #== Remove characters that will never be seen again. This keeps the text edit
-        #== widget from filling up with useless characters.
-        max_chars = N_HORZ_CHARS * N_VERT_LINES + 1
-        num_chars = len(self.output.toPlainText())
-        if num_chars > max_chars:
-            cursor = self.output.textCursor()
-            cursor.setPosition(0, QtGui.QTextCursor.MoveAnchor)
-            cursor.setPosition(num_chars - max_chars, QtGui.QTextCursor.KeepAnchor)
-            # cursor.removeSelectedText()
-        # end if
-        self.output.moveCursor(QtGui.QTextCursor.End)
+        # self.output.moveCursor(QtGui.QTextCursor.End)
+        self.output.ensureCursorVisible()
         
     def send_who_code(self):
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
@@ -362,6 +355,12 @@ class TerminalIO(QtGui.QWidget):
         self.input.style().unpolish(self)
         self.input.style().polish(self)
         self.input.update()
+        
+    def set_buffer_size(self, n_lines):
+        self.output.document().setMaximumBlockCount(n_lines)
+        
+    def get_buffer_contents(self):
+        return self.output.toPlainText().encode("Latin-1")
         
 MENUBAR_STYLE_SHEET = """
     QMenuBar                { background: #252525; color: #c8c8c8; }
@@ -438,6 +437,9 @@ class TerminalWindow(QtGui.QMainWindow):
         self.set_host_action = self.options_menu.addAction("Set Host...", self.set_host_dialog)
         self.set_port_action = self.options_menu.addAction("Set Port...", self.set_port_dialog)
         self.options_menu.addSeparator()
+        self.set_buffer_size_action = self.options_menu.addAction("Set Buffer Size...", self.set_buffer_size_dialog)
+        self.save_buffer_action = self.options_menu.addAction("Save Buffer...", self.save_buffer)
+        self.options_menu.addSeparator()
         self.phosphor_color_menu = self.options_menu.addMenu("Phosphor Color")
         self.options_menu.addSeparator()
         self.reconnect_action = self.options_menu.addAction("Reconnect", self.io.reconnect)
@@ -467,8 +469,9 @@ class TerminalWindow(QtGui.QMainWindow):
     def startup(self):
         self.setFixedSize(self.size())
         self.io.set_server_name(self.settings.value("host", DEFAULT_SERVER_NAME))
-        self.io.set_server_port(self.settings.value("port", DEFAULT_SERVER_PORT))
+        self.io.set_server_port(int(self.settings.value("port", DEFAULT_SERVER_PORT)))
         self.io.set_phosphor_color(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR))
+        self.io.set_buffer_size(int(self.settings.value("buffsize", DEFAULT_BUFFER_SIZE)))
         self.io.startup()
         
     def set_phosphor_color(self, color):
@@ -509,7 +512,7 @@ class TerminalWindow(QtGui.QMainWindow):
         
     @QtCore.Slot()
     def set_host_dialog(self):
-        host, ok = QtGui.QInputDialog.getText(None, "Set Host", "Enter host address:", text=self.settings.value("host", DEFAULT_SERVER_NAME))
+        host, ok = QtGui.QInputDialog.getText(self, "Set Host", "Enter host address:", text=self.settings.value("host", DEFAULT_SERVER_NAME))
         if ok:
             self.settings.setValue("host", host)
             self.io.set_server_name(host)
@@ -517,12 +520,26 @@ class TerminalWindow(QtGui.QMainWindow):
         
     @QtCore.Slot()
     def set_port_dialog(self):
-        port, ok = QtGui.QInputDialog.getInt(None, "Set Port", "Enter port number:", value=self.settings.value("port", DEFAULT_SERVER_PORT))
+        port, ok = QtGui.QInputDialog.getInt(self, "Set Port", "Enter port number:", value=int(self.settings.value("port", DEFAULT_SERVER_PORT)))
         if ok:
             self.settings.setValue("port", port)
             self.io.set_server_port(port)
             self.io.reset()
     
+    @QtCore.Slot()
+    def set_buffer_size_dialog(self):
+        n_lines, ok = QtGui.QInputDialog.getInt(self, "Set Buffser Size", "Maximum Buffer Size (in lines):", value=int(self.settings.value("buffsize", DEFAULT_BUFFER_SIZE)))
+        if ok:
+            self.settings.setValue("buffsize", n_lines)
+            self.io.set_buffer_size(n_lines)
+    
+    @QtCore.Slot()
+    def save_buffer(self):
+        path, _ = QtGui.QFileDialog.getSaveFileName(self, "Save Buffer")
+        if path:
+            with open(path, "w") as f:
+                f.write(self.io.get_buffer_contents())
+        
     def closeEvent(self, event):
         self.closed.emit()
         event.accept()
