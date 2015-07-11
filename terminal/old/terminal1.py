@@ -185,12 +185,12 @@ class TerminalIO(QtGui.QWidget):
         self.setLayout(layout)
         
     def startup(self):
-        self.host = "batmud.bat.org"
-        self.port = 23
-        # self.host = "104.174.119.211"
-        # self.port = 6180
-        # global BREAK_CODE
-        # BREAK_CODE = chr(3) # Ctrl-C
+        # self.host = "batmud.bat.org"
+        # self.port = 23
+        self.host = "104.174.119.211"
+        self.port = 6180
+        global BREAK_CODE
+        BREAK_CODE = chr(3) # Ctrl-C
         self.socket.connectToHost(self.host, self.port)
         
     def _width(self, nchars):
@@ -362,6 +362,23 @@ class TerminalIO(QtGui.QWidget):
     def get_buffer_contents(self):
         return self.output.toPlainText().encode("Latin-1")
         
+    def send_frame(self, s):
+        if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
+            # print self.ME, "sending:", repr(s)
+            n = self.socket.write(DataPacket.Out(s))
+            # print self.ME, n, "bytes sent"
+            self.socket.flush()
+            
+    def send_file(self, path):
+        STX = chr(2)
+        EOT = chr(4)
+        f = open(path)
+        lines = f.read().split("\n")
+        f.close()
+        num_lines = len(lines)
+        max_chars = max(map(len, lines))
+        self.send_frame(STX)
+        
 MENUBAR_STYLE_SHEET = """
     QMenuBar                { background: #252525; color: #c8c8c8; }
     QMenuBar::item          { background: transparent; }
@@ -439,6 +456,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.options_menu.addSeparator()
         self.set_buffer_size_action = self.options_menu.addAction("Set Buffer Size...", self.set_buffer_size_dialog)
         self.save_buffer_action = self.options_menu.addAction("Save Buffer...", self.save_buffer)
+        self.send_file_action = self.options_menu.addAction("Send File...", self.send_file)
         self.options_menu.addSeparator()
         self.phosphor_color_menu = self.options_menu.addMenu("Phosphor Color")
         self.options_menu.addSeparator()
@@ -540,6 +558,12 @@ class TerminalWindow(QtGui.QMainWindow):
             with open(path, "w") as f:
                 f.write(self.io.get_buffer_contents())
         
+    @QtCore.Slot()
+    def send_file(self):
+        path, _ = QtGui.QFileDialog.getOpenFileName(self, "Select File")
+        if path:
+            self.io.send_file(path)
+            
     def closeEvent(self, event):
         self.closed.emit()
         event.accept()

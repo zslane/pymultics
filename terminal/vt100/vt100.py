@@ -1478,8 +1478,12 @@ class TerminalIO(QtGui.QWidget):
     def send_text_file(self, path):
         with open(path) as f:
             for line in f:
-                self.send_chars(line.replace(LF, CR+LF))
-                QtCore.QThread.msleep(250)
+                #self.send_chars(line.replace(LF, CR+LF))
+                #QtCore.QThread.msleep(250)
+                for c in line:
+                    QtCore.QThread.msleep(100)
+                    self.send_chars(c)
+                #self.send_chars(CR + LF)
     
     def set_server_name(self, host):
         self.host = host
