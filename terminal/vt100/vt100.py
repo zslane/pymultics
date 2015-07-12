@@ -1779,17 +1779,28 @@ class TerminalWindow(QtGui.QMainWindow):
     @QtCore.Slot(str)
     def set_normal_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444)) # gray
+        self.palette.setColor(QtGui.QPalette.WindowText, self.palette.text().color())
         self.set_status(txt)
         
     @QtCore.Slot(str)
     def set_connect_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x445e44)) # green
+        self.palette.setColor(QtGui.QPalette.WindowText, self.palette.text().color())
         self.set_status(txt)
         
     @QtCore.Slot(str)
     def set_error_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x935353)) # red
+        self.palette.setColor(QtGui.QPalette.WindowText, self.palette.text().color())
         self.set_status(txt)
+    
+    @QtCore.Slot(int, int)
+    def set_progress_status(self, n, total):
+        self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444)) # gray
+        self.palette.setColor(QtGui.QPalette.WindowText, QtGui.QColor("deepskyblue"))
+        text = "%*d/%d " % (len(str(total)), n, total)
+        how_many = (n / total) * (N_HORZ_CHARS - len(text))
+        self.set_status(text + "=" * int(how_many))
     
     @QtCore.Slot()
     def disconnect(self):

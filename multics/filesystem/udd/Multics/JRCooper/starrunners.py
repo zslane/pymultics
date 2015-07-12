@@ -2066,7 +2066,7 @@ def starrunners():
     #-- end def robot_release
     
     def target_is_a_robot(target_string):
-        if target_string[:2] == "R\\": return True
+        if target_string[:2] == "R/": return True
         return False
     #-- end def target_is_a_robot
     
@@ -2098,7 +2098,7 @@ def starrunners():
                 if universe.robot[x].controller == "none":
                     lock(universe.lock)
                     with universe:
-                        universe.robot[x].name = "R\\{0:03d}".format(x)
+                        universe.robot[x].name = "R/{0:03d}".format(x)
                         universe.robot[x].energy = 1000
                         universe.robot[x].location = rand_location()
                         universe.robot[x].controller = my.ship.user
@@ -2296,8 +2296,9 @@ def starrunners():
                     if action.val == "": health_check(action)
                     if action.val == "": move_or_contact(action)
                     if action.val == "fire": robot_fire()
-                    if action.val == "move": robot_move()
-                    if action.val == "cont": robot_send_msg()
+                    elif action.val == "dock": robot_dock()
+                    elif action.val == "move": robot_move()
+                    elif action.val == "cont": robot_send_msg()
                 # end if
             # end for
             

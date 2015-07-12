@@ -1,0 +1,30 @@
+mkadmin: procedure options (main);
+
+          dcl       hcs_$make_seg                 entry (char (*), char (*), char (*), fixed bin (5), ptr, fixed bin (35));
+	dcl       com_err_                      entry options (variable);
+	
+          dcl       dname                         char (22) init (">udd>SysEng>Cooper>dbd");
+          dcl       aname                         char (10) init ("sv1.2.info");
+	dcl       code                          fixed bin (35);
+	
+          dcl       adminptr                      internal static ptr init (null ());
+          
+          dcl       1 admin_info                  aligned based (adminptr),
+                      2 game_admin                char (21),
+                      2 user_info_line            char (30),
+                      2 com_query_line            char (30),
+                      2 star_comn                 fixed bin,
+                      2 star_coms                 (admin_info.star_comn) char (21);
+
+	call hcs_$make_seg (dname, aname, "", (10), adminptr, code);
+	if code ^= 0 & adminptr = null () then do;
+		call com_err_ (code, "mkadmin");
+		return;
+	     end;
+	admin_info.game_admin = "Cooper";
+	admin_info.user_info_line = "";
+	admin_info.com_query_line = "";
+	admin_info.star_comn = 0;
+	
+	end mkadmin;
+	

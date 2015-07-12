@@ -211,7 +211,7 @@ starrunners: star: procedure options (variable);
                     do x = 1 to 50;
                          if universe.notifications (x).person_id = "" & universe.notifications (x).project_id = "" then do;
                                    universe.notifications (x).person_id = person;
-                                   universe.notifications (x).project = project;
+                                   universe.notifications (x).project_id = project;
                                    return;
                               end;
                     end;
@@ -610,10 +610,10 @@ hazard_damage: procedure;
           dcl     x                      fixed bin init (0);
 
           call lock (my -> ship.lock);
-          x = mod (clock (), 10) + 1
+          x = mod (clock (), 10) + 1;
           my -> ship.shields_cur = max (0, my -> ship.shields_cur - x);
           my -> ship.shields_old = max (0, my -> ship.shields_old - x);
-          x = mod (clock (), 100) + 1
+          x = mod (clock (), 100) + 1;
           my -> ship.energy_cur = max (0, my -> ship.energy_cur - x);
           my -> ship.energy_old = max (0, my -> ship.energy_old - x);
           call unlock (my -> ship.lock);
@@ -1035,7 +1035,7 @@ death_ray: procedure;
           call lock (my -> ship.lock);
           my -> ship.condition = "D-RAY";
           call unlock (my -> ship.lock);
-          do while (sequence_is_not_complete):
+          do while (sequence_is_not_complete);
                if my -> ship.deathmes = "down" then call game_over;
                call ioa_$nnl ("> ");
                call timed_input (input);
@@ -1506,7 +1506,7 @@ enemy_status: procedure;
                          if enemy -> ship.name = shipfile & enemy -> ship.location ^= "PHASING" then do;
                                    call ioa_ ("^/::: STARFILE ^d :::", x);
                                    call ioa_ ("^a ^a status:", enemy -> ship.type, enemy -> ship.name);
-                                   call ioa_ ("^/Shield strength: ^d%^[   DOWN^]", enemy -> ship.shields_cur, (enemy -> ship.shields.cur = 0));
+                                   call ioa_ ("^/Shield strength: ^d%^[   DOWN^]", enemy -> ship.shields_cur, (enemy -> ship.shields_cur = 0));
                                    call ioa_ ("Missiles left: ^d", enemy -> ship.torps_cur);
                                    call ioa_ ("Energy left: ^du", enemy -> ship.energy_cur);
                                    call ioa_ ("Life support level: ^d", enemy -> ship.life_cur);
@@ -1804,7 +1804,7 @@ message_check: procedure;
                     if my -> ship.type = "Star Commander" then call ioa_ ("^/COMMUNICATIONS: We've trapped a Trojan Horse from the Star Commander ^a^/^16x(^a)", my -> ship.fromname, substr (my -> ship.message, 4));
                     else call do (substr (my -> ship.message, 4));
                     call lock (my -> ship.lock);
-                    my -> ship.fromname, my -> ship.fromtype, my -> ship.messge = "";
+                    my -> ship.fromname, my -> ship.fromtype, my -> ship.message = "";
                     call unlock (my -> ship.lock);
                     return;
                end;
@@ -1943,7 +1943,7 @@ rand_new_hole: procedure;
           dcl     new_hole               char (8) init ("");
           dcl     x                      fixed bin init (0);
           
-          x = mod (clock (), 1000) + 1
+          x = mod (clock (), 1000) + 1;
           if x > 1 then return;
           new_hole = rand_location ();
           do x = 1 to universe.holes;
@@ -1984,7 +1984,7 @@ pulling_damage: procedure;
 suck_him_in: procedure;
 
           dcl     hole_here              bit (1) init ("0"b);
-          dcl     x                      fixed bin int (0);
+          dcl     x                      fixed bin init (0);
           
           do x = 1 to universe.holes;
                if universe.black_hole (x) = my -> ship.location then hole_here = "1"b;
@@ -2017,7 +2017,7 @@ robot_sscan: procedure (present, shipname, shiptype, docked);
           
           do x = 1 to 20;
                if my -> ship.location = universe.robot (x).location then do;
-                         present = present + 1
+                         present = present + 1;
                          shipname (present) = universe.robot (x).name;
                          shiptype (present) = "RobotShip";
                          if universe.robot (x).condition = "DOCKING" then docked (present) = "(Docking)";
@@ -2125,7 +2125,7 @@ target_is_a_robot: procedure (target) returns (bit (1));
 
           dcl     target                 char (*) parm;
           
-          if substr (target, 1, 2) = "R\" then return ("1"b);
+          if substr (target, 1, 2) = "R/" then return ("1"b);
           return ("0"b);
           
      end target_is_a_robot;
@@ -2174,6 +2174,8 @@ rand_new_robot: procedure;
           do x = 1 to 20;
                if universe.robot (x).controller = "none" then do;
                          call lock (universe.lock);
+		     if x < 10 then universe.robot (x).name = "R/00" || ltrim (char (x));
+		     else universe.robot (x).name = "R/0" || ltrim (char (x));
                          universe.robot (x).energy = 1000;
                          universe.robot (x).location = rand_location ();
                          universe.robot (x).controller = my -> ship.user;
@@ -2220,8 +2222,9 @@ hack_robot_actions: procedure;
                          if action = "" then call health_check (action);
                          if action = "" then call move_or_contact (action);
                          if action = "fire" then call robot_fire;
-                         if action = "move" then call robot_move;
-                         if action = "cont" then call robot_send_msg;
+		     else if action = "dock" then call robot_dock;
+                         else if action = "move" then call robot_move;
+                         else if action = "cont" then call robot_send_msg;
                     end;
           end;
           
@@ -2341,12 +2344,15 @@ robot_move: procedure;
           else if universe.robot (robot_index (ROBOT)).location = "Vindicar" then do;
                     open_sectors (1) = "Romula";
                     open_sectors (2) = "Telgar";
+	     end;
           else if universe.robot (robot_index (ROBOT)).location = "Telgar" then do;
                     open_sectors (1) = "Vindicar";
                     open_sectors (2) = "Shadow";
+	     end;
           else if universe.robot (robot_index (ROBOT)).location = "Shadow" then do;
                     open_sectors (1) = "Telgar";
                     open_sectors (2) = "Zork";
+	     end;
           else do;
                     open_sectors (1) = "Shadow";
                     x = 1;
@@ -2388,7 +2394,7 @@ robot_send_msg: procedure;
                     end;
           end;
           
-     end robot_snd_msg;
+     end robot_send_msg;
      
      end hack_robot_actions;
      
@@ -2650,7 +2656,7 @@ big_bang: procedure;
                end;
           else do;
                     call ioa_ ("^a (big_bang): Database destroyed and re-created.", MAIN);
-                    call hcs_$delentry_seg (dname, xname, "", (10), univptr, code);
+                    call hcs_$delentry_seg (univptr, code);
                     call hcs_$make_seg (dname, xname, "", (10), univptr, code);
                     universe.number, universe.holes, universe.unique_id = 0;
                     universe.pdir, universe.black_hole, universe.password, universe.user = "";
@@ -2790,20 +2796,3 @@ end_of_game:
 %include send_mail_info;
 
      end starrunners;
-
-getline: procedure (input_var);
-
-          dcl     input_var              char (*) varying parm;
-          dcl     MAIN                   char (11) init ("starrunners");
-          dcl     command_query_         entry options (variable);
-          
-          query_info.version = query_info_version_5;
-          query_info.suppress_spacing = "1"b;
-          query_info.suppress_name_sw = "1"b;
-          query_info.cp_escape_control = "10"b;
-          
-          call command_query_ (addr (query_info), input_var, MAIN);
-          
-%include query_info;
-
-     end getline;
