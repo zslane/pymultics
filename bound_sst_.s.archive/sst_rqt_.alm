@@ -116,7 +116,7 @@ request   execute,
 request   help,
           ssu_requests_$help,
           (),
-          (Print nifo segment for a particular request.,
+          (Print info segment for a particular request.),
           flags.allow_command
           
 request   list_requests,

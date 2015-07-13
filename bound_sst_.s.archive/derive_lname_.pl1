@@ -1,0 +1,14 @@
+derive_lname_: procedure returns (char (*));
+
+          dcl     user_info_$whoami      entry (char (*), char (*), char (*));
+          dcl     person                 char (32) init ("");
+          dcl     project                char (9) init ("");
+          dcl     access                 char (3) init ("no");
+          dcl     ALPHACAPS              char (26) init ("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+          dcl     i                      fixed bin;
+
+          call user_info_$whoami (person, project, access);
+          i = length (person) - search (reverse (person), ALPHACAPS) + 1;
+          return (substr (person, i));
+
+     end derive_lname_;

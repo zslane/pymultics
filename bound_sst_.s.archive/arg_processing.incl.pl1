@@ -1,0 +1,13 @@
+/* BEGIN INCLUDE FILE arg_processing.incl.pl1 */
+
+     declare
+     
+          cu_$arg_count                 entry (fixed bin, fixed bin (35)),
+          cu_$arg_ptr                   entry (fixed bin, ptr, fixed bin (21), fixed bin (35)),
+          argn                          fixed bin init (0),
+          argp                          ptr init (null ()),
+          argl                          fixed bin (21) init (0),
+          arg                           char (argl) based (argp),
+	code                          fixed bin (35);
+             
+/* END INCLUDE FILE arg_processing.incl.pl1 */

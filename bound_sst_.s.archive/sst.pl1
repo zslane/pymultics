@@ -20,7 +20,7 @@ sst: procedure options (variable);
           dcl     sst_$set_up_game       entry (ptr, fixed bin, fixed bin);
           dcl     sst_$print_introduction entry (ptr, char (*));
           
-          dcl     derive_lname_          entry return (char (*));
+          dcl     derive_lname_          entry returns (char (*));
           dcl     last_name              char (21) init ("");
           
           call cu_$arg_count (argn, code);

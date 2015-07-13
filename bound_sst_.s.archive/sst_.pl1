@@ -26,7 +26,7 @@ set_up_game: entry (nptr, game_length, rank);
           dcl     it_was_not_placed      bit (1) init ("0"b);
           
           node.arachnidT = mod (clock (), (game_length * 10)) + game_length * 10;
-          node.skinnyT = mod (clodk (), (game_length * 5)) + game_length * 5;
+          node.skinnyT = mod (clock (), (game_length * 5)) + game_length * 5;
           node.sector (*, *).arachnidN = 0;
           node.sector (*, *).skinnyN = 0;
           node.sector (*, *).radiation = "0";
@@ -169,7 +169,7 @@ set_up_game: entry (nptr, game_length, rank);
                end;
           end;
           
-/* Set up the SUPPLY_SHIPS *
+/* Set up the SUPPLY_SHIPS */
 
           do x = 1 to node.supplyN;
                it_was_not_placed = "1"b;
@@ -270,7 +270,7 @@ print_introduction: entry (nptr, last_name);
           call ioa_ ("^10t?? Skinnies");
           call ioa_$nnl ("^10t^a Supply ships:", node.supplyN);
           do x = 1 to node.supplyN;
-               call ioa_$nll (" ^d - ^d^[,^]", node.supply (x).SX, node.supply (x).SY, (x ^= node.supplyN));
+               call ioa_$nnl (" ^d - ^d^[,^]", node.supply (x).SX, node.supply (x).SY, (x ^= node.supplyN));
           end;
           call ioa_ ("^/Drop site: Sector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY);
           call ioa_ ("You have ^.1f hours to complete your mission.  The retrieval beacon will", node.time_left);
@@ -295,7 +295,7 @@ daemon: entry (scip);
                     Node.nuke_bombN = Node.nuke_bombN + 1;
                end;
           if (Node.time_left < 1.1) & ^(Node.landed) then do;
-                    call ioa_ ("^/\"...To the everlasting glory of the infantry, shines the name, shines the name^/name of Rodger Young!\"  Retrieval Beacon has landed at Sector ^d - ^d.", Node.beacon.SX, Node.beacon.SY);
+                    call ioa_ ("^/""...To the everlasting glory of the infantry, shines the name, shines the^/name of Rodger Young!""  Retrieval Beacon has landed at Sector ^d - ^d.", Node.beacon.SX, Node.beacon.SY);
                     Node.time_left = 2.5;
                     call ioa_ ("^/Retrieval time: ^.1f hrs.", Node.time_left);
                     Node.sector (Node.beacon.SX, Node.beacon.SY).point (Node.beacon.PX, Node.beacon.PY) = BEACON;
@@ -308,7 +308,7 @@ daemon: entry (scip);
                     Node.score.skinny_prisoners = (Node.skinnyT + Node.missile_lT) - (Node.score.skinnies_Xed + Node.missile_ls_Xed);
                     call ioa_ ("^3x*************************");
                     call ioa_ ("^/Your mission yielded a success ratio of ^d%", Node.score.success_ratio);
-                    if (Node.score.skinny_prionsers > 0) then call ioa_ ("The remaining ^d Skinnies surrender.", Node.score.skinny_prisoners);
+                    if (Node.score.skinny_prisoners > 0) then call ioa_ ("The remaining ^d Skinnies surrender.", Node.score.skinny_prisoners);
                     if (Node.score.success_ratio = 100) then call ioa_ ("You will be recommended for promotion.");
                     call ioa_ ("Aecturnae gloriae peditum...");
                     call ssu_$execute_string (scip, "score -all", code);
@@ -359,7 +359,7 @@ chart: entry (scip, nptr);
           do x = 1 to 5;
                call ioa_$nnl ("^d:  ", x);
                do y = 1 to 5;
-                    call ioa_$nnl ("^a^a^a^a^3x", node.chart (x, y).arachnidN, node.chart (x, y).skinnyN, node.char (x, y).radiation, node.chart (x, y).supply);
+                    call ioa_$nnl ("^a^a^a^a^3x", node.chart (x, y).arachnidN, node.chart (x, y).skinnyN, node.chart (x, y).radiation, node.chart (x, y).supply);
                end;
                call ioa_ ();
           end;
@@ -528,7 +528,7 @@ fly: entry (scip, nptr);
           dcl     original_PY            fixed bin init (0);
           
           call ssu_$arg_count (scip, argn);
-          if (arg ^= 4) then call ssu_$abort_line (scip, (0), "^/^5xUsage: fly Sector_X Sector_Y Mark_X Mark_Y");
+          if (argn ^= 4) then call ssu_$abort_line (scip, (0), "^/^5xUsage: fly Sector_X Sector_Y Mark_X Mark_Y");
           do x = 1 to 4;
                call ssu_$arg_ptr (scip, x, argp, argl);
                if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg);
@@ -903,7 +903,7 @@ repair: entry (scip, nptr);
                else call ssu_$abort_line (scip, (0), "^/^5xNo such device. ^a", arg);
           end;
           do x = 1 to device_idx;
-               call repair_damage (device (x), nptr);
+               call repair_device (device (x), nptr);
           end;
           return;
           
@@ -1278,7 +1278,7 @@ ask_again:
           ty = decimal (after (input, " "));
           input = "NULL";
           if (tx > 10) | (ty > 10) then goto ask_again;
-          else if (tx = 0) | (ty = 0) then call ssu_$abort (scip, (0));
+          else if (tx = 0) | (ty = 0) then call ssu_$abort_line (scip, (0));
           
      end get_target_for_bomb;
      
@@ -1396,7 +1396,7 @@ launch_it: procedure (weapon, tx, ty, bombNo, nptr);
                               end;
                          return;
                     end;
-               else if ((round (pos_x, 0)) = 1 & node.PX > 1) | ((round (pos_x, 0)) = 10 & node.PX < 10) | ((round (pos_y, 0)) = 1 & node.PY > 1) | ((round (pos_y, 0) = 10 & node.PY < 10) then do;
+               else if ((round (pos_x, 0)) = 1 & node.PX > 1) | ((round (pos_x, 0)) = 10 & node.PX < 10) | ((round (pos_y, 0)) = 1 & node.PY > 1) | ((round (pos_y, 0)) = 10 & node.PY < 10) then do;
                          call ioa_ ("^/***BOMB missed", pos_x, pos_y);
                          return;
                     end;
@@ -1671,7 +1671,7 @@ attack_supply_ships: procedure (datap);
           if ^(H_or_M_present (data.distress.SX, data.distress.SY, datap)) then do;
                     z = 0;
                     do x = 1 to data.heavy_beamT;
-                         if (data.heavy_beam (x).life_pts > 0) then do;
+                         if (data.Heavy_beam (x).life_pts > 0) then do;
                                    z = z + 1;
                                    HDEX (z) = x;
                               end;

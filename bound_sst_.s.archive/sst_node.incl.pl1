@@ -15,7 +15,7 @@
                2 encamped           bit (1) init ("0"b),
                2 sitting_in_rad     bit (1) init ("0"b),
                2 was_in_rad         bit (1) init ("0"b),
-            /* 2 secret_plans_found bit (1) init ("0"b), */
+               2 secret_plans_found bit (1) init ("0"b),
                
                2 beacon,
                  3 (SX, SY, PX, PY) fixed bin init (0),
@@ -79,7 +79,7 @@
                2 fort               (25),
                  3 (SX, SY, PX, PY) fixed bin,
                  3 guard            fixed bin,
-              /* secret_plans_here  bit (1), */
+                 3 secret_plans_here  bit (1),
                2 sector             (5, 5),
                  3 arachnidT        fixed bin,
                  3 skinnyT          fixed bin,
@@ -107,7 +107,7 @@
                  3 success_ratio    fixed bin init (-1),
                  3 rank_bonus       fixed bin init (0),
                  3 skinny_prisoners fixed bin init (0),
-              /* 3 secret_plans     fixed bin init (0), */
+                 3 secret_plans     fixed bin init (0),
                  
                2 nuke_bonus_score   fixed bin init (5000),
                

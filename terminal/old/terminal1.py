@@ -556,16 +556,10 @@ class FileXferStateMachine(object):
             if c == ACK:
                 self.received_ack = True
                 
-            elif self.diag_output:
-                self.diag_output = (c != LF)
-                self.ttyio.display(c)
-            elif c == "!":
-                self.diag_output = True
             else:
-                print "Received %r unexpectedly during file transfer" % (s)
-                self.ttyio.setErrorStatus.emit("File transfer error. See shell window for details.")
-                self.done = True
-                break
+                #== Just send all other characters to the display, even if
+                #== they represent garbage coming in from a failed transfer
+                self.ttyio.display(c)
     
 #-- end class FileXferStateMachine
 

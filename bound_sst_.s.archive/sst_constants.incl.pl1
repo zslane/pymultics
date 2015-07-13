@@ -2,7 +2,7 @@
 
      declare
      
-             MAIN                   char (20 init ("starship_troopers"),
+             MAIN                   char (20) init ("starship_troopers"),
              RANK                   (3) char (10) init ("Leutenant",
                                     "Sergeant",
                                     "Captain"),

@@ -1,0 +1,17 @@
+
+getline: procedure (input_var);
+
+          dcl     input_var              char (*) varying parm;
+          dcl     MAIN                   char (11) init ("starrunners");
+          dcl     command_query_         entry options (variable);
+          
+          query_info.version = query_info_version_5;
+          query_info.suppress_spacing = "1"b;
+          query_info.suppress_name_sw = "1"b;
+          query_info.cp_escape_control = "10"b;
+          
+          call command_query_ (addr (query_info), input_var, MAIN);
+          
+%include query_info;
+
+     end getline;

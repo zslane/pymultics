@@ -266,7 +266,7 @@ class sst_(Subroutine):
                             node.fort[node.fortN].PX = b
                             node.fort[node.fortN].PY = c
                             node.fort[node.fortN].guard = mod (clock (), 250) + 250
-                            a = mod (clock (), 10) + 1
+                            # a = mod (clock (), 10) + 1
                             # if (a == 1) and not node.secret_plans_found:
                                 # node.secret_plans_found = True
                                 # node.fort[node.fortN].secret_plans_here = True
