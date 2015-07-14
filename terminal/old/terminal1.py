@@ -470,7 +470,7 @@ class TerminalIO(QtGui.QWidget):
         lines.insert(0, str(self.num_lines))
         
         self.input.setEnabled(False)
-        self._send_cmd("rcvfile2 " + os.path.basename(path))
+        self._send_cmd("rcvfile " + os.path.basename(path))
         
         self.xfer_machine = FileXferStateMachine(self, lines)
         QtCore.QTimer.singleShot(0, self.xfer_machine.start)
@@ -487,10 +487,23 @@ class FileXferStateMachine(object):
         self.num_lines = len(lines)
         self.started = False
         
+    def convert_control_chars(self, text):
+        result = ""
+        for c in text:
+            if (' ' <= c <= '~') or (c in [TAB, CR, LF]):
+                result += c
+            else:
+                #== Convert to a '\xxx' octal string. rcvfile will convert this
+                #== back to a single control character byte.
+                result += r"\%03o" % (ord(c))
+            # end if
+        # end for
+        return result
+        
     def get_next_frame(self):
         ETB = chr(23)
         if not self.next_line:
-            self.next_line = self.lines.pop(0)
+            self.next_line = self.convert_control_chars(self.lines.pop(0))
         # end if
         next_frame = self.next_line[:self.FRAME_SIZE]
         self.next_line = self.next_line[self.FRAME_SIZE:]

@@ -268,7 +268,7 @@ print_introduction: entry (nptr, last_name);
           call ioa_ ("Mission briefing:");
           call ioa_ ("^10t^d Arachnids", node.arachnidT + node.heavy_beamT);
           call ioa_ ("^10t?? Skinnies");
-          call ioa_$nnl ("^10t^a Supply ships:", node.supplyN);
+          call ioa_$nnl ("^10t^d Supply ships:", node.supplyN);
           do x = 1 to node.supplyN;
                call ioa_$nnl (" ^d - ^d^[,^]", node.supply (x).SX, node.supply (x).SY, (x ^= node.supplyN));
           end;
