@@ -24,12 +24,17 @@ WHO_CODE           = chr(133)
 BREAK_CODE         = chr(134)
 END_CONTROL_CODE   = chr(254)
 
+STX = chr(2)
+ETX = chr(3)
+EOT = chr(4)
 ACK = chr(6)
 BEL = chr(7)
 BS  = chr(8)
 TAB = chr(9)
 LF  = chr(10)
 CR  = chr(13)
+CAN = chr(24)
+EM  = chr(25)
 ESC = chr(27)
 
 TEXTIO_STYLE_SHEET = "QTextEdit, QLineEdit { color: %s; background: %s; border: 0px; }"
@@ -299,17 +304,21 @@ class TerminalIO(QtGui.QWidget):
                 # end if
                 
             elif self.xfer_machine and self.xfer_machine.started:
+                data = data_packet.extract_plain_data()
                 if self.xfer_machine.done:
                     self.xfer_machine = None
-                    c = data_packet.extract_plain_data()
-                    if c != ACK:
-                        self.display(c)
+                    if data != ACK:
+                        self.display(data)
                 else:
-                    self.xfer_machine.receive(data_packet.extract_plain_data())
+                    self.xfer_machine.receive(data)
                 # end if
                 
             else:
-                self.display(data_packet.extract_plain_data())
+                data = data_packet.extract_plain_data()
+                if data.startswith(STX) and data.endswith(EOT):
+                    self.receive_text_file(data[1:-1])
+                else:
+                    self.display(data)
         
     @QtCore.Slot()
     def send_string(self):
@@ -520,6 +529,14 @@ class TerminalIO(QtGui.QWidget):
         self.xfer_machine = FileXferStateMachine(self, lines)
         QtCore.QTimer.singleShot(0, self.xfer_machine.start)
         
+    def receive_text_file(self, filename):
+        path, _ = QtGui.QFileDialog.getSaveFileName(self, "Save Text File", filename)
+        if path:
+            self.xfer_machine = FileXferStateMachine(self, path)
+            QtCore.QTimer.singleShot(0, self.xfer_machine.incoming)
+        else:
+            self.send_frame(CAN)
+    
 #-- end class TerminalIO
 
 class FileXferStateMachine(object):
@@ -528,9 +545,14 @@ class FileXferStateMachine(object):
     
     def __init__(self, ttyio, lines):
         self.ttyio = ttyio
-        self.lines = lines
-        self.num_lines = len(lines)
+        if type(lines) is list:
+            self.lines = lines
+            self.num_lines = len(lines)
+        else:
+            self.path = lines
+        # end if
         self.started = False
+        self.done = False
         
     def convert_control_chars(self, text):
         result = ""
@@ -558,11 +580,6 @@ class FileXferStateMachine(object):
         return next_frame
         
     def start(self):
-        STX = chr(2)
-        EOT = chr(4)
-        CAN = chr(24)
-        EM  = chr(25)
-        
         self.ttyio.send_frame(STX)
         
         self.next_line = ""
@@ -614,13 +631,32 @@ class FileXferStateMachine(object):
         
     def receive(self, s):
         for c in s:
-            if c == ACK:
-                self.received_ack = True
-                
+            if self.path:
+                #== Recieving a file
+                if c == EM:
+                    self.f.close()
+                    self.done = True
+                    self.path = None
+                    self.ttyio.setNormalStatus.emit("File transfer complete.")
+                elif c != CR:
+                    self.f.write(c)
+                # end if
             else:
-                #== Just send all other characters to the display, even if
-                #== they represent garbage coming in from a failed transfer
-                self.ttyio.display(c)
+                #== Sending a file
+                if c == ACK:
+                    self.received_ack = True
+                    
+                else:
+                    #== Just send all other characters to the display, even if
+                    #== they represent garbage coming in from a failed transfer
+                    self.ttyio.display(c)
+    
+    def incoming(self):
+        self.f = open(self.path, "w")
+        self.done = False
+        self.started = True
+        self.ttyio.send_frame(ACK)
+        self.ttyio.setNormalStatus.emit("Receiving text file...")
     
 #-- end class FileXferStateMachine
 
