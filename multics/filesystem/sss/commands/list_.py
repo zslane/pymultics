@@ -77,7 +77,7 @@ def list_():
                 lines.append("{0:3} {1:5}  {2}".format(segment_acl[segment_name], segment_lengths[segment_name], re.sub(r"\.pyo$", "", segment_name)))
             # end if
             for add_name in sorted(segment_add_names.get(segment_name, []), key=len, reverse=True):
-                lines.append("{0:13}{1}".format("", re.sub(r"\.pyo$", "", add_name)))
+                lines.append("{0:11}{1}".format("", re.sub(r"\.pyo$", "", add_name)))
             # end for
         # end for
         

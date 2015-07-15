@@ -57,7 +57,7 @@ GLYPHSET_KEYS = [NRM, UND, REV, UND|REV, BRI, BRI|UND, BRI|REV, BRI|UND|REV, DIM
 
 PHOSPHOR_COLORS = {
     'vintage': QtGui.QColor(57, 255, 174),
-    'green':   QtGui.QColor(96, 255, 96),
+    'green':   QtGui.QColor(63, 255, 127),
     'amber':   QtGui.QColor(255, 215, 0),
     'white':   QtGui.QColor(200, 240, 255),
 }
