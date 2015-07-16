@@ -62,13 +62,31 @@ def exec_com():
             with open(native_path, "r") as f:
                 lines = f.readlines()
             # end with
+            
+            ec_settings = {
+                'command_line_echo': True,
+            }
+            
             for command_line in lines:
                 command_line = command_line.strip()
                 if command_line:
-                    call.ioa_(command_line)
-                    call.cu_.cp(command_line, code)
-                    if code.val != 0:
-                        return code.val
+                    if command_line.startswith("&-"):
+                        continue # skip comment lines
+                        
+                    elif command_line.startswith("&"):
+                        process_ec_command(command_line, ec_settings, code)
+                        if code.val != 0:
+                            call.com_err_(code.val, "exec_com", "^a", command_line)
+                            return code.val
+                        # end if
+                    else:
+                        if ec_settings['command_line_echo']:
+                            call.ioa_(command_line)
+                        # end if
+                        call.cu_.cp(command_line, code)
+                        if code.val != 0:
+                            return code.val
+                        # end if
                     # end if
                 # end if
             # end for
@@ -77,5 +95,29 @@ def exec_com():
     return 0
 
 #-- end def exec_com
+
+def process_ec_command(command_line, ec_settings, code):
+    args = command_line.split()
+    command = args.pop(0)
+    
+    if command == "&command_line":
+        if not args:
+            code.val = error_table_.noarg
+            return
+        # end if
+        flag = args.pop(0)
+        if flag == "on":
+            ec_settings['command_line_echo'] = True
+        elif flag == "off":
+            ec_settings['command_line_echo'] = False
+        else:
+            code.val = error_table_.bad_arg
+            return
+        # end if
+        
+    # end if
+    code.val = 0
+    
+#-- end def process_ec_command
 
 ec = exec_com

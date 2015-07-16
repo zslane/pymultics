@@ -744,6 +744,8 @@ class GlassTTY(QtGui.QWidget):
                 code = int(self._cc_n1)
                 if code == 1:
                     self.arrowkey_mode = False
+                elif code == 3:
+                    self.autowrap = False
                 elif code == 5:
                     self.screen_mode = False
                     self.compmode = QtGui.QPainter.CompositionMode_Lighten
@@ -1358,8 +1360,12 @@ class TerminalIO(QtGui.QWidget):
         
     @QtCore.Slot()
     def hard_exit(self):
-        if self.socket and self.socket._thread.isRunning():
-            self.socket._thread.stop()
+        try:
+            if self.socket._thread.isRunning():
+                self.socket._thread.stop()
+        except:
+            pass
+        finally:
             self.socket = None
     
     @QtCore.Slot(int)

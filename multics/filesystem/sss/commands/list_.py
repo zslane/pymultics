@@ -17,6 +17,7 @@ def list_():
     
     EXCLUDED_EXTENSIONS = (".pyc", ".pyd")
     SPECIAL_EXTENSIONS  = (".mbx")
+    RECORD_LENGTH       = 1024 * 4
     
     current_dir = get_wdir_()
     dir_to_list.name = current_dir
@@ -58,7 +59,7 @@ def list_():
             acl = ""
             if not segment_name.endswith(SPECIAL_EXTENSIONS):
                 call.hcs_.get_segment_length(dir_to_list.name, segment_name, seglen, code)
-                seglen.val = (seglen.val // 1024) + (1 if seglen.val % 1024 else 0) #max(1, seglen.val / 1024)
+                seglen.val = (seglen.val // RECORD_LENGTH) + (1 if seglen.val % RECORD_LENGTH else 0)
                 acl = _get_acl(dir_to_list.name, segment_name)
             # end if
             segment_lengths[segment_name] = seglen.val
