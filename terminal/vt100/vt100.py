@@ -29,6 +29,7 @@ DEFAULT_LOCALECHO_MODE = False
 DEFAULT_PHOSPHOR_COLOR = "vintage"
 DEFAULT_CHARSET        = "std"
 DEFAULT_BRIGHTNESS     = 1.0
+DEFAULT_CONTRAST       = 1500
 DEFAULT_CURSOR_BLINK   = True
 
 UNKNOWN_CODE       = chr(0)
@@ -58,7 +59,7 @@ GLYPHSET_KEYS = [NRM, UND, REV, UND|REV, BRI, BRI|UND, BRI|REV, BRI|UND|REV, DIM
 PHOSPHOR_COLORS = {
     'vintage': QtGui.QColor(57, 255, 174),
     'green':   QtGui.QColor(63, 255, 127),
-    'amber':   QtGui.QColor(255, 215, 0),
+    'amber':   QtGui.QColor(240, 200, 0),
     'white':   QtGui.QColor(200, 240, 255),
 }
 
@@ -212,6 +213,7 @@ class GlassTTY(QtGui.QWidget):
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         
         self.opacity = DEFAULT_BRIGHTNESS
+        self.contrast = DEFAULT_CONTRAST
         
         self.glyphsets = {
             'std': FontGlyphs(":/UiCrt2_StdCharset_Rom.png"),
@@ -293,7 +295,7 @@ class GlassTTY(QtGui.QWidget):
     def setPhosphorColor(self, phosphor_color):
         self.phosphor_color = phosphor_color
         self.fontcolor = PHOSPHOR_COLORS[phosphor_color]
-        self.wincolor = self.fontcolor.darker(1500)
+        self.wincolor = self.fontcolor.darker(self.contrast)
         self.glyphs = self.font.colored_glyphs[phosphor_color]
         
         if self.screen_mode:
@@ -312,12 +314,15 @@ class GlassTTY(QtGui.QWidget):
     def setCharSet(self, charset):
         self.charset = charset
         self.glyphs = self.font.colored_glyphs[self.phosphor_color]
-        # self.repaint_all()
         self.update()
         
     def setBrightness(self, value):
         self.opacity = value
         self.update()
+        
+    def setContrast(self, value):
+        self.contrast = value
+        self.setPhosphorColor(self.phosphor_color)
         
     def sendCharacters(self, text):
         self.xmitChars.emit(text)
@@ -1510,6 +1515,10 @@ class TerminalIO(QtGui.QWidget):
     def set_brightness(self, brightness):
         self.ttyio.setBrightness(brightness)
         
+    def set_contrast(self, contrast):
+        self.ttyio.setContrast(contrast)
+        self.update()
+        
     def set_cursor_style(self, style):
         self.ttyio.setCursorStyle(style)
         
@@ -1609,6 +1618,7 @@ class TerminalWindow(QtGui.QMainWindow):
         
         self.phosphor_color_menu = self.options_menu.addMenu("Phosphor Color")
         self.brightness_action = self.options_menu.addAction("Brightness...", self.set_brightness)
+        self.contrast_action = self.options_menu.addAction("Contrast...", self.set_contrast)
         self.options_menu.addSeparator()
         self.cursor_style_menu = self.options_menu.addMenu("Cursor Style")
         self.cursor_blink_action = self.options_menu.addAction("Cursor Blink", self.set_cursor_blink)
@@ -1699,6 +1709,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.io.set_echo_mode("localecho", bool(self.settings.value("localecho_mode", DEFAULT_LOCALECHO_MODE)))
         self.io.set_phosphor_color(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR))
         self.io.set_brightness(float(self.settings.value("brightness", DEFAULT_BRIGHTNESS)))
+        self.io.set_contrast(int(self.settings.value("contrast", DEFAULT_CONTRAST)))
         self.io.set_cursor_style(int(self.settings.value("cursor_style", GlassTTY.CURSOR_BLOCK)))
         self.io.set_cursor_blink(bool(int(self.settings.value("cursor_blink", DEFAULT_CURSOR_BLINK))))
         self.io.set_character_set(self.settings.value("character_set", DEFAULT_CHARSET))
@@ -1862,6 +1873,26 @@ class TerminalWindow(QtGui.QMainWindow):
         value /= 100.0
         self.settings.setValue("brightness", value)
         self.io.set_brightness(value)
+    
+    @QtCore.Slot()
+    def set_contrast(self):
+        slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+        slider.setRange(1000, 2000)
+        slider.setValue(int(self.settings.value("contrast", DEFAULT_CONTRAST)))
+        slider.valueChanged[int].connect(self.on_contrast_changed)
+        
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(slider)
+        
+        dialog = QtGui.QDialog(self)
+        dialog.setWindowTitle("Set Contrast")
+        dialog.setLayout(layout)
+        dialog.exec_()
+    
+    @QtCore.Slot(int)
+    def on_contrast_changed(self, value):
+        self.settings.setValue("contrast", value)
+        self.io.set_contrast(value)
     
     @QtCore.Slot()
     def set_cursor_blink(self):

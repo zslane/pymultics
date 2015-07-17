@@ -13,6 +13,7 @@ DEFAULT_SERVER_NAME = "localhost"
 DEFAULT_SERVER_PORT = 6800
 DEFAULT_BUFFERED_MODE = True
 DEFAULT_PHOSPHOR_COLOR = "vintage"
+DEFAULT_CONTRAST = 1500
 DEFAULT_BUFFER_SIZE = 300
 
 UNKNOWN_CODE       = chr(0)
@@ -160,11 +161,14 @@ class TerminalIO(QtGui.QWidget):
     setProgressStatus = QtCore.Signal(int, int)
     setErrorStatus = QtCore.Signal(str)
     
-    def __init__(self, phosphor_color, parent=None):
+    def __init__(self, phosphor_color, contrast, parent=None):
         super(TerminalIO, self).__init__(parent)
         self.ME = self.__class__.__name__
         
-        color, bkgdcolor = self.get_text_colors(phosphor_color)
+        self.contrast = contrast
+        self.phosphor_color = phosphor_color
+        
+        color, bkgdcolor = self.get_text_colors(phosphor_color, contrast)
         
         self.name = QtNetwork.QHostInfo.localHostName()
         self.host = DEFAULT_SERVER_NAME
@@ -234,13 +238,13 @@ class TerminalIO(QtGui.QWidget):
         fm = QtGui.QFontMetrics(self.output.currentFont())
         return fm.lineSpacing() * nlines
         
-    def get_text_colors(self, phosphor_color):
+    def get_text_colors(self, phosphor_color, contrast):
         if phosphor_color == "vintage": color = QtGui.QColor(57, 255, 174)
         elif phosphor_color == "green": color = QtGui.QColor(63, 255, 127)
-        elif phosphor_color == "amber": color = QtGui.QColor(255, 215, 0)
+        elif phosphor_color == "amber": color = QtGui.QColor(240, 200, 0)
         elif phosphor_color == "white": color = QtGui.QColor(200, 240, 255)
         
-        bkgdcolor = QtGui.QColor(color).darker(1500)
+        bkgdcolor = QtGui.QColor(color).darker(contrast)
         
         return (color.name(), bkgdcolor.name())
     
@@ -390,9 +394,11 @@ class TerminalIO(QtGui.QWidget):
                     self.output.insertPlainText(c)
                 # end if
             # end while
-        elif txt == BEL:
-            self.ring_bell()
         else:
+            if BEL in txt:
+                self.ring_bell()
+                txt = txt.replace(BEL, "")
+            # end if
             self.output.insertPlainText(txt)
         # end if
         
@@ -422,7 +428,8 @@ class TerminalIO(QtGui.QWidget):
         self.input.setBuffered(flag)
         
     def set_phosphor_color(self, phosphor_color):
-        color, bkgdcolor = self.get_text_colors(phosphor_color)
+        self.phosphor_color = phosphor_color
+        color, bkgdcolor = self.get_text_colors(self.phosphor_color, self.contrast)
         
         self.output.setStyleSheet(TEXTIO_STYLE_SHEET % (color, bkgdcolor))
         self.output.style().unpolish(self)
@@ -434,6 +441,10 @@ class TerminalIO(QtGui.QWidget):
         self.input.style().polish(self)
         self.input.update()
         
+    def set_contrast(self, value):
+        self.contrast = value
+        self.set_phosphor_color(self.phosphor_color)
+    
     def set_buffer_size(self, n_lines):
         self.output.document().setMaximumBlockCount(n_lines)
         
@@ -545,14 +556,17 @@ class FileXferStateMachine(object):
     
     def __init__(self, ttyio, lines):
         self.ttyio = ttyio
+        self.path = ""
+        self.lines = []
+        self.num_lines = 0
+        self.started = False
+        self.done = False
+        
         if type(lines) is list:
             self.lines = lines
             self.num_lines = len(lines)
         else:
             self.path = lines
-        # end if
-        self.started = False
-        self.done = False
         
     def convert_control_chars(self, text):
         result = ""
@@ -682,7 +696,7 @@ class TerminalWindow(QtGui.QMainWindow):
         
         self.settings = QtCore.QSettings("pymultics", "Multics.Terminal")
         
-        self.io = TerminalIO(DEFAULT_PHOSPHOR_COLOR, self)
+        self.io = TerminalIO(DEFAULT_PHOSPHOR_COLOR, DEFAULT_CONTRAST, self)
         self.io.setNormalStatus.connect(self.set_normal_status)
         self.io.setConnectStatus.connect(self.set_connect_status)
         self.io.setProgressStatus.connect(self.set_progress_status)
@@ -746,6 +760,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.cancel_xfer_action = self.options_menu.addAction("Cancel Current Transfer", self.cancel_transfer)
         self.options_menu.addSeparator()
         self.phosphor_color_menu = self.options_menu.addMenu("Phosphor Color")
+        self.contrast_action = self.options_menu.addAction("Contrast...", self.set_contrast)
         self.options_menu.addSeparator()
         self.reconnect_action = self.options_menu.addAction("Reconnect", self.io.reconnect)
         
@@ -780,6 +795,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.io.set_server_port(int(self.settings.value("port", DEFAULT_SERVER_PORT)))
         self.io.set_buffered_mode(bool(self.settings.value("buffered", DEFAULT_BUFFERED_MODE)))
         self.io.set_phosphor_color(self.settings.value("phosphor_color", DEFAULT_PHOSPHOR_COLOR))
+        self.io.set_contrast(int(self.settings.value("contrast", DEFAULT_CONTRAST)))
         self.io.set_buffer_size(int(self.settings.value("buffsize", DEFAULT_BUFFER_SIZE)))
         self.io.startup()
         
@@ -851,6 +867,26 @@ class TerminalWindow(QtGui.QMainWindow):
             self.settings.setValue("port", port)
             self.io.set_server_port(port)
             self.io.reset()
+    
+    @QtCore.Slot()
+    def set_contrast(self):
+        slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+        slider.setRange(1000, 2000)
+        slider.setValue(int(self.settings.value("contrast", DEFAULT_CONTRAST)))
+        slider.valueChanged[int].connect(self.on_contrast_changed)
+        
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(slider)
+        
+        dialog = QtGui.QDialog(self)
+        dialog.setWindowTitle("Set Contrast")
+        dialog.setLayout(layout)
+        dialog.exec_()
+    
+    @QtCore.Slot(int)
+    def on_contrast_changed(self, value):
+        self.settings.setValue("contrast", value)
+        self.io.set_contrast(value)
     
     @QtCore.Slot()
     def set_buffer_size_dialog(self):
