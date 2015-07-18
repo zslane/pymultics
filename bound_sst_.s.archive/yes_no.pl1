@@ -1,0 +1,10 @@
+yes_no: procedure (answer);
+
+          dcl     answer                 char (*) varying parm;
+          dcl     command_query_$yes_no  entry options (variable);
+          dcl     response               bit;
+
+          call command_query_$yes_no (response, 0, "(yes/no)", "", "");
+          if response then answer = "yes"; else answer = "no";
+
+     end yes_no;
