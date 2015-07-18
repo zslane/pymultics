@@ -22,6 +22,7 @@ LF  = chr(10)
 CR  = chr(13)
 ESC = chr(27)
 ARR = chr(28)
+DEL = chr(127)
 
 Character_Handled = True
 
@@ -1094,7 +1095,7 @@ class EmacsEditor(object):
                         select_buffer.do_select()
                     else:
                         self.insert_character(c)
-                elif c == BS:
+                elif c in [BS, DEL]:
                     self.delete_previous_character()
                 elif c == TAB:
                     self.insert_tab_command()

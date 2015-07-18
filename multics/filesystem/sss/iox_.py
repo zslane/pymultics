@@ -6,12 +6,13 @@ BS = chr(8)
 LF = chr(10)
 CR = chr(13)
 ESC = chr(27)
+DEL = chr(127)
 
 def _is_cc(c):
     return 0 <= ord(c) <= 31
 
 def _xlate_cc(c):
-    if _is_cc(c) and (c not in [BS, LF, CR, ESC]):
+    if _is_cc(c) and (c not in [BS, LF, CR, ESC, DEL]):
         # return "^" + chr(ord(c) + ord('@'))
         return r"\%03o" % ord(c)
     else:
@@ -58,7 +59,7 @@ class iox_(Subroutine):
         # end try
         
         if c and ioxctl.echo_input_sw:
-            if c == BS:
+            if c in [BS, DEL]:
                 if ioxbuffer:
                     n = 4 if _is_cc(ioxbuffer[-1]) else 1
                     self.write(tty_channel, (BS * n) + (' ' * n) + (BS * n))
@@ -126,7 +127,7 @@ class iox_(Subroutine):
                 self._buffer[tty_channel] = ""
                 buffer.val = self.inline_edit_(buf)
                 return
-            elif c == BS:
+            elif c in [BS, DEL]:
                 buf = buf[:-1]
             elif c:
                 buf += c
@@ -147,7 +148,7 @@ class iox_(Subroutine):
                 self._buffer[tty_channel] = ""
                 buffer.val = self.inline_edit_(buf)
                 return
-            elif c == BS:
+            elif c in [BS, DEL]:
                 buf = buf[:-1]
             elif c:
                 buf += c

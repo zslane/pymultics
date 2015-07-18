@@ -52,6 +52,7 @@ CAN = chr(24)
 SUB = chr(26)
 ESC = chr(27)
 SP  = chr(32)
+DEL = chr(127)
 
 NRM, BRI, DIM, _, UND, BLI, _, REV, HID, ALL = (0,1,2,4,8,16,32,64,128,256)
 GLYPHSET_KEYS = [NRM, UND, REV, UND|REV, BRI, BRI|UND, BRI|REV, BRI|UND|REV, DIM, DIM|UND, DIM|REV, DIM|UND|REV, HID]
@@ -741,7 +742,7 @@ class GlassTTY(QtGui.QWidget):
                 elif code == 8:
                     self.autorepeat = True
                 else:
-                    _debug("\nIgnoring DEC private '%dh'" % (code))
+                    pprint("\nIgnoring DEC private '%dh'" % (code))
                 # end if
                 return done()
             #== RM (Reset Mode)
@@ -751,6 +752,7 @@ class GlassTTY(QtGui.QWidget):
                     self.arrowkey_mode = False
                 elif code == 3:
                     self.autowrap = False
+                    self.update()
                 elif code == 5:
                     self.screen_mode = False
                     self.compmode = QtGui.QPainter.CompositionMode_Lighten
@@ -763,7 +765,7 @@ class GlassTTY(QtGui.QWidget):
                 elif code == 8:
                     self.autorepeat = False
                 else:
-                    _debug("\nIgnoring DEC private '%dl'" % (code))
+                    pprint("\nIgnoring DEC private '%dl'" % (code))
                 # end if
                 return done()
             # end if
@@ -944,6 +946,7 @@ class GlassTTY(QtGui.QWidget):
             return done()
             
         #== Otherwise stop parsing and process new char normally
+        print "esc code failed at state %d with char %r" % (self.esc_code_state, c)
         return failed()
         
     def send_esc_code_response(self, code):
@@ -992,6 +995,9 @@ class GlassTTY(QtGui.QWidget):
                 
             elif c == LF and self.newline_mode:
                 c = CR + LF
+
+            elif c == BS:
+                c = DEL
                 
             #== Turn Alt+key into ESC+char
             if event.modifiers() & QtCore.Qt.AltModifier:
