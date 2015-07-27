@@ -40,7 +40,7 @@ ASSIGN_PORT_CODE   = chr(132)
 WHO_CODE           = chr(133)
 BREAK_CODE         = chr(134)
 END_CONTROL_CODE   = chr(254)
-NULL_CHAR_CODE     = chr(128)
+NULL_CHAR_CODE     = chr(135)
 
 NUL = chr(0)
 BEL = chr(7)
@@ -547,6 +547,9 @@ class GlassTTY(QtGui.QWidget):
             pass # ignore request if saveCursor() was never called
         
     def moveCursor(self, dx, dy, redraw_immediately=True):
+        ox = self.cursorx
+        oy = self.cursory
+        
         if redraw_immediately and self.cursor_visible:
             #== Erase from old position
             self.cursor_visible = False
@@ -554,9 +557,11 @@ class GlassTTY(QtGui.QWidget):
             self.cursor_visible = True
             
         #== Draw in new position
-        needs_scrolling = (self.cursory + dy < self.scroll_first) or (self.cursory + dy > self.scroll_last)
-        self.cursorx = min(self.NCHARS - 1, max(0, self.cursorx + dx))
-        self.cursory = min(self.scroll_last, max(self.scroll_first, self.cursory + dy))
+        needs_scrolling = dy and ((self.cursory + dy < self.scroll_first) or (self.cursory + dy > self.scroll_last))
+        if dx: self.cursorx = min(self.NCHARS - 1, max(0, self.cursorx + dx))
+        if dy: self.cursory = min(self.scroll_last, max(self.scroll_first, self.cursory + dy))
+        
+        _debug(" [%d, %d + (%d, %d) = %d, %d] " % (oy, ox, dy, dx, self.cursory, self.cursorx))
         
         if redraw_immediately:
             self.repaint_cursor()
@@ -565,7 +570,6 @@ class GlassTTY(QtGui.QWidget):
         return needs_scrolling
         
     def moveCursorTo(self, x, y, redraw_immediately=True):
-        _debug(" -> %d, %d" % (y, x))
         if redraw_immediately and self.cursor_visible:
             #== Erase from old position
             self.cursor_visible = False
@@ -583,6 +587,8 @@ class GlassTTY(QtGui.QWidget):
             self.cursory = min(self.scroll_last, max(self.scroll_first, self.scroll_first + y))
             needs_scrolling = (y < self.scroll_first) or (y > self.scroll_last)
         # end if
+        
+        _debug(" [%d, %d -> %d, %d] " % (y, x, self.cursory, self.cursorx))
         
         if redraw_immediately:
             self.repaint_cursor()
@@ -690,10 +696,10 @@ class GlassTTY(QtGui.QWidget):
                 self.moveCursor(0, -1)
                 return done()
             elif c == 'B':
-                self.moveCursor(0, 1)
+                self.moveCursor(0, +1)
                 return done()
             elif c == 'C':
-                self.moveCursor(1, 0)
+                self.moveCursor(+1, 0)
                 return done()
             elif c == 'c':
                 #== Respond with device code
@@ -716,7 +722,7 @@ class GlassTTY(QtGui.QWidget):
                 return done()
             elif c == 'r':
                 self.resetScrollRange()
-                # self.homeCursor()
+                self.homeCursor()
                 return done()
             # end if
             
@@ -835,11 +841,11 @@ class GlassTTY(QtGui.QWidget):
                 return done()
             elif c == 'B':
                 count = defaultTo1(self._cc_n1)
-                self.moveCursor(0, count)
+                self.moveCursor(0, +count)
                 return done()
             elif c == 'C':
                 count = defaultTo1(self._cc_n1)
-                self.moveCursor(count, 0)
+                self.moveCursor(+count, 0)
                 return done()
             elif c == 'D':
                 count = defaultTo1(self._cc_n1)
@@ -893,6 +899,7 @@ class GlassTTY(QtGui.QWidget):
                     row -= 1 ; col -= 1
                     if self.valid_row_coord(row) and self.valid_col_coord(col):
                         self.moveCursorTo(col, row)
+                        self.resetScrollRange() # <-- not sure if this is the right thing to do
                         return done()
                     else:
                         print "^[[%d;%dH (invalid position)" % (row, col)
@@ -1448,6 +1455,7 @@ class TerminalIO(QtGui.QWidget):
     def send_chars(self, c):
         # print self.ME, "xmitChars:", c
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
+            if len(c) == 1 and ord(c) == ord(NULL_CHAR_CODE): c = NULL_CHAR_CODE # cleanse unicode conversion
             # print self.ME, "sending:", repr(c)
             n = self.socket.write(DataPacket.Out(c))
             # print self.ME, n, "bytes sent"

@@ -13,6 +13,7 @@ ASSIGN_PORT_CODE   = chr(132)
 WHO_CODE           = chr(133)
 BREAK_CODE         = chr(134)
 END_CONTROL_CODE   = chr(254)
+NULL_CHAR_CODE     = chr(135)
 
 class Thread(QtCore.QThread):
     """
@@ -118,12 +119,15 @@ class Worker(QtCore.QObject):
     def write(self, s):
         try:
             if self.state() == QtNetwork.QAbstractSocket.ConnectedState:
-                s = s.replace("\r\n", "\n").replace("\n", "\r\n")
+                if s == '': # Null characters become empty strings when sent via Qt signals
+                    s = '\0'
+                else:
+                    s = str(s).replace("\r\n", "\n").replace("\n", "\r\n")
                 self._telnet.write(s.encode("latin-1"))
                 self.bytesWritten.emit(len(s))
         except:
-            # import traceback
-            # traceback.print_exc()
+            import traceback
+            traceback.print_exc()
             self._error_string = sys.exc_info()[1]
             self.error.emit(QtNetwork.QAbstractSocket.SocketError.NetworkError)
     
@@ -291,7 +295,7 @@ class QTelnetSocket(QtCore.QObject):
     
     def send_assign_port_code(self):
         print self.ME, "Sending ASSIGN_PORT_CODE '6801'."
-        self._assign_port_code_data = QtCore.QByteArray(CONTROL_CODE + ASSIGN_PORT_CODE + str("6801") + END_CONTROL_CODE)
+        self._assign_port_code_data = QtCore.QByteArray(str(CONTROL_CODE + ASSIGN_PORT_CODE + str("6801") + END_CONTROL_CODE))
         self.readyRead.emit()
         
     def connectToHost(self, name, port=23):
@@ -334,6 +338,8 @@ class QTelnetSocket(QtCore.QObject):
             elif code == BREAK_CODE:
                 print self.ME, "Sending ^C in place of BREAK_CODE."
                 self.write_signal.emit(chr(3))
+            elif code == NULL_CHAR_CODE:
+                self.write_signal.emit('\0')
             # end if
             self.bytesWritten.emit(len(s))
         else:
