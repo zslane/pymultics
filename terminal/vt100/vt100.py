@@ -657,8 +657,7 @@ class GlassTTY(QtGui.QWidget):
             if c == '[':
                 return next(CC_TYPE1)
             elif c == '<':
-                #== Ignore request to enter/exit VT52/ANSI mode
-                _debug("\nIgnoring 'Enter VT100 Mode' request (already in VT100 Mode)")
+                self.eraseScreen()
                 return done()
             elif c == '7':
                 self.saveCursor()
