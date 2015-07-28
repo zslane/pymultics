@@ -1,7 +1,6 @@
 import re
 import sys
 import telnetlib
-from telnetlib import *
 
 from PySide import QtCore, QtNetwork
 
@@ -13,7 +12,6 @@ ASSIGN_PORT_CODE   = chr(132)
 WHO_CODE           = chr(133)
 BREAK_CODE         = chr(134)
 END_CONTROL_CODE   = chr(254)
-NULL_CHAR_CODE     = chr(135)
 
 class Thread(QtCore.QThread):
     """
@@ -115,19 +113,16 @@ class Worker(QtCore.QObject):
             self._telnet.close()
             self.disconnected.emit()
             
-    @QtCore.Slot(str)
-    def write(self, s):
+    @QtCore.Slot("QByteArray")
+    def write(self, byte_array):
         try:
             if self.state() == QtNetwork.QAbstractSocket.ConnectedState:
-                if s == '': # Null characters become empty strings when sent via Qt signals
-                    s = '\0'
-                else:
-                    s = str(s).replace("\r\n", "\n").replace("\n", "\r\n")
+                s = byte_array.data().replace("\r\n", "\n").replace("\n", "\r\n")
                 self._telnet.write(s.encode("latin-1"))
                 self.bytesWritten.emit(len(s))
         except:
-            import traceback
-            traceback.print_exc()
+            # import traceback
+            # traceback.print_exc()
             self._error_string = sys.exc_info()[1]
             self.error.emit(QtNetwork.QAbstractSocket.SocketError.NetworkError)
     
@@ -138,16 +133,8 @@ class Worker(QtCore.QObject):
         self._read_mutex.unlock()
         return data
         
-    def callback(self, socket, command, option):
-        printable_constants = {
-            IAC:"IAC", DONT:"DONT", DO:"DO", WONT:"WONT", WILL:"WILL", SE:"SE", NOP:"NOP", DM:"DM", BRK:"BRK", IP:"IP", AO:"AO", AYT:"AYT", EC:"EC", EL:"EL", GA:"GA", SB:"SB"
-        }
-        print "Negotiating:", socket, printable_constants.get(command, ord(command)), printable_constants.get(option, ord(option))
-        
     def run(self):
         self._telnet = telnetlib.Telnet()
-        # self._telnet.set_option_negotiation_callback(self.callback)
-        # print "run: QTelnetSocket.Worker._telnet.get_socket =", self._telnet.get_socket()
         
         while True:
             if self._stopped_flag:
@@ -215,7 +202,7 @@ class QTelnetSocket(QtCore.QObject):
     connectToHost_signal = QtCore.Signal(str, int)
     disconnectFromHost_signal = QtCore.Signal()
     close_signal = QtCore.Signal()
-    write_signal = QtCore.Signal(str)
+    write_signal = QtCore.Signal("QByteArray")
     
     error = QtCore.Signal(int)
     hostFound = QtCore.Signal()
@@ -337,14 +324,12 @@ class QTelnetSocket(QtCore.QObject):
                 pass
             elif code == BREAK_CODE:
                 print self.ME, "Sending ^C in place of BREAK_CODE."
-                self.write_signal.emit(chr(3))
-            elif code == NULL_CHAR_CODE:
-                self.write_signal.emit('\0')
+                self.write_signal.emit(QtCore.QByteArray(chr(3)))
             # end if
             self.bytesWritten.emit(len(s))
         else:
             # print self.ME, "Sending", repr(s)
-            self.write_signal.emit(s)
+            self.write_signal.emit(byte_array)
         
     def flush(self):
         pass

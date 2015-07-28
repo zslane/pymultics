@@ -40,7 +40,6 @@ ASSIGN_PORT_CODE   = chr(132)
 WHO_CODE           = chr(133)
 BREAK_CODE         = chr(134)
 END_CONTROL_CODE   = chr(254)
-NULL_CHAR_CODE     = chr(135)
 
 NUL = chr(0)
 BEL = chr(7)
@@ -164,7 +163,7 @@ class FontGlyphs(object):
 class GlassTTY(QtGui.QWidget):
 
     breakSignal = QtCore.Signal()
-    xmitChars = QtCore.Signal(str)
+    xmitChars = QtCore.Signal("QByteArray")
     
     NCHARS = N_HORZ_CHARS
     NLINES = N_VERT_LINES
@@ -326,7 +325,10 @@ class GlassTTY(QtGui.QWidget):
         self.setPhosphorColor(self.phosphor_color)
         
     def sendCharacters(self, text):
-        self.xmitChars.emit(text)
+        #== Wrapping up text in a DataPacket (i.e., QByteArray) is the most reliable
+        #== way to get special characters, like NULs, through this system of Qt
+        #== signals and network sockets.
+        self.xmitChars.emit(DataPacket.Out(text))
         
     #==================================#
     #== HIGH-LEVEL RASTER MANAGEMENT ==#
@@ -748,7 +750,7 @@ class GlassTTY(QtGui.QWidget):
                 elif code == 8:
                     self.autorepeat = True
                 else:
-                    pprint("\nIgnoring DEC private '%dh'" % (code))
+                    _debug("\nIgnoring DEC private ^[[%dh" % (code))
                 # end if
                 return done()
             #== RM (Reset Mode)
@@ -771,7 +773,7 @@ class GlassTTY(QtGui.QWidget):
                 elif code == 8:
                     self.autorepeat = False
                 else:
-                    pprint("\nIgnoring DEC private '%dl'" % (code))
+                    _debug("\nIgnoring DEC private ^[[%dl" % (code))
                 # end if
                 return done()
             # end if
@@ -964,7 +966,7 @@ class GlassTTY(QtGui.QWidget):
     #===============================#
     
     def keyPressEvent(self, event):
-        special = {'2':NULL_CHAR_CODE, '@':NULL_CHAR_CODE, '6':chr(30), '-':chr(31)}
+        special = {'2':NUL, '@':NUL, '6':chr(30), '-':chr(31)}
         
         #== Ignore auto-repeated keystrokes if auto-repeat mode is off
         if event.isAutoRepeat() and not self.autorepeat:
@@ -1451,13 +1453,12 @@ class TerminalIO(QtGui.QWidget):
             else:
                 self.display(data_packet.extract_plain_data())
         
-    @QtCore.Slot(str)
-    def send_chars(self, c):
-        # print self.ME, "xmitChars:", c
+    @QtCore.Slot("QByteArray")
+    def send_chars(self, byte_array):
+        # print self.ME, "send_chars:", byte_array
         if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
-            if len(c) == 1 and ord(c) == ord(NULL_CHAR_CODE): c = NULL_CHAR_CODE # cleanse unicode conversion
-            # print self.ME, "sending:", repr(c)
-            n = self.socket.write(DataPacket.Out(c))
+            # print self.ME, "sending:", repr(byte_array.data())
+            n = self.socket.write(byte_array)
             # print self.ME, n, "bytes sent"
             self.socket.flush()
         
