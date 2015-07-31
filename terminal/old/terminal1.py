@@ -23,6 +23,7 @@ ECHO_PASSWORD_CODE = chr(131)
 ASSIGN_PORT_CODE   = chr(132)
 WHO_CODE           = chr(133)
 BREAK_CODE         = chr(134)
+SENDFILE_CODE      = chr(135)
 END_CONTROL_CODE   = chr(254)
 
 STX = chr(2)
@@ -303,6 +304,9 @@ class TerminalIO(QtGui.QWidget):
                 elif data_code == ECHO_PASSWORD_CODE:
                     self.input.setEchoMode(QtGui.QLineEdit.Password)
                     
+                elif data_code == SENDFILE_CODE:
+                    self.receive_text_file(payload)
+                    
                 else:
                     raise ValueError("unknown control data code %d" % (ord(data_code)))
                 # end if
@@ -318,11 +322,7 @@ class TerminalIO(QtGui.QWidget):
                 # end if
                 
             else:
-                data = data_packet.extract_plain_data()
-                if data.startswith(STX) and data.endswith(EOT):
-                    self.receive_text_file(data[1:-1])
-                else:
-                    self.display(data)
+                self.display(data_packet.extract_plain_data())
         
     @QtCore.Slot()
     def send_string(self):
