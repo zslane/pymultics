@@ -39,15 +39,21 @@ ECHO_PASSWORD_CODE = chr(131)
 ASSIGN_PORT_CODE   = chr(132)
 WHO_CODE           = chr(133)
 BREAK_CODE         = chr(134)
+SENDFILE_CODE      = chr(135)
 END_CONTROL_CODE   = chr(254)
 
 NUL = chr(0)
+STX = chr(2)
+ETX = chr(3)
+EOT = chr(4)
+ACK = chr(6)
 BEL = chr(7)
 BS  = chr(8)
 TAB = chr(9)
 LF  = chr(10)
 CR  = chr(13)
 CAN = chr(24)
+EM  = chr(25)
 SUB = chr(26)
 ESC = chr(27)
 SP  = chr(32)
@@ -1335,6 +1341,8 @@ class TerminalIO(QtGui.QWidget):
         # self.socket.readyRead.connect(self.data_available)
         # self.com_port = 0
         
+        self.xfer_machine = None
+        
         self.ttyio = GlassTTY(phosphor_color, charset)
         
         self.enclosure = TerminalEnclosure(self.ttyio)
@@ -1446,9 +1454,23 @@ class TerminalIO(QtGui.QWidget):
                 elif data_code == ECHO_PASSWORD_CODE:
                     self.input.setEchoMode(QtGui.QLineEdit.Password)
                     
+                elif data_code == SENDFILE_CODE:
+                    self.receive_text_file(payload)
+                    
                 else:
                     raise ValueError("unknown control data code %d" % (ord(data_code)))
                 # end if
+                
+            elif self.xfer_machine and self.xfer_machine.started:
+                data = data_packet.extract_plain_data()
+                if self.xfer_machine.done:
+                    self.xfer_machine = None
+                    if data != ACK:
+                        self.display(data)
+                else:
+                    self.xfer_machine.receive(data)
+                # end if
+                
             else:
                 self.display(data_packet.extract_plain_data())
         
@@ -1500,15 +1522,102 @@ class TerminalIO(QtGui.QWidget):
         self.socket.abort()
         QtCore.QTimer.singleShot(0, self.reconnect)
         
-    def send_text_file(self, path):
+    def send_frame(self, s):
+        if self.socket.isValid() and self.socket.state() == QtNetwork.QAbstractSocket.ConnectedState:
+            # print self.ME, "sending:", repr(s)
+            n = self.socket.write(DataPacket.Out(s))
+            # print self.ME, n, "bytes sent"
+            self.socket.flush()
+            
+    def _send_cmd(self, cmd):
+        self.send_frame(cmd + CR + LF)
+        QtCore.QCoreApplication.processEvents()
+        QtCore.QThread.msleep(500)
+        QtCore.QCoreApplication.processEvents()
+        
+    def send_file_to_ted(self, path):
+        n_bytes_total = os.path.getsize(path)
+        byte_count    = 0
+        frame         = ""
+        
+        self.input.disable()
+        self.cancelled = False
+        
+        self._send_cmd("stty -modes ^echoplex")
+        self._send_cmd("ted")
+        self._send_cmd("a")
+        
         with open(path) as f:
             for line in f:
-                #self.send_chars(line.replace(LF, CR+LF))
-                #QtCore.QThread.msleep(250)
                 for c in line:
-                    QtCore.QThread.msleep(100)
-                    self.send_chars(c)
-                #self.send_chars(CR + LF)
+                    byte_count += 1
+                    self.setProgressStatus.emit(byte_count, n_bytes_total)
+                    QtCore.QCoreApplication.processEvents()
+                    QtCore.QThread.msleep(50)
+                    
+                    if c == LF: c = CR + LF
+                    
+                    frame += c
+                    if len(frame) >= FileXferStateMachine.FRAME_SIZE:
+                        self.send_frame(frame)
+                        frame = ""
+                    # end if
+                    
+                    if self.cancelled:
+                        break
+                    # end if
+                # end for
+                
+                if frame: # unsent leftover chars from previous line
+                    if not frame.endswith(LF):
+                        frame += CR + LF
+                    self.send_frame(frame)
+                    frame = ""
+                # end if
+                
+                if self.cancelled:
+                    break
+                # end if
+            # end for
+        # end with
+        
+        self._send_cmd(r"\f")
+        self._send_cmd("w " + os.path.basename(path))
+        self._send_cmd("q")
+        self._send_cmd("stty -modes echoplex")
+        
+        if self.cancelled:
+            self.cancelled = False
+            self.setNormalStatus.emit("File transfer cancelled.")
+        else:
+            self.setNormalStatus.emit("File transfer complete.")
+        # end if
+        self.input.enable()
+    
+    def send_file_to_rcvfile(self, path):
+        with open(path) as f:
+            lines = f.read().split("\n")
+            self.num_lines = len(lines)
+            self.max_chars = max(map(len, lines))
+        # end with
+        
+        lines.insert(0, str(self.max_chars))
+        lines.insert(0, str(self.num_lines))
+        
+        self.cancelled = False
+        self.input.disable()
+        self._send_cmd("rcvfile " + os.path.basename(path))
+        
+        self.xfer_machine = FileXferStateMachine(self, lines)
+        QtCore.QTimer.singleShot(0, self.xfer_machine.start)
+        
+    def receive_text_file(self, filename):
+        path, _ = QtGui.QFileDialog.getSaveFileName(self, "Save Text File", filename)
+        if path:
+            self.xfer_machine = FileXferStateMachine(self, path)
+            QtCore.QTimer.singleShot(0, self.xfer_machine.incoming)
+        else:
+            self.send_frame(CAN)
     
     def set_server_name(self, host):
         self.host = host
@@ -1543,6 +1652,130 @@ class TerminalIO(QtGui.QWidget):
         self.ttyio.setCharSet(charset)
         
 #-- end class TerminalIO
+
+class FileXferStateMachine(object):
+
+    FRAME_SIZE = 32 # bytes
+    
+    def __init__(self, ttyio, lines):
+        self.ttyio = ttyio
+        self.path = ""
+        self.lines = []
+        self.num_lines = 0
+        self.started = False
+        self.done = False
+        
+        if type(lines) is list:
+            self.lines = lines
+            self.num_lines = len(lines)
+        else:
+            self.path = lines
+        
+    def convert_control_chars(self, text):
+        result = ""
+        for c in text:
+            if (' ' <= c <= '~') or (c in [TAB, CR, LF]):
+                result += c
+            else:
+                #== Convert to a '\xxx' octal string. rcvfile will convert this
+                #== back to a single control character byte.
+                result += r"\%03o" % (ord(c))
+            # end if
+        # end for
+        return result
+        
+    def get_next_frame(self):
+        ETB = chr(23)
+        if not self.next_line:
+            self.next_line = self.convert_control_chars(self.lines.pop(0))
+        # end if
+        next_frame = self.next_line[:self.FRAME_SIZE]
+        self.next_line = self.next_line[self.FRAME_SIZE:]
+        if not self.next_line:
+            next_frame += ETB
+        # end if
+        return next_frame
+        
+    def start(self):
+        self.ttyio.send_frame(STX)
+        
+        self.next_line = ""
+        self.next_frame = ""
+        self.waiting_for_ack = True
+        self.received_ack = False
+        self.done = False
+        self.started = True
+        
+        running_time = QtCore.QTime.currentTime()
+        while not self.done:
+            QtCore.QCoreApplication.processEvents()
+            
+            if self.ttyio.cancelled:
+                self.done = True
+                self.ttyio.cancelled = False
+                self.ttyio.send_frame(CAN)
+                self.ttyio.setNormalStatus.emit("File transfer cancelled.")
+                # self.ttyio.input.enable()
+                return
+            elif running_time.elapsed() > 10000: # 10 seconds
+                self.done = True
+                self.ttyio.setErrorStatus.emit("File transfer timed out.")
+                # self.ttyio.input.enable()
+                return
+            # end if
+            
+            if self.waiting_for_ack:
+                if self.received_ack:
+                    self.received_ack = False
+                    self.waiting_for_ack = False
+                    self.done = (self.lines == [])
+                    running_time.restart()
+                # end if
+            else:
+                next_frame = self.get_next_frame()
+                self.ttyio.send_frame(STX + next_frame + EOT)
+                self.waiting_for_ack = True
+                self.ttyio.setProgressStatus.emit(self.num_lines - len(self.lines) - 2, self.num_lines - 2)
+            # end if
+        # end while
+        
+        if self.lines == []:
+            self.ttyio.send_frame(STX + EM + EOT)
+            self.ttyio.setNormalStatus.emit("File transfer complete.")
+        # end if
+        
+        # self.ttyio.input.enable()
+        
+    def receive(self, s):
+        for c in s:
+            if self.path:
+                #== Recieving a file
+                if c == EM:
+                    self.f.close()
+                    self.done = True
+                    self.path = None
+                    self.ttyio.setNormalStatus.emit("File transfer complete.")
+                elif c != CR:
+                    self.f.write(c)
+                # end if
+            else:
+                #== Sending a file
+                if c == ACK:
+                    self.received_ack = True
+                    
+                else:
+                    #== Just send all other characters to the display, even if
+                    #== they represent garbage coming in from a failed transfer
+                    self.ttyio.display(c)
+    
+    def incoming(self):
+        self.f = open(self.path, "w")
+        self.done = False
+        self.started = True
+        self.ttyio.send_frame(ACK)
+        self.ttyio.setNormalStatus.emit("Receiving text file...")
+    
+#-- end class FileXferStateMachine
 
 MENUBAR_STYLE_SHEET = """
     QMenuBar                { background: #252525; color: #c8c8c8; }
@@ -1626,7 +1859,9 @@ class TerminalWindow(QtGui.QMainWindow):
         self.connect_action = self.menuBar().addAction("Connect", self.do_connect)
         
         #== Create menu items
-        self.send_file_action = self.file_menu.addAction("Send Text File...", self.send_text_file)
+        self.send_tedfile_action = self.file_menu.addAction("Send File To ted...", self.send_file_to_ted)
+        self.send_rcvfile_action = self.file_menu.addAction("Send File To rcvfile...", self.send_file_to_rcvfile)
+        self.cancel_xfer_action = self.file_menu.addAction("Cancel Current Transfer", self.cancel_transfer)
         self.file_menu.addSeparator()
         self.file_menu.addAction("Quit", self.close)
         
@@ -1709,7 +1944,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.set_std_charset.setChecked(self.settings.value("character_set", DEFAULT_CHARSET) == "std")
         self.set_alt_charset.setChecked(self.settings.value("character_set", DEFAULT_CHARSET) == "alt")
         
-        self.send_file_action.setEnabled(False)
+        # self.send_file_action.setEnabled(False)
         self.connect_action.setEnabled(True)
         self.set_connect_action_tooltip()
     
@@ -1794,14 +2029,14 @@ class TerminalWindow(QtGui.QMainWindow):
     
     @QtCore.Slot()
     def enable_reconnect(self):
-        self.send_file_action.setEnabled(False)
+        # self.send_file_action.setEnabled(False)
         self.connect_action.setText("Connect")
         for connect_action in self.recent_connections_actions:
             connect_action.setEnabled(True)
         
     @QtCore.Slot()
     def disable_reconnect(self):
-        self.send_file_action.setEnabled(True)
+        # self.send_file_action.setEnabled(True)
         self.update_recent_connections(self.io.host, self.io.port, self.io.protocol)
         self.connect_action.setText("Disconnect")
         for connect_action in self.recent_connections_actions:
@@ -1838,10 +2073,20 @@ class TerminalWindow(QtGui.QMainWindow):
         QtCore.QTimer.singleShot(0, self.close)
         
     @QtCore.Slot()
-    def send_text_file(self):
-        path, _ = QtGui.QFileDialog.getOpenFileName(self, "Send Text File")
+    def send_file_to_ted(self):
+        path, _ = QtGui.QFileDialog.getOpenFileName(self, "Select File")
         if path:
-            self.io.send_text_file(path)
+            self.io.send_file_to_ted(path)
+        
+    @QtCore.Slot()
+    def send_file_to_rcvfile(self):
+        path, _ = QtGui.QFileDialog.getOpenFileName(self, "Select File")
+        if path:
+            self.io.send_file_to_rcvfile(path)
+            
+    @QtCore.Slot()
+    def cancel_transfer(self):
+        self.io.cancelled = True
         
     @QtCore.Slot()
     def set_server_info(self):
