@@ -117,12 +117,16 @@ class Worker(QtCore.QObject):
     def write(self, byte_array):
         try:
             if self.state() == QtNetwork.QAbstractSocket.ConnectedState:
-                s = byte_array.data().replace("\r\n", "\n").replace("\n", "\r\n")
-                self._telnet.write(s.encode("latin-1"))
-                self.bytesWritten.emit(len(s))
+                if byte_array.startsWith(telnetlib.BRK):
+                    from struct import pack
+                    self._telnet.get_socket().sendall(pack(">cc", telnetlib.IAC, telnetlib.BRK))
+                else:
+                    s = byte_array.data().replace("\r\n", "\n").replace("\n", "\r\n")
+                    self._telnet.write(s.encode("latin-1"))
+                    self.bytesWritten.emit(len(s))
         except:
-            # import traceback
-            # traceback.print_exc()
+            import traceback
+            traceback.print_exc()
             self._error_string = sys.exc_info()[1]
             self.error.emit(QtNetwork.QAbstractSocket.SocketError.NetworkError)
     
@@ -323,8 +327,10 @@ class QTelnetSocket(QtCore.QObject):
                 print self.ME, "Discarding WHO_CODE."
                 pass
             elif code == BREAK_CODE:
-                print self.ME, "Sending ^C in place of BREAK_CODE."
-                self.write_signal.emit(QtCore.QByteArray(chr(3)))
+                # print self.ME, "Sending ^C in place of BREAK_CODE."
+                # self.write_signal.emit(QtCore.QByteArray(chr(3)))
+                print self.ME, "Sending Telnet BRK in place of BREAK_CODE."
+                self.write_signal.emit(QtCore.QByteArray(telnetlib.BRK))
             # end if
             self.bytesWritten.emit(len(s))
         else:

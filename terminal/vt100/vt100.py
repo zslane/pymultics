@@ -112,7 +112,7 @@ class DataPacket(object):
         
     @staticmethod
     def Out(data_code, payload=""):
-        if ord(data_code[0]) >= ord(CONTROL_CODE): # control codes are all greater than ASCII value 127
+        if ord(END_CONTROL_CODE) > ord(data_code[0]) > ord(CONTROL_CODE): # control codes are all in the range 130-253
             # print "DataPacket.Out(CONTROL_CODE + chr(%d) + %s + END_CONTROL_CODE)" % (ord(data_code[0]), repr(payload))
             return QtCore.QByteArray(CONTROL_CODE + data_code + str(payload) + END_CONTROL_CODE)
         else:
@@ -1312,6 +1312,7 @@ class TerminalIO(QtGui.QWidget):
     
     setNormalStatus = QtCore.Signal(str)
     setConnectStatus = QtCore.Signal(str)
+    setProgressStatus = QtCore.Signal(int, int)
     setErrorStatus = QtCore.Signal(str)
     
     connected = QtCore.Signal()
@@ -1805,6 +1806,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.io = TerminalIO(DEFAULT_PHOSPHOR_COLOR, DEFAULT_CHARSET, self)
         self.io.setNormalStatus.connect(self.set_normal_status)
         self.io.setConnectStatus.connect(self.set_connect_status)
+        self.io.setProgressStatus.connect(self.set_progress_status)
         self.io.setErrorStatus.connect(self.set_error_status)
         self.io.connected.connect(self.disable_reconnect)
         self.io.disconnected.connect(self.enable_reconnect)
@@ -1963,6 +1965,8 @@ class TerminalWindow(QtGui.QMainWindow):
         self.io.set_cursor_blink(bool(int(self.settings.value("cursor_blink", DEFAULT_CURSOR_BLINK))))
         self.io.set_character_set(self.settings.value("character_set", DEFAULT_CHARSET))
         # self.io.startup()
+        fm = QtGui.QFontMetrics(self.status_label.font())
+        self.MAX_STATUS_LABEL_CHARS = self.status_label.width() / fm.averageCharWidth()
         
     def set_connect_action_tooltip(self):
         self.connect_action.setToolTip("Connect to " + self.connection_label())
@@ -2065,7 +2069,7 @@ class TerminalWindow(QtGui.QMainWindow):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444)) # gray
         self.palette.setColor(QtGui.QPalette.WindowText, QtGui.QColor("deepskyblue"))
         text = "%*d/%d " % (len(str(total)), n, total)
-        how_many = (n / total) * (N_HORZ_CHARS - len(text))
+        how_many = (n / float(total)) * (self.MAX_STATUS_LABEL_CHARS - len(text))
         self.set_status(text + "=" * int(how_many))
     
     @QtCore.Slot()

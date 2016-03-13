@@ -225,7 +225,7 @@ class TerminalIO(QtGui.QWidget):
     def startup(self):
         # self.host = "batmud.bat.org"
         # self.port = 23
-        self.host = "104.174.119.211"
+        self.host = "sve-multics.duckdns.org"
         self.port = 6180
         global BREAK_CODE
         BREAK_CODE = chr(3) # Ctrl-C
