@@ -1,0 +1,58 @@
+pqtest: procedure options (main);
+
+	dcl     ioa_		 entry options (variable);
+
+	dcl     1 record		 based,
+		2 name		 char (32) varying,
+		2 age		 fixed bin,
+		2 SSN		 char (11);
+
+	dcl     (queue, node, p, q)	 pointer;
+
+	queue = priority_queue_$create ();
+
+	allocate record set (p);
+	p -> record.name = "Jane Doe";
+	p -> record.age = 25;
+	p -> record.SSN = "987-65-4321";
+	node = priority_queue_$enqueue (queue, p, compare_records);
+
+	allocate record set (q);
+	q -> record.name = "John Doe";
+	q -> record.age = 32;
+	q -> record.SSN = "123-45-6789";
+	node = priority_queue_$enqueue (queue, q, compare_records);
+
+	call dump_queue (queue);
+
+	q = priority_queue_$dequeue (queue);
+	call dump_queue (queue);
+
+	call priority_queue_$destroy (queue);
+
+	free p -> record;
+	free q -> record;
+
+compare_records: procedure (rec1ptr, rec2ptr) returns (bit);
+	dcl     (rec1ptr, rec2ptr)	 pointer;
+	return (rec1ptr -> record.age > rec2ptr -> record.age);
+     end compare_records;
+
+dump_queue: procedure (queue);
+	dcl     queue		 pointer;
+	dcl     (node, p)		 pointer;
+	call ioa_ ("Queue size: ^d items", linked_list_$count (queue));
+	node = linked_list_$first (queue);
+	do while (node ^= null ());
+	     p = linked_list_$data (node);
+	     call ioa_ ("Name = ^a", p -> record.name);
+	     call ioa_ ("Age  = ^d", p -> record.age);
+	     call ioa_ ("SSN  = ^a", p -> record.SSN);
+	     node = linked_list_$next (node);
+	end;
+     end dump_queue;
+
+%include priority_queue;
+%include linked_list;
+
+     end pqtest;

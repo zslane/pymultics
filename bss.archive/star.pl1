@@ -599,7 +599,7 @@ hazard_check: procedure;
           dcl     x                      fixed bin init (0);
           dcl     course                 pic "999999";
           
-          x = mod (clock (), 200) + 1
+          x = mod (clock (), 200) + 1;
           course = mod (clock (), 99999) + 1;
           if x = 1 then call ioa_ ("^/ION STORM encountered on course ^a to ^a", course, input);
           else if x = 2 then call ioa_ ("^/ASTEROID BELT encountered on course ^a to ^a", course, input);

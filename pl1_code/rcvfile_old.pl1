@@ -1,0 +1,144 @@
+rcvfile: procedure options (main);
+
+          dcl     MAIN                   char (7) int static init ("rcvfile");
+
+          dcl     STX                    char (1) int static init ("\002"); /* Start of text */
+          dcl     ETX                    char (1) int static init ("\003"); /* End of text */
+          dcl     EOT                    char (1) int static init ("\004"); /* End of transmission */
+          dcl     ENQ                    char (1) int static init ("\005"); /* Enquiry */
+          dcl     ACK                    char (1) int static init ("\006"); /* Acknowledge */
+          dcl     CAN                    char (1) int static init ("\030"); /* Cancel */
+
+          dcl     cu_$arg_count          entry (fixed bin, fixed bin (35));
+
+          dcl     cu_$arg_ptr            entry (fixed bin, ptr, fixed bin (21), fixed bin (35));
+          dcl     argn                   fixed bin init (0);
+          dcl     argp                   ptr init (null ());
+          dcl     argl                   fixed bin (21) init (0);
+          dcl     arg                    char (argl) based (argp);
+
+          dcl     XFER_MODES             char (19) int static init ("rawo,rawi,^echoplex");
+          dcl     current_modes          char (512);
+
+          dcl     buffer                 char (1024) varying init ("");
+          dcl     n_read                 fixed bin (21);
+
+          dcl     code                   fixed bin (35);
+
+          dcl     out_file_name          char (32) varying init ("");
+          dcl     out_file               file;
+          dcl     num_lines              fixed bin init (0);
+          dcl     max_chars              fixed bin init (0);
+          dcl     completed              bit (1) init ("0"b);
+
+          dcl     timer_manager_$alarm_call entry (fixed bin (71), bit (2), entry);
+          dcl     timer_manager_$reset_alarm_call entry (entry);
+          dcl     timeout                fixed bin (71) int static init (10);
+          dcl     seconds                bit (2) int static init ("11"b);
+
+          dcl     com_err_               entry options (variable);
+          dcl     ioa_                   entry options (variable);
+
+          dcl     error                  condition;
+
+          call cu_$arg_count (argn, code);
+          if ^success (code) then return;
+
+          if argn = 1 then do;
+                    call cu_$arg_ptr (1, argp, argl, code);
+                    if ^success (code) then return;
+                    out_file_name = arg;
+               end;
+          else do;
+                    call ioa_ ("Usage: ^a [filename]", MAIN);
+                    return;
+               end;
+
+          call iox_$modes (iox_$user_io, "", current_modes, code);
+          if ^success (code) then return;
+
+          call iox_$modes (iox_$user_io, XFER_MODES, "", code);
+          if ^success (code) then return;
+
+          on error go to xfer_done_cleanup;
+
+          call ioa_ ("You have ^d seconds to begin the transfer.", timeout);
+
+          call wait_for (STX, timeout);
+          call ioa_ ("Received initial STX");
+          call send_out (ACK);
+
+          call wait_for (STX, timeout);
+          call get_frame (buffer, timeout);
+          call send_out (ACK);
+          num_lines = decimal (buffer);
+          call ioa_ ("Number of lines coming: ^d", num_lines);
+
+          call wait_for (STX, timeout);
+          call get_frame (buffer, timeout);
+          call send_out (ACK);
+          max_chars = decimal (buffer);
+          call ioa_ ("Longest line is ^d characters", max_chars);
+
+          open file (out_file) linesize (max_chars) pagesize (num_lines) title ("vfile_ " || out_file_name) stream output;
+
+          do while (num_lines > 0);
+               call wait_for (STX, timeout);
+               call get_frame (buffer, timeout);
+               write file (out_file) from (buffer);
+               call send_out (ACK);
+               num_lines = num_lines - 1;
+          end;
+
+          completed = "1"b;
+
+xfer_done_cleanup:
+          call iox_$modes (iox_$user_io, current_modes, "", code);
+          close file (out_file);
+          if ^completed then call ioa_ ("Transfer aborted.");
+          return;
+
+timeout_handler: entry;
+          call ioa_ ("Timeout expired.");
+          go to xfer_done_cleanup;
+
+wait_for: procedure (bytecode, timeout);
+          dcl     bytecode               char (1) parm;
+          dcl     timeout                fixed bin (71) parm;
+          dcl     buffer                 char (1) init ("");
+          call timer_manager_$alarm_call (timeout, seconds, timeout_handler);
+          do while (buffer ^= bytecode);
+               call iox_$get_chars (iox_$user_input, addr (buffer), 1, n_read, code);
+               if ^success (code) | (buffer = CAN) then go to xfer_done_cleanup;
+          end;
+     end wait_for;
+
+send_out: procedure (bytecode);
+          dcl     bytecode               char (1) parm;
+          call iox_$put_chars (iox_$user_output, addr (bytecode), 1, code);
+          if ^success (code) then go to xfer_done_cleanup;
+     end send_out;
+
+get_frame: procedure (return_buffer, timeout);
+          dcl     return_buffer          char (*) varying parm;
+          dcl     timeout                fixed bin (71) parm;
+          dcl     input_byte             char (1) init ("");
+          call timer_manager_$alarm_call (timeout, seconds, timeout_handler);
+          return_buffer = "";
+          do while (input_byte ^= EOT);
+               call iox_$get_chars (iox_$user_input, addr (input_byte), 1, n_read, code);
+               if ^success (code) | (input_byte = CAN) then go to xfer_done_cleanup;
+               return_buffer = return_buffer || input_byte;
+          end;
+     end get_frame;
+
+success: procedure (code) returns (bit (1));
+          dcl     code                   fixed bin (35) parm;
+          if code = 0 then return ("1"b);
+          call com_err_ (code, MAIN);
+          return ("0"b);
+     end success;
+
+%include iox_dcls;
+
+     end rcvfile;

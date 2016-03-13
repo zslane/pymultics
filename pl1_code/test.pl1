@@ -1,0 +1,105 @@
+
+test: procedure options (main);
+
+	dcl     GS		 char (1) static options (constant) init ("\035"); /* Group Separator */
+	dcl     cptr		 pointer;
+	dcl     as_bits		 bit (9) based (cptr);
+
+	dcl     RS_as_bits		 bit (9) init ("000011110"b);
+	dcl     as_char		 char (1) based (cptr);
+
+	dcl     ioa_		 entry options (variable);
+
+	dcl     cv_oct_		 entry (char (*)) returns (fixed bin (35));
+	dcl     as_fixedbin9	 fixed bin (9);
+	dcl     as_9bits		 bit (9);
+	dcl     i 		 fixed bin;
+
+	as_fixedbin9 = cv_oct_ ("035");
+	as_9bits = bit (as_fixedbin9);
+	cptr = addr (as_9bits);
+	call ioa_ ("Converted (0^o) as integer: ^d", as_fixedbin9, as_fixedbin9);
+	call ioa_ ("Converted (0^o) as bits: ^b, as hex: ^.4b, as integer: ^d, as char: '^a'",
+	     as_9bits, as_9bits, substr (as_9bits, 2, 8), as_9bits, as_char);
+	cptr = addr (GS);
+	call ioa_ ("GS (0^o) as bits: ^b, as hex: ^.4b, as integer: ^d, as char: '^a'",
+	     as_bits, as_bits, substr (as_bits, 2, 8), as_bits, GS);
+	cptr = addr (RS_as_bits);
+	call ioa_ ("RS (0^o) as bits: ^b, as hex: ^.4b, as integer: ^d, as char: '^a'",
+	     RS_as_bits, RS_as_bits, substr (RS_as_bits, 2, 8), RS_as_bits, as_char);
+	call ioa_ ("as_cc ('035') returns '^a'", as_cc ("035"));
+
+	dcl     a_string		 char (1024) varying;
+
+	a_string = "dcl GS char (1) init (""\\035";
+	call demo_cvt (a_string);
+						/*	a_string = "dcl GS char (1) init (""\035"; */
+	call demo_cvt (a_string);
+
+	dcl     ch		 char;
+	dcl     BEL		 char (3) init ("007");
+
+	ch = chr (7);
+	ch = chr (cv_oct_ (BEL));
+	call ioa_ ("chr (7) is ^a", ch);
+	call ioa_ ("ord (ch) is ^d", ord (ch));
+
+chr: procedure (ordinal_value) returns (char);
+	dcl     ordinal_value	 fixed bin (9);
+	dcl     return_char 	 char;
+	unspec (return_char) = bit (ordinal_value);
+	return (return_char);
+     end chr;
+
+ord: procedure (ascii_value) returns (fixed bin (9));
+	dcl     ascii_value 	 char;
+	return (bin (unspec (ascii_value), 9));
+     end ord;
+
+demo_cvt: procedure (text);
+
+	dcl     text		 char (*) varying;
+
+	call ioa_ ("text was '^a'", text);
+	call ioa_ ("length (text) = ^d", length (text));
+	call cvt_cc_text (text);
+	call ioa_ ("text is now '^a'", text);
+	call ioa_ ("length (text) = ^d", length (text));
+
+     end demo_cvt;
+
+as_cc: procedure (as_string) returns (char (1));
+
+	dcl     as_string		 char (*);
+	dcl     as_fixedbin9	 fixed bin (9);
+	dcl     as_9bits		 bit (9);
+	dcl     cptr		 pointer;
+	dcl     as_char		 char (1) based (cptr);
+
+	as_fixedbin9 = cv_oct_ (as_string);
+	as_9bits = bit (as_fixedbin9);
+	cptr = addr (as_9bits);
+	return (as_char);
+
+     end as_cc;
+
+cvt_cc_text: procedure (text);
+
+	dcl     text		 char (*) varying;
+	dcl     OCTAL_CHARS 	 char (9) static options (constant) init ("01234567");
+	dcl     index		 fixed bin (24);
+	dcl     prefix		 char (1) init ("");
+	dcl     tail		 char (3);
+
+	index = length (text) - 4;
+	if (index > 0 & substr (text, index, 1) = "\") then prefix = "\";
+	index = index + 1;
+	if (index > 0 & substr (text, index, 1) = "\") then tail = substr (text, index + 1, 3); else return;
+	if verify (tail, OCTAL_CHARS) = 0 & prefix ^= "\" then
+	     text = substr (text, 1, index - 1) || chr (cv_oct_ (tail));
+	else
+	     text = substr (text, 1, index - 1) || tail;
+
+     end cvt_cc_text;
+
+     end test;

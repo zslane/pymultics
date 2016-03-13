@@ -1,0 +1,2077 @@
+sst_: procedure options (variable);
+
+          dcl     scip                  ptr parm;
+          dcl     nptr                  ptr parm;
+          dcl     Nptr                  ptr init (null ());
+          dcl     game_length           fixed bin parm;
+          dcl     rank                  fixed bin parm;
+          dcl     last_name             char (*) parm;
+
+          dcl     1 node                aligned based (nptr) like NODE;
+          dcl     1 Node                aligned based (Nptr) like NODE;
+
+          dcl     input                 char (100) varying init ("");
+          dcl     (x, y, z)             fixed bin init (0);
+          dcl     (a, b, c)             fixed bin init (0);
+          dcl     sst_data_$version_string ext char (10);
+
+          dcl     argn                  fixed bin init (0);
+          dcl     argp                  ptr init (null ());
+          dcl     argl                  fixed bin (21) init (0);
+          dcl     arg                   char (argl) based (argp);
+          dcl     code                  fixed bin (35) init (0);
+
+set_up_game: entry (nptr, game_length, rank);
+
+          dcl     it_was_not_placed      bit (1) init ("0"b);
+
+          node.arachnidT = mod (clock (), (game_length * 10)) + game_length * 10;
+          node.skinnyT = mod (clock (), (game_length * 5)) + game_length * 5;
+          node.sector (*, *).arachnidT = 0;
+          node.sector (*, *).skinnyT = 0;
+          node.sector (*, *).radiation = "0";
+          node.sector (*, *).supply = "0";
+          node.sector (*, *).point = ".";
+          node.chart (*, *).arachnidN = ".";
+          node.chart (*, *).skinnyN = ".";
+          node.chart (*, *).radiation = ".";
+          node.chart (*, *).supply = ".";
+          node.rank = rank;
+          node.time_left = trunc ((node.arachnidT + node.skinnyT) * ((4 - node.rank) * .25));
+          node.SX = mod (clock (), 5) + 1;
+          node.SY = mod (clock (), 5) + 1;
+          node.PX = mod (clock (), 10) + 1;
+          node.PY = mod (clock (), 10) + 1;
+          node.sector (node.SX, node.SY).point (node.PX, node.PY) = TROOPER;
+          node.HE_bombN = mod (clock (), 6) + 10;
+          node.supplyN = mod (clock (), (5 - rank)) + 2;
+          node.supply (*).uses_left = 0;
+          node.beacon.SX = mod (clock (), 5) + 1;
+          node.beacon.SY = mod (clock (), 5) + 1;
+          node.beacon.PX = mod (clock (), 10) + 1;
+          node.beacon.PY = mod (clock (), 10) + 1;
+          node.score.total = 0;
+
+/* Set up the ARACHNIDS */
+
+          do x = 1 to node.arachnidT;
+               it_was_not_placed = "1"b;
+               do while (it_was_not_placed);
+                    y = mod (clock (), 5) + 1;
+                    z = mod (clock (), 5) + 1;
+                    if ((y ^= node.SX) | (z ^= node.SY)) & (node.sector (y, z).arachnidT < 9) then do;
+                              node.Arachnid (x).SX = y;
+                              node.Arachnid (x).SY = z;
+                              y = mod (clock (), 10) + 1;
+                              z = mod (clock (), 10) + 1;
+                              if (node.sector (node.Arachnid (x).SX, node.Arachnid (x).SY).point (y, z) = ".") then do;
+                                        node.Arachnid (x).PX = y;
+                                        node.Arachnid (x).PY = z;
+                                        node.Arachnid (x).life_pts = mod (clock (), rank * 100) + 100;
+                                        node.sector (node.Arachnid (x).SX, node.Arachnid (x).SY).point (node.Arachnid (x).PX, node.Arachnid (x).PY) = ARACHNID;
+                                        node.sector (node.Arachnid (x).SX, node.Arachnid (x).SY).arachnidT = node.sector (node.Arachnid (x).SX, node.Arachnid (x).SY).arachnidT + 1;
+                                        it_was_not_placed = "0"b;
+                                   end;
+                         end;
+               end;
+          end;
+
+/* Set up the SKINNIES */
+
+          do x = 1 to node.skinnyT;
+               it_was_not_placed = "1"b;
+               do while (it_was_not_placed);
+                    y = mod (clock (), 5) + 1;
+                    z = mod (clock (), 5) + 1;
+                    if ((y ^= node.SX) | (z ^= node.SY)) & (node.sector (y, z).skinnyT < 9) then do;
+                              node.Skinny (x).SX = y;
+                              node.Skinny (x).SY = z;
+                              y = mod (clock (), 10) + 1;
+                              z = mod (clock (), 10) + 1;
+                              if (node.sector (node.Skinny (x).SX, node.Skinny (x).SY).point (y, z) = ".") then do;
+                                        node.Skinny (x).PX = y;
+                                        node.Skinny (x).PY = z;
+                                        node.Skinny (x).life_pts = mod (clock (), rank * 50) + 50;
+                                        node.sector (node.Skinny (x).SX, node.Skinny (x).SY).skinnyT = node.sector (node.Skinny (x).SX, node.Skinny (x).SY).skinnyT + 1;
+                                        node.sector (node.Skinny (x).SX, node.Skinny (x).SY).point (node.Skinny (x).PX, node.Skinny (x).PY) = SKINNY;
+                                        it_was_not_placed = "0"b;
+                                   end;
+                         end;
+               end;
+          end;
+
+/* Set up the HEAVY BEAMS */
+
+          node.heavy_beamT = round ((node.arachnidT / 10), 0);
+          do x = 1 to node.heavy_beamT;
+               it_was_not_placed = "1"b;
+               do while (it_was_not_placed);
+                    y = mod (clock (), 5) + 1;
+                    z = mod (clock (), 5) + 1;
+                    if ((y ^= node.SX) | (z ^= node.SY)) & (node.sector (y, z).arachnidT < 9) then do;
+                              node.Heavy_beam (x).SX = y;
+                              node.Heavy_beam (x).SY = z;
+                              y = mod (clock (), 10) + 1;
+                              z = mod (clock (), 10) + 1;
+                              if (node.sector (node.Heavy_beam (x).SX, node.Heavy_beam (x).SY).point (y, z) = ".") then do;
+                                        node.Heavy_beam (x).PX = y;
+                                        node.Heavy_beam (x).PY = z;
+                                        node.Heavy_beam (x).life_pts = mod (clock (), rank * 200) + 200;
+                                        node.sector (node.Heavy_beam (x).SX, node.Heavy_beam (x).SY).point (node.Heavy_beam (x).PX, node.Heavy_beam (x).PY) = HEAVY_BEAM;
+                                        node.sector (node.Heavy_beam (x).SX, node.Heavy_beam (x).SY).arachnidT = node.sector (node.Heavy_beam (x).SX, node.Heavy_beam (x).SY).arachnidT + 1;
+                                        it_was_not_placed = "0"b;
+                                   end;
+                         end;
+               end;
+          end;
+
+/* Set up the MISSILE_LAUNCHERS */
+
+          node.missile_lT = round ((node.skinnyT / 5), 0);
+          do x = 1 to node.missile_lT;
+               it_was_not_placed = "1"b;
+               do while (it_was_not_placed);
+                    y = mod (clock (), 5) + 1;
+                    z = mod (clock (), 5) + 1;
+                    if ((y ^= node.SX) | (z ^= node.SY)) & (node.sector (y, z).skinnyT < 9) then do;
+                              node.Missile_l (x).SX = y;
+                              node.Missile_l (x).SY = z;
+                              y = mod (clock (), 10) + 1;
+                              z = mod (clock (), 10) + 1;
+                              if (node.sector (node.Missile_l (x).SX, node.Missile_l (x).SY).point (y, z) = ".") then do;
+                                        node.Missile_l (x).PX = y;
+                                        node.Missile_l (x).PY = z;
+                                        node.Missile_l (x).life_pts = mod (clock (), rank * 150) + 150;
+                                        node.sector (node.Missile_l (x).SX, node.Missile_l (x).SY).point (node.Missile_l (x).PX, node.Missile_l (x).PY) = MISSILE_L;
+                                        node.sector (node.Missile_l (x).SX, node.Missile_l (x).SY).skinnyT = node.sector (node.Missile_l (x).SX, node.Missile_l (x).SY).skinnyT + 1;
+                                        it_was_not_placed = "0"b;
+                                   end;
+                         end;
+               end;
+          end;
+
+/* Set up the MOUNTAINS */
+
+          do x = 1 to 5;
+               do y = 1 to 5;
+                    z = mod (clock (), 10);
+                    do a = 1 to z;
+                         it_was_not_placed = "1"b;
+                         do while (it_was_not_placed);
+                              b = mod (clock (), 10) + 1;
+                              c = mod (clock (), 10) + 1;
+                              if (node.sector (x, y).point (b, c) = ".") then do;
+                                        node.sector (x, y).point (b, c) = MOUNTAIN;
+                                        it_was_not_placed = "0"b;
+                                   end;
+                         end;
+                    end;
+               end;
+          end;
+
+/* Set up the SUPPLY_SHIPS */
+
+          do x = 1 to node.supplyN;
+               it_was_not_placed = "1"b;
+               do while (it_was_not_placed);
+place_supply_ship:
+                    y = mod (clock (), 5) + 1;
+                    z = mod (clock (), 5) + 1;
+                    if ((y ^= node.SX) | (z ^= node.SY)) then do;
+                              do a = 1 to (x - 1);
+                                   if (y = node.supply (a).SX) & (z = node.supply (a).SY) then goto place_supply_ship;
+                              end;
+                              node.supply (x).SX = y;
+                              node.supply (x).SY = z;
+                              y = mod (clock (), 10) + 1;
+                              z = mod (clock (), 10) + 1;
+                              if (node.sector (node.supply (x).SX, node.supply (x).SY).point (y, z) = ".") then do;
+                                        node.supply (x).PX = y;
+                                        node.supply (x).PY = z;
+                                        node.supply (x).uses_left = game_length;
+                                        node.sector (node.supply (x).SX, node.supply (x).SY).point (node.supply (x).PX, node.supply (x).PY) = SUPPLY_SHIP;
+                                        node.sector (node.supply (x).SX, node.supply (x).SY).supply = "S";
+                                        node.chart (node.supply (x).SX, node.supply (x).SY).supply = "S";
+                                        it_was_not_placed = "0"b;
+                                   end;
+                         end;
+               end;
+          end;
+
+/* Set up the BREACHES */
+
+          do while (node.breachN = 0);
+               do x = 1 to 5;
+                    do y = 1 to 5;
+                         z = 0;
+                         if (node.sector (x, y).arachnidT > 0) then z = mod (clock (), 3) + 1;
+                         if (z = 1) then do;
+                                   it_was_not_placed = "1"b;
+                                   do while (it_was_not_placed);
+                                        b = mod (clock (), 10) + 1;
+                                        c = mod (clock (), 10) + 1;
+                                        if (node.sector (x, y).point (b, c) = ".") then do;
+                                                  node.breachN = node.breachN + 1;
+                                                  node.breach (node.breachN).SX = x;
+                                                  node.breach (node.breachN).SY = y;
+                                                  node.breach (node.breachN).PX = b;
+                                                  node.breach (node.breachN).PY = c;
+                                                  node.breach (node.breachN).engineer = mod (clock (), 250) + 250;
+                                                  node.breach (node.breachN).prisoners = max (0, mod (clock (), 5) - 3);
+                                                  node.sector (x, y).point (b, c) = BREACH;
+                                                  it_was_not_placed = "0"b;
+                                             end;
+                                   end;
+                              end;
+                    end;
+               end;
+          end;
+
+/* Set up the FORTS */
+
+          do x = 1 to 5;
+               do y = 1 to 5;
+                    z = 0;
+                    if (x ^= node.SX) | (y ^= node.SY) then z = mod (clock (), 10) + 1;
+                    if (z = 1) then do;
+                              it_was_not_placed = "1"b;
+                              do while (it_was_not_placed);
+                                   b = mod (clock (), 10) + 1;
+                                   c = mod (clock (), 10) + 1;
+                                   if (node.sector (x, y).point (b, c) = ".") then do;
+                                             node.fortN = node.fortN + 1;
+                                             node.fort (node.fortN).SX = x;
+                                             node.fort (node.fortN).SY = y;
+                                             node.fort (node.fortN).PX = b;
+                                             node.fort (node.fortN).PY = c;
+                                             node.fort (node.fortN).guard = mod (clock (), 250) + 250;
+                                             a = mod (clock (), 10) + 1;
+                                             if (a = 1) & ^(node.secret_plans_found) then do;
+                                                       node.secret_plans_found = "1"b;
+                                                       node.fort (node.fortN).secret_plans_here = "1"b;
+                                                  end;
+                                             node.sector (x, y).point (b, c) = FORT;
+                                             it_was_not_placed = "0"b;
+                                        end;
+                              end;
+                         end;
+               end;
+          end;
+
+          return;
+
+print_introduction: entry (nptr, last_name);
+
+          call ioa_ ("^/*************************");
+          call ioa_ ("^/To: M.I. ^a ^a", RANK (node.rank), last_name);
+          call ioa_ ("Planetary Strike Mission");
+          call ioa_ ("Mission briefing:");
+          call ioa_ ("^10t^d Arachnids", node.arachnidT + node.heavy_beamT);
+          call ioa_ ("^10t?? Skinnies");
+          call ioa_$nnl ("^10t^d Supply ships:", node.supplyN);
+          do x = 1 to node.supplyN;
+               call ioa_$nnl (" ^d - ^d^[,^]", node.supply (x).SX, node.supply (x).SY, (x ^= node.supplyN));
+          end;
+          call ioa_ ("^/Drop site: Sector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY);
+          call ioa_ ("You have ^.1f hours to complete your mission.  The retrieval beacon will", node.time_left);
+          call ioa_ ("land at Sector ^d - ^d, Mark ^d - ^d.  Good luck!", node.beacon.SX, node.beacon.SY, node.beacon.PX, node.beacon.PY);
+          call ioa_ ("^/*************************");
+          return;
+
+daemon: entry (scip);
+
+          Nptr = ssu_$get_info_ptr (scip);
+          call update_chart (Nptr);
+          Node.score.total = calc_score (Nptr, "arachnids");
+          Node.score.total = Node.score.total + calc_score (Nptr, "skinnies");
+          Node.score.total = Node.score.total + calc_score (Nptr, "heavy_beams");
+          Node.score.total = Node.score.total + calc_score (Nptr, "missile_ls");
+          Node.score.total = Node.score.total + calc_score (Nptr, "mountains");
+          Node.score.total = Node.score.total + calc_score (Nptr, "supplies");
+          Node.score.total = Node.score.total + calc_score (Nptr, "prisoners");
+          if (Node.score.total >= Node.nuke_bonus_score) then do;
+                    call ioa_ ("^/***BONUS NUKE BOMB awarded -- Score: ^d", Node.score.total);
+                    Node.nuke_bonus_score = Node.nuke_bonus_score + 5000;
+                    Node.nuke_bombN = Node.nuke_bombN + 1;
+               end;
+          if (Node.time_left < 1.1) & ^(Node.landed) then do;
+                    call ioa_ ("^/""...To the everlasting glory of the infantry, shines the name, shines the^/name of Rodger Young!""  Retrieval Beacon has landed at Sector ^d - ^d.", Node.beacon.SX, Node.beacon.SY);
+                    Node.time_left = 2.5;
+                    call ioa_ ("^/Retrieval time: ^.1f hrs.", Node.time_left);
+                    Node.sector (Node.beacon.SX, Node.beacon.SY).point (Node.beacon.PX, Node.beacon.PY) = BEACON;
+                    Node.beacon.landed = "1"b;
+               end;
+          if (Node.SX = Node.beacon.SX) & (Node.SY = Node.beacon.SY) & (Node.PX = Node.beacon.PX) & (Node.PY = Node.beacon.PY) & Node.beacon.landed then do;
+                    call ioa_ ("^/Retrieval successful!");
+                    Node.score.success_ratio = round (((Node.score.arachnids_Xed + Node.score.heavy_beams_Xed) / (Node.arachnidT + Node.heavy_beamT)) * 100, 0);
+                    if (Node.score.success_ratio > 50) then Node.score.rank_bonus = Node.rank * 100;
+                    Node.score.skinny_prisoners = (Node.skinnyT + Node.missile_lT) - (Node.score.skinnies_Xed + Node.missile_ls_Xed);
+                    call ioa_ ("^3x*************************");
+                    call ioa_ ("^/Your mission yielded a success ratio of ^d%", Node.score.success_ratio);
+                    if (Node.score.skinny_prisoners > 0) then call ioa_ ("The remaining ^d Skinnies surrender.", Node.score.skinny_prisoners);
+                    if (Node.score.success_ratio = 100) then call ioa_ ("You will be recommended for promotion.");
+                    call ioa_ ("Aecturnae gloriae peditum...");
+                    call ssu_$execute_string (scip, "score -all", code);
+                    call ioa_ ("^/*************************");
+                    call ssu_$abort_subsystem (scip, (0));
+               end;
+          else if (Node.time_left < .1) then do;
+                    call ioa_ ("^/Retrieval complete.");
+                    Node.score.captured_penalty = -500;
+                    call you_lose ("no_time");
+               end;
+          if ^(H_or_M_present (Node.distress.SX, Node.distress.SY, Nptr)) & Node.distress.notified then do;
+                    Node.distress.SX = 0;
+                    Node.distress.SY = 0;
+                    Node.distress.which_supply = 0;
+                    Node.distress.notified = "0"b;
+               end;
+          call attack_supply_ships (Nptr);
+          return;
+
+scanner: entry (scip, nptr);
+
+          if ^(node.equipment.scanner.working) then do;
+                    call ioa_ ("^/Scanner is damaged.");
+                    return;
+               end;
+          call ioa_ ("^/SCANNER READOUT: Sector ^d - ^d^/", node.SX, node.SY);
+          do x = (node.SX - 1) to (node.SX + 1);
+               do y = (node.SY - 1) to (node.SY + 1);
+                    if (x < 1) | (x > 5) | (y < 1) | (y > 5) then call ioa_$nnl ("   ----");
+                    else do;
+                              call ioa_$nnl ("^3x^d^d^a^a", node.sector (x, y).arachnidT, node.sector (x, y).skinnyT, node.sector (x, y).radiation, node.sector (x, y).supply);
+                              node.chart (x, y).arachnidN = ltrim (char (node.sector (x, y).arachnidT));
+                              node.chart (x, y).skinnyN = ltrim (char (node.sector (x, y).skinnyT));
+                              node.chart (x, y).radiation = node.sector (x, y).radiation;
+                              node.chart (x, y).supply = node.sector (x, y).supply;
+                         end;
+               end;
+               call ioa_ ();
+          end;
+          return;
+
+chart: entry (scip, nptr);
+
+          call ioa_ ("^/PLANETARY CHART:");
+          call ioa_ ("^/     1      2      3      4      5");
+          call ioa_ ("    --------------------------------");
+          do x = 1 to 5;
+               call ioa_$nnl ("^d:  ", x);
+               do y = 1 to 5;
+                    call ioa_$nnl ("^a^a^a^a^3x", node.chart (x, y).arachnidN, node.chart (x, y).skinnyN, node.chart (x, y).radiation, node.chart (x, y).supply);
+               end;
+               call ioa_ ();
+          end;
+          call ioa_ ("^/LOCUS PROXIMITY: Sector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY);
+          return;
+
+snooper: entry (scip, nptr);
+
+          dcl     print_status           bit (1) init ("0"b);
+
+          if ^(node.equipment.snooper.working) then do;
+                    call ioa_ ("^/Snooper is damaged.");
+                    return;
+               end;
+          call ssu_$arg_count (scip, argn);
+          do x = 1 to argn;
+               call ssu_$arg_ptr (scip, x, argp, argl);
+               if (arg = "-status") | (arg = "-st") then print_status = "1"b;
+               else if (substr (arg, 1, 1) = "-") then call ssu_$abort_line (scip, error_table_$badopt, "^a", arg);
+               else call ssu_$abort_line (scip, (0), "^/^5xUsage: snooper {-status}");
+          end;
+
+          call ioa_ ("^/SECTOR ^d - ^d, MARK ^d - ^d", node.SX, node.SY, node.PX, node.PY);
+          call ioa_ ("^/    1 2 3 4 5 6 7 8 9 10");
+          do x = 1 to 10;
+               if (x < 10) then call ioa_$nnl (" ^d ", x);
+               else call ioa_$nnl ("10 ");
+               do y = 1 to 10;
+                    call ioa_$nnl (" ^a", node.sector (node.SX, node.SY).point (x, y));
+               end;
+               if print_status & (x > 1) then call snooper_status (x);
+               call ioa_ ();
+          end;
+          node.chart (node.SX, node.SY).arachnidN = ltrim (char (node.sector (node.SX, node.SY).arachnidT));
+          node.chart (node.SX, node.SY).skinnyN = ltrim (char (node.sector (node.SX, node.SY).skinnyT));
+          node.chart (node.SX, node.SY).radiation = node.sector (node.SX, node.SY).radiation;
+          node.chart (node.SX, node.SY).supply = node.sector (node.SX, node.SY).supply;
+          return;
+
+snooper_status: procedure (line_no);
+
+          dcl     line_no          fixed bin parm;
+
+          if (line_no = 2) then call ioa_$nnl ("^5xSuit condition:^25t^d pts.", node.suit_pts);
+          else if (line_no = 3) then call ioa_$nnl ("^5xBody condition:^25t^d pts.", node.body_pts);
+          else if (line_no = 4) then call ioa_$nnl ("^5xBooster energy:^25t^d units", node.jet_energy);
+          else if (line_no = 5) then call ioa_$nnl ("^5xFlamer energy:^25t^d units", node.flamer_energy);
+          else if (line_no = 6) then call ioa_$nnl ("^5xHE bombs left:^25t^d", node.HE_bombN);
+          else if (line_no = 7) then call ioa_$nnl ("^5xNuke bombs left:^25t^d", node.nuke_bombN);
+          else if (line_no = 8) then call ioa_$nnl ("^5xArachnids left:^25t^d", (node.arachnidT + node.heavy_beamT - node.score.arachnids_Xed - node.score.heavy_beams_Xed));
+          else if (line_no = 9) then call ioa_$nnl ("^5xTime left:^25t^.1f hrs.", node.time_left);
+          else return;
+
+     end snooper_status;
+
+status: entry (scip, nptr);
+
+          dcl     all_switch            bit (1) init ("0"b);
+          dcl     damage_switch         bit (1) init ("0"b);
+          dcl     general_status        bit (1) init ("0"b);
+          dcl     damage_report         bit (1) init ("0"b);
+          dcl     I_want_to_see         (23) bit (1) init ((23) ("0"b));
+
+          call ssu_$arg_count (scip, argn);
+          if (argn = 0) then do;
+                    general_status = "1"b;
+                    I_want_to_see = "1"b;
+               end;
+          do x = 1 to argn;
+               call ssu_$arg_ptr (scip, x, argp, argl);
+               if (arg = "-damage") | (arg = "-dmg") then damage_switch = "1"b;
+               else if (arg = "-all") | (arg = "-a") then all_switch = "1"b;
+               else if (substr (arg, 1, 1) = "-") then call ssu_$abort_line (scip, (0), "^/^5xUsage: status {item} {-damage {item}} {-all}");
+               else if ^(damage_switch) then do;
+                         if (arg = "locus") | (arg = "loc") then I_want_to_see (LOCUS) = "1"b;
+                         else if (arg = "suit") then I_want_to_see (SUIT) = "1"b;
+                         else if (arg = "body") then I_want_to_see (BODY) = "1"b;
+                         else if (arg = "boosters") | (arg = "jets") | (arg = "jet_boosters") then I_want_to_see (BOOSTER_ENERGY) = "1"b;
+                         else if (arg = "flamer_rifle") | (arg = "flamer") | (arg = "rifle") then I_want_to_see (FLAMER_ENERGY) = "1"b;
+                         else if (arg = "he_bombs") | (arg = "he") then I_want_to_see (HE_BOMBN) = "1"b;
+                         else if (arg = "nuke_bombs") | (arg = "nukes") then I_want_to_see (NUKE_BOMBN) = "1"b;
+                         else if (arg = "arachnids") | (arg = "bugs") then I_want_to_see (BUGS_LEFT) = "1"b;
+                         else if (arg = "time") then I_want_to_see (TIME_LEFT) = "1"b;
+                         else call ssu_$abort_line (scip, (0), "^/^xNo status for ""^a"".", arg);
+                         general_status = "1"b;
+                    end;
+               else do;
+                         if (arg = "scanner") then I_want_to_see (SCANNER) = "1"b;
+                         else if (arg = "snooper") then I_want_to_see (SNOOPER) = "1"b;
+                         else if (arg = "flamer_rifle") | (arg = "flamer") | (arg = "rifle") then I_want_to_see (FLAMER_RIFLE) = "1"b;
+                         else if (arg = "he_launcher") | (arg = "he") then I_want_to_see (HE_LAUNCHER) = "1"b;
+                         else if (arg = "nuke_launcher") | (arg = "nuker") then I_want_to_see (NUKE_LAUNCHER) = "1"b;
+                         else if (arg = "listening_device") | (arg = "ld") then I_want_to_see (LISTENING_DEV) = "1"b;
+                         else if (arg = "jet_boosters") | (arg = "boosters") | (arg = "jets") then I_want_to_see (JET_BOOSTERS) = "1"b;
+                         else call ssu_$abort_line (scip, (0), "^/^5xNo such device. ^a", arg);
+                         damage_report = "1"b;
+                    end;
+          end;
+          if all_switch then do;
+                    general_status = "1"b;
+                    damage_report = "1"b;
+                    I_want_to_see = "1"b;
+               end;
+          if damage_switch & ^(damage_report) then do;
+                    damage_report = "1"b;
+                    do x = 10 to 16;
+                         I_want_to_see (x) = "1"b;
+                    end;
+               end;
+          if general_status then do;
+                    call ioa_ ("^/Trooper status report:");
+                    if I_want_to_see (LOCUS) then call ioa_ ("^3xLocus proximity:^25tSector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY);
+                    if I_want_to_see (SUIT) then call ioa_ ("^3xSuit condition:^25t^d pts.", node.suit_pts);
+                    if I_want_to_see (BODY) then call ioa_ ("^3xBody condition:^25t^d pts.", node.body_pts);
+                    if I_want_to_see (BOOSTER_ENERGY) then call ioa_ ("^3xBooster energy:^25t^d units", node.jet_energy);
+                    if I_want_to_see (FLAMER_ENERGY) then call ioa_ ("^3xFlamer energy:^25t^d units", node.flamer_energy);
+                    if I_want_to_see (HE_BOMBN) then call ioa_ ("^3xHE bombs left:^25t^d", node.HE_bombN);
+                    if I_want_to_see (NUKE_BOMBN) then call ioa_ ("^3xNuke bombs left:^25t^d", node.nuke_bombN);
+                    if I_want_to_see (BUGS_LEFT) then call ioa_ ("^3xArachnids left:^25t^d", (node.arachnidT + node.heavy_beamT - node.score.arachnids_Xed - node.score.heavy_beams_Xed));
+                    if I_want_to_see (TIME_LEFT) then call ioa_ ("^3xTime left:^25t^.1f hrs.", node.time_left);
+               end;
+          if damage_report then do;
+                    call ioa_ ("^/Trooper damage report:");
+                    if I_want_to_see (SCANNER) then do;
+                              call ioa_ ("^3xScanner^25t^[WORKING^]^[DAMAGED^]", node.equipment.scanner.working, ^node.equipment.scanner.working);
+                              if ^(node.equipment.scanner.working) then call ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.scanner.repair_time, max (0, node.equipment.scanner.repair_time - 1));
+                         end;
+                    if I_want_to_see (SNOOPER) then do;
+                              call ioa_ ("^3xSnooper^25t^[WORKING^]^[DAMAGED^]", node.equipment.snooper.working, ^node.equipment.snooper.working);
+                              if ^(node.equipment.snooper.working) then call ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.snooper.repair_time, max (0, node.equipment.snooper.repair_time - 1));
+                         end;
+                    if I_want_to_see (JET_BOOSTERS) then do;
+                              call ioa_ ("^3xJet boosters^25t^[WORKING^]^[DAMAGED^]", node.equipment.jet_boosters.working, ^node.equipment.jet_boosters.working);
+                              if ^(node.equipment.jet_boosters.working) then call ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.jet_boosters.repair_time, max (0, node.equipment.jet_boosters.repair_time - 1));
+                         end;
+                    if I_want_to_see (FLAMER_RIFLE) then do;
+                              call ioa_ ("^3xFlamer rifle^25t^[WORKING^]^[DAMAGED^]", node.equipment.flamer.working, ^node.equipment.flamer.working);
+                              if ^(node.equipment.flamer.working) then call ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.flamer.repair_time, max (0, node.equipment.flamer.repair_time - 1));
+                         end;
+                    if I_want_to_see (HE_LAUNCHER) then do;
+                              call ioa_ ("^3xHE launcher^25t^[WORKING^]^[DAMAGED^]", node.equipment.HE_launcher.working, ^node.equipment.HE_launcher.working);
+                              if ^(node.equipment.HE_launcher.working) then call ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.HE_launcher.repair_time, max (0, node.equipment.HE_launcher.repair_time - 1));
+                         end;
+                    if I_want_to_see (NUKE_LAUNCHER) then do;
+                              call ioa_ ("^3xNuke launcher^25t^[WORKING^]^[DAMAGED^]", node.equipment.nuke_launcher.working, ^node.equipment.nuke_launcher.working);
+                              if ^(node.equipment.nuke_launcher.working) then call ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.nuke_launcher.repair_time, max (0, node.equipment.nuke_launcher.repair_time - 1));
+                         end;
+                    if I_want_to_see (LISTENING_DEV) then do;
+                              call ioa_ ("^3xListening dev^25t^[WORKING^]^[DAMAGED^]", node.equipment.listening_dev.working, ^node.equipment.listening_dev.working);
+                              if ^(node.equipment.listening_dev.working) then call ioa_ ("^6xRepair time: ^.1f hrs. (^.1f hrs.)", node.equipment.listening_dev.repair_time, max (0, node.equipment.listening_dev.repair_time - 1));
+                         end;
+               end;
+          return;
+
+fly: entry (scip, nptr);
+
+          dcl     target_SX              fixed bin init (0);
+          dcl     target_SY              fixed bin init (0);
+          dcl     target_PX              fixed bin init (0);
+          dcl     target_PY              fixed bin init (0);
+          dcl     real_target_PX         fixed bin init (0);
+          dcl     real_target_PY         fixed bin init (0);
+          dcl     original_SX            fixed bin init (0);
+          dcl     original_SY            fixed bin init (0);
+          dcl     original_PX            fixed bin init (0);
+          dcl     original_PY            fixed bin init (0);
+
+          call ssu_$arg_count (scip, argn);
+          if (argn ^= 4) then call ssu_$abort_line (scip, (0), "^/^5xUsage: fly Sector_X Sector_Y Mark_X Mark_Y");
+          do x = 1 to 4;
+               call ssu_$arg_ptr (scip, x, argp, argl);
+               if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg);
+               if (x = 1) then target_SX = decimal (arg);
+               else if (x = 2) then target_SY = decimal (arg);
+               else if (x = 3) then real_target_PX = decimal (arg);
+               else real_target_PY = decimal (arg);
+          end;
+          if (target_SX > 5) | (target_SX = 0) | (target_SY > 5) | (target_SY = 0) | (real_target_PX > 10) | (real_target_PX = 0) | (real_target_PY > 10) | (real_target_PY = 0) then call ssu_$abort_line (scip, (0), "^/^5xFlight not possible with given vectors.");
+          original_SX = node.SX;
+          original_SY = node.SY;
+          original_PX = node.PX;
+          original_PY = node.PY;
+
+          if (target_SX = original_SX) & (target_SY = original_SY) then call ssu_$abort_line (scip, (0), "^/^5xUse the ""jump"" request for movement within a sector.");
+          if ^(node.equipment.jet_boosters.working) then do;
+                    call ioa_ ("^/Jet boosters are damaged.");
+                    return;
+               end;
+          if (node.jet_energy < calc_move_cost (node.SX, node.SY, node.PX, node.PY, target_SX, target_SY, real_target_PX, real_target_PY)) then do;
+                    call ioa_ ("^/Jet boosters do not have sufficient energy remaining for flight.");
+                    return;
+               end;
+          if (node.time_left < calc_move_time (node.SX, node.SY, node.PX, node.PY, target_SX, target_SY, real_target_PX, real_target_PY)) then do;
+                    call ioa_ ("^/Time left: ^.1f hrs., Flight time: ^.1f", node.time_left, calc_move_time (node.SX, node.SY, node.PX, node.PY, target_SX, target_SY, real_target_PX, real_target_PY));
+                    return;
+               end;
+          call get_target_point (node.SX, node.SY, node.PX, node.PY, target_SX, target_SY, target_PX, target_PY);
+          call move ("Flight", nptr, target_PX, target_PY);
+          node.SX = target_SX;
+          node.SY = target_SY;
+          node.PX = real_target_PX;
+          node.PY = real_target_PY;
+          call got_there_ok (nptr);
+          node.jet_energy = node.jet_energy - calc_move_cost (original_SX, original_SY, original_PX, original_PY, node.SX, node.SY, node.PX, node.PY);
+          node.time_left = node.time_left - calc_move_time (original_SX, original_SY, original_PX, original_PY, node.SX, node.SY, node.PX, node.PY);
+          node.sector (original_SX, original_SY).point (original_PX, original_PY) = ".";
+          if node.was_in_rad then do;
+                    node.sector (original_SX, original_SY).point (original_PX, original_PY) = RADIATION;
+                    if ^(node.sitting_in_rad) then node.was_in_rad = "0"b;
+               end;
+          if node.sitting_in_rad then node.was_in_rad = "1"b;
+          node.sector (node.SX, node.SY).point (node.PX, node.PY) = TROOPER;
+          call ioa_ ("^/***LOCUS PROXIMITY: Sector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY);
+          call enemy_attack (nptr);
+          return;
+
+jump: entry (scip, nptr);
+
+          call ssu_$arg_count (scip, argn);
+          if (argn ^= 2) then call ssu_$abort_line (scip, (0), "^/^5xUsage: jump Mark_X, Mark_Y");
+          do x = 1 to 2;
+               call ssu_$arg_ptr (scip, x, argp, argl);
+               if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg);
+               if (x = 1) then target_PX = decimal (arg);
+               else target_PY = decimal (arg);
+          end;
+          if (target_PX = 0) | (target_PX > 10) | (target_PY = 0) | (target_PY > 10) then call ssu_$abort_line (scip, (0), "^/^5xJump not possible with given vectors.");
+
+          if (node.PX = target_PX) & (node.PY = target_PY) then do;
+                    call ioa_ ("^/Mark ^d - ^d is already your current position.", target_PX, target_PY);
+                    return;
+               end;
+          if (node.suit_pts < 10) then do;
+                    call ioa_ ("^/Suit strength insufficient for jump to Mark ^d - ^d.", target_PX, target_PY);
+                    if (node.jet_energy < calc_move_cost (node.SX, node.SY, node.PX, node.PY, node.SX, node.SY, target_PX, target_PY)) then return;
+                    call ioa_ ("Using Jet booster power...");
+                    node.jet_energy = node.jet_energy - calc_move_cost (node.SX, node.SY, node.PX, node.PY, node.SX, node.SY, target_PX, target_PY);
+               end;
+          if (node.time_left < calc_move_time (node.SX, node.SY, node.PX, node.PY, node.SX, node.SY, target_PX, target_PY)) then do;
+                    call ioa_ ("^/Time left: ^.1f hrs., Jump time: ^.1f hrs.", node.time_left, calc_move_time (node.SX, node.SY, node.PX, node.PY, node.SX, node.SY, target_PX, target_PY));
+                    return;
+               end;
+          original_PX = node.PX;
+          original_PY = node.PY;
+          call move ("Jump", nptr, target_PX, target_PY);
+          node.PX = target_PX;
+          node.PY = target_PY;
+          node.time_left = node.time_left - calc_move_time (node.SX, node.SY, original_PX, original_PY, node.SX, node.SY, node.PX, node.PY);
+          node.sector (node.SX, node.SY).point (original_PX, original_PY) = ".";
+          if node.was_in_rad then do;
+                    node.sector (node.SX, node.SY).point (original_PX, original_PY) = RADIATION;
+                    if ^(node.sitting_in_rad) then node.was_in_rad = "0"b;
+               end;
+          if node.sitting_in_rad then node.was_in_rad = "1"b;
+          node.sector (node.SX, node.SY).point (node.PX, node.PY) = TROOPER;
+          call enemy_attack (nptr);
+          return;
+
+flamer: entry (scip, nptr);
+
+          dcl     energy_tally           fixed bin init (0);
+          dcl     enemyN                 fixed bin init (0);
+          dcl     where_X                (50) fixed bin init ((50) (0));
+          dcl     where_Y                (50) fixed bin init ((50) (0));
+          dcl     allotted_energy        (50) fixed bin init ((50) (0));
+          dcl     type                   (50) char (10) init ((50) (""));
+
+          if ^(node.equipment.flamer.working) then do;
+                    call ioa_ ("^/Flamer rifle is damaged.");
+                    return;
+               end;
+          if ^(enemies_present (nptr)) then do;
+                    call ioa_ ("^/There are no enemies present.");
+                    return;
+               end;
+          call ioa_ ("^/Flamer energy remaining: ^d units^[^/^]", node.flamer_energy, (node.flamer_energy > 0));
+          do x = 1 to 10;
+               do y = 1 to 10;
+                    if (node.flamer_energy = 0) then goto FLAME_THEM_BUGGERS;
+                    if (node.sector (node.SX, node.SY).point (x, y) = ARACHNID) then do;
+                              call allot_flamer_energy ("Arachnid", x, y, energy_tally, nptr);
+                              enemyN = enemyN + 1;
+                              where_X (enemyN) = x;
+                              where_Y (enemyN) = y;
+                              allotted_energy (enemyN) = energy_tally;
+                              type (enemyN) = "Arachnid";
+                         end;
+                    else if (node.sector (node.SX, node.SY).point (x, y) = SKINNY) then do;
+                              call allot_flamer_energy ("Skinny", x, y, energy_tally, nptr);
+                              enemyN = enemyN + 1;
+                              where_X (enemyN) = x;
+                              where_Y (enemyN) = y;
+                              allotted_energy (enemyN) = energy_tally;
+                              type (enemyN) = "Skinny";
+                         end;
+                    else if (node.sector (node.SX, node.SY).point (x, y) = HEAVY_BEAM) then do;
+                              call allot_flamer_energy ("Heavy Beam", x, y, energy_tally, nptr);
+                              enemyN = enemyN + 1;
+                              where_X (enemyN) = x;
+                              where_Y (enemyN) = y;
+                              allotted_energy (enemyN) = energy_tally;
+                              type (enemyN) = "Heavy Beam";
+                         end;
+                    else if (node.sector (node.SX, node.SY).point (x, y) = MISSILE_L) then do;
+                              call allot_flamer_energy ("Missile-L", x, y, energy_tally, nptr);
+                              enemyN = enemyN + 1;
+                              where_X (enemyN) = x;
+                              where_Y (enemyN) = y;
+                              allotted_energy (enemyN) = energy_tally;
+                              type (enemyN) = "Missile-L";
+                         end;
+               end;
+          end;
+          energy_tally = 0;
+          do x = 1 to enemyN;
+               energy_tally = energy_tally + allotted_energy (x);
+          end;
+          if (energy_tally = 0) then return;
+
+FLAME_THEM_BUGGERS:
+          do x = 1 to enemyN;
+               if (x = 1) then call ioa_ ();
+               call flame_that_sucker (type (x), where_X (x), where_Y (x), allotted_energy (x), nptr);
+          end;
+          node.time_left = max (0, node.time_left - .1);
+          call enemy_attack (nptr);
+          return;
+
+score: entry (scip, nptr);
+
+          call ssu_$arg_count (scip, argn);
+          if (argn = 0) then do;
+                    call ioa_ ("^/Your score:^10x^d", node.score.total);
+                    return;
+               end;
+          do x = 1 to argn;
+               call ssu_$arg_ptr (scip, x, argp, argl);
+               if (arg = "-all") | (arg = "-a") then all_switch = "1"b;
+               else if (substr (arg, 1, 1) = "-") then call ssu_$abort_line (scip, error_table_$badopt, "^a", arg);
+               else if (arg = "arachnids") | (arg = "bugs") then I_want_to_see (ARACHNID_SCORE) = "1"b;
+               else if (arg = "skinnies") then I_want_to_see (SKINNY_SCORE) = "1"b;
+               else if (arg = "heavy_beams") then I_want_to_see (HEAVY_BEAM_SCORE) = "1"b;
+               else if (arg = "missile_ls") then I_want_to_see (MISSILE_L_SCORE) = "1"b;
+               else if (arg = "mountains") | (arg = "mts") then I_want_to_see (MOUNTAIN_SCORE) = "1"b;
+               else if (arg = "supplies") then I_want_to_see (SUPPLY_SCORE) = "1"b;
+               else if (arg = "prisoners") then I_want_to_see (PRISONER_SCORE) = "1"b;
+               else call ssu_$abort_line (scip, (0), "^/^5xNo score of ""^a"".", arg);
+          end;
+          if all_switch then I_want_to_see = "1"b;
+          node.score.total = node.score.total + node.score.death_penalty + node.score.captured_penalty + node.score.skinny_prisoners;
+          node.score.total = node.score.total + max (0, round (node.score.success_ratio * 20, 0));
+          if all_switch & (node.score.total = 0) then do;
+                    call ioa_ ("^/Your score:^10x0");
+                    return;
+               end;
+          call ioa_ ("^[^/Your score:^]", all_switch);
+          if I_want_to_see (ARACHNID_SCORE) then do;
+                    if (node.score.arachnids_Xed > 0) then call ioa_ ("^3x^d Arachnid warriors^40t^d", node.score.arachnids_Xed, calc_score (nptr, "arachnids"));
+                    else if ^(all_switch) then call ioa_ ("No Arachnid warriors destroyed.");
+               end;
+          if I_want_to_see (SKINNY_SCORE) then do;
+                    if (node.score.skinnies_Xed > 0) then call ioa_ ("^3x^d Skinny warriors^40t^d", node.score.skinnies_Xed, calc_score (nptr, "skinnies"));
+                    else if ^(all_switch) then call ioa_ ("No Skinny warriors destroyed.");
+               end;
+          if all_switch & (node.score.skinny_prisoners > 0) then call ioa_ ("^3x^d Skinny prisoners^40t^d", node.score.skinny_prisoners, node.score.skinny_prisoners);
+          if I_want_to_see (HEAVY_BEAM_SCORE) then do;
+                    if (node.score.heavy_beams_Xed > 0) then call ioa_ ("^3x^d Heavy weapon beams^40t^d", node.score.heavy_beams_Xed, calc_score (nptr, "heavy_beams"));
+                    else if ^(all_switch) then call ioa_ ("No Heavy weapon beams destroyed.");
+               end;
+          if I_want_to_see (MISSILE_L_SCORE) then do;
+                    if (node.score.missile_ls_Xed > 0) then call ioa_ ("^3x^d Missile launchers^40t^d", node.score.missile_ls_Xed, calc_score (nptr, "missile_ls"));
+                    else if ^(all_switch) then call ioa_ ("No Missile launchers destroyed.");
+               end;
+          if I_want_to_see (PRISONER_SCORE) then do;
+                    if (node.score.prisoners_rescued > 0) then call ioa_ ("^3x^d Prisoners rescued^40t^d", node.score.prisoners_rescued, calc_score (nptr, "prisoners"));
+                    else if ^(all_switch) then call ioa_ ("No Prisoners rescued.");
+               end;
+          if I_want_to_see (MOUNTAIN_SCORE) then do;
+                    if (node.score.mountains_Xed > 0) then call ioa_ ("^3x^d Mountains destroyed^40t^d", node.score.mountains_Xed, calc_score (nptr, "mountains"));
+                    else if ^(all_switch) then call ioa_ ("No Mountains destroyed.");
+               end;
+          if I_want_to_see (SUPPLY_SCORE) then do;
+                    if (node.score.supplies_Xed > 0) then call ioa_ ("^3x^d supply ships destroyed^40t^d", node.score.supplies_Xed, calc_score (nptr, "supplies"));
+                    else if ^(all_switch) then call ioa_ ("No supply ships destroyed.");
+               end;
+          if all_switch & (node.score.success_ratio > 0) then call ioa_ ("^3xMission success bonus^40t^d", round (node.score.success_ratio * 20, 0));
+          if all_switch & (node.score.rank_bonus > 0) then call ioa_ ("^3xRank bonus (^a level)^40t^d", RANK (node.rank), node.score.rank_bonus);
+          if all_switch & (node.score.death_penalty < 0) then call ioa_ ("^3xPenalty for getting killed^39t-1000");
+          if all_switch & (node.score.captured_penalty < 0) then call ioa_ ("^3xPenalty for getting captured^40t-500");
+          if all_switch then call ioa_ ("^39t------^/Total:^40t^d", node.score.total);
+          return;
+
+launch: entry (scip, nptr);
+
+          dcl     burst                 fixed bin init (0);
+          dcl     BURST_MAX             fixed bin init (0);
+          dcl     weapon                char (5) init ("");
+
+          call ssu_$arg_count (scip, argn);
+          if (argn = 0) then call ssu_$abort_line (scip, (0), "^/^5xUsage: launch weapon");
+          call ssu_$arg_ptr (scip, 1, argp, argl);
+          weapon = arg;
+          if (weapon = "he") then do;
+                    if ^(node.equipment.HE_launcher.working) then do;
+                              call ioa_ ("^/HE launcher is damaged.");
+                              return;
+                         end;
+                    if (argn > 1) then do;
+                              call ssu_$arg_ptr (scip, 2, argp, argl);
+                              if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5x#_of_bombs must be a positive integer. ^a", arg);
+                              BURST_MAX = decimal (arg);
+                              if (BURST_MAX > 3) then call ssu_$abort_line (scip, (0), "^/^5xMaximum of 3 HE bombs per burst.");
+                              else if (argn > (BURST_MAX * 2) + 2) then call ssu_$abort_line (scip, (0), "^/^5xToo many coordinates given.");
+                              do x = 2 to (BURST_MAX * 2) by 2;
+                                   do y = 1 to 2;
+                                        if (x + y > argn) & (y = 2) then call ssu_$abort_line (scip, (0), "^/^5xHE Usage: launch he {#_of_bombs} {target_coordinates}");
+                                        else if (x + y > argn) then goto get_bomb_targets;
+                                        call ssu_$arg_ptr (scip, x + y, argp, argl);
+                                        if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg);
+                                        else if (decimal (arg) = 0) | (decimal (arg) > 10) then call ssu_$abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg);
+                                        else if (y = 1) then do;
+                                                  burst = burst + 1;
+                                                  where_X (burst) = decimal (arg);
+                                             end;
+                                        else where_Y (burst) = decimal (arg);
+                                   end;
+                              end;
+                         end;
+                    else do;
+get_no_of_bombs:
+                              input = "NULL";
+                              call ioa_ ("^/HE bombs remaining: ^d", node.HE_bombN);
+                              if (node.HE_bombN = 0) then return;
+                              do while (verify (input, "1234567890") ^= 0);
+                                   call ioa_$nnl ("How many to launch? ");
+                                   call getline (input);
+                                   if (input = "") then input = "NULL";
+                              end;
+                              BURST_MAX = decimal (input);
+                              if (BURST_MAX = 0) then call ssu_$abort_line (scip, (0));
+                              else if (BURST_MAX > 3) then do;
+                                        call ioa_ ("Maximum of 3 HE bombs per burst.");
+                                        goto get_no_of_bombs;
+                                   end;
+                         end;
+get_bomb_targets:
+                    if (BURST_MAX > node.HE_bombN) then do;
+                              call ioa_ ("^/HE bombs remaining: ^d", node.HE_bombN);
+                              return;
+                         end;
+                    do x = (burst + 1) to BURST_MAX;
+                         if (x = burst + 1) then call ioa_ ();
+                         if (BURST_MAX = 1) then call get_target_for_bomb (where_X (x), where_Y (x), 0);
+                         else call get_target_for_bomb (where_X (x), where_Y (x), x);
+                    end;
+               end;
+          else if (weapon = "nuke") then do;
+                    if (argn ^= 1) & (argn ^= 3) then call ssu_$abort_line (scip, (0), "^/^5xNuke Usage: launch nuke {Target_X Target_Y}");
+                    if ^(node.equipment.nuke_launcher.working) then do;
+                              call ioa_ ("^/Nuke launcher is damaged.");
+                              return;
+                         end;
+                    if (argn = 3) then do;
+                              call ssu_$arg_ptr (scip, 2, argp, argl);
+                              if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg);
+                              where_X (1) = decimal (arg);
+                              call ssu_$arg_ptr (scip, 3, argp, argl);
+                              if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xInvalid coordinate. ^a", arg);
+                              where_Y (1) = decimal (arg);
+                              BURST_MAX = 1;
+                         end;
+                    if (BURST_MAX = 0) then do;
+                              call ioa_ ("^/Nuke bombs remaining: ^d", node.nuke_bombN);
+                              if (node.nuke_bombN = 0) then return;
+                              else call ioa_ ();
+                              BURST_MAX = 1;
+                              call get_target_for_bomb (where_X (1), where_Y (1), 0);
+                         end;
+               end;
+          else call ssu_$abort_line (scip, (0), "^/^5xNo such launcher. ^a", weapon);
+
+          do x = 1 to BURST_MAX;
+               call launch_it (weapon, where_X (x), where_Y (x), x, nptr);
+               if (weapon = "he") then node.HE_bombN = node.HE_bombN - 1;
+               else node.nuke_bombN = node.nuke_bombN - 1;
+          end;
+          call enemy_attack (nptr);
+          return;
+
+repair: entry (scip, nptr);
+
+          dcl     device_idx             fixed bin init (0);
+          dcl     device                 (7) char (30) init ((7) (""));
+          dcl     (scanner_repair_sw,
+                  snooper_repair_sw,
+                  flamer_repair_sw,
+                  he_repair_sw,
+                  nuker_repair_sw,
+                  ld_repair_sw,
+                  jets_repair_sw)        bit (1) init ("0"b);
+
+          call ssu_$arg_count (scip, argn);
+          if (argn = 0) then call ssu_$abort_line (scip, (0), "^/^5xUsage: repair device");
+          do x = 1 to argn;
+               call ssu_$arg_ptr (scip, x, argp, argl);
+               if (arg = "scanner") & ^(scanner_repair_sw) then do;
+                         scanner_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "scanner";
+                    end;
+               else if (arg = "snooper") & ^(snooper_repair_sw) then do;
+                         snooper_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "snooper";
+                    end;
+               else if ((arg = "flamer_rifle") | (arg = "flamer")) & ^(flamer_repair_sw) then do;
+                         flamer_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "flamer_rifle";
+                    end;
+               else if ((arg = "he_launcher") | (arg = "he")) & ^(he_repair_sw) then do;
+                         he_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "he_launcher";
+                    end;
+               else if ((arg = "nuke_launcher") | (arg = "nuker")) & ^(nuker_repair_sw) then do;
+                         nuker_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "nuke_launcher";
+                    end;
+               else if ((arg = "listening_device") | (arg = "ld")) & ^(ld_repair_sw) then do;
+                         ld_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "listening_device";
+                    end;
+               else if ((arg = "jet_boosters") | (arg = "jets")) & ^(jets_repair_sw) then do;
+                         jets_repair_sw = "1"b;
+                         device_idx = device_idx + 1;
+                         device (device_idx) = "jet_boosters";
+                    end;
+               else call ssu_$abort_line (scip, (0), "^/^5xNo such device. ^a", arg);
+          end;
+          do x = 1 to device_idx;
+               call repair_device (device (x), nptr);
+          end;
+          return;
+
+rest: entry (scip, nptr);
+
+          dcl     rest_time              fixed dec (5, 2) init (0);
+          dcl     number_suffix          (50) char (2) init (
+                                         "st", "nd", "rd", (17) ("th"),
+                                         "st", "nd", "rd", (7) ("th"),
+                                         "st", "nd", "rd", (7) ("th"),
+                                         "st", "nd", "rd", (7) ("th"));
+
+          call ssu_$arg_count (scip, argn);
+          if (argn ^= 1) then call ssu_$abort_line (scip, (0), "^/^5xUsage: rest hours");
+          call ssu_$arg_ptr (scip, 1, argp, argl);
+          if (verify (arg, ".1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xRest time must be numeric. ^a", arg);
+          rest_time = convert_to_real ((arg));
+          if (rest_time > node.time_left) then do;
+                    call ioa_ ("^/Time left: ^.1f hrs., Rest time: ^.1f hrs.", node.time_left, rest_time);
+                    return;
+               end;
+          call ioa_ ("^/Rested.");
+          node.body_pts = min (20, node.body_pts + round (rest_time * 4, 0));
+          node.time_left = node.time_left - rest_time;
+          do x = 1 to (max (1, trunc (rest_time)));
+               if (trunc (rest_time) > 1) & enemies_present (nptr) then call ioa_ ("^/^d^a hour:", x, number_suffix (x));
+               call enemy_attack (nptr);
+          end;
+          return;
+
+transfer: entry (scip, nptr);
+
+          dcl     transfer_energy        fixed bin init (0);
+          dcl     to_device              char (12) init ("");
+          dcl     true_xfer_energy       fixed bin init (0);
+          dcl     sst_$daemon            entry (ptr);
+
+          call ssu_$arg_count (scip, argn);
+          if (argn ^= 2) then call ssu_$abort_line (scip, (0), "^/^5xUsage: transfer device energy_amount");
+          call ssu_$arg_ptr (scip, 1, argp, argl);
+          if (arg = "jet_boosters") | (arg = "jets") then to_device = "jet_boosters";
+          else if (arg = "flamer_rifle") | (arg = "flamer") then to_device = "flamer_rifle";
+          else call ssu_$abort_line (scip, (0), "^/^5xDevice must be either ""flamer"" or ""jets"".");
+          call ssu_$arg_ptr (scip, 2, argp, argl);
+          if (verify (arg, "1234567890") ^= 0) then call ssu_$abort_line (scip, (0), "^/^5xEnergy_amount must be a positive integer. ^a", arg);
+          transfer_energy = decimal (arg);
+          if (to_device = "jet_boosters") & (transfer_energy > node.flamer_energy) then do;
+                    call ioa_ ("^/Flamer energy remaining: ^d units.  No transfer.", node.flamer_energy);
+                    return;
+               end;
+          else if (to_device = "flamer_rifle") & (transfer_energy > node.jet_energy) then do;
+                    call ioa_ ("^/Jet booster energy remaining: ^d units.  No transfer.", node.jet_energy);
+                    return;
+               end;
+          if (node.time_left < .2) then do;
+                    call ioa_ ("^/Time left: ^.1f hrs., Transfer time: 0.2 hrs.", node.time_left);
+                    return;
+               end;
+          if (to_device = "jet_boosters") then do;
+                    true_xfer_energy = min (transfer_energy, 1000 - node.jet_energy);
+                    call ioa_ ("^/^d units transferred to Jet boosters.", true_xfer_energy);
+                    if (true_xfer_energy < transfer_energy) then call ioa_ ("Flamer retains remaining ^d units.", transfer_energy - true_xfer_energy);
+                    node.jet_energy = node.jet_energy + true_xfer_energy;
+                    node.flamer_energy = node.flamer_energy - true_xfer_energy;
+                    call ioa_ ("^/Jet booster energy:  ^d units", node.jet_energy);
+                    call ioa_ ("Flamer rifle energy: ^d units", node.flamer_energy);
+               end;
+          else if (to_device = "flamer_rifle") then do;
+                    true_xfer_energy = min (transfer_energy, 1000 - node.flamer_energy);
+                    call ioa_ ("^/^d units transferred to Flamer rifle.", true_xfer_energy);
+                    if (true_xfer_energy < transfer_energy) then call ioa_ ("Jets retains remaining ^d units.", transfer_energy - true_xfer_energy);
+                    node.flamer_energy = node.flamer_energy + true_xfer_energy;
+                    node.jet_energy = node.jet_energy - true_xfer_energy;
+                    call ioa_ ("^/Flamer rifle energy: ^d units", node.flamer_energy);
+                    call ioa_ ("Jet booster energy:  ^d units", node.jet_energy);
+               end;
+          node.time_left = node.time_left - .2;
+          return;
+
+encamp: entry (scip, nptr);
+
+          if node.encamped then do;
+                    call ioa_ ("^/You are already encamped.");
+                    return;
+               end;
+          if (node.time_left < 1) then do;
+                    call ioa_ ("^/Time left: ^.1f hrs., Encampment time: 1.0 hrs.", node.time_left);
+                    return;
+               end;
+          do x = (node.PX - 1) to (node.PX + 1);
+               do y = (node.PY - 1) to (node.PY + 1);
+                    if (x > 0) & (x < 11) & (y > 0) & (y < 11) then do;
+                              if node.sector (node.SX, node.SY).point (x, y) = SUPPLY_SHIP then do;
+                                        call ioa_ ("^/Encamped.");
+                                        node.encamped = "1"b;
+                                        do z = 1 to node.supplyN;
+                                             if (node.supply (z).SX = node.SX) & (node.supply (z).SY = node.SY) & (node.supply (z).PX = x) & (node.supply (z).PY = y) then do;
+                                                       node.supply (z).uses_left = node.supply (z).uses_left - 1;
+                                                       if (node.supply (z).uses_left = 0) then do;
+                                                                 call ioa_ ("Supply ship exhausted -> returning to base.");
+                                                                 node.encamped = "0"b;
+                                                                 node.sector (node.SX, node.SY).point (x, y) = ".";
+                                                                 if (node.SX = node.distress.SX) & (node.SY = node.distress.SY) then do;
+                                                                           node.distress.SX = 0;
+                                                                           node.distress.SY = 0;
+                                                                      end;
+                                                                 node.sector (node.SX, node.SY).supply = "0";
+                                                            end;
+                                                  end;
+                                        end;
+                                        node.suit_pts = min (50, max (node.suit_pts * 2, node.suit_pts + 10));
+                                        node.jet_energy = min (1000, max (node.jet_energy * 2, node.jet_energy + 500));
+                                        node.flamer_energy = min (1000, max (node.flamer_energy * 2, node.flamer_energy + 500));
+                                        node.HE_bombN = min (10, max (node.HE_bombN * 2, node.HE_bombN + 5));
+                                        node.time_left = node.time_left - 1;
+                                        return;
+                                   end;
+                         end;
+               end;
+          end;
+          call ioa_ ("^/You are not adjacent to a supply ship.");
+          return;
+
+rescue: entry (scip, nptr);
+
+          dcl     bdex                   fixed bin init (0);
+
+          do x = (node.PX - 1) to (node.PX + 1);
+               do y = (node.PY - 1) to (node.PY + 1);
+                    if (node.sector (node.SX, node.SY).point (x, y) = BREACH) then do;
+                              do z = 1 to node.breachN;
+                                   if (node.breach (z).SX = node.SX) & (node.breach (z).SY = node.SY) & (node.breach (z).PX = x) & (node.breach (z).PY = y) then bdex = z;
+                              end;
+                         end;
+               end;
+          end;
+          if (bdex = 0) then do;
+                    call ioa_ ("^/You are not adjacent to a breach.");
+                    return;
+               end;
+          do while (node.breach (bdex).engineer > 0);
+               x = round (node.breach (bdex).engineer / 100, 0);
+               if (x > 0) then do;
+                         call ioa_$nnl ("^/***ENGINEER in breach:^33t");
+                         call damage_the_trooper (x, nptr);
+                    end;
+               else call ioa_ ();
+               x = mod (clock (), (1 + node.suit_pts + node.body_pts)) + 30;
+               call ioa_ ("***TROOPER attack^33t^d pts. to Engineer", x);
+               node.breach (bdex).engineer = max (0, node.breach (bdex).engineer - x);
+               if (node.breach (bdex).engineer = 0) then call ioa_ ("***ENGINEER in breach destroyed.");
+               else do;
+                         call ioa_$nnl ("^/Do you wish to continue the rescue? ");
+                         call yes_no (input);
+                         if (input = "no") | (input = "n") then do;
+                                   call enemy_attack (nptr);
+                                   return;
+                              end;
+                    end;
+               node.time_left = node.time_left - .1;
+               call sst_$daemon (scip);
+          end;
+          if (node.breach (bdex).prisoners = 1) then call ioa_ ("^/Prisoner rescued.");
+          else call ioa_ ("^/No prisoner here.");
+          node.score.prisoners_rescued = node.score.prisoners_rescued + node.breach (bdex).prisoners;
+          call enemy_attack (nptr);
+          return;
+
+quit: entry (scip, nptr);
+
+          dcl     see_score                   bit (1) init ("0"b);
+
+          call ssu_$arg_count (scip, argn);
+          do x = 1 to argn;
+               call ssu_$arg_ptr (scip, x, argp, argl);
+               if (arg = "-score") | (arg = "-sc") then see_score = "1"b;
+               else call ssu_$abort_line (scip, (0), "^/^5xUsage: quit {-score}");
+          end;
+          call ioa_$nnl ("^/Do you wish to quit? ");
+          call yes_no (input);
+          if (input = "y") | (input = "yes") then do;
+                    if see_score then call ssu_$execute_string (scip, "score -all", code);
+                    else call ssu_$execute_string (scip, "score", code);
+                    call ssu_$abort_subsystem (scip, (0));
+               end;
+          else if (input = "n") | (input = "no") then call ssu_$abort_line (scip, (0));
+
+self_identify: entry (scip, nptr);
+
+          call ioa_ ("^a ^a", MAIN, sst_data_$version_string);
+          return;
+
+calc_move_cost: procedure (from_SX, from_SY, from_PX, from_PY, to_SX, to_SY, to_PX, to_PY) returns (fixed bin);
+
+          dcl     (from_SX, from_SY, from_PX, from_PY) fixed bin parm;
+          dcl     (to_SX, to_SY, to_PX, to_PY) fixed bin parm;
+          dcl     energy_cost            fixed bin init (0);
+
+          energy_cost = abs (from_SX - to_SX) + abs (from_SY - to_SY);
+          energy_cost = round (energy_cost / 2, 0) * 100;
+          energy_cost = round ((abs (from_PX - to_PX) + abs (from_PY - to_PY)) / 2, 0) * 10 + energy_cost;
+          return (energy_cost);
+
+     end calc_move_cost;
+
+calc_move_time: procedure (from_SX, from_SY, from_PX, from_PY, to_SX, to_SY, to_PX, to_PY) returns (fixed dec (5, 2));
+
+          dcl     (from_SX, from_SY, from_PX, from_PY) fixed bin parm;
+          dcl     (to_SX, to_SY, to_PX, to_PY) fixed bin parm;
+          dcl     time_cost              fixed dec (5, 2) init (0);
+
+          time_cost = abs (from_SX - to_SX) + abs (from_SY - to_SY);
+          time_cost = round (time_cost / 4, 2);
+          time_cost = time_cost + round ((abs (from_PX - to_PX) + abs (from_PY - to_PY)) / 100, 2);
+          return (time_cost);
+
+     end calc_move_time;
+
+get_target_point: procedure (from_SX, from_SY, from_PX, from_PY, to_SX, to_SY, tp_X, tp_Y);
+
+          dcl     (from_SX, from_SY, to_SX, to_SY) fixed bin parm;
+          dcl     (from_PX, from_PY, tp_X, tp_Y) fixed bin parm;
+
+          if (to_SX < from_SX) then do;
+                    tp_X = 1;
+                    if (to_SY < from_SY) then tp_Y = 1;
+                    else if (to_SY = from_SY) then tp_Y = from_PY;
+                    else tp_Y = 10;
+               end;
+          else if (to_SX = from_SX) then do;
+                    tp_X = from_PX;
+                    if (to_SY < from_SY) then tp_Y = 1;
+                    else tp_Y = 10;
+               end;
+          else do;
+                    tp_X = 10;
+                    if (to_SY < from_SY) then tp_Y = 1;
+                    else if (to_SY = from_SY) then tp_Y = from_PY;
+                    else tp_Y = 10;
+               end;
+
+     end get_target_point;
+
+move: procedure (type, nptr, to_PX, to_PY);
+
+          dcl     type                   char (*) parm;
+          dcl     nptr                   ptr parm;
+          dcl     (to_PX, to_PY)         fixed bin parm;
+          dcl     (slope_X, slope_Y)     fixed bin init (0);
+          dcl     (original_PX, original_PY) fixed bin init (0);
+          dcl     (new_X, new_Y)         fixed bin init (0);
+          dcl     Point                  char (1) init ("");
+          dcl     blank_line_printed     bit (1) init ("0"b);
+
+          node.encamped = "0"b;
+          original_PX = node.PX;
+          original_PY = node.PY;
+          do while ((node.PX ^= to_PX) | (node.PY ^= to_PY));
+               call get_slope (node.PX, node.PY, to_PX, to_PY, slope_X, slope_Y);
+               new_X = node.PX + slope_X;
+               new_Y = node.PY + slope_Y;
+               if (node.sector (node.SX, node.SY).point (new_X, new_Y) = ".") | (node.sector (node.SX, node.SY).point (new_X, new_Y) = BEACON) then do;
+                         node.PX = new_X;
+                         node.PY = new_Y;
+                         node.sitting_in_rad = "0"b;
+                    end;
+               else if (node.sector (node.SX, node.SY).point (new_X, new_Y) = RADIATION) then do;
+                         if ^(blank_line_printed) then do;
+                                   call ioa_ ();
+                                   blank_line_printed = "1"b;
+                              end;
+                         call ioa_$nnl ("***RADIATION at Mark ^d - d.  ", new_X, new_Y);
+                         call damage_the_trooper ((mod (clock (), 10) + 1), nptr);
+                         node.PX = new_X;
+                         node.PY = new_Y;
+                         node.sitting_in_rad = "1"b;
+                    end;
+               else do;
+                         node.jet_energy = node.jet_energy - calc_move_cost (node.SX, node.SY, original_PX, original_PY, node.SX, node.SY, node.PX, node.PY);
+                         node.jet_energy = max (0, node.jet_energy - 50);
+                         Point = node.sector (node.SX, node.SY).point (new_X, new_Y);
+                         if (Point = MOUNTAIN) then call ioa_ ("^/***MOUNTAIN at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = FORT) then call ioa_ ("^/***FORT at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = SUPPLY_SHIP) then call ioa_ ("^/***SUPPLY at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = BREACH) then call ioa_ ("^/***BREACH at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = ARACHNID) then call ioa_ ("^/***ARACHNID at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = SKINNY) then call ioa_ ("^/***SKINNY at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = HEAVY_BEAM) then call ioa_ ("^/***HEAVY BEAM at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         else if (Point = MISSILE_L) then call ioa_ ("^/***MISSILE-L at Mark ^d - ^d.  ^a discontinued.", new_X, new_Y, type);
+                         node.sector (node.SX, node.SY).point (original_PX, original_PY) = ".";
+                         node.sector (node.SX, node.SY).point (node.PX, node.PY) = TROOPER;
+                         call ioa_ ("^/***LOCUS PROXIMITY: Sector ^d - ^d, Mark ^d - ^d", node.SX, node.SY, node.PX, node.PY);
+                         call enemy_attack (nptr);
+                         call ssu_$abort_line (scip, (0));
+                    end;
+          end;
+
+     end move;
+
+get_slope: procedure (from_X, from_Y, to_X, to_Y, slope_X, slope_Y);
+
+          dcl     (from_X, from_Y, to_X, to_Y) fixed bin parm;
+          dcl     (slope_X, slope_Y)     fixed bin parm;
+
+          if (to_X < from_X) then slope_X = -1;
+          else if (to_X > from_X) then slope_X = 1;
+          else slope_X = 0;
+          if (to_Y < from_Y) then slope_Y = -1;
+          else if (to_Y > from_Y) then slope_Y = 1;
+          else slope_Y = 0;
+ 
+     end get_slope;
+
+got_there_ok: procedure (nptr);
+
+          dcl     nptr              ptr parm;
+
+          if (node.sector (node.SX, node.SY).point (node.PX, node.PY) = ".") | (node.sector (node.SX, node.SY).point (node.PX, node.PY) = BEACON) then return;
+          do while ("1"b);
+               x = mod (clock (), 10) + 1;
+               y = mod (clock (), 10) + 1;
+               if (node.sector (node.SX, node.SY).point (x, y) = ".") then do;
+                         call ioa_ ("^/***OBSTRUCTION at Sector ^d - ^d, Mark ^d - ^d.", node.SX, node.SY, node.PX, node.PY);
+                         call ioa_$nnl ("Calculating Emergency course change...");
+                         node.PX = x;
+                         node.PY = y;
+                         return;
+                    end;
+          end;
+
+     end got_there_ok;
+
+allot_flamer_energy: procedure (enemy, x, y, energy_tally, nptr);
+
+          dcl     enemy                  char (*) parm;
+          dcl     (x, y, energy_tally)   fixed bin parm;
+          dcl     nptr                   ptr parm;
+
+          do while ("1"b);
+               call ioa_$nnl ("> Units against ^a at Mark ^d - ^d: ", enemy, x, y);
+               call getline (input);
+               if (input = "") then input = "NULL";
+               if (verify (input, "1234567890") ^= 0) then energy_tally = energy_tally;
+               else do;
+                         energy_tally = decimal (input);
+                         if (energy_tally > node.flamer_energy) then call ioa_ ("^/^5tFlamer energy remaining: ^d units^/", node.flamer_energy);
+                         else do;
+                                   node.flamer_energy = node.flamer_energy - energy_tally;
+                                   return;
+                              end;
+                    end;
+          end;
+
+     end allot_flamer_energy;
+
+get_target_for_bomb: procedure (tx, ty, num);
+
+          dcl     (tx, ty, num)          fixed bin parm;
+          dcl     input                  char (5) varying init ("NULL");
+
+ask_again:
+          do while (verify (input, "1234567890 ") ^= 0 | index (input, " ") = 0);
+               call ioa_$nnl ("Target for bomb^[ #^d^;^s^]: ", (num > 0), num);
+               call getline (input);
+               if (input = "") then input = "NULL";
+          end;
+          tx = decimal (before (input, " "));
+          if (length (rtrim (after (input, " "))) > 2) then do;
+                    input = "NULL";
+                    goto ask_again;
+               end;
+          ty = decimal (after (input, " "));
+          input = "NULL";
+          if (tx > 10) | (ty > 10) then goto ask_again;
+          else if (tx = 0) | (ty = 0) then call ssu_$abort_line (scip, (0));
+
+     end get_target_for_bomb;
+
+launch_it: procedure (weapon, tx, ty, bombNo, nptr);
+
+          dcl     weapon                 char (*) parm;
+          dcl     (tx, ty, bombNo)       fixed bin parm;
+          dcl     nptr                   ptr parm;
+          dcl     (pos_x, pos_y)         fixed dec (5, 2) init (0);
+          dcl     (x, y)                 fixed bin init (0);
+          dcl     (slope_x, slope_y)     fixed bin init (0);
+          dcl     (delta_x, delta_y)     fixed bin init (0);
+          dcl     (numerator, denominator) fixed bin init (0);
+          dcl     true_slope             fixed dec (5, 3) init (0);
+          dcl     x_is_fractional        bit (1) init ("0"b);
+          dcl     Point                  char (1) init ("");
+          dcl     BLAST                  fixed bin init (0);
+          dcl     drift_slope            fixed dec (5, 2) init (0);
+          dcl     output_count           fixed bin init (0);
+
+          if (tx = node.PX) & (ty = node.PY) then do;
+                    call ioa_ ("^/This is not a suicide mission, Trooper!");
+                    call ssu_$abort_line (scip, (0));
+               end;
+          if (weapon = "he") then BLAST = 200;
+          else BLAST = 1000;
+          pos_x = node.PX;
+          pos_y = node.PY;
+          if (mod (clock (), 2) + 1 = 1) then drift_slope = .1;
+          else drift_slope = -.1;
+          delta_x = tx - node.PX;
+          delta_y = ty - node.PY;
+          if (abs (delta_x) > abs (delta_y)) then do;
+                    numerator = delta_y;
+                    denominator = delta_x;
+               end;
+          else do;
+                    numerator = delta_x;
+                    denominator = delta_y;
+               end;
+          true_slope = round (numerator / denominator, 3);
+          if (abs (delta_x) < abs (delta_y)) then x_is_fractional = "1"b;
+          if (tx < node.PX) & (ty < node.PY) then true_slope = 0 - true_slope;
+          else if (tx < node.PX) & ^(x_is_fractional) then true_slope = 0 - true_slope;
+          else if (tx > node.PX) & (ty > node.PY) then true_slope = true_slope;
+          else if (tx > node.PX) & x_is_fractional then true_slope = 0 - true_slope;
+          call get_slope (node.PX, node.PY, tx, ty, slope_x, slope_y);
+          call ioa_$nnl ("^/Launch path #^d:  ", bombNo);
+          do while ("1"b);
+               output_count = output_count + 1;
+               if x_is_fractional then do;
+                         pos_x = pos_x + true_slope;
+                         pos_y = pos_y + slope_y;
+                    end;
+               else do;
+                         pos_x = pos_x + slope_x;
+                         pos_y = pos_y + true_slope;
+                    end;
+               x = mod (clock (), 5) + 1;
+               if (x = 1) then do;
+                         if x_is_fractional then pos_x = pos_x + drift_slope;
+                         else pos_y = pos_y + drift_slope;
+                    end;
+               call ioa_$nnl ("^.1f-^.1f", pos_x, pos_y);
+               Point = node.sector (node.SX, node.SY).point ((round (pos_x, 0)), (round (pos_y, 0)));
+               if (Point = ARACHNID) then do;
+                         call ioa_ ();
+                         call flame_that_sucker ("Arachnid", (round (pos_x, 0)), (round (pos_y, 0)), BLAST, nptr);
+                         if (weapon = "nuke") then call chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), nptr);
+                         return;
+                    end;
+               else if (Point = SKINNY) then do;
+                         call ioa_ ();
+                         call flame_that_sucker ("Skinny", (round (pos_x, 0)), (round (pos_y, 0)), BLAST, nptr);
+                         if (weapon = "nuke") then call chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), nptr);
+                         return;
+                    end;
+               else if (Point = HEAVY_BEAM) then do;
+                         call ioa_ ();
+                         call flame_that_sucker ("Heavy Beam", (round (pos_x, 0)), (round (pos_y, 0)), BLAST, nptr);
+                         if (weapon = "nuke") then call chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), nptr);
+                         return;
+                    end;
+               else if (Point = MISSILE_L) then do;
+                         call ioa_ ();
+                         call flame_that_sucker ("Missile-L", (round (pos_x, 0)), (round (pos_y, 0)), BLAST, nptr);
+                         if (weapon = "nuke") then call chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), nptr);
+                         return;
+                    end;
+               else if (Point = MOUNTAIN) then do;
+                         x = mod (clock (), 6) + 1;
+                         if (weapon = "nuke") then x = 2;
+                         if (x = 1) then call ioa_ ("^/***MOUNTAIN at Mark ^d - ^d unaffected.", (round (pos_x, 0)), (round (pos_y, 0)));
+                         else do;
+                                   call ioa_ ("^/***MOUNTAIN at Mark ^d - ^d destroyed.", (round (pos_x, 0)), (round (pos_y, 0)));
+                                   node.sector (node.SX, node.SY).point ((round (pos_x, 0)), (round (pos_y, 0))) = ".";
+                                   node.score.mountains_Xed = node.score.mountains_Xed + 1;
+                                   if (weapon = "nuke") then call chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), nptr);
+                              end;
+                         return;
+                    end;
+               else if (Point = SUPPLY_SHIP) then do;
+                         x = mod (clock (), 4) + 1;
+                         if (weapon = "nuke") then x = 1;
+                         if (x > 1) then call ioa_ ("^/***SUPPLY SHIP at Mark ^d - ^d unaffected", (round (pos_x, 0)), (round (pos_y, 0)));
+                         else do;
+                                   call ioa_ ("^/***SUPPLY SHIP at Mark ^d - ^d destroyed", (round (pos_x, 0)), (round (pos_y, 0)));
+                                   node.sector (node.SX, node.SY).point ((round (pos_x, 0)), (round (pos_y, 0))) = ".";
+                                   node.sector (node.SX, node.SY).supply = "0";
+/* To be written later when dead supply ships become important:
+                    call supply_is_dead (node.SX, node.SY, (round (pos_x, 0)), (round (pos_y, 0)));
+*/
+                                   node.score.supplies_Xed = node.score.supplies_Xed + 1;
+                                   if (weapon = "nuke") then call chain_reaction ((round (pos_x, 0)), (round (pos_y, 0)), nptr);
+                              end;
+                         return;
+                    end;
+               else if ((round (pos_x, 0)) = 1 & node.PX > 1) | ((round (pos_x, 0)) = 10 & node.PX < 10) | ((round (pos_y, 0)) = 1 & node.PY > 1) | ((round (pos_y, 0)) = 10 & node.PY < 10) then do;
+                         call ioa_ ("^/***BOMB missed", pos_x, pos_y);
+                         return;
+                    end;
+               else if (Point = ".") | (Point = BREACH) | (Point = BEACON) | (Point = FORT) | (Point = RADIATION) then call ioa_$nnl (", ");
+               if (output_count = 6) then call ioa_$nnl ("^/^17x");
+          end;
+
+     end launch_it;
+
+flame_that_sucker: procedure (enemy, x, y, energy_tally, nptr);
+
+          dcl     enemy                  char (*) parm;
+          dcl     nptr                   ptr parm;
+          dcl     (x, y, energy_tally)   fixed bin parm;
+          dcl     edex                   fixed bin init (0);
+
+          if (energy_tally = 0) then return;
+          edex = index_enemy (node.SX, node.SY, x, y, nptr);
+          if (enemy = "Arachnid") then do;
+                    node.Arachnid (edex).life_pts = max (0, node.Arachnid (edex).life_pts - energy_tally);
+                    if (node.Arachnid (edex).life_pts > 0) then do;
+                              call ioa_ ("***ARACHNID at Mark ^d - ^d disrupted.", x, y);
+                              return;
+                         end;
+                    call ioa_ ("***ARACHNID at Mark ^d - ^d destroyed.", x, y);
+                    call mark_off_enemy (enemy, edex, nptr);
+               end;
+          else if (enemy = "Skinny") then do;
+                    node.Skinny (edex).life_pts = max (0, node.Skinny (edex).life_pts - energy_tally);
+                    if (node.Skinny (edex).life_pts > 0) then do;
+                              call ioa_ ("***SKINNY at Mark ^d - ^d disrupted.", x, y);
+                              return;
+                         end;
+                    call ioa_ ("***SKINNY at Mark ^d - ^d destroyed.", x, y);
+                    call mark_off_enemy (enemy, edex, nptr);
+               end;
+          else if (enemy = "Heavy Beam") then do;
+                    node.Heavy_beam (edex).life_pts = max (0, node.Heavy_beam (edex).life_pts - energy_tally);
+                    if (node.Heavy_beam (edex).life_pts > 0) then do;
+                              call ioa_ ("***HEAVY BEAM at Mark ^d - ^d disrupted.", x, y);
+                              return;
+                         end;
+                    call ioa_ ("***HEAVY BEAM at Mark ^d - ^d destroyed.", x, y);
+                    call mark_off_enemy (enemy, edex, nptr);
+               end;
+          else do;
+                    node.Missile_l (edex).life_pts = max (0, node.Missile_l (edex).life_pts - energy_tally);
+                    if (node.Missile_l (edex).life_pts > 0) then do;
+                              call ioa_ ("***MISSILE-L at Mark ^d - ^d disrupted.", x, y);
+                              return;
+                         end;
+                    call ioa_ ("***MISSILE-L at Mark ^d - ^d destroyed.", x, y);
+                    call mark_off_enemy (enemy, edex, nptr);
+               end;
+
+     end flame_that_sucker;
+
+index_enemy: procedure (sx, sy, px, py, nptr) returns (fixed bin);
+
+          dcl     (sx, sy, px, py)       fixed bin parm;
+          dcl     nptr                   ptr parm;
+
+          do a = 1 to node.arachnidT;
+               if (node.Arachnid (a).SX = sx) & (node.Arachnid (a).SY = sy) & (node.Arachnid (a).PX = px) & (node.Arachnid (a).PY = py) then return (a);
+          end;
+          do a = 1 to node.skinnyT;
+               if (node.Skinny (a).SX = sx) & (node.Skinny (a).SY = sy) & (node.Skinny (a).PX = px) & (node.Skinny (a).PY = py) then return (a);
+          end;
+          do a = 1 to node.heavy_beamT;
+               if (node.Heavy_beam (a).SX = sx) & (node.Heavy_beam (a).SY = sy) & (node.Heavy_beam (a).PX = px) & (node.Heavy_beam (a).PY = py) then return (a);
+          end;
+          do a = 1 to node.missile_lT;
+               if (node.Missile_l (a).SX = sx) & (node.Missile_l (a).SY = sy) & (node.Missile_l (a).PX = px) & (node.Missile_l (a).PY = py) then return (a);
+          end;
+          return (0);
+
+     end index_enemy;
+
+enemies_present: procedure (nptr) returns (bit (1));
+
+          dcl     TRUE                   bit (1) init ("1"b);
+          dcl     FALSE                  bit (1) init ("0"b);
+          dcl     nptr                   ptr parm;
+          dcl     x                      fixed bin init (0);
+
+          do x = 1 to node.arachnidT;
+               if (node.Arachnid (x).SX = node.SX) & (node.Arachnid (x).SY = node.SY) then return (TRUE);
+          end;
+          do x = 1 to node.skinnyT;
+               if (node.Skinny (x).SX = node.SX) & (node.Skinny (x).SY = node.SY) then return (TRUE);
+          end;
+          do x = 1 to node.heavy_beamT;
+               if (node.Heavy_beam (x).SX = node.SX) & (node.Heavy_beam (x).SY = node.SY) then return (TRUE);
+          end;
+          do x = 1 to node.missile_lT;
+               if (node.Missile_l (x).SX = node.SX) & (node.Missile_l (x).SY = node.SY) then return (TRUE);
+          end;
+          return (FALSE);
+
+     end enemies_present;
+
+mark_off_enemy: procedure (enemy, edex, nptr);
+
+          dcl     enemy                  char (*) parm;
+          dcl     edex                   fixed bin parm;
+          dcl     nptr                   ptr parm;
+
+          if (enemy = "Arachnid") then do;
+                    node.sector (node.Arachnid (edex).SX, node.Arachnid (edex).SY).arachnidT = node.sector (node.Arachnid (edex).SX, node.Arachnid (edex).SY).arachnidT - 1;
+                    node.sector (node.Arachnid (edex).SX, node.Arachnid (edex).SY).point (node.Arachnid (edex).PX, node.Arachnid (edex).PY) = ".";
+                    node.Arachnid (edex).SX = 0;
+                    node.Arachnid (edex).SY = 0;
+                    node.Arachnid (edex).PX = 0;
+                    node.Arachnid (edex).PY = 0;
+                    node.score.arachnids_Xed = node.score.arachnids_Xed + 1;
+                    node.time_left = node.time_left + .4;
+               end;
+          else if (enemy = "Skinny") then do;
+                    node.sector (node.Skinny (edex).SX, node.Skinny (edex).SY).skinnyT = node.sector (node.Skinny (edex).SX, node.Skinny (edex).SY).skinnyT - 1;
+                    node.sector (node.Skinny (edex).SX, node.Skinny (edex).SY).point (node.Skinny (edex).PX, node.Skinny (edex).PY) = ".";
+                    node.Skinny (edex).SX = 0;
+                    node.Skinny (edex).SY = 0;
+                    node.Skinny (edex).PX = 0;
+                    node.Skinny (edex).PY = 0;
+                    node.score.skinnies_Xed = node.score.skinnies_Xed + 1;
+                    node.time_left = node.time_left + .2;
+               end;
+          else if (enemy = "Heavy Beam") then do;
+                    node.sector (node.Heavy_beam (edex).SX, node.Heavy_beam (edex).SY).arachnidT = node.sector (node.Heavy_beam (edex).SX, node.Heavy_beam (edex).SY).arachnidT - 1;
+                    node.sector (node.Heavy_beam (edex).SX, node.Heavy_beam (edex).SY).point (node.Heavy_beam (edex).PX, node.Heavy_beam (edex).PY) = ".";
+                    node.Heavy_beam (edex).SX = 0;
+                    node.Heavy_beam (edex).SY = 0;
+                    node.Heavy_beam (edex).PX = 0;
+                    node.Heavy_beam (edex).PY = 0;
+                    node.score.heavy_beams_Xed = node.score.heavy_beams_Xed + 1;
+                    node.time_left = node.time_left + .6;
+               end;
+          else do;
+                    node.sector (node.Missile_l (edex).SX, node.Missile_l (edex).SY).skinnyT = node.sector (node.Missile_l (edex).SX, node.Missile_l (edex).SY).skinnyT - 1;
+                    node.sector (node.Missile_l (edex).SX, node.Missile_l (edex).SY).point (node.Missile_l (edex).PX, node.Missile_l (edex).PY) = ".";
+                    node.Missile_l (edex).SX = 0;
+                    node.Missile_l (edex).SY = 0;
+                    node.Missile_l (edex).PX = 0;
+                    node.Missile_l (edex).PY = 0;
+                    node.score.missile_ls_Xed = node.score.missile_ls_Xed + 1;
+                    node.time_left = node.time_left + .5;
+               end;
+
+     end mark_off_enemy;
+
+chain_reaction: procedure (pos_x, pos_y, nptr);
+
+          dcl     (pos_x, pos_y)         fixed bin parm;
+          dcl     nptr                   ptr parm;
+          dcl     (x, y)                 fixed bin init (0);
+          dcl     (EOEX, EOEY)           (5) fixed bin init ((5) (0));
+          dcl     cloud_range            fixed bin init (0);
+          dcl     Point                  char (1) init ("");
+
+          if (pos_x - 1 > 0) then do;
+                    cloud_range = 1;
+                    EOEX (cloud_range) = pos_x - 1;
+                    EOEY (cloud_range) = pos_y;
+               end;
+          do x = (pos_y - 1) to (pos_y + 1);
+               if (x > 0) & (x < 11) then do;
+                         cloud_range = cloud_range + 1;
+                         EOEX (cloud_range) = pos_x;
+                         EOEY (cloud_range) = x;
+                    end;
+          end;
+          if (pos_x + 1 < 11) then do;
+                    cloud_range = cloud_range + 1;
+                    EOEX (cloud_range) = pos_x + 1;
+                    EOEY (cloud_range) = pos_y;
+               end;
+          do x = 1 to cloud_range;
+               Point = node.sector (node.SX, node.SY).point (EOEX (x), EOEY (x));
+               if (Point = ARACHNID) then call flame_that_sucker ("Arachnid", EOEX (x), EOEY (x), 1000, nptr);
+               else if (Point = SKINNY) then  call flame_that_sucker ("Skinny", EOEX (x), EOEY (x), 1000, nptr);
+               else if (Point = HEAVY_BEAM) then  call flame_that_sucker ("Heavy Beam", EOEX (x), EOEY (x), 1000, nptr);
+               else if (Point = MISSILE_L) then  call flame_that_sucker ("Missile-L", EOEX (x), EOEY (x), 1000, nptr);
+               else if (Point = MOUNTAIN) then do;
+                         call ioa_ ("***MOUNTAIN at Mark ^d - ^d destroyed.", EOEX (x), EOEY (x));
+                         node.score.mountains_Xed = node.score.mountains_Xed + 1;
+                    end;
+               else if (Point = SUPPLY_SHIP) then do;
+                         call ioa_ ("***SUPPLY SHIP at Mark ^d - ^d destroyed.", EOEX (x), EOEY (x));
+                         node.score.supplies_Xed = node.score.supplies_Xed + 1;
+                    end;
+               else if (Point = TROOPER) then do;
+                         call ioa_$nnl ("***EXPLOSION at Mark ^d - ^d:^33t", EOEX (x), EOEY (x));
+                         call damage_the_trooper ((mod (clock (), 10) + 1), nptr);
+                         node.was_in_rad = "1"b;
+                         node.sitting_in_rad = "1"b;
+                    end;
+               if (Point ^= TROOPER) then node.sector (node.SX, node.SY).point (EOEX (x), EOEY (x)) = RADIATION;
+          end;
+          node.sector (node.SX, node.SY).radiation = "R";
+
+     end chain_reaction;
+
+enemy_attack: procedure (nptr);
+
+          dcl     nptr                   ptr parm;
+          dcl     (x, y, z, edex, BLAST) fixed bin init (0);
+          dcl     Point                  char (1) init ("");
+          dcl     enemy                  char (20) init ("");
+          dcl     blank_line_printed     bit (1) init ("0"b);
+
+          do x = 1 to 10;
+               do y = 1 to 10;
+                    BLAST = 0;
+                    Point = node.sector (node.SX, node.SY).point (x, y);
+                    if (Point = ARACHNID) then do;
+                              edex = index_enemy (node.SX, node.SY, x, y, nptr);
+                              BLAST = round (node.Arachnid (edex).life_pts / 100, 0);
+                              enemy = "ARACHNID";
+                         end;
+                    else if (Point = SKINNY) then do;
+                              edex = index_enemy (node.SX, node.SY, x, y, nptr);
+                              BLAST = round (node.Skinny (edex).life_pts / 100, 0);
+                              enemy = "SKINNY";
+                         end;
+                    else if (Point = HEAVY_BEAM) then do;
+                              edex = index_enemy (node.SX, node.SY, x, y, nptr);
+                              BLAST = round (node.Heavy_beam (edex).life_pts / 100, 0);
+                              enemy = "HEAVY BEAM";
+                         end;
+                    else if (Point = MISSILE_L) then do;
+                              edex = index_enemy (node.SX, node.SY, x, y, nptr);
+                              BLAST = round (node.Missile_l (edex).life_pts / 100, 0);
+                              enemy = "MISSILE-L";
+                         end;
+                    if (BLAST > 0) then do;
+                              if ^(blank_line_printed) then do;
+                                        blank_line_printed = "1"b;
+                                        call ioa_ ();
+                                   end;
+                              call ioa_$nnl ("***^a at Mark ^d - ^d:^33t", enemy, x, y);
+                              call damage_the_trooper (BLAST, nptr);
+                         end;
+               end;
+          end;
+
+     end enemy_attack;
+
+attack_supply_ships: procedure (datap);
+
+          dcl     datap                  ptr parm;
+          dcl     1 data                 aligned based (datap) like NODE;
+          dcl     (sdex, hdex, mdex)     fixed bin init (0);
+          dcl     (SDEX, HDEX, MDEX)     (10) fixed bin init ((10) (0));
+          dcl     (x, y, z, a, b, c)     fixed bin init (0);
+          dcl     attacker               char (30) init ("");
+
+          if ((mod (clock (), 4) + 1) > 1) then return;
+          if (data.distress.SX = 0) & (data.distress.SY = 0) then do;
+                    do x = 1 to data.supplyN;
+                         if (data.supply (x).uses_left > 0) then do;
+                                   y = y + 1;
+                                   SDEX (y) = x;
+                              end;
+                    end;
+                    if (y = 0) then return;
+                    z = mod (clock (), y) + 1;
+                    sdex = SDEX (z);
+                    data.distress.SX = data.supply (sdex).SX;
+                    data.distress.SY = data.supply (sdex).SY;
+                    data.distress.which_supply = sdex;
+               end;
+          if ^(H_or_M_present (data.distress.SX, data.distress.SY, datap)) then do;
+                    z = 0;
+                    do x = 1 to data.heavy_beamT;
+                         if (data.Heavy_beam (x).life_pts > 0) then do;
+                                   z = z + 1;
+                                   HDEX (z) = x;
+                              end;
+                    end;
+                    y = 0;
+                    do x = 1 to data.missile_lT;
+                         if (data.Missile_l (x).life_pts > 0) then do;
+                                   y = y + 1;
+                                   MDEX (y) = x;
+                              end;
+                    end;
+                    if (y = 0) & (z = 0) then return;
+
+FIND_A_NEW_ATTACKER:
+                    if ((mod (clock (), 2) + 1) = 1) then do;
+                              if (z = 0) then goto FIND_A_NEW_ATTACKER;
+                              a = mod (clock (), z) + 1;
+                              hdex = HDEX (a);
+                              call get_slope (data.Heavy_beam (hdex).SX, data.Heavy_beam (hdex).SY, data.distress.SX, data.distress.SY, b, c);
+                              if (data.sector ((data.Heavy_beam (hdex).SX + b), (data.Heavy_beam (hdex).SY + c)).arachnidT = 9) then goto FIND_A_NEW_ATTACKER;
+                              data.sector (data.Heavy_beam (hdex).SX, data.Heavy_beam (hdex).SY).arachnidT = data.sector (data.Heavy_beam (hdex).SX, data.Heavy_beam (hdex).SY).arachnidT - 1;
+                              data.sector (data.Heavy_beam (hdex).SX, data.Heavy_beam (hdex).SY).point (data.Heavy_beam (hdex).PX, data.Heavy_beam (hdex).PY) = ".";
+                              data.Heavy_beam (hdex).SX = data.Heavy_beam (hdex).SX + b;
+                              data.Heavy_beam (hdex).SY = data.Heavy_beam (hdex).SY + c;
+                              do while (data.sector (data.Heavy_beam (hdex).SX, data.Heavy_beam (hdex).SY).point (data.Heavy_beam (hdex).PX, data.Heavy_beam (hdex).PY) ^= ".");
+                                   x = mod (clock (), 10) + 1;
+                                   y = mod (clock (), 10) + 1;
+                                   data.Heavy_beam (hdex).PX = x;
+                                   data.Heavy_beam (hdex).PY = y;
+                              end;
+                              data.sector (data.Heavy_beam (hdex).SX, data.Heavy_beam (hdex).SY).arachnidT = data.sector (data.Heavy_beam (hdex).SX, data.Heavy_beam (hdex).SY).arachnidT + 1;
+                              data.sector (data.Heavy_beam (hdex).SX, data.Heavy_beam (hdex).SY).point (data.Heavy_beam (hdex).PX, data.Heavy_beam (hdex).PY) = HEAVY_BEAM;
+                         end;
+                    else do;
+                              if (y = 0) then goto FIND_A_NEW_ATTACKER;
+                              a = mod (clock (), y) + 1;
+                              mdex = HDEX (a);
+                              call get_slope (data.Missile_l (mdex).SX, data.Missile_l (mdex).SY, data.distress.SX, data.distress.SY, b, c);
+                              if (data.sector ((data.Missile_l (mdex).SX + b), (data.Missile_l (mdex).SY + c)).skinnyT = 9) then goto FIND_A_NEW_ATTACKER;
+                              data.sector (data.Missile_l (mdex).SX, data.Missile_l (mdex).SY).skinnyT = data.sector (data.Missile_l (mdex).SX, data.Missile_l (mdex).SY).skinnyT - 1;
+                              data.sector (data.Missile_l (mdex).SX, data.Missile_l (mdex).SY).point (data.Missile_l (mdex).PX, data.Missile_l (mdex).PY) = ".";
+                              data.Missile_l (mdex).SX = data.Missile_l (mdex).SX + b;
+                              data.Missile_l (mdex).SY = data.Missile_l (mdex).SY + c;
+                              do while (data.sector (data.Missile_l (mdex).SX, data.Missile_l (mdex).SY).point (data.Missile_l (mdex).PX, data.Missile_l (mdex).PY) ^= ".");
+                                   x = mod (clock (), 10) + 1;
+                                   y = mod (clock (), 10) + 1;
+                                   data.Missile_l (mdex).PX = x;
+                                   data.Missile_l (mdex).PY = y;
+                              end;
+                              data.sector (data.Missile_l (mdex).SX, data.Missile_l (mdex).SY).skinnyT = data.sector (data.Missile_l (mdex).SX, data.Missile_l (mdex).SY).skinnyT + 1;
+                              data.sector (data.Missile_l (mdex).SX, data.Missile_l (mdex).SY).point (data.Missile_l (mdex).PX, data.Missile_l (mdex).PY) = MISSILE_L;
+                         end;
+                    return;
+               end;
+          if ^(data.distress.notified) then do;
+                    do x = 1 to 10;
+                         do y = 1 to 10;
+                              if (data.sector (data.distress.SX, data.distress.SY).point (x, y) = MISSILE_L) & (attacker = "") then attacker = "Missile launcher";
+                              else if (data.sector (data.distress.SX, data.distress.SY).point (x, y) = HEAVY_BEAM) then attacker = "Heavy weapon beam";
+                         end;
+                    end;
+                    call ioa_ ("^/Distress signal from Supply ship at Sector ^d - ^d:^/^3x""Under attack by a ^a!""", data.distress.SX, data.distress.SY, attacker);
+                    data.distress.notified = "1"b;
+                    return;
+               end;
+          if (data.SX = data.distress.SX) & (data.SY = data.distress.SY) then return;
+          if ((mod (clock (), 20) + 1) = 1) then do;
+                    call ioa_ ("^/Supply ship at Sector ^d - ^d has been destroyed.", data.distress.SX, data.distress.SY);
+                    data.supply (data.distress.which_supply).uses_left = 0;
+                    data.sector (data.distress.SX, data.distress.SY).supply = "0";
+                    data.sector (data.distress.SX, data.distress.SY).point (data.supply (data.distress.which_supply).PX, data.supply (data.distress.which_supply).PY) = ".";
+                    data.distress.SX = 0;
+                    data.distress.SY = 0;
+                    data.distress.notified = "0"b;
+                    data.distress.which_supply = 0;
+               end;
+
+     end attack_supply_ships;
+
+damage_the_trooper: procedure (BLAST, nptr);
+
+          dcl     BLAST                  fixed bin parm;
+          dcl     nptr                   ptr parm;
+          dcl     critical_hit           bit (1) init ("0"b);
+          dcl     (suit_damage, body_damage) fixed bin init (0);
+          dcl     z                      fixed bin init (0);
+          dcl     device                 char (20) init ("");
+
+          z = mod (clock (), 25) + 1;
+          if (z = 1) then critical_hit = "1"b;
+check_again:
+          if critical_hit then do;
+                    z = mod (clock (), 3) + 1;
+                    if (z = 1) then do;
+                              call damage_a_device (device, BLAST, nptr);
+                              if (device = "none") then goto check_again;
+                              call ioa_ ("^/^3t***CRITICAL HIT: ^a damaged", device);
+                         end;
+                    else do;
+                              BLAST = BLAST * 2;
+                              suit_damage = min (node.suit_pts, BLAST);
+                              BLAST = BLAST - suit_damage;
+                              body_damage = min (node.body_pts, BLAST);
+                              node.suit_pts = node.suit_pts - suit_damage;
+                              node.body_pts = node.body_pts - body_damage;
+                              if (node.body_pts < 1) then do;
+                                        call ioa_ ("DEATH BLOW");
+                                        node.score.death_penalty = -1000;
+                                        call you_lose ("death");
+                                   end;
+                              if (suit_damage > 0) then call ioa_ ("^/^5t***CRITICAL HIT:^33t^d pts. to SUIT", suit_damage);
+                              if (suit_damage > 0) & (body_damage > 0) then call ioa_ ("^5t***SUIT DAMAGED:^33t^d pts. to BODY", body_damage);
+                              else if (body_damage > 0) then call ioa_ ("^/^5t***CRITICAL HIT:^33t^d pts. to BODY", body_damage);
+                         end;
+               end;
+          else do;
+                    suit_damage = min (node.suit_pts, BLAST);
+                    BLAST = BLAST - suit_damage;
+                    body_damage = min (node.body_pts, BLAST);
+                    node.suit_pts = node.suit_pts - suit_damage;
+                    node.body_pts = node.body_pts - body_damage;
+                    if (node.body_pts < 1) then do;
+                              call ioa_ ("DEATH BLOW");
+                              node.score.death_penalty = -1000;
+                              call you_lose ("death");
+                         end;
+                   if (suit_damage > 0) then call ioa_ ("^d pts. to SUIT", suit_damage);
+                   if (suit_damage > 0) & (body_damage > 0) then call ioa_ ("^5t***SUIT DAMAGED:^33t^d pts. to BODY", body_damage);
+                   else if (body_damage > 0) then call ioa_ ("^d pts. to BODY", body_damage);
+              end;
+
+    end damage_the_trooper;
+
+damage_a_device: procedure (device, damage, nptr);
+
+          dcl     device                 char (*) parm;
+          dcl     damage                 fixed bin parm;
+          dcl     nptr                   ptr parm;
+          dcl     device_index           fixed bin init (0);
+          dcl     devices                (7) char (20) init ((7) (""));
+          dcl     x                      fixed bin init (0);
+
+          device = "none";
+          if node.equipment.snooper.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "Snooper";
+               end;
+          if node.equipment.scanner.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "Scanner";
+               end;
+          if node.equipment.jet_boosters.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "Jet Boosters";
+               end;
+          if node.equipment.flamer.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "Flamer rifle";
+               end;
+          if node.equipment.HE_launcher.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "HE launcher";
+               end;
+          if node.equipment.nuke_launcher.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "Nuke launcher";
+               end;
+          if node.equipment.listening_dev.working then do;
+                    device_index = device_index + 1;
+                    devices (device_index) = "Listening device";
+               end;
+          if (device_index = 0) then return;
+          x = mod (clock (), device_index) + 1;
+          device = devices (x);
+          if (device = "Snooper") then do;
+                    node.equipment.snooper.working = "0"b;
+                    node.equipment.snooper.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+          else if (device = "Scanner") then do;
+                    node.equipment.scanner.working = "0"b;
+                    node.equipment.scanner.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+          else if (device = "Jet Boosters") then do;
+                    node.equipment.jet_boosters.working = "0"b;
+                    node.equipment.jet_boosters.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+          else if (device = "Flamer rifle") then do;
+                    node.equipment.flamer.working = "0"b;
+                    node.equipment.flamer.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+          else if (device = "HE launcher") then do;
+                    node.equipment.HE_launcher.working = "0"b;
+                    node.equipment.HE_launcher.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+          else if (device = "Nuke launcher") then do;
+                    node.equipment.nuke_launcher.working = "0"b;
+                    node.equipment.nuke_launcher.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+          else if (device = "Listening device") then do;
+                    node.equipment.listening_dev.working = "0"b;
+                    node.equipment.listening_dev.repair_time = max (1, (damage / 2) + (mod (clock (), 10) / 10));
+               end;
+
+     end damage_a_device;
+
+repair_device: procedure (device, nptr);
+
+          dcl     device                 char (*) parm;
+          dcl     nptr                   ptr parm;
+          dcl     encamped_bonus         fixed bin init (0);
+
+          if node.encamped then encamped_bonus = 1;
+          if (device = "scanner") then do;
+                    if node.equipment.scanner.working then do;
+                              call ioa_ ("^/Scanner is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.scanner.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.scanner.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.scanner.repair_time + encamped_bonus;
+                    call ioa_ ("^/Scanner repaired: ^.1f hrs. used.", node.equipment.scanner.repair_time - encamped_bonus);
+                    node.equipment.scanner.repair_time = 0;
+                    node.equipment.scanner.working = "1"b;
+               end;
+          else if (device = "snooper") then do;
+                    if node.equipment.snooper.working then do;
+                              call ioa_ ("^/Snooper is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.snooper.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.snooper.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.snooper.repair_time + encamped_bonus;
+                    call ioa_ ("^/Snooper repaired: ^.1f hrs. used.", node.equipment.snooper.repair_time - encamped_bonus);
+                    node.equipment.snooper.repair_time = 0;
+                    node.equipment.snooper.working = "1"b;
+               end;
+          else if (device = "flamer_rifle") then do;
+                    if node.equipment.flamer.working then do;
+                              call ioa_ ("^/Flamer rifle is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.flamer.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.flamer.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.flamer.repair_time + encamped_bonus;
+                    call ioa_ ("^/Flamer rifle repaired: ^.1f hrs. used.", node.equipment.flamer.repair_time - encamped_bonus);
+                    node.equipment.flamer.repair_time = 0;
+                    node.equipment.flamer.working = "1"b;
+               end;
+          else if (device = "he_launcher") then do;
+                    if node.equipment.HE_launcher.working then do;
+                              call ioa_ ("^/HE launcher is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.HE_launcher.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.HE_launcher.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.HE_launcher.repair_time + encamped_bonus;
+                    call ioa_ ("^/HE launcher repaired: ^.1f hrs. used.", node.equipment.HE_launcher.repair_time - encamped_bonus);
+                    node.equipment.HE_launcher.repair_time = 0;
+                    node.equipment.HE_launcher.working = "1"b;
+               end;
+          else if (device = "nuke_launcher") then do;
+                    if node.equipment.nuke_launcher.working then do;
+                              call ioa_ ("^/Nuke launcher is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.nuke_launcher.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.nuke_launcher.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.nuke_launcher.repair_time + encamped_bonus;
+                    call ioa_ ("^/Nuke launcher repaired: ^.1f hrs. used.", node.equipment.nuke_launcher.repair_time - encamped_bonus);
+                    node.equipment.nuke_launcher.repair_time = 0;
+                    node.equipment.nuke_launcher.working = "1"b;
+               end;
+          else if (device = "listening_device") then do;
+                    if node.equipment.listening_dev.working then do;
+                              call ioa_ ("^/Listening device is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.listening_dev.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.listening_dev.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.listening_dev.repair_time + encamped_bonus;
+                    call ioa_ ("^/Listening device repaired: ^.1f hrs. used.", node.equipment.listening_dev.repair_time - encamped_bonus);
+                    node.equipment.listening_dev.repair_time = 0;
+                    node.equipment.listening_dev.working = "1"b;
+               end;
+          else if (device = "jet_boosters") then do;
+                    if node.equipment.jet_boosters.working then do;
+                              call ioa_ ("^/Jet boosters is not damaged.");
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    if (node.equipment.jet_boosters.repair_time - encamped_bonus >= node.time_left) then do;
+                              call ioa_ ("^/Time left: ^.1f hrs., Repair time: ^.1f hrs.", node.time_left, node.equipment.jet_boosters.repair_time - encamped_bonus);
+                              call ssu_$abort_line (scip, (0));
+                         end;
+                    node.time_left = node.time_left - node.equipment.jet_boosters.repair_time + encamped_bonus;
+                    call ioa_ ("^/Jet boosters repaired: ^.1f hrs. used.", node.equipment.jet_boosters.repair_time - encamped_bonus);
+                    node.equipment.jet_boosters.repair_time = 0;
+                    node.equipment.jet_boosters.working = "1"b;
+               end;
+
+     end repair_device;
+
+update_chart: procedure (datap);
+
+          dcl     datap                  ptr parm;
+          dcl     1 data                 aligned based (datap) like NODE;
+
+          do x = 1 to 5;
+               do y = 1 to 5;
+                    if (data.chart (x, y).arachnidN ^= ".") then do;
+                              data.chart (x, y).arachnidN = ltrim (char (data.sector (x, y).arachnidT));
+                              data.chart (x, y).skinnyN = ltrim (char (data.sector (x, y).skinnyT));
+                              data.chart (x, y).radiation = data.sector (x, y).radiation;
+                              data.chart (x, y).supply = data.sector (x, y).supply;
+                         end;
+               end;
+          end;
+
+     end update_chart;
+
+calc_score: procedure (datap, type) returns (fixed bin);
+
+          dcl     datap                  ptr parm;
+          dcl     1 data                 aligned based (datap) like NODE;
+          dcl     type                   char (*) parm;
+
+          if (type = "arachnids") then return (data.score.arachnids_Xed * ARACHNID_SCORE_FACTOR);
+          else if (type = "skinnies") then return (data.score.skinnies_Xed * SKINNY_SCORE_FACTOR);
+          else if (type = "heavy_beams") then return (data.score.heavy_beams_Xed * HEAVY_BEAM_SCORE_FACTOR);
+          else if (type = "missile_ls") then return (data.score.missile_ls_Xed * MISSILE_L_SCORE_FACTOR);
+          else if (type = "mountains") then return (data.score.mountains_Xed * MOUNTAIN_SCORE_FACTOR);
+          else if (type = "supplies") then return (data.score.supplies_Xed * SUPPLY_SCORE_FACTOR);
+          else if (type = "prisoners") then return (data.score.prisoners_rescued * PRISONER_SCORE_FACTOR);
+          else return (0);
+
+     end calc_score;
+
+you_lose: procedure (reason);
+
+          dcl     reason                 char (*) parm;
+
+          call ioa_ ("^3/*************************");
+          if (reason = "death") then do;
+                    call ioa_ ("^/You have been killed.  Secundis gloria mundi...");
+                    call ssu_$execute_string (scip, "score -all", code);
+               end;
+          else if (reason = "no_time") then do;
+                    call ioa_ ("^/The Retrieval Boat has abandoned you.  You are an Arachnid prisoner.^/Pray that the next Trooper rescues you before you die...");
+                    call ssu_$execute_string (scip, "score -all", code);
+               end;
+          call ioa_ ("^/*************************");
+          call ssu_$abort_subsystem (scip, (0));
+
+     end you_lose;
+
+convert_to_real: procedure (ascii_value) returns (fixed dec (5, 2));
+
+          dcl     ascii_value            char (*) parm;
+          dcl     real_value             fixed dec (5, 2) init (0);
+          dcl     integer                char (3) init ("");
+          dcl     fraction               char (3) init ("");
+
+          integer = before (arg, ".");
+          fraction = after (arg, ".");
+          real_value = decimal (integer) * (decimal (fraction) / 10 ** (length (rtrim (fraction))));
+          return (real_value);
+
+     end convert_to_real;
+
+H_or_M_present: procedure (sx, sy, datap) returns (bit (1));
+
+          dcl     (sx, sy)               fixed bin parm;
+          dcl     datap                  ptr parm;
+          dcl     1 data                 aligned based (datap) like NODE;
+          dcl     (x, y, z)              fixed bin init (0);
+
+          do x = 1 to data.heavy_beamT;
+               if (data.Heavy_beam (x).SX = sx) & (data.Heavy_beam (x).SY = sy) then return ("1"b);
+          end;
+          do x = 1 to data.missile_lT;
+               if (data.Missile_l (x).SX = sx) & (data.Missile_l (x).SY = sy) then return ("1"b);
+          end;
+          return ("0"b);
+
+     end H_or_M_present;
+
+%include sst_node;
+%include sst_macros;
+%include sst_constants;
+
+     end sst_;
+

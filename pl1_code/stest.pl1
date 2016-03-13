@@ -1,0 +1,47 @@
+stest: procedure options (main);
+
+	dcl     ioa_		 entry options (variable);
+
+	dcl     name		 char (256) varying based;
+	dcl     (stack, node, p)	 pointer;
+
+	stack = stack_$create ();
+
+	allocate name set (p);
+	p -> name = "Foo";
+	node = stack_$push (stack, p);
+
+	allocate name set (p);
+	p -> name = "Bar";
+	node = stack_$push (stack, p);
+
+	allocate name set (p);
+	p -> name = "Baz";
+	node = stack_$push (stack, p);
+
+	call dump_stack (stack);
+
+	node = stack_$pop (stack);
+	call dump_stack (stack);
+
+	node = stack_$pop (stack);
+	call dump_stack (stack);
+
+	call stack_$destroy (stack);
+
+dump_stack: procedure (stack);
+	dcl     stack		 pointer;
+	dcl     (node, p)		 pointer;
+	call ioa_ ("Stack size: ^d items", linked_list_$count (stack));
+	node = linked_list_$first (stack);
+	do while (node ^= null ());
+	     p = linked_list_$data (node);
+	     call ioa_ ("Name = ^a", p -> name);
+	     node = linked_list_$next (node);
+	end;
+     end dump_stack;
+
+%include stack;
+%include linked_list;
+
+     end stest;

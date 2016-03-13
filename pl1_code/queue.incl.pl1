@@ -1,0 +1,10 @@
+     declare
+
+	   queue_$create	      entry returns (pointer),
+	   queue_$destroy	      entry (pointer),
+	   queue_$count	      entry (pointer) returns (fixed bin (36)),
+	   queue_$enqueue	      entry (pointer, pointer) returns (pointer),
+	   queue_$dequeue	      entry (pointer) returns (pointer),
+	   queue_$front	      entry (pointer) returns (pointer),
+	   queue_$back	      entry (pointer) returns (pointer);
+

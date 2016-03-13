@@ -1,0 +1,62 @@
+test2: procedure options (main);
+
+	dcl     s 		 char (1024) varying init ("");
+	dcl     prefix_list 	 (2) char (10) varying init ("foo", "bar");
+	dcl     suffix_list 	 (3) char (5) varying init (".pl1", ".xml", ".yml");
+
+	dcl     ioa_		 entry options (variable);
+
+	s = "foobar.xml";
+	call ioa_ ("startswith (""^a"", ""foo"") = ^d", s, startswith (s, "foo"));
+	call ioa_ ("startswith (""^a"", ""bar"") = ^d", s, startswith (s, "bar"));
+	call ioa_ ("startswithi (""^a"", (""foo"", ""bar"")) = ^d", s, startswithi (s, prefix_list));
+	call ioa_ ("endswith (""^a"", "".xml"") = ^d", s, endswith (s, ".xml"));
+	call ioa_ ("endswith (""^a"", "".cpp"") = ^d", s, endswith (s, ".cpp"));
+	call ioa_ ("endswithi (""^a"", ("".pl1"", "".xml"", "".yml"")) = ^d", s, endswithi (s, suffix_list));
+
+startswith: procedure (a_string, look_for) returns (bit);
+	dcl     a_string		 char (*) varying;
+	dcl     look_for		 (*) char (*) varying;
+	dcl     i 		 fixed bin;
+	do i = lbound (look_for, 1) to hbound (look_for, 1);
+	     if length (a_string) >= length (look_for (i)) then
+		if substr (a_string, 1, length (look_for (i))) = look_for (i) then return ("1"b);
+	end;
+	return ("0"b);
+     end startswith;
+
+startswithi: procedure (a_string, look_for) returns (fixed bin);
+	dcl     a_string		 char (*) varying;
+	dcl     look_for		 (*) char (*) varying;
+	dcl     i 		 fixed bin;
+	do i = lbound (look_for, 1) to hbound (look_for, 1);
+	     if length (a_string) >= length (look_for (i)) then
+		if substr (a_string, 1, length (look_for (i))) = look_for (i) then return (i);
+	end;
+	return (0);
+     end startswithi;
+
+endswith: procedure (a_string, look_for) returns (bit);
+	dcl     a_string		 char (*) varying;
+	dcl     look_for		 (*) char (*) varying;
+	dcl     i 		 fixed bin;
+	do i = lbound (look_for, 1) to hbound (look_for, 1);
+	     if length (a_string) >= length (look_for (i)) then
+		if substr (a_string, length (a_string) - length (look_for (i)) + 1) = look_for (i) then return ("1"b);
+	end;
+	return ("0"b);
+     end endswith;
+
+endswithi: procedure (a_string, look_for) returns (fixed bin);
+	dcl     a_string		 char (*) varying;
+	dcl     look_for		 (*) char (*) varying;
+	dcl     i 		 fixed bin;
+	do i = lbound (look_for, 1) to hbound (look_for, 1);
+	     if length (a_string) >= length (look_for (i)) then
+		if substr (a_string, length (a_string) - length (look_for (i)) + 1) = look_for (i) then return (i);
+	end;
+	return (0);
+     end endswithi;
+
+     end test2;
+

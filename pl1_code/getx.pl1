@@ -1,0 +1,27 @@
+getx: procedure options (main);
+
+	dcl     buff		 char (1) init ("");
+	dcl     all_chars		 char (256) varying init ("");
+	dcl     n_read		 fixed bin (21);
+	dcl     code		 fixed bin (35);
+
+	dcl     ioa_		 entry options (variable);
+	dcl     com_err_		 entry options (variable);
+
+	dcl     old_modes		 char (512);
+	call iox_$modes (iox_$user_input, "breakall,rawi,ctl_char", old_modes, code);
+	call ioa_ ("Enter characters ending with a .");
+	do while (buff ^= ".");
+	     call iox_$get_chars (iox_$user_input, addr (buff), 1, n_read, code);
+	     if buff = "\000" then call ioa_ ("NUL");
+	     if code = 0 then all_chars = all_chars || buff;
+	     else call com_err_ (code, "getx");
+	end;
+	call iox_$modes (iox_$user_input, old_modes, "", code);
+
+	call ioa_ ("^/Characters entered:");
+	call ioa_ (all_chars);
+
+%include iox_dcls;
+
+     end getx;

@@ -1,0 +1,17 @@
+testfile: procedure options (main);
+
+	dcl     lines		 (3) char (128) varying init (
+				 "This is a test.",
+				 "Of the emergency broadcast system.",
+				 "The broadcasters in your area"
+				 );
+	dcl     outfile		 file;
+	dcl     i 		 fixed bin;
+
+	open file (outfile) title ("vfile_ outfile.text") stream output;
+	do i = 1 to 3;
+	     write file (outfile) from (lines (i));
+	end;
+	close file (outfile);
+
+     end testfile;

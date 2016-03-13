@@ -1,0 +1,45 @@
+qtest: procedure options (main);
+
+	dcl     ioa_		 entry options (variable);
+
+	dcl     name		 (3) char (256) varying init ("Foo", "Bar", "Baz");
+	dcl     (queue, node, p)	 pointer;
+
+	queue = queue_$create ();
+
+	p = addr (name (1));
+	node = queue_$enqueue (queue, p);
+
+	p = addr (name (2));
+	node = queue_$enqueue (queue, p);
+
+	p = addr (name (3));
+	node = queue_$enqueue (queue, p);
+
+	call dump_queue (queue);
+
+	node = queue_$dequeue (queue);
+	call dump_queue (queue);
+
+	node = queue_$dequeue (queue);
+	call dump_queue (queue);
+
+	call queue_$destroy (queue);
+
+dump_queue: procedure (queue);
+	dcl     queue		 pointer;
+	dcl     (node, p)		 pointer;
+	dcl     name		 char (256) varying based;
+	call ioa_ ("Queue size: ^d items", linked_list_$count (queue));
+	node = linked_list_$first (queue);
+	do while (node ^= null ());
+	     p = linked_list_$data (node);
+	     call ioa_ ("Name = ^a", p -> name);
+	     node = linked_list_$next (node);
+	end;
+     end dump_queue;
+
+%include queue;
+%include linked_list;
+
+     end qtest;

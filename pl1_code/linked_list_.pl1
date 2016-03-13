@@ -1,0 +1,202 @@
+linked_list_: procedure options (main);
+
+          dcl     SIGNATURE              bit (36) init ("4C495354"b4); /* 'LIST' ascii bytes in hex */
+
+          dcl     1 list_head            based,
+                    2 sign               bit (36) init (SIGNATURE),
+                    2 count              fixed bin (36),
+                    2 first              pointer,
+                    2 last               pointer;
+
+          dcl     1 list_node            based,
+                    2 sign               bit (36) init (SIGNATURE),
+                    2 prev               pointer,
+                    2 next               pointer,
+                    2 data               pointer;
+
+          dcl     list_head_ptr          pointer;
+          dcl     list_node_ptr          pointer;
+          dcl     node_ptr               pointer;
+          dcl     data_ptr               pointer;
+          dcl     code                   fixed bin (35);
+
+          dcl     ioa_                   entry options (variable);
+          dcl     error_table_$not_done  fixed bin (35) external static;
+
+create_node_: procedure (data_ptr) returns (pointer);
+          dcl     data_ptr               pointer;
+          dcl     new_node_ptr           pointer;
+          allocate list_node set (new_node_ptr);
+          new_node_ptr -> list_node.prev = null ();
+          new_node_ptr -> list_node.next = null ();
+          new_node_ptr -> list_node.data = data_ptr;
+          return (new_node_ptr);
+     end create_node_;
+
+create: entry returns (pointer);
+          begin;
+               dcl     new_head_ptr           pointer;
+               allocate list_head set (new_head_ptr);
+               new_head_ptr -> list_head.count = 0;
+               new_head_ptr -> list_head.first = null ();
+               new_head_ptr -> list_head.last = null ();
+               return (new_head_ptr);
+          end;
+
+first: entry (list_head_ptr) returns (pointer);
+          return (list_head_ptr -> list_head.first);
+
+last: entry (list_head_ptr) returns (pointer);
+          return (list_head_ptr -> list_head.last);
+
+count: entry (list_head_ptr) returns (fixed bin (36));
+          return (list_head_ptr -> list_head.count);
+
+append: entry (list_head_ptr, data_ptr) returns (pointer);
+          begin;
+               dcl     new_node_ptr           pointer;
+               new_node_ptr = create_node_ (data_ptr);
+
+               if list_head_ptr -> list_head.first = null () then do;
+                         list_head_ptr -> list_head.first = new_node_ptr;
+                         list_head_ptr -> list_head.last = new_node_ptr;
+                    end;
+               else do;
+                         new_node_ptr -> list_node.prev = list_head_ptr -> list_head.last;
+                         list_head_ptr -> list_head.last -> list_node.next = new_node_ptr;
+                         list_head_ptr -> list_head.last = new_node_ptr;
+                    end;
+
+               list_head_ptr -> list_head.count = list_head_ptr -> list_head.count + 1;
+               return (new_node_ptr);
+          end;
+
+prepend: entry (list_head_ptr, data_ptr) returns (pointer);
+          begin;
+               dcl     new_node_ptr           pointer;
+               new_node_ptr = create_node_ (data_ptr);
+
+               if list_head_ptr -> list_head.first = null () then do;
+                         list_head_ptr -> list_head.first = new_node_ptr;
+                         list_head_ptr -> list_head.last = new_node_ptr;
+                    end;
+               else do;
+                         new_node_ptr -> list_node.next = list_head_ptr -> list_head.first;
+                         list_head_ptr -> list_head.first -> list_node.prev = new_node_ptr;
+                         list_head_ptr -> list_head.first = new_node_ptr;
+                    end;
+
+               list_head_ptr -> list_head.count = list_head_ptr -> list_head.count + 1;
+               return (new_node_ptr);
+          end;
+
+insert_before: entry (list_head_ptr, list_node_ptr, data_ptr) returns (pointer);
+          begin;
+               dcl     new_node_ptr           pointer;
+               new_node_ptr = create_node_ (data_ptr);
+               if list_node_ptr -> list_node.sign ^= SIGNATURE then do;
+                         list_node_ptr = find (list_head_ptr, list_node_ptr);
+                         if list_node_ptr = null () then return (null ());
+                    end;
+               if list_head_ptr -> list_head.first = list_node_ptr then
+                    list_head_ptr -> list_head.first = new_node_ptr;
+               if list_node_ptr -> list_node.prev ^= null () then
+                    list_node_ptr -> list_node.prev -> list_node.next = new_node_ptr;
+               new_node_ptr -> list_node.next = list_node_ptr;
+               new_node_ptr -> list_node.prev = list_node_ptr -> list_node.prev;
+               list_node_ptr -> list_node.prev = new_node_ptr;
+               list_head_ptr -> list_head.count = list_head_ptr -> list_head.count + 1;
+               return (new_node_ptr);
+          end;
+
+insert_after: entry (list_head_ptr, list_node_ptr, data_ptr) returns (pointer);
+          begin;
+               dcl     new_node_ptr           pointer;
+               new_node_ptr = create_node_ (data_ptr);
+               if list_node_ptr -> list_node.sign ^= SIGNATURE then do;
+                         list_node_ptr = find (list_head_ptr, list_node_ptr);
+                         if list_node_ptr = null () then return (null ());
+                    end;
+               if list_head_ptr -> list_head.last = list_node_ptr then
+                    list_head_ptr -> list_head.last = new_node_ptr;
+               if list_node_ptr -> list_node.next ^= null () then
+                    list_node_ptr -> list_node.next -> list_node.prev = new_node_ptr;
+               new_node_ptr -> list_node.prev = list_node_ptr;
+               new_node_ptr -> list_node.next = list_node_ptr -> list_node.next;
+               list_node_ptr -> list_node.next = new_node_ptr;
+               list_head_ptr -> list_head.count = list_head_ptr -> list_head.count + 1;
+               return (new_node_ptr);
+          end;
+
+remove: entry (list_head_ptr, data_ptr, code);
+          begin;
+               dcl     node_remove_ptr        pointer;
+               node_remove_ptr = list_head_ptr -> list_head.first;
+               do while (node_remove_ptr ^= null ());
+                    if node_remove_ptr -> list_node.data = data_ptr then do;
+                              call delete (list_head_ptr, node_remove_ptr);
+                              code = 0;
+                              return;
+                         end;
+                    node_remove_ptr = node_remove_ptr -> list_node.next;
+               end;
+               code = error_table_$not_done;
+               return;
+          end;
+
+delete: entry (list_head_ptr, node_ptr);
+          begin;
+               dcl     node_remove_ptr        pointer;
+               node_remove_ptr = node_ptr;
+               if list_head_ptr -> list_head.first = node_remove_ptr then
+                    list_head_ptr -> list_head.first = node_remove_ptr -> list_node.next;
+               if list_head_ptr -> list_head.last = node_remove_ptr then
+                    list_head_ptr -> list_head.last = node_remove_ptr -> list_node.prev;
+               if node_remove_ptr -> list_node.prev ^= null () then
+                    node_remove_ptr -> list_node.prev -> list_node.next = node_remove_ptr -> list_node.next;
+               if node_remove_ptr -> list_node.next ^= null () then
+                    node_remove_ptr -> list_node.next -> list_node.prev = node_remove_ptr -> list_node.prev;
+               free node_remove_ptr -> list_node;
+               list_head_ptr -> list_head.count = list_head_ptr -> list_head.count - 1;
+               return;
+          end;
+
+find: entry (list_head_ptr, data_ptr) returns (pointer);
+          begin;
+               dcl     node_find_ptr          pointer;
+               node_find_ptr = list_head_ptr -> list_head.first;
+               do while (node_find_ptr ^= null ());
+                    if node_find_ptr -> list_node.data = data_ptr then
+                         return (node_find_ptr);
+                    node_find_ptr = node_find_ptr -> list_node.next;
+               end;
+               return (null ());
+          end;
+
+destroy: entry (list_head_ptr);
+          begin;
+               dcl     list_destroy_ptr       pointer;
+               dcl     next_node_ptr          pointer;
+               list_destroy_ptr = list_head_ptr;
+
+               list_node_ptr = list_head_ptr -> list_head.first;
+               do while (list_node_ptr ^= null ());
+                    next_node_ptr = list_node_ptr -> list_node.next;
+                    free list_node_ptr -> list_node;
+                    list_node_ptr = next_node_ptr;
+               end;
+
+               free list_destroy_ptr -> list_head;
+               return;
+          end;
+
+next: entry (list_node_ptr) returns (pointer);
+          return (list_node_ptr -> list_node.next);
+
+prev: entry (list_node_ptr) returns (pointer);
+          return (list_node_ptr -> list_node.prev);
+
+data: entry (list_node_ptr) returns (pointer);
+          return (list_node_ptr -> list_node.data);
+
+     end linked_list_;

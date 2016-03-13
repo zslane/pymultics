@@ -1,0 +1,16 @@
+     declare
+             linked_list_$create    entry returns (pointer),
+             linked_list_$first     entry (pointer) returns (pointer),
+             linked_list_$last      entry (pointer) returns (pointer),
+             linked_list_$next      entry (pointer) returns (pointer),
+             linked_list_$prev      entry (pointer) returns (pointer),
+             linked_list_$data      entry (pointer) returns (pointer),
+             linked_list_$append    entry (pointer, pointer) returns (pointer),
+             linked_list_$prepend   entry (pointer, pointer) returns (pointer),
+             linked_list_$insert_before entry (pointer, pointer, pointer) returns (pointer),
+             linked_list_$insert_after entry (pointer, pointer, pointer) returns (pointer),
+             linked_list_$remove    entry (pointer, pointer, fixed bin (35)),
+             linked_list_$delete    entry (pointer, pointer),
+             linked_list_$find      entry (pointer, pointer) returns (pointer),
+             linked_list_$count     entry (pointer) returns (fixed bin (36)),
+             linked_list_$destroy   entry (pointer);

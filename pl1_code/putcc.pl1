@@ -1,0 +1,13 @@
+putcc: procedure options (main);
+
+	dcl     buffer		 char (4) init ("\033[2J");
+	dcl     n_written		 fixed bin (21);
+	dcl     code		 fixed bin (35);
+
+	call iox_$modes (iox_$user_output, "rawo", "", code);
+	call iox_$put_chars (iox_$user_output, addr (buffer), 4, code);
+	call iox_$modes (iox_$user_output, "^rawo", "", code);
+
+%include iox_dcls;
+
+     end putcc;

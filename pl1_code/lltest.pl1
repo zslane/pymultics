@@ -1,0 +1,55 @@
+lltest: procedure options (main);
+
+	dcl     ioa_		 entry options (variable);
+	dcl     com_err_		 entry options (variable);
+	dcl     name		 char (256) varying based;
+	dcl     (list, node, p, q)	 pointer;
+	dcl     code		 fixed bin (35);
+
+	list = linked_list_$create ();
+
+	allocate name set (p);
+	p -> name = "Foo";
+	node = linked_list_$append (list, p);
+
+	allocate name set (q);
+	q -> name = "Bar";
+	node = linked_list_$append (list, q);
+
+	allocate name set (p);
+	p -> name = "Baz";
+	node = linked_list_$prepend (list, p);
+
+	call dump_list (list);
+
+	call linked_list_$remove (list, p, code);
+	if code ^= 0 then call com_err_ (code, "lltest", "Could not remove data element from linked list.");
+	call dump_list (list);
+
+	node = linked_list_$find (list, q);
+	if node = null () then call ioa_ ("Could not find ^a in list.", q -> name);
+
+	allocate name set (p);
+	p -> name = "Gruz";
+	q = linked_list_$insert_before (list, q, p);
+	if node = null () then call com_err_ (code, "lltest", "Could not insert data element into linked list.");
+	call ioa_ ("^a found at ^p of list", p -> name, linked_list_$find (list, p));
+	call dump_list (list);
+
+	call linked_list_$destroy (list);
+
+dump_list: procedure (list);
+	dcl     list		 pointer;
+	dcl     (node, p)		 pointer;
+	call ioa_ ("List size: ^d items", linked_list_$count (list));
+	node = linked_list_$first (list);
+	do while (node ^= null ());
+	     p = linked_list_$data (node);
+	     call ioa_ ("Name = ^a", p -> name);
+	     node = linked_list_$next (node);
+	end;
+     end dump_list;
+
+%include linked_list;
+
+     end lltest;

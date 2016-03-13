@@ -1,0 +1,26 @@
+teststruct: procedure options (main);
+
+	dcl     ioa_		 entry options (variable);
+
+	dcl     1 my_structure	 aligned,
+
+		2 home,
+		  3 street	 char (32) varying init (""),
+		  3 city		 char (21) varying init (""),
+		  3 zipcode	 char (10) varying init (""),
+		  3 value 	 fixed dec (10, 2) init (300000.00),
+		  3 owner 	 bit (1) init ("1"b),
+
+		2 work,
+		  3 street	 char (32) varying init (""),
+		  3 city		 char (21) varying init (""),
+		  3 zipcode	 char (10) varying init (""),
+		  3 parking	 bit (1) init ("1"b),
+
+		2 lock		 bit (36);
+
+	call ioa_ ("Home value: ^f, Owner: ^d, Work parking: ^d",
+	     my_structure.home.value, my_structure.home.owner, my_structure.work.parking);
+
+     end teststruct;
+

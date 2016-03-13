@@ -1,0 +1,44 @@
+priority_queue_: procedure options (main);
+
+	dcl     queue_ptr		 pointer;
+	dcl     data_ptr		 pointer;
+	dcl     cmp_func		 entry (pointer, pointer) returns (bit);
+
+create: entry returns (pointer);
+	return (queue_$create ());
+
+destroy: entry (queue_ptr);
+	call queue_$destroy (queue_ptr);
+	return;
+
+count: entry (queue_ptr) returns (fixed bin (36));
+	return (queue_$count (queue_ptr));
+
+enqueue: entry (queue_ptr, data_ptr, cmp_func) returns (pointer);
+	begin;
+	     dcl	   list_head_ptr	      pointer init (queue_ptr);
+	     dcl	   node_ptr	      pointer;
+	     dcl	   node_data_ptr	      pointer;
+	     node_ptr = linked_list_$first (list_head_ptr);
+	     do while (node_ptr ^= null ());
+		node_data_ptr = linked_list_$data (node_ptr);
+		if cmp_func (data_ptr, node_data_ptr) then
+		     return (linked_list_$insert_before (list_head_ptr, node_data_ptr, data_ptr));
+		node_ptr = linked_list_$next (node_ptr);
+	     end;
+	     return (linked_list_$append (list_head_ptr, data_ptr));
+	end;
+
+dequeue: entry (queue_ptr) returns (pointer);
+	return (queue_$dequeue (queue_ptr));
+
+front: entry (queue_ptr) returns (pointer);
+	return (queue_$front (queue_ptr));
+
+back: entry (queue_ptr) returns (pointer);
+	return (queue_$back (queue_ptr));
+
+%include linked_list;
+%include queue;
+
+     end priority_queue_;

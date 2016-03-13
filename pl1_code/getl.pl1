@@ -1,0 +1,31 @@
+getl: procedure options (main);
+
+	dcl     buff		 char (1024) init ("");
+	dcl     all_lines		 (100) char (1024) varying init ((100) (""));
+	dcl     (n_lines, i)	 fixed bin init (0);
+	dcl     n_read		 fixed bin (21);
+	dcl     code		 fixed bin (35);
+
+	dcl     ioa_		 entry options (variable);
+	dcl     com_err_		 entry options (variable);
+
+	call iox_$modes (iox_$user_input, "^echoplex", "", code);
+	call ioa_ ("Enter lines of text. Finish by entering a . on a line by itself.");
+	do while (substr (buff, 1, 1) ^= ".");
+	     call iox_$get_line (iox_$user_input, addr (buff), 1024, n_read, code);
+	     if code = 0 then do;
+		     n_lines = n_lines + 1;
+		     all_lines (n_lines) = substr (buff, 1, n_read - 1);
+		end;
+	     else call com_err_ (code, "getx");
+	end;
+	call iox_$modes (iox_$user_input, "echoplex", "", code);
+
+	call ioa_ ("Characters entered:");
+	do i = 1 to n_lines;
+	     call ioa_ (all_lines (i));
+	end;
+
+%include iox_dcls;
+
+     end getl;

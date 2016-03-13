@@ -1,0 +1,50 @@
+stack_: procedure options (main);
+
+	dcl     stack_ptr		 pointer;
+	dcl     data_ptr		 pointer;
+
+create: entry returns (pointer);
+	return (linked_list_$create ());
+
+destroy: entry (stack_ptr);
+	begin;
+	     dcl	   list_head_ptr	      pointer init (stack_ptr);
+	     call linked_list_$destroy (list_head_ptr);
+	     return;
+	end;
+
+count: entry (stack_ptr) returns (fixed bin (36));
+	return (linked_list_$count (stack_ptr));
+
+push: entry (stack_ptr, data_ptr) returns (pointer);
+	begin;
+	     dcl	   list_head_ptr	      pointer init (stack_ptr);
+	     return (linked_list_$prepend (list_head_ptr, data_ptr));
+	end;
+
+pop: entry (stack_ptr) returns (pointer);
+	begin;
+	     dcl	   list_head_ptr	      pointer init (stack_ptr);
+	     dcl	   node_ptr	      pointer;
+	     dcl	   data_ptr	      pointer;
+	     node_ptr = linked_list_$first (list_head_ptr);
+	     if node_ptr ^= null () then do;
+		     data_ptr = linked_list_$data (node_ptr);
+		     call linked_list_$delete (list_head_ptr, node_ptr);
+		     return (data_ptr);
+		end;
+	     else return (null ());
+	end;
+
+top: entry (stack_ptr) returns (pointer);
+	begin;
+	     dcl	   list_head_ptr	      pointer init (stack_ptr);
+	     dcl	   node_ptr	      pointer;
+	     node_ptr = linked_list_$first (list_head_ptr);
+	     if node_ptr ^= null () then return (linked_list_$data (node_ptr));
+	     else return (null ());
+	end;
+
+%include linked_list;
+
+     end stack_;

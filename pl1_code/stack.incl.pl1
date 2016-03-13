@@ -1,0 +1,8 @@
+     declare
+
+	   stack_$create	      entry returns (pointer),
+	   stack_$destroy	      entry (pointer),
+	   stack_$count	      entry (pointer) returns (fixed bin (36)),
+	   stack_$push	      entry (pointer, pointer) returns (pointer),
+	   stack_$pop	      entry (pointer) returns (pointer),
+	   stack_$top	      entry (pointer) returns (pointer);
