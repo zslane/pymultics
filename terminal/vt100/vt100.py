@@ -1541,7 +1541,7 @@ class TerminalIO(QtGui.QWidget):
         byte_count    = 0
         frame         = ""
         
-        self.input.disable()
+        # self.input.disable()
         self.cancelled = False
         
         self._send_cmd("stty -modes ^echoplex")
@@ -1606,7 +1606,7 @@ class TerminalIO(QtGui.QWidget):
         lines.insert(0, str(self.num_lines))
         
         self.cancelled = False
-        self.input.disable()
+        # self.input.disable()
         self._send_cmd("rcvfile " + os.path.basename(path))
         
         self.xfer_machine = FileXferStateMachine(self, lines)
