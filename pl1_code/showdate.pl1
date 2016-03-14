@@ -1,0 +1,8 @@
+showdate: procedure options (main);
+
+          dcl     date                   builtin;
+          dcl     ioa_                   entry options (variable);
+
+          call ioa_ ("Date string: ^a", char (date));
+
+     end showdate;
