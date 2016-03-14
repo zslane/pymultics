@@ -825,19 +825,19 @@ class TerminalWindow(QtGui.QMainWindow):
     @QtCore.Slot(str)
     def set_normal_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x444444))
-        self.palette.setColor(QtGui.QPalette.WindowText, self.palette.text().color())
+        self.palette.setColor(QtGui.QPalette.WindowText, QtCore.Qt.black)
         self.set_status(txt)
         
     @QtCore.Slot(str)
     def set_connect_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x445e44))
-        self.palette.setColor(QtGui.QPalette.WindowText, self.palette.text().color())
+        self.palette.setColor(QtGui.QPalette.WindowText, QtCore.Qt.black)
         self.set_status(txt)
         
     @QtCore.Slot(str)
     def set_error_status(self, txt):
         self.palette.setColor(QtGui.QPalette.Background, QtGui.QColor(0x935353))
-        self.palette.setColor(QtGui.QPalette.WindowText, self.palette.text().color())
+        self.palette.setColor(QtGui.QPalette.WindowText, QtCore.Qt.black)
         self.set_status(txt)
     
     @QtCore.Slot(int, int)
