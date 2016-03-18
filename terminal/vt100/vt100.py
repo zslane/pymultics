@@ -322,7 +322,7 @@ class GlassTTY(QtGui.QWidget):
     def setCharSet(self, charset):
         self.charset = charset
         self.glyphs = self.font.colored_glyphs[self.phosphor_color]
-        self.update()
+        self.repaint_all()
         
     def setBrightness(self, value):
         self.opacity = value
@@ -811,12 +811,16 @@ class GlassTTY(QtGui.QWidget):
                 if n == 20:
                     self.newline_mode = True
                     return done()
+                elif n in [2, 4, 12]:
+                    return done() # ignore VT102 modes 2, 4, and 12
                 # end if
             elif c == 'l': # Reset a mode
                 n = int(self._cc_n1)
                 if n == 20:
                     self.newline_mode = False
                     return done()
+                elif n in [2, 4, 12]:
+                    return done() # ignore VT102 modes 2, 4, and 12
                 # end if
             elif c == 'm':
                 n = int(self._cc_n1)
