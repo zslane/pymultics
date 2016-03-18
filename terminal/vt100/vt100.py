@@ -289,6 +289,8 @@ class GlassTTY(QtGui.QWidget):
         self.cursor_visible = flag
         self.repaint_cursor()
         self.update(self.status_bar_rect)
+        if not self.connected:
+            self.eraseScreen()
         
     def setEchoMode(self, *args):
         try:
